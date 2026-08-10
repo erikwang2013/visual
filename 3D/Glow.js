@@ -130,6 +130,8 @@ const PAGE_THEMES = {
   RotateTranslate2D3D: 'cyan', Search3D: 'azure', SegmentTree3D: 'indigo', SimpleStack3D: 'magenta', SkewHeap3D: 'orange', SplayTree3D: 'orange',
   StackArray3D: 'cyan', StackLL3D: 'teal', TopoSortDFS3D: 'indigo', TopoSortIndegree3D: 'azure', Trie3D: 'purple',
   TST3D: 'teal',
+  FCFS3D: 'cyan', SJF3D: 'amber', RR3D: 'purple', MLFQ3D: 'teal', FIFO3D: 'indigo', LRU3D: 'emerald',
+  LFU3D: 'violet', Clock3D: 'rose', SSTF3D: 'orange', SCAN3D: 'pink', Banker3D: 'magenta',
 };
 
 export let CURRENT_THEME = null;

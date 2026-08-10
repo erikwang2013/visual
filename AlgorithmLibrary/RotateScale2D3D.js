@@ -8,6 +8,7 @@ import { ControlPanel } from '../3D/ControlPanel.js';
 import { Geometry3D } from '../3D/modes/Geometry3D.js';
 import { VText, easeInOut } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { ripple } from '../3D/effects/Fx.js';
 applyTheme('RotateScale2D3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
@@ -57,7 +58,9 @@ function applyTransform() {
   const fromRot = geo.shape.rotation.z, fromS = geo.shape.scale.x;
   const toRot = angle * Math.PI / 180;
   C(1, () => hint.setText('旋转 ' + angle + '°，缩放 ' + tScale + ' 倍'), () => {});
+  let fxDone = false;
   C(700, (p) => {
+    if (!fxDone) { fxDone = true; ripple(scene, 0, 0, 0, PALETTE.highlight, 90); }
     const t = easeInOut(p);
     geo.shape.rotation.z = fromRot + (toRot - fromRot) * t;
     geo.shape.scale.set(fromS + (tScale - fromS) * t, fromS + (tScale - fromS) * t, 1);

@@ -6,6 +6,7 @@ import { AnimationEngine } from '../3D/AnimationEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VNode, VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { pop, spark } from '../3D/effects/Fx.js';
 applyTheme('RecReverse3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
@@ -37,7 +38,8 @@ function reverse() {
     box.mesh.scale.setScalar(0.01);
     objects.push(box);
     chars.push(box);
-    C(250, (p) => box.mesh.scale.setScalar(0.01 + 0.99 * easeInOut(p)), () => {});
+    let fxBox = false;
+    C(250, (p) => { if (!fxBox) { fxBox = true; pop(scene, box.mesh); } box.mesh.scale.setScalar(0.01 + 0.99 * easeInOut(p)); }, () => {});
   }
   const frames = [];
   for (let i = 0; i < n; i++) {
@@ -45,13 +47,16 @@ function reverse() {
     node.mesh.scale.setScalar(0.01);
     objects.push(node);
     frames.push(node);
-    C(250, (p) => node.mesh.scale.setScalar(0.01 + 0.99 * easeInOut(p)), () => {});
+    let fxNode = false;
+    C(250, (p) => { if (!fxNode) { fxNode = true; pop(scene, node.mesh); } node.mesh.scale.setScalar(0.01 + 0.99 * easeInOut(p)); }, () => {});
   }
   for (let i = n - 1; i >= 0; i--) {
     const inX = startX + i * 70;
     const outX = startX + (n - 1 - i) * 70;
     const box = chars[i];
+    let fxFly = false, fxCommit = false;
     C(400, (p) => {
+      if (p >= 1 && !fxFly) { fxFly = true; spark(scene, outX, 80, 0, PALETTE.green, 5); }
       const e = easeInOut(p);
       box.mesh.position.x = inX + (outX - inX) * e;
       box.mesh.position.y = 80 - 160 * e;
@@ -59,7 +64,7 @@ function reverse() {
     }, () => { box.mesh.position.x = inX; box.mesh.position.y = 80; box.mesh.position.z = 0; });
     C(200, (p) => frames[i].mesh.scale.setScalar(1 - 0.9 * easeInOut(p)), () => {});
     C(1, () => frames[i].remove(), () => {});
-    C(1, () => box.setColor(PALETTE.green, PALETTE.greenEmissive), () => box.setColor(PALETTE.blue, PALETTE.blueEmissive));
+    C(1, () => { if (!fxCommit) { fxCommit = true; spark(scene, box.mesh.position.x, box.mesh.position.y, box.mesh.position.z, PALETTE.green, 4); } box.setColor(PALETTE.green, PALETTE.greenEmissive); }, () => box.setColor(PALETTE.blue, PALETTE.blueEmissive));
   }
   const res = s.split('').reverse().join('');
   const t = new VText(scene, { text: '反转结果: ' + res, x: 0, y: -170, z: 0, color: PALETTE.textGlow, scale: 1.2 });

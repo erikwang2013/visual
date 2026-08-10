@@ -7,6 +7,7 @@ import { AnimationEngine } from '../3D/AnimationEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { ripple, land } from '../3D/effects/Fx.js';
 applyTheme('SegmentTree3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 350, 790], fov: 58 });
@@ -51,6 +52,7 @@ function spawnTree() {
     const b = new VBox(scene, { w: isLeaf(id) ? 52 : 44, h: isLeaf(id) ? 52 : 44, d: 18, x, y, z: 0, label: isLeaf(id) ? String(ARR[id - N]) : '', color: baseColor(id), emissive: baseEmissive(id) });
     boxes[id] = b;
     aux.push(b);
+    land(scene, b.mesh);
     cells[depth].push(id);
   }
   return cells;
@@ -58,7 +60,9 @@ function spawnTree() {
 
 function flashBox(id) {
   const b = boxes[id];
+  let fxDone = false;
   C(280, (p) => {
+    if (!fxDone) { fxDone = true; ripple(scene, b.mesh.position.x, b.mesh.position.y, b.mesh.position.z, PALETTE.highlight, 52); }
     b.mesh.material.color.lerpColors(new THREE.Color(baseColor(id)), new THREE.Color(PALETTE.highlight), Math.min(1, p * 4));
   }, () => b.setColor(baseColor(id), baseEmissive(id)));
 }

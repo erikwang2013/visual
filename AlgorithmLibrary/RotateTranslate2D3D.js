@@ -8,6 +8,7 @@ import { ControlPanel } from '../3D/ControlPanel.js';
 import { Geometry3D } from '../3D/modes/Geometry3D.js';
 import { VText, easeInOut } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { ripple, spark } from '../3D/effects/Fx.js';
 applyTheme('RotateTranslate2D3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
@@ -60,9 +61,10 @@ function applyTransform() {
   curRot = toRot; curDx += tDx; curDy += tDy;
   const toPos = new THREE.Vector3(fromPos.x + tDx, fromPos.y + tDy, fromPos.z);
   C(1, () => hint.setText('第 1 步：绕 z 轴旋转 ' + angle + '°'), () => {});
-  C(600, (p) => { const t = easeInOut(p); geo.shape.rotation.z = fromRot + (toRot - fromRot) * t; }, () => {});
+  let fxRot = false, fxTr = false;
+  C(600, (p) => { if (!fxRot) { fxRot = true; ripple(scene, fromPos.x, fromPos.y, fromPos.z, PALETTE.highlight, 80); } const t = easeInOut(p); geo.shape.rotation.z = fromRot + (toRot - fromRot) * t; }, () => {});
   C(1, () => { updateMatrix(angle, curDx, curDy); hint.setText('第 2 步：平移 (' + tDx + ', ' + tDy + ')'); }, () => {});
-  C(600, (p) => { const t = easeInOut(p); geo.shape.position.lerpVectors(fromPos, toPos, t); }, () => {});
+  C(600, (p) => { if (!fxTr) { fxTr = true; spark(scene, toPos.x, toPos.y, toPos.z, PALETTE.highlight, 5); } const t = easeInOut(p); geo.shape.position.lerpVectors(fromPos, toPos, t); }, () => {});
   C(1, () => {
     updateMatrix(angle, curDx, curDy);
     const p = rotateTranslateModel(angle, tDx, tDy, 1, 0);

@@ -8,6 +8,7 @@ import { ControlPanel } from '../3D/ControlPanel.js';
 import { Geometry3D } from '../3D/modes/Geometry3D.js';
 import { VNode, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { ripple } from '../3D/effects/Fx.js';
 applyTheme('ChangingCoordinates2D3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
@@ -43,9 +44,10 @@ function runTransform() {
   const to = new THREE.Vector3(mid.x + tx, mid.y + ty, 0);
   matrixText.setText('R = [ 0  -1 ;  1  0 ]');
   C(1, () => hint.setText('步骤 1：点 P 绕原点旋转 90°'), () => {});
-  C(600, (p) => { const t = easeInOut(p); point.mesh.position.lerpVectors(from, mid, t); }, () => {});
+  let fxR = false, fxT = false;
+  C(600, (p) => { if (!fxR) { fxR = true; ripple(scene, from.x, from.y, 0, PALETTE.highlight, 52); } const t = easeInOut(p); point.mesh.position.lerpVectors(from, mid, t); }, () => {});
   C(1, () => { matrixText.setText('T·R = [ 0  -1  ' + tx + ' ;  1  0  ' + ty + ' ;  0 0 1 ]'); hint.setText('步骤 2：平移 (' + tx + ', ' + ty + ')'); }, () => {});
-  C(600, (p) => { const t = easeInOut(p); point.mesh.position.lerpVectors(mid, to, t); }, () => {});
+  C(600, (p) => { if (!fxT) { fxT = true; ripple(scene, mid.x, mid.y, 0, PALETTE.green, 52); } const t = easeInOut(p); point.mesh.position.lerpVectors(mid, to, t); }, () => {});
   C(1, () => {
     const r = transformPointModel(from.x, from.y, tx, ty);
     status.textContent = '新坐标: (' + r.x.toFixed(1) + ', ' + r.y.toFixed(1) + ')';
@@ -61,7 +63,9 @@ function runMoveObject() {
   const midPos = new THREE.Vector3(-fromPos.y, fromPos.x, 0);
   const toPos = new THREE.Vector3(midPos.x + tx, midPos.y + ty, 0);
   C(1, () => hint.setText('移动对象：整体旋转 90° 再平移 (' + tx + ', ' + ty + ')'), () => {});
+  let fxM = false;
   C(600, (p) => {
+    if (!fxM) { fxM = true; ripple(scene, fromPos.x, fromPos.y, 0, PALETTE.highlight, 60); }
     const t = easeInOut(p);
     objMesh.rotation.z = Math.PI / 2 * t;
     objMesh.position.lerpVectors(fromPos, midPos, t);

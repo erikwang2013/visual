@@ -8,6 +8,7 @@ import { ControlPanel } from '../3D/ControlPanel.js';
 import { Geometry3D } from '../3D/modes/Geometry3D.js';
 import { VNode, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { ripple } from '../3D/effects/Fx.js';
 applyTheme('ChangingCoordinates3D3D');
 
 const scene = new Scene3D('scene', { cameraPos: [260, 280, 560], fov: 55 });
@@ -45,11 +46,12 @@ function runTransform() {
   const to = new THREE.Vector3(k2.x + tx, k2.y + ty, k2.z + tz);
   matrixText.setText('Rz = [ 0 -1 0 ; 1 0 0 ; 0 0 1 ]');
   C(1, () => hint.setText('步骤 1：绕 Z 轴旋转 90°'), () => {});
-  C(600, (p) => { const t = easeInOut(p); point.mesh.position.lerpVectors(from, k1, t); }, () => {});
+  let fx1 = false, fx2 = false, fx3 = false;
+  C(600, (p) => { if (!fx1) { fx1 = true; ripple(scene, from.x, from.y, from.z, PALETTE.highlight, 46); } const t = easeInOut(p); point.mesh.position.lerpVectors(from, k1, t); }, () => {});
   C(1, () => { matrixText.setText('Rx·Rz = [ 0 -1 0 ; 0 0 1 ; -1 0 0 ]'); hint.setText('步骤 2：绕 X 轴旋转 90°'); }, () => {});
-  C(600, (p) => { const t = easeInOut(p); point.mesh.position.lerpVectors(k1, k2, t); }, () => {});
+  C(600, (p) => { if (!fx2) { fx2 = true; ripple(scene, k1.x, k1.y, k1.z, PALETTE.green, 46); } const t = easeInOut(p); point.mesh.position.lerpVectors(k1, k2, t); }, () => {});
   C(1, () => { matrixText.setText('T·Rx·Rz = [ 0 -1 0 ' + tx + ' ; 0 0 1 ' + ty + ' ; -1 0 0 ' + tz + ' ; 0 0 0 1 ]'); hint.setText('步骤 3：平移 (' + tx + ', ' + ty + ', ' + tz + ')'); }, () => {});
-  C(600, (p) => { const t = easeInOut(p); point.mesh.position.lerpVectors(k2, to, t); }, () => {});
+  C(600, (p) => { if (!fx3) { fx3 = true; ripple(scene, k2.x, k2.y, k2.z, PALETTE.highlight, 46); } const t = easeInOut(p); point.mesh.position.lerpVectors(k2, to, t); }, () => {});
   C(1, () => {
     const r = transformPoint3DModel(from.x, from.y, from.z, tx, ty, tz);
     status.textContent = '新坐标: (' + r.x.toFixed(1) + ', ' + r.y.toFixed(1) + ', ' + r.z.toFixed(1) + ')';
@@ -67,11 +69,12 @@ function runMoveObject() {
   const k2 = new THREE.Vector3(k1.x, k1.z, -k1.y);
   const to = new THREE.Vector3(k2.x + tx, k2.y + ty, k2.z + tz);
   C(1, () => hint.setText('移动对象：绕 Z 轴旋转 90°'), () => {});
-  C(600, (p) => { const t = easeInOut(p); ico.rotation.z = Math.PI / 2 * t; ico.position.lerpVectors(from, k1, t); }, () => {});
+  let fxM1 = false, fxM2 = false, fxM3 = false;
+  C(600, (p) => { if (!fxM1) { fxM1 = true; ripple(scene, from.x, from.y, from.z, PALETTE.highlight, 56); } const t = easeInOut(p); ico.rotation.z = Math.PI / 2 * t; ico.position.lerpVectors(from, k1, t); }, () => {});
   C(1, () => hint.setText('移动对象：绕 X 轴旋转 90°'), () => {});
-  C(600, (p) => { const t = easeInOut(p); ico.rotation.x = Math.PI / 2 * t; ico.position.lerpVectors(k1, k2, t); }, () => {});
+  C(600, (p) => { if (!fxM2) { fxM2 = true; ripple(scene, k1.x, k1.y, k1.z, PALETTE.green, 56); } const t = easeInOut(p); ico.rotation.x = Math.PI / 2 * t; ico.position.lerpVectors(k1, k2, t); }, () => {});
   C(1, () => hint.setText('移动对象：平移 (' + tx + ', ' + ty + ', ' + tz + ')'), () => {});
-  C(600, (p) => { const t = easeInOut(p); ico.position.lerpVectors(k2, to, t); }, () => {});
+  C(600, (p) => { if (!fxM3) { fxM3 = true; ripple(scene, k2.x, k2.y, k2.z, PALETTE.highlight, 56); } const t = easeInOut(p); ico.position.lerpVectors(k2, to, t); }, () => {});
   C(1, () => {
     const r = transformPoint3DModel(from.x, from.y, from.z, tx, ty, tz);
     status.textContent = '对象新位置: (' + r.x.toFixed(1) + ', ' + r.y.toFixed(1) + ', ' + r.z.toFixed(1) + ')';

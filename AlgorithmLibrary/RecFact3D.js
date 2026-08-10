@@ -6,6 +6,7 @@ import { AnimationEngine } from '../3D/AnimationEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VNode, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { ripple } from '../3D/effects/Fx.js';
 applyTheme('RecFact3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
@@ -36,10 +37,13 @@ function compute() {
     node.mesh.scale.setScalar(0.01);
     objects.push(node);
     nodes.push(node);
-    C(300, (p) => node.mesh.scale.setScalar(0.01 + 0.99 * easeInOut(p)), () => {});
+    let fxDone = false;
+    C(300, (p) => { if (!fxDone) { fxDone = true; ripple(scene, node.mesh.position.x, node.mesh.position.y, node.mesh.position.z, PALETTE.blue, 52); } node.mesh.scale.setScalar(0.01 + 0.99 * easeInOut(p)); }, () => {});
   }
   const leaf = nodes[n - 1];
+  let fxLeaf = false;
   C(500, (p) => {
+    if (!fxLeaf) { fxLeaf = true; ripple(scene, leaf.mesh.position.x, leaf.mesh.position.y, leaf.mesh.position.z, PALETTE.green, 60); }
     leaf.setColor(PALETTE.green, PALETTE.greenEmissive);
     leaf.setText('f(1)=1');
     leaf.mesh.scale.setScalar(1 + 0.25 * Math.sin(p * Math.PI));

@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { VBox } from '../VisualObject3D.js';
 import { makeTextSprite, PALETTE } from '../Glow.js';
+import { ripple, pop } from '../effects/Fx.js';
 
 function arrowBetween(scene, a, b) {
   const dir = new THREE.Vector3().subVectors(b, a);
@@ -49,6 +50,7 @@ export class LinkedList3D {
     nullText.visible = false;
     box.mesh.add(nullText);
     this.nodes.set(id, { box, nullText });
+    pop(this.scene, box.mesh);
     return { box, nullText };
   }
 
@@ -69,15 +71,17 @@ export class LinkedList3D {
   setNodeValue(id, value, cmd) {
     const node = this.nodes.get(id);
     const prev = node.box.text;
-    cmd({ duration: 200, fn: () => node.box.setText(String(value)), undo: () => node.box.setText(prev) });
+    let fxDone = false;
+    cmd({ duration: 200, fn: () => { if (!fxDone) { fxDone = true; pop(this.scene, node.box.mesh); } node.box.setText(String(value)); }, undo: () => node.box.setText(prev) });
   }
 
   highlightNode(id, cmd, color) {
     const node = this.nodes.get(id);
     const c = color || PALETTE.highlight;
+    let fxDone = false;
     cmd({
       duration: 250,
-      fn: (p) => { node.box.mesh.material.emissiveIntensity = 0.35 + p * 0.55; node.box.mesh.material.color.setHex(c); },
+      fn: (p) => { if (!fxDone) { fxDone = true; ripple(this.scene, node.box.mesh.position.x, node.box.mesh.position.y, node.box.mesh.position.z, c, 60); } node.box.mesh.material.emissiveIntensity = 0.35 + p * 0.55; node.box.mesh.material.color.setHex(c); },
       undo: () => { node.box.mesh.material.emissiveIntensity = 0.35; node.box.mesh.material.color.setHex(PALETTE.node); },
     });
   }
@@ -101,10 +105,12 @@ export class LinkedList3D {
     const prevNext = this.nextMap.get(id) ?? null;
     let prevOf = null;
     for (const [k, v] of this.nextMap) if (v === id) { prevOf = k; break; }
+    let fxDone = false;
     cmd({
       duration: 1,
       fn: (p) => {
         if (p >= 1) {
+          if (!fxDone) { fxDone = true; ripple(this.scene, node.box.mesh.position.x, node.box.mesh.position.y, node.box.mesh.position.z, PALETTE.highlight, 56); }
           node.box.mesh.visible = false;
           node.nullText.visible = false;
           this.nextMap.delete(id);

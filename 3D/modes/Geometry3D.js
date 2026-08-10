@@ -1,8 +1,9 @@
 // 3D/modes/Geometry3D.js
 // 3D 坐标轴（XYZ 彩色箭头）+ 多面体（带线框），支持旋转/平移/缩放动画。
 import * as THREE from 'three';
-import { glowMaterial } from '../Glow.js';
+import { glowMaterial, PALETTE } from '../Glow.js';
 import { easeInOut } from '../VisualObject3D.js';
+import { ripple, spark } from '../effects/Fx.js';
 
 export class Geometry3D {
   constructor(scene, opts = {}) {
@@ -52,6 +53,7 @@ export class Geometry3D {
       this.shape = build(geometry);
     }
     this.scene.add(this.shape);
+    ripple(this.scene, 0, 0, 0, opts.color || 0xa855f7, 110);
   }
 
   // 相对当前位置 + 角度（累计变换由页面维护矩阵并调用 setTransform）
@@ -65,6 +67,7 @@ export class Geometry3D {
     if (!this.shape) return;
     const fromPos = from.pos.clone(), toPos = to.pos.clone();
     const fromRot = from.rot.clone(), toRot = to.rot.clone();
-    cmd({ duration, fn: (p) => { const t = easeInOut(p); this.shape.position.lerpVectors(fromPos, toPos, t); this.shape.rotation.x = fromRot.x + (toRot.x - fromRot.x) * t; this.shape.rotation.y = fromRot.y + (toRot.y - fromRot.y) * t; this.shape.rotation.z = fromRot.z + (toRot.z - fromRot.z) * t; }, undo: () => this.setTransform(fromPos, fromRot) });
+    let fxDone = false;
+    cmd({ duration, fn: (p) => { if (!fxDone) { fxDone = true; spark(this.scene, this.shape.position.x, this.shape.position.y, this.shape.position.z, PALETTE.highlight, 5); } const t = easeInOut(p); this.shape.position.lerpVectors(fromPos, toPos, t); this.shape.rotation.x = fromRot.x + (toRot.x - fromRot.x) * t; this.shape.rotation.y = fromRot.y + (toRot.y - fromRot.y) * t; this.shape.rotation.z = fromRot.z + (toRot.z - fromRot.z) * t; }, undo: () => this.setTransform(fromPos, fromRot) });
   }
 }

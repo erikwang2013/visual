@@ -57,6 +57,7 @@ export class Scene3D {
     if (opts.ground !== false) this.addGround();
 
     window.addEventListener('resize', () => this.resize());
+    this.resize();
   }
 
   makeBackgroundTexture(top, bottom) {

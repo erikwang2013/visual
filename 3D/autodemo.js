@@ -19,7 +19,7 @@
     'RedBlack.html': { steps: [{ btn: '删除', fills: ['50'] }, { btn: '插入', fills: ['50'] }] },
     'SplayTree.html': { steps: [{ btn: '删除', fills: ['50'] }, { btn: '插入', fills: ['50'] }] },
     'BTree.html': { steps: [{ btn: '删除', fills: ['50'] }, { btn: '插入', fills: ['50'] }] },
-    'BPlusTree.html': { steps: [{ btn: '删除', fills: ['50'] }, { btn: '插入', fills: ['50'] }] },
+    'BPlusTree.html': { steps: [{ btn: '插入', fills: ['50'] }, { btn: '插入', fills: ['25'] }, { btn: '插入', fills: ['75'] }, { btn: '插入', fills: ['60'] }] },
     'Trie.html': { steps: [{ btn: '删除', fills: ['abc'] }, { btn: '插入', fills: ['abc'] }] },
     'RadixTree.html': { steps: [{ btn: '删除', fills: ['abc'] }, { btn: '插入', fills: ['abc'] }] },
     'TST.html': { steps: [{ btn: '删除', fills: ['abc'] }, { btn: '插入', fills: ['abc'] }] },

@@ -52,8 +52,6 @@ visual/
 - **排序**：比较排序、归并、快速、堆排序、桶、计数、基数
 - **查找/哈希**：顺序/二分查找、开放/封闭/封闭桶哈希
 - **动态规划**：斐波那契、找零、LCS、背包、矩阵连乘、LIS、编辑距离
-- **字符串**：KMP、Manacher、AC 自动机
-- **线性/其他**：栈、队列、链表、并查集、递归×3、矩阵运算×3、二维/三维坐标变换
 - **操作系统**：FCFS、SJF、RR、MLFQ 进程调度；FIFO、LRU、LFU、Clock 页面置换；SSTF、SCAN 磁盘调度；银行家算法
 - **图论补全**：SPFA 最短路、Edmonds-Karp 最大流、匈牙利算法、Kosaraju SCC、Borůvka MST
 - **数学与数值**：埃氏筛/线性筛、快速幂、Graham 凸包、高斯消元、扩展欧几里得
@@ -61,6 +59,7 @@ visual/
 - **密码学与压缩**：凯撒、维吉尼亚、DES、AES、RSA、Diffie-Hellman；RLE、LZ77、LZ78、算术编码
 - **机器学习与分布式**：KNN、K-Means、线性回归、决策树（ID3）、Raft 共识、两阶段提交（2PC）
 - **量子算法**：Grover 搜索、Shor 质因数分解
+- **其他**：并查集、KMP、Manacher、AC 自动机
 
 ## 技术栈
 

@@ -112,7 +112,7 @@
 
 <div id="overlay">
   <h1>算法可视化</h1>
-  <p class="sub">109 个数据结构与算法 · 3D 动态演示</p>
+  <p class="sub">118 个数据结构与算法 · 3D 动态演示</p>
   <p class="hint">拖拽旋转视角 · 滚轮缩放</p>
 </div>
 
@@ -167,6 +167,9 @@
     <h2 id="cat-index">索引</h2>
     <div class="grid">
       <div class="card"><a href="Search.html" class="title">二分和线性搜索（排序列表）</a><p class="intro">有序数组上的线性搜索与二分查找</p></div>
+      <div class="card"><a href="InterpolationSearch.html" class="title">插值搜索</a><p class="intro">按值比例估算下标，均匀分布 O(log log N)</p></div>
+      <div class="card"><a href="ExponentialSearch.html" class="title">指数搜索</a><p class="intro">指数步进找上界 + 二分收尾</p></div>
+      <div class="card"><a href="FibonacciSearch.html" class="title">斐波那契搜索</a><p class="intro">黄金分割定位，只用加减不用除法</p></div>
       <div class="card"><a href="BST.html" class="title">二叉搜索树</a><p class="intro">左小右大的二叉查找结构</p></div>
       <div class="card"><a href="AVLtree.html" class="title">AVL 树（平衡二叉搜索树）</a><p class="intro">自动平衡的二叉搜索树</p></div>
       <div class="card"><a href="RedBlack.html" class="title">红黑树</a><p class="intro">染色性质保证平衡的搜索树</p></div>
@@ -193,6 +196,7 @@
       <div class="card"><a href="CountingSort.html" class="title">计数排序</a><p class="intro">按值计数直接放置</p></div>
       <div class="card"><a href="RadixSort.html" class="title">基数排序</a><p class="intro">从低位起逐位桶排</p></div>
       <div class="card"><a href="HeapSort.html" class="title">堆排序</a><p class="intro">建堆后反复取堆顶</p></div>
+      <div class="card"><a href="TimSort.html" class="title">TimSort</a><p class="intro">自然 run + 插入排序补长 + 归并（Python 内置）</p></div>
     </div>
   </section>
 
@@ -308,6 +312,11 @@
       <div class="card"><a href="AES.html" class="title">AES</a><p class="intro">S 盒 + 行移位 + 列混合分组加密</p></div>
       <div class="card"><a href="RSA.html" class="title">RSA</a><p class="intro">大素数模幂的公钥加密</p></div>
       <div class="card"><a href="DiffieHellman.html" class="title">Diffie-Hellman 密钥交换</a><p class="intro">公开信道交换共享密钥</p></div>
+      <div class="card"><a href="MD5.html" class="title">MD5 消息摘要</a><p class="intro">4 轮×16 步压缩，128bit 摘要</p></div>
+      <div class="card"><a href="SHA256.html" class="title">SHA-256 摘要</a><p class="intro">8 寄存器 64 轮，256bit，比特币 PoW 核心</p></div>
+      <div class="card"><a href="SM3.html" class="title">SM3 国密摘要</a><p class="intro">P0/P1 双置换 + FF/GG 门，国标 256bit</p></div>
+      <div class="card"><a href="MurmurHash.html" class="title">MurmurHash 散列</a><p class="intro">乘转异或三连混合，非加密哈希快如闪电</p></div>
+      <div class="card"><a href="CityHash.html" class="title">CityHash 散列</a><p class="intro">Google 4 路并行混合，64bit 吞吐之王</p></div>
       <div class="card"><a href="RLE.html" class="title">游程编码 RLE</a><p class="intro">连续相同字符计数的无损压缩</p></div>
       <div class="card"><a href="LZ77.html" class="title">LZ77</a><p class="intro">滑动窗口三元组压缩</p></div>
       <div class="card"><a href="LZ78.html" class="title">LZ78</a><p class="intro">动态字典 (索引, 新字符) 压缩</p></div>

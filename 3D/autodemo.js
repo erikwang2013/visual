@@ -165,6 +165,15 @@
     'Raft.html': ['Raft 共识：超时竞选 → 多数票成 Leader → 日志复制并提交，保证集群一致。', '子步骤：选举 → 日志复制 → 提交'],
     'TwoPhaseCommit.html': ['两阶段提交：Prepare 征询 → 全 YES 则 Commit，否则 Abort 回滚，保证分布式原子性。', '子步骤：Prepare → 回复 → Commit/Abort'],
     'Grover.html': ['Grover 搜索：均匀叠加 → Oracle 翻号 → 均值反转放大目标振幅，O(√N) 次查询。', '子步骤：叠加 → Oracle → 扩散放大 → 测量'],
+    'TimSort.html': ['TimSort：Python/Java 内置排序。找自然升序 run → 短 run 插入排序补长 → 归并栈合并。', '子步骤：识别 run → 补长 → 两两归并'],
+    'InterpolationSearch.html': ['插值搜索：按 key 在区间内的值比例估算下标（查字典式），均匀分布时 O(log log N)。', '子步骤：比例估算 → 比较 → 收缩区间'],
+    'ExponentialSearch.html': ['指数搜索：以 1→2→4→8 翻倍探测上界，再二分收尾，适合无界/大数组。', '子步骤：指数步进 → 锁定区间 → 二分'],
+    'FibonacciSearch.html': ['斐波那契搜索：用斐波那契数按黄金分割定位，只用加减不用除法。', '子步骤：取斐波那契三元组 → 探针比较 → 收缩'],
+    'MD5.html': ['MD5：消息填充为 512bit 块 → 16 字 → 4 轮×16 步压缩（F/G/H/I + 循环左移）→ 128bit 摘要。', '子步骤：填充 → 分字 → 64 步压缩 → 雪崩演示'],
+    'SHA256.html': ['SHA-256：8 寄存器 + 消息扩展 + 64 轮压缩（Σ/Ch/Maj 函数），输出 256bit，比特币 PoW 核心。', '子步骤：填充 → 扩展 W → 64 轮 → 雪崩演示'],
+    'SM3.html': ['SM3 国密摘要：8 寄存器 + P0/P1 双置换 + FF/GG 门，64 轮输出 256bit，对标 SHA-256。', '子步骤：填充 → P1 扩展 → 64 轮压缩 → 雪崩演示'],
+    'MurmurHash.html': ['MurmurHash3：乘法×旋转×异或三连混合 + fmix 终混，非加密但极快，用于哈希表/布隆过滤器。', '子步骤：切块 → 逐块混合 → 尾部 → fmix → 雪崩'],
+    'CityHash.html': ['CityHash64：Google 设计，4 路流水线并行混合 + 种子传播，64bit 散列，吞吐极高。', '子步骤：载入 a/c/d → 混合轮 → 终混 → 雪崩'],
     'Shor.html': ['Shor 分解：量子求 a^x mod N 的周期，经典 gcd 后处理提取因子，可破解 RSA。', '子步骤：并行求模幂 → 找周期 → gcd 出因子'],
   };
 

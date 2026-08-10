@@ -41,7 +41,8 @@ export class Table3D {
   setCell(r, c, value, cmd) {
     const box = this.cells[r][c];
     if (!box) return;
-    cmd({ duration: 250, fn: () => box.setText(String(value)), undo: () => box.setText('') });
+    const prev = box.text;
+    cmd({ duration: 250, fn: () => box.setText(String(value)), undo: () => box.setText(prev) });
   }
 
   setRowLabel(r, text) {

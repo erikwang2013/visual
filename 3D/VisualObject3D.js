@@ -63,6 +63,7 @@ export class VBox {
     this.mesh = new THREE.Mesh(new THREE.BoxGeometry(this.w, this.h, this.d), mat);
     this.mesh.position.set(opts.x ?? 0, opts.y ?? 0, opts.z ?? 0);
     this.label = null;
+    this.text = opts.label || '';
     if (opts.label !== undefined && opts.label !== null && opts.label !== '') {
       this.label = makeTextSprite(opts.label, { scale: 1 });
       this.label.position.set(0, 0, this.d / 2 + 14);
@@ -70,7 +71,7 @@ export class VBox {
     }
     scene.add(this.mesh);
   }
-  setText(text) { if (this.label) setSpriteText(this.label, text, { scale: 1 }); }
+  setText(text) { this.text = text; if (this.label) setSpriteText(this.label, text, { scale: 1 }); }
   setColor(color, emissive) {
     const m = this.mesh.material;
     m.color.setHex(color);

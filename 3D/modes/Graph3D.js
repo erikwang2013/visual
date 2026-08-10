@@ -23,7 +23,7 @@ export class Graph3D {
     const e = this.nodes.get(id);
     if (!e) return;
     const from = { x: e.x, y: e.y, z: e.z };
-    cmd({ duration: 450, fn: (p) => { const t = ease(p); e.node.mesh.position.set(from.x + (x-from.x)*t, from.y + (y-from.y)*t, from.z + (z-from.z)*t); }, undo: () => e.node.mesh.position.set(from.x, from.y, from.z) });
+    cmd({ duration: 450, fn: (p) => { const t = ease(p); e.node.mesh.position.set(from.x + (x-from.x)*t, from.y + (y-from.y)*t, from.z + (z-from.z)*t); if (p === 1) this._rebuildEdgesFor(id); }, undo: () => { e.node.mesh.position.set(from.x, from.y, from.z); e.x = from.x; e.y = from.y; e.z = from.z; this._rebuildEdgesFor(id); } });
     e.x = x; e.y = y; e.z = z;
   }
 
@@ -43,7 +43,26 @@ export class Graph3D {
       const mid = p1.clone().add(p2).multiplyScalar(0.5).add(new THREE.Vector3(0, 16, 0));
       weightLabel = new VText(this.scene, { text: String(opts.weight), x: mid.x, y: mid.y, z: mid.z, color: PALETTE.textDim, scale: 0.65 });
     }
-    this.edges.set(key, { mesh, weightLabel, baseColor: opts.color || PALETTE.edge, baseOpacity: opts.opacity ?? 0.55, directed: !!opts.directed });
+    this.edges.set(key, { mesh, weightLabel, baseColor: opts.color || PALETTE.edge, baseOpacity: opts.opacity ?? 0.55, directed: !!opts.directed, radius: opts.radius || 2.5 });
+  }
+
+  _rebuildEdgesFor(id) {
+    for (const [key, e] of this.edges) {
+      const [a, b] = key.split('->');
+      if (a !== id && b !== id) continue;
+      const A = this.nodes.get(a), B = this.nodes.get(b);
+      if (!A || !B) continue;
+      const p1 = A.node.mesh.position.clone();
+      const p2 = B.node.mesh.position.clone();
+      const dir = p2.clone().sub(p1);
+      if (dir.lengthSq() < 1e-6) continue;
+      dir.normalize();
+      p1.addScaledVector(dir, this.radius + 3);
+      p2.addScaledVector(dir, this.radius + 3);
+      this.scene.remove(e.mesh); e.mesh.geometry.dispose(); e.mesh.material.dispose();
+      e.mesh = tubeBetween(this.scene, p1, p2, { color: e.baseColor, opacity: e.baseOpacity, radius: e.radius });
+      if (e.weightLabel) e.weightLabel.sprite.position.copy(p1.clone().add(p2).multiplyScalar(0.5).add(new THREE.Vector3(0, 16, 0)));
+    }
   }
 
   lightEdge(a, b, on, cmd) {

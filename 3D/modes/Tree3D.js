@@ -40,7 +40,8 @@ export class Tree3D {
     cmd({ duration: 500, fn: (p) => {
       const t = ease(p);
       e.node.mesh.position.set(from.x + (x - from.x) * t, from.y + (y - from.y) * t, from.z + (z - from.z) * t);
-    }, undo: () => { e.node.mesh.position.set(from.x, from.y, from.z); } });
+      if (p === 1) this.drawEdges();
+    }, undo: () => { e.node.mesh.position.set(from.x, from.y, from.z); e.x = from.x; e.y = from.y; e.z = from.z; this.drawEdges(); } });
     e.x = x; e.y = y; e.z = z;
   }
 
@@ -78,7 +79,7 @@ export class Tree3D {
   }
 
   drawEdges() {
-    for (const m of this.edgeMeshes) this.scene.remove(m);
+    for (const m of this.edgeMeshes) { this.scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
     this.edgeMeshes = [];
     for (const [id, e] of this.nodes) {
       if (e.parentId == null) continue;
@@ -86,7 +87,9 @@ export class Tree3D {
       if (!p) continue;
       const a = e.node.mesh.position.clone();
       const b = p.node.mesh.position.clone();
-      const dir = b.clone().sub(a).normalize();
+      const dir = b.clone().sub(a);
+      if (dir.lengthSq() < 1e-6) continue;
+      dir.normalize();
       a.addScaledVector(dir, this.radius + 2);
       b.addScaledVector(dir, this.radius + 2);
       this.edgeMeshes.push(tubeBetween(this.scene, a, b, { color: PALETTE.edge, opacity: 0.5, radius: 2 }));
@@ -95,7 +98,7 @@ export class Tree3D {
 
   clear() {
     for (const e of this.nodes.values()) e.node.remove();
-    for (const m of this.edgeMeshes) this.scene.remove(m);
+    for (const m of this.edgeMeshes) { this.scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
     this.nodes = new Map();
     this.edgeMeshes = [];
   }

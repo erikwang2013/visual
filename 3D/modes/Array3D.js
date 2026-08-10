@@ -42,14 +42,12 @@ export class Array3D {
   setValue(i, value, cmd) {
     const el = this.elems[i];
     if (this.type === 'box') {
-      if (value === '') {
-        cmd({ duration: 200, fn: () => el.setText(''), undo: () => {} });
-      } else {
-        cmd({ duration: 200, fn: () => el.setText(String(value)), undo: () => el.setText('') });
-      }
+      const prev = el.text;
+      cmd({ duration: 200, fn: () => el.setText(String(value)), undo: () => el.setText(prev) });
     } else {
       const v = parseInt(value) || 1;
-      cmd({ duration: 300, fn: () => el.setHeight(v * 6), undo: () => {} });
+      const prevH = el.height;
+      cmd({ duration: 300, fn: () => el.setHeight(v * 6), undo: () => el.setHeight(prevH) });
     }
   }
 
@@ -78,5 +76,5 @@ export class Array3D {
     return mesh;
   }
 
-  clearLines() { for (const l of this.lines) this.scene.remove(l); this.lines = []; }
+  clearLines() { for (const l of this.lines) { this.scene.remove(l); l.geometry.dispose(); l.material.dispose(); } this.lines = []; }
 }

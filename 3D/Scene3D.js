@@ -14,7 +14,7 @@ export class Scene3D {
       this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     } catch (e) {
       // WebGL 不可用：错误提示 + 降级链接（spec §8）
-      container.innerHTML = '<div class="webgl-error">当前浏览器不支持 WebGL，无法显示 3D 动画。<br><a href="Algorithms.html">返回目录</a></div>';
+      container.innerHTML = '<div class="webgl-error">当前浏览器不支持 WebGL，无法显示 3D 动画。<br><a href="index.html">返回目录</a></div>';
       throw e;
     }
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));

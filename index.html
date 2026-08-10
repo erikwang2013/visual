@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="renderer" content="webkit">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="keywords" content="算法可视化,二叉树,红黑树,索引,visual.erik.xyz,3D,three.js">
+<title>算法可视化 · 3D 动态演示</title>
+<link rel="shortcut icon" href="favicon.ico">
+<link rel="stylesheet" href="visualizationPageStyle3d.css">
+<script type="importmap">
+{ "imports": { "three": "./ThirdParty/three/build/three.module.js" } }
+</script>
+<style>
+  html, body { background: #030514; color: #e2e8f0; }
+  body { margin: 0; font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; overflow-x: hidden; }
+  #hero { position: fixed; inset: 0; z-index: 0; }
+  #hero canvas { display: block; }
+  #overlay { position: fixed; top: 0; left: 0; right: 0; z-index: 1; text-align: center; pointer-events: none; padding-top: 6vh; }
+  #overlay h1 {
+    margin: 0; font-size: 56px; font-weight: 700; letter-spacing: 6px;
+    color: #e0f2fe; text-shadow: 0 0 18px rgba(125, 211, 252, 0.9), 0 0 46px rgba(34, 211, 238, 0.55), 0 0 90px rgba(34, 211, 238, 0.3);
+  }
+  #overlay .sub { margin: 12px 0 0; font-size: 17px; color: #93c5fd; letter-spacing: 2px; text-shadow: 0 0 12px rgba(34, 211, 238, 0.6); }
+  #overlay .hint { margin: 8px 0 0; font-size: 13px; color: #64748b; }
+  main { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 52vh 24px 60px; }
+  .cat { margin-bottom: 30px; }
+  .cat h2 {
+    font-size: 20px; margin: 0 0 12px; padding-left: 12px; letter-spacing: 2px;
+    color: #7dd3fc; border-left: 4px solid #22d3ee;
+    text-shadow: 0 0 10px rgba(34, 211, 238, 0.55);
+  }
+  .cat .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; }
+  .cat a {
+    display: block; padding: 11px 14px; border-radius: 10px; text-decoration: none;
+    color: #e2e8f0; font-size: 14px; line-height: 1.45;
+    background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(125, 211, 252, 0.22);
+    box-shadow: 0 2px 14px rgba(2, 6, 23, 0.55);
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
+  }
+  .cat a:hover {
+    color: #cffafe; transform: translateY(-2px);
+    border-color: #22d3ee; box-shadow: 0 0 16px rgba(34, 211, 238, 0.5), 0 4px 22px rgba(2, 6, 23, 0.7);
+  }
+  footer { position: relative; z-index: 1; text-align: center; color: #64748b; font-size: 13px; padding: 18px 0 26px; }
+  footer a { color: #94a3b8; text-decoration: none; }
+  footer a:hover { color: #7dd3fc; }
+</style>
+</head>
+<body>
+
+<div id="hero"></div>
+
+<div id="overlay">
+  <h1>算法可视化</h1>
+  <p class="sub">49 个数据结构与算法 · 3D 动态演示</p>
+  <p class="hint">拖拽旋转视角 · 滚轮缩放</p>
+</div>
+
+<main>
+  <section class="cat">
+    <h2>基本</h2>
+    <div class="grid">
+      <a href="StackArray.html">堆栈：数组实现</a>
+      <a href="StackLL.html">堆栈：链表实现</a>
+      <a href="QueueArray.html">队列：数组实现</a>
+      <a href="QueueLL.html">队列：链表实现</a>
+      <a href="SimpleStack.html">简单堆栈</a>
+    </div>
+  </section>
+
+  <section class="cat">
+    <h2>递归</h2>
+    <div class="grid">
+      <a href="RecFact.html">阶乘</a>
+      <a href="RecReverse.html">反转字符串</a>
+      <a href="RecQueens.html">N-皇后问题</a>
+    </div>
+  </section>
+
+  <section class="cat">
+    <h2>索引</h2>
+    <div class="grid">
+      <a href="Search.html">二分和线性搜索（排序列表）</a>
+      <a href="BST.html">二叉搜索树</a>
+      <a href="AVLtree.html">AVL 树（平衡二叉搜索树）</a>
+      <a href="RedBlack.html">红黑树</a>
+      <a href="SplayTree.html">展开树</a>
+      <a href="OpenHash.html">开放哈希表（封闭寻址）</a>
+      <a href="ClosedHash.html">封闭哈希表（开放寻址）</a>
+      <a href="ClosedHashBucket.html">封闭哈希表（使用桶）</a>
+      <a href="Trie.html">Trie（前缀树，26 叉树）</a>
+      <a href="RadixTree.html">基数树（Compact Trie）</a>
+      <a href="TST.html">三元搜索树（Trie with BST of children）</a>
+      <a href="BTree.html">B树</a>
+      <a href="BPlusTree.html">B+树</a>
+    </div>
+  </section>
+
+  <section class="cat">
+    <h2>排序</h2>
+    <div class="grid">
+      <a href="ComparisonSort.html">比较排序（冒泡/选择/插入/壳/归并/快排）</a>
+      <a href="BucketSort.html">桶排序</a>
+      <a href="CountingSort.html">计数排序</a>
+      <a href="RadixSort.html">基数排序</a>
+      <a href="HeapSort.html">堆排序</a>
+    </div>
+  </section>
+
+  <section class="cat">
+    <h2>类堆数据结构</h2>
+    <div class="grid">
+      <a href="Heap.html">堆</a>
+      <a href="BinomialQueue.html">二项式队列</a>
+      <a href="FibonacciHeap.html">斐波那契堆</a>
+      <a href="LeftistHeap.html">左派堆</a>
+      <a href="SkewHeap.html">倾斜堆</a>
+    </div>
+  </section>
+
+  <section class="cat">
+    <h2>图算法</h2>
+    <div class="grid">
+      <a href="BFS.html">广度优先搜索</a>
+      <a href="DFS.html">深度优先搜索</a>
+      <a href="ConnectedComponent.html">连接组件</a>
+      <a href="Dijkstra.html">Dijkstra 的最短路径</a>
+      <a href="Prim.html">Prim 的最小成本生成树</a>
+      <a href="TopoSortIndegree.html">拓扑排序（使用入度数组）</a>
+      <a href="TopoSortDFS.html">拓扑排序（使用 DFS）</a>
+      <a href="Floyd.html">Floyd-Warshall（所有对最短路径）</a>
+      <a href="Kruskal.html">Kruskal 最小成本生成树</a>
+    </div>
+  </section>
+
+  <section class="cat">
+    <h2>动态规划</h2>
+    <div class="grid">
+      <a href="DPFib.html">计算第 n 个斐波那契数</a>
+      <a href="DPChange.html">做出改变（找零）</a>
+      <a href="DPLCS.html">最长公共子序列</a>
+    </div>
+  </section>
+
+  <section class="cat">
+    <h2>几何算法</h2>
+    <div class="grid">
+      <a href="RotateScale2D.html">二维旋转和缩放矩阵</a>
+      <a href="RotateTranslate2D.html">二维旋转和平移矩阵</a>
+      <a href="ChangingCoordinates2D.html">二维改变坐标系</a>
+      <a href="RotateScale3D.html">三维旋转和缩放矩阵</a>
+      <a href="ChangingCoordinates3D.html">三维改变坐标系</a>
+    </div>
+  </section>
+
+  <section class="cat">
+    <h2>其他</h2>
+    <div class="grid">
+      <a href="DisjointSets.html">不相交集（并查集）</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Copyright 2011 <a href="http://www.cs.usfca.edu/galles" target="_blank">David Galles</a>
+  <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+  &nbsp;&nbsp;<a href="https://www.erik.xyz" target="_blank">艾瑞可erik·导航</a>
+  &nbsp;&nbsp;<a href="https://erik.xyz" target="_blank">艾瑞可erik</a>
+  <span id="busuanzi_container_site_pv" style="display: inline;">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+  <span id="busuanzi_container_site_uv" style="display: inline;">本站访客数<span id="busuanzi_value_site_uv"></span>人次</span>
+</footer>
+
+<script type="module">
+import * as THREE from 'three';
+import { Scene3D } from './3D/Scene3D.js';
+import { PALETTE } from './3D/Glow.js';
+
+const scene = new Scene3D('hero', { cameraPos: [0, 130, 330], fov: 50, ground: true, stars: true });
+const world = scene.scene;
+
+const core = new THREE.Mesh(
+  new THREE.IcosahedronGeometry(24, 0),
+  new THREE.MeshStandardMaterial({ color: 0x7dd3fc, emissive: 0x22d3ee, emissiveIntensity: 0.9, metalness: 0.2, roughness: 0.3 })
+);
+const main = new THREE.Mesh(
+  new THREE.IcosahedronGeometry(58, 1),
+  new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x0e7490, emissiveIntensity: 0.55, metalness: 0.35, roughness: 0.25 })
+);
+const shell = new THREE.Mesh(
+  new THREE.IcosahedronGeometry(72, 1),
+  new THREE.MeshBasicMaterial({ color: 0x7dd3fc, wireframe: true, transparent: true, opacity: 0.22 })
+);
+main.add(core);
+const group = new THREE.Group();
+group.add(main, shell);
+world.add(group);
+
+const ORBITS = [
+  { tiltX: 1.25, tiltZ: 0.0, R: 128, speed: 0.42, colors: [0x34d399, 0xf472b6] },
+  { tiltX: 0.35, tiltZ: 0.9, R: 158, speed: 0.28, colors: [0xfbbf24, 0xa78bfa] },
+  { tiltX: 0.75, tiltZ: 2.1, R: 190, speed: 0.2, colors: [0x4ade80, 0xfb7185] },
+];
+const orbitGroups = ORBITS.map((o) => {
+  const og = new THREE.Group();
+  og.rotation.x = o.tiltX;
+  og.rotation.z = o.tiltZ;
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(o.R, 0.55, 8, 140),
+    new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.32 })
+  );
+  og.add(ring);
+  o.colors.forEach((c, i) => {
+    const p = new THREE.Mesh(
+      new THREE.SphereGeometry(5.5 - i * 1.2, 16, 16),
+      new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.7 })
+    );
+    p.position.set(Math.cos(i * Math.PI) * o.R, 0, Math.sin(i * Math.PI) * o.R);
+    og.add(p);
+  });
+  world.add(og);
+  return og;
+});
+
+let t = 0;
+scene.start({
+  tick(dt) {
+    t += dt;
+    group.rotation.y += dt * 0.32;
+    group.rotation.x += dt * 0.08;
+    group.position.y = Math.sin(t * 0.7) * 8;
+    shell.rotation.y -= dt * 0.12;
+    shell.rotation.z += dt * 0.05;
+    core.rotation.y += dt * 0.6;
+    ORBITS.forEach((o, i) => { orbitGroups[i].rotation.y += dt * o.speed; });
+  }
+});
+</script>
+</body>
+</html>

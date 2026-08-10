@@ -17,7 +17,7 @@ const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2)
 const status = panel.addStatus('');
 const say = (msg) => C(1, () => { status.textContent = msg; });
 let count = 20;
-const state = { data: [] };
+const state = { data: [], auxData: [] };
 let array = null, aux = null;
 const auxLabel = new VText(scene, { text: '辅助数组', x: -470, y: -175, z: 0, color: PALETTE.textDim, scale: 0.8 });
 
@@ -227,7 +227,8 @@ function merge(low, mid, high) {
 }
 
 function sortGuard(fn) {
-  if (engine.queue.length || engine.current) { status.textContent = '请先完成或清空当前动画'; return; }
+  // 动画进行中直接清空并重启，保证任意时刻点任意排序都能立即演示
+  if (engine.queue.length || engine.current) { engine.clear(); }
   fn();
 }
 

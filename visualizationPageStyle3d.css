@@ -8,7 +8,7 @@ body { margin:0; background:#030514; color:#e2e8f0; font-family:"Noto Sans SC","
 .algo-btn { background:rgba(59,130,246,.15); color:#bfdbfe; border:1px solid rgba(59,130,246,.4); padding:6px 14px; border-radius:8px; cursor:pointer; font-size:13px; transition:all .15s; }
 .algo-btn:hover { background:rgba(59,130,246,.32); box-shadow:0 0 10px rgba(59,130,246,.3); }
 .algo-btn:disabled { opacity:.4; cursor:not-allowed; }
-.algo-input { background:rgba(3,5,20,.8); color:#e2e8f0; border:1px solid rgba(59,130,246,.4); border-radius:8px; padding:6px 10px; font-size:13px; width:110px; }
+.algo-input { box-sizing:border-box; background:rgba(3,5,20,.8); color:#e2e8f0; border:1px solid rgba(59,130,246,.4); border-radius:8px; padding:6px 10px; font-size:13px; width:110px; }
 .algo-input:focus { outline:none; border-color:#22d3ee; box-shadow:0 0 8px rgba(34,211,238,.35); }
 .algo-label { color:#9db8d9; font-size:13px; }
 .algo-status { color:#7dd3fc; font-size:13px; min-height:16px; font-family:ui-monospace,monospace; }

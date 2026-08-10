@@ -23,7 +23,7 @@
   }
   #overlay .sub { margin: 12px 0 0; font-size: 17px; color: #93c5fd; letter-spacing: 2px; text-shadow: 0 0 12px rgba(34, 211, 238, 0.6); }
   #overlay .hint { margin: 8px 0 0; font-size: 13px; color: #64748b; }
-  main { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 52vh 24px 60px; }
+  main { position: relative; z-index: 1; max-width: min(900px, calc(100vw - 430px)); margin: 0 auto; padding: 52vh 24px 60px; }
   .cat { margin-bottom: 30px; }
   .cat h2 {
     font-size: 20px; margin: 0 0 12px; padding-left: 12px; letter-spacing: 2px;
@@ -62,7 +62,7 @@
   #navToggle:hover { border-color: #22d3ee; box-shadow: 0 0 18px rgba(34, 211, 238, 0.45); }
   .navsearch { position: relative; margin-bottom: 12px; }
   #algoSearch {
-    width: 100%; padding: 8px 30px 8px 10px; border-radius: 8px; font-size: 13px;
+    width: 100%; box-sizing: border-box; padding: 8px 30px 8px 10px; border-radius: 8px; font-size: 13px;
     background: rgba(3, 5, 20, 0.8); color: #e2e8f0;
     border: 1px solid rgba(125, 211, 252, 0.35); outline: none;
     box-shadow: 0 0 14px rgba(34, 211, 238, 0.15);
@@ -115,8 +115,8 @@
   <p class="hint">拖拽旋转视角 · 滚轮缩放</p>
 </div>
 
-<button id="navToggle" title="目录导航" aria-label="目录导航">☰ 目录</button>
-<aside class="navpanel" id="navpanel">
+<button id="navToggle" title="目录导航" aria-label="目录导航">✕ 收起</button>
+<aside class="navpanel open" id="navpanel">
   <div class="navsearch">
     <input id="algoSearch" type="text" placeholder="搜索算法（名称 / 简介）…">
     <button id="searchClear" title="清除" aria-label="清除">×</button>

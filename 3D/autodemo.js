@@ -133,6 +133,23 @@
     btn.textContent = '▶ 演示';
     btn.addEventListener('click', runDemo);
     controls.prepend(btn);
+    // 页面自身没有「清空」按钮时注入：重置演示（停止动画并恢复初始状态）
+    const hasNativeClear = [...controls.querySelectorAll('button.algo-btn')].some((b) => b.textContent.trim() === '清空');
+    if (!hasNativeClear) {
+      const clearBtn = document.createElement('button');
+      clearBtn.id = 'clear-run-btn';
+      clearBtn.className = 'algo-btn';
+      clearBtn.textContent = '清空';
+      clearBtn.addEventListener('click', () => location.reload());
+      controls.insertBefore(clearBtn, btn.nextSibling);
+      // 页面模块按钮可能晚于注入渲染：原生「清空」出现时移除注入按钮，避免重复
+      const t = setInterval(() => {
+        const injected = document.getElementById('clear-run-btn');
+        if (!injected) { clearInterval(t); return; }
+        const native = [...controls.querySelectorAll('button.algo-btn')].find((b) => b.id !== 'clear-run-btn' && b.textContent.trim() === '清空');
+        if (native) { injected.remove(); clearInterval(t); }
+      }, 300);
+    }
   };
 
   // 算法说明条：插在 header 与 controls 之间，不占用 3D 画布、不影响演示

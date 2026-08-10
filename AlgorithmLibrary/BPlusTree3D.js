@@ -56,7 +56,11 @@ function layoutInternal() {
   })(root);
   const keyX = all.map((e, i) => (i - (all.length - 1) / 2) * 66);
   const keyIdx = new Map();
-  all.forEach((e, i) => (keyIdx.get(e.n.id) = keyIdx.get(e.n.id) || []).push(keyX[i]));
+  all.forEach((e, i) => {
+    const arr = keyIdx.get(e.n.id) || [];
+    arr.push(keyX[i]);
+    keyIdx.set(e.n.id, arr);
+  });
   const depth = new Map();
   const q = [root];
   depth.set(root.id, 0);

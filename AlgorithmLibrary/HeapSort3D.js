@@ -28,13 +28,13 @@ function gray(i) {
   C(200, () => el.setColor(GRAY, GRAY_EMISSIVE), () => el.setColor(PALETTE.node, PALETTE.nodeEmissive));
 }
 
-function randomize() {
-  say('随机化数组');
+function randomize(animate) {
+  if (animate === false) status.textContent = '随机化数组'; else say('随机化数组');
   for (let i = 0; i < N; i++) {
     const el = array.elems[i];
-    C(1, () => el.setColor(PALETTE.node, PALETTE.nodeEmissive), () => {});
     state.data[i] = 1 + Math.floor(Math.random() * 20);
-    array.setValue(i, state.data[i], C);
+    if (animate === false) { el.setColor(PALETTE.node, PALETTE.nodeEmissive); el.setHeight(state.data[i] * 6); }
+    else { C(1, () => el.setColor(PALETTE.node, PALETTE.nodeEmissive), () => {}); array.setValue(i, state.data[i], C); }
   }
 }
 
@@ -87,5 +87,5 @@ panel.addButton('堆排序', () => {
 });
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
-randomize();
+randomize(false);
 scene.start(engine);

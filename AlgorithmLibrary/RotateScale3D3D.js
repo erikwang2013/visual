@@ -23,7 +23,7 @@ geo.shape.children[1].rotation.y = Math.PI / 4;
 const matrixText = new VText(scene, { text: '', x: 0, y: -130, z: 0, color: PALETTE.textDim, scale: 0.72 });
 const hint = new VText(scene, { text: '', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 
-let angleDeg = 0, scaleX = 1, scaleY = 1;
+let angleDeg = 45, scaleX = 1, scaleY = 1;
 
 function updateMatrix() {
   const rad = angleDeg * Math.PI / 180;
@@ -55,7 +55,7 @@ function reset() {
 }
 
 panel.addLabel('旋转角（绕 Z 轴）');
-const rotSlider = panel.addSlider('θ', -180, 180, 5, 0, (v) => { angleDeg = v; });
+const rotSlider = panel.addSlider('θ', -180, 180, 5, 45, (v) => { angleDeg = v; });
 panel.addLabel('缩放');
 const sxSlider = panel.addSlider('X', 0.2, 3, 0.1, 1, (v) => { scaleX = v; });
 const sySlider = panel.addSlider('Y', 0.2, 3, 0.1, 1, (v) => { scaleY = v; });

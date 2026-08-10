@@ -46,12 +46,13 @@ function fly(text, fromX, fromY, toX, toY, dur) {
   return t;
 }
 
-function randomize() {
-  say('随机列表');
+function randomize(animate) {
+  if (animate === false) status.textContent = '随机列表'; else say('随机列表');
   phaseLabel.setText('基数排序');
   for (let i = 0; i < N; i++) {
     state.data[i] = Math.floor(Math.random() * 100); // 0..99
-    setBar(i, state.data[i], C);
+    if (animate === false) array.elems[i].setHeight((state.data[i] + 1) * 2);
+    else setBar(i, state.data[i], C);
   }
 }
 
@@ -102,5 +103,5 @@ panel.addButton('基数排序', () => {
 });
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
-randomize();
+randomize(false);
 scene.start(engine);

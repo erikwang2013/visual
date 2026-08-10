@@ -60,15 +60,17 @@ function swapArr(i, j) {
   array.swap(i, j, C);
 }
 
-function randomize() {
-  say('随机化数组');
+function randomize(animate) {
+  if (animate === false) status.textContent = '随机化数组'; else say('随机化数组');
   for (let i = 0; i < count; i++) {
     state.data[i] = 1 + Math.floor(Math.random() * 20);
-    array.setValue(i, state.data[i], C);
+    if (animate === false) array.elems[i].setHeight(state.data[i] * 6);
+    else array.setValue(i, state.data[i], C);
   }
   for (let i = 0; i < count; i++) {
     const el = aux.elems[i]; const prev = el.height;
-    C(100, () => el.setHeight(0.5), () => el.setHeight(prev));
+    if (animate === false) el.setHeight(0.5);
+    else C(100, () => el.setHeight(0.5), () => el.setHeight(prev));
   }
 }
 
@@ -249,5 +251,5 @@ panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 rebuild(count);
 state.data.length = count;
-randomize();
+randomize(false);
 scene.start(engine);

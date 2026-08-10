@@ -48,12 +48,12 @@ function fly(text, fromX, fromY, toX, toY, dur) {
   return t;
 }
 
-function randomize() {
-  say('随机列表');
+function randomize(animate) {
+  if (animate === false) status.textContent = '随机列表'; else say('随机列表');
   for (let i = 0; i < N; i++) {
     state.data[i] = Math.floor(Math.random() * (MAXV + 1));
-    setBar(array, i, state.data[i], C);
-    setBar(output, i, 0, C);
+    if (animate === false) { array.elems[i].setHeight((state.data[i] + 1) * 10); output.elems[i].setHeight(10); }
+    else { setBar(array, i, state.data[i], C); setBar(output, i, 0, C); }
     state.out[i] = 0;
   }
 }
@@ -107,5 +107,5 @@ panel.addButton('计数排序', () => {
 });
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
-randomize();
+randomize(false);
 scene.start(engine);

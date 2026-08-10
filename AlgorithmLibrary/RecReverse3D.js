@@ -19,9 +19,10 @@ const status = panel.addStatus('');
 const objects = [];
 
 function clearAll() {
+  engine.clear();
   for (const o of objects) o.remove();
   objects.length = 0;
-  status.textContent = '';
+  status.textContent = '已清空';
 }
 
 function reverse() {
@@ -76,6 +77,7 @@ function reverse() {
 
 let input = panel.addInput('字符串 (≥2, ≤6)', (v) => { if (v.trim().length >= 2) reverse(); }, 6);
 panel.addButton('逆转', () => { if (input.value.trim()) reverse(); });
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

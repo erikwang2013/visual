@@ -296,12 +296,20 @@ function printTree() {
   status.textContent = '中序遍历 ' + total + ' 个节点';
 }
 
+function clearAll() {
+  engine.clear();
+  tree.clear();
+  root = null;
+  status.textContent = '已清空';
+}
+
 // 控件
 let input = panel.addInput('输入数字', (v) => { if (v) insertValue(v); }, 6);
 panel.addButton('插入', () => { if (input.value) insertValue(input.value); });
 panel.addButton('查找', () => { if (input.value) findValue(input.value); });
 panel.addButton('打印', printTree);
 panel.addButton('删除', () => { if (input.value) deleteValue(input.value); });
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 // 初始树

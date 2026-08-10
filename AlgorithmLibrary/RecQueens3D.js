@@ -22,6 +22,7 @@ let queens = [];
 let resultText = null;
 
 function clearAll() {
+  engine.clear();
   if (board) {
     for (let r = 0; r < board.rows; r++) {
       for (let c = 0; c < board.cols; c++) {
@@ -36,7 +37,7 @@ function clearAll() {
   for (const q of queens) q.remove();
   queens = [];
   if (resultText) { resultText.remove(); resultText = null; }
-  status.textContent = '';
+  status.textContent = '已清空';
 }
 
 function cellPos(r, c) {
@@ -134,6 +135,7 @@ function solve() {
 let qInput = panel.addInput('皇后数 (4-8)', (v) => { if (v) solve(); }, 2);
 qInput.value = '4';
 panel.addButton('皇后区', () => { if (qInput.value) solve(); });
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

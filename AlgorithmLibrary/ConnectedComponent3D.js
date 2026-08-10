@@ -127,7 +127,23 @@ function runCC() {
   }, () => {});
 }
 
+function clearAll() {
+  engine.clear();
+  compLabels.forEach((vt) => vt.remove());
+  compLabels.length = 0;
+  for (const [, e] of graph.nodes) e.node.remove();
+  graph.nodes.clear();
+  for (const [, e] of graph.edges) {
+    scene.remove(e.mesh);
+    if (e.weightLabel) e.weightLabel.remove();
+  }
+  graph.edges.clear();
+  status.textContent = '';
+  hint.setText('已清空画布');
+}
+
 panel.addButton('运行连接组件', runCC);
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

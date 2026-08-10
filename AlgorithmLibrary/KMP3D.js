@@ -22,6 +22,7 @@ let textArr = null, patArr = null, nextArr = null;
 const aux = [];
 
 function clearAll() {
+  engine.clear();
   for (const o of aux) o.remove();
   aux.length = 0;
   for (const arr of [textArr, patArr, nextArr]) {
@@ -30,6 +31,8 @@ function clearAll() {
     for (const l of arr.indexLabels) l.remove();
   }
   textArr = patArr = nextArr = null;
+  hint.setText('输入文本与模式串，点击「匹配」开始');
+  status.textContent = '已清空';
 }
 
 // ---- 模型 ----
@@ -164,6 +167,7 @@ textInput.value = 'ABABABCABAB';
 const patInput = panel.addInput('模式串', run, 8);
 patInput.value = 'ABABC';
 panel.addButton('匹配', run);
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

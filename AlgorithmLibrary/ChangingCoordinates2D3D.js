@@ -29,6 +29,17 @@ const matrixText = new VText(scene, { text: '', x: 0, y: -130, z: 0, color: PALE
 const hint = new VText(scene, { text: '输入 x、y，点击「变换点」', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('');
 
+function clearAll() {
+  engine.clear();
+  point.mesh.position.set(P0.x, P0.y, 0);
+  point.mesh.scale.set(1, 1, 1);
+  objMesh.position.set(P0.x, P0.y, 0);
+  objMesh.rotation.set(0, 0, 0);
+  matrixText.setText('');
+  hint.setText('输入 x、y，点击「变换点」');
+  status.textContent = '已清空';
+}
+
 // ---- 模型（与 /tmp/3dtest/2i_model.mjs 一致）----
 function transformPointModel(px, py, tx, ty) {
   return { x: -py + tx, y: px + ty };   // 先绕原点旋转 90°，再平移
@@ -84,6 +95,7 @@ const yInput = panel.addInput('y', () => runTransform(), 6);
 yInput.value = '-30';
 panel.addButton('变换点', runTransform);
 panel.addButton('移动对象', runMoveObject);
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

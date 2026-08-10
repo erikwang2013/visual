@@ -19,9 +19,10 @@ const status = panel.addStatus('');
 const objects = [];
 
 function clearAll() {
+  engine.clear();
   for (const o of objects) o.remove();
   objects.length = 0;
-  status.textContent = '';
+  status.textContent = '已清空';
 }
 
 function compute() {
@@ -68,6 +69,7 @@ function compute() {
 let nInput = panel.addInput('n (1-8)', (v) => { if (v) compute(); }, 2);
 nInput.value = '6';
 panel.addButton('阶乘', compute);
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

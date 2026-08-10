@@ -19,6 +19,19 @@ const array = new Array3D(scene, { type: 'box', count: N, spacing: 70, startY: 0
 array.create();
 for (let i = 0; i < N; i++) array.setValue(i, data[i], C);
 const status = panel.addStatus('');
+const annotations = [];
+
+function clearAll() {
+  engine.clear();
+  for (const o of annotations) o.remove();
+  annotations.length = 0;
+  for (let i = 0; i < N; i++) {
+    const el = array.elems[i];
+    el.mesh.material.emissiveIntensity = 0.35;
+    el.mesh.material.color.setHex(PALETTE.node);
+  }
+  status.textContent = '已清空';
+}
 
 function binarySearch(v) {
   const target = parseInt(v);
@@ -27,11 +40,13 @@ function binarySearch(v) {
   let lo = 0, hi = N - 1, mid = 0, found = false;
   const loT = new VText(scene, { text: 'lo', x: array.xOf(lo), y: 78, z: 0, color: PALETTE.orange, scale: 0.9 });
   const hiT = new VText(scene, { text: 'hi', x: array.xOf(hi), y: 78, z: 0, color: PALETTE.orange, scale: 0.9 });
+  annotations.push(loT, hiT);
   let loX = array.xOf(lo), hiX = array.xOf(hi);
   while (lo <= hi) {
     mid = (lo + hi) >> 1;
     const midX = array.xOf(mid);
     const midT = new VText(scene, { text: 'mid', x: midX, y: -78, z: 0, color: PALETTE.yellow, scale: 0.9 });
+    annotations.push(midT);
     array.highlight(mid, C);
     if (data[mid] === target) {
       array.highlight(mid, C, PALETTE.green);
@@ -59,6 +74,7 @@ function linearSearch(v) {
   status.textContent = '线性搜索 ' + target;
   let found = false, foundI = -1;
   const arrow = new VArrow(scene, { x: array.xOf(0), y: -72, z: 0 });
+  annotations.push(arrow);
   let ax = array.xOf(0);
   for (let i = 0; i < N; i++) {
     array.highlight(i, C);
@@ -76,6 +92,7 @@ let input = panel.addInput('输入数字', (v) => { if (v) binarySearch(v); }, 4
 input.value = '41';
 panel.addButton('二分查找', () => { if (input.value) binarySearch(input.value); });
 panel.addButton('线性搜索', () => { if (input.value) linearSearch(input.value); });
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

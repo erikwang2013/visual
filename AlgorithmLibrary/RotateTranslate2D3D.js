@@ -50,6 +50,17 @@ function removeShape() {
   geo.shape = null;
 }
 
+function clearAll() {
+  engine.clear();
+  shapeIdx = 0;
+  curRot = 0; curDx = 0; curDy = 0;
+  removeShape();
+  geo.addShape(SHAPES[0].make(), { color: 0x22c55e, opacity: 0.92 });
+  updateMatrix(0, 0, 0);
+  hint.setText('输入角度与位移，点击「转变」');
+  status.textContent = '已清空';
+}
+
 function applyTransform() {
   const angle = parseFloat(angleInput.value);
   const dx = parseFloat(dxInput.value);
@@ -90,6 +101,7 @@ const dyInput = panel.addInput('dy', () => applyTransform(), 5);
 dyInput.value = '0';
 panel.addButton('转变', applyTransform);
 panel.addButton('改变形状', changeShape);
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 updateMatrix(0, 0, 0);

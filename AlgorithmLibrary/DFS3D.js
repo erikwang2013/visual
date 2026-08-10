@@ -117,10 +117,27 @@ function runDFS() {
   }, () => {});
 }
 
+function clearAll() {
+  engine.clear();
+  orderTexts.forEach((vt) => vt.remove());
+  orderTexts.length = 0;
+  for (const [, e] of graph.nodes) e.node.remove();
+  graph.nodes.clear();
+  for (const [, e] of graph.edges) {
+    scene.remove(e.mesh);
+    if (e.weightLabel) e.weightLabel.remove();
+  }
+  graph.edges.clear();
+  startId = 0;
+  status.textContent = '';
+  hint.setText('已清空画布');
+}
+
 let startId = 0;
 panel.addLabel('起始节点: ');
 panel.addInput('0', (v) => { startId = parseInt(v, 10) || 0; runDFS(); }, 2);
 panel.addButton('运行DFS', runDFS);
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

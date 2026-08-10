@@ -104,7 +104,19 @@ function runFloyd() {
   }, () => {});
 }
 
+function clearAll() {
+  engine.clear();
+  roundTexts.forEach((vt) => vt.remove());
+  roundTexts.length = 0;
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (table.cells[r] && table.cells[r][c]) table.cells[r][c].remove();
+  table.rowLabels.forEach((l) => l.remove());
+  table.colLabels.forEach((l) => l.remove());
+  status.textContent = '';
+  hint.setText('已清空画布');
+}
+
 panel.addButton('运行Floyd-Warshall', runFloyd);
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

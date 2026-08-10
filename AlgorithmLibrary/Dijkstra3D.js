@@ -140,10 +140,26 @@ function runDijkstra() {
   step();
 }
 
+function clearAll() {
+  engine.clear();
+  for (let i = 0; i < N; i++) if (distLabels[i]) { distLabels[i].remove(); distLabels[i] = null; }
+  for (const [, e] of graph.nodes) e.node.remove();
+  graph.nodes.clear();
+  for (const [, e] of graph.edges) {
+    scene.remove(e.mesh);
+    if (e.weightLabel) e.weightLabel.remove();
+  }
+  graph.edges.clear();
+  startId = 0;
+  status.textContent = '';
+  hint.setText('已清空画布');
+}
+
 let startId = 0;
 panel.addLabel('起始节点: ');
 panel.addInput('0', (v) => { startId = parseInt(v, 10) || 0; runDijkstra(); }, 1);
 panel.addButton('运行Dijkstra', runDijkstra);
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

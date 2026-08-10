@@ -18,6 +18,7 @@ const array = new Array3D(scene, { type: 'box', count: SIZE, spacing: 78, startY
 array.create();
 const status = panel.addStatus('');
 const slots = new Array(SIZE).fill('');
+const transients = [];
 const h = (x) => ((x % SIZE) + SIZE) % SIZE;
 const bx = (k) => array.xOf(k);
 
@@ -39,6 +40,7 @@ function dropArrow() {
 function prep(x, k) {
   const formula = new VText(scene, { text: 'h(' + x + ') = ' + x + ' % 10 = ' + k, x: 0, y: 175, z: 0, color: PALETTE.textGlow, scale: 1 });
   const tmp = new VText(scene, { text: x, x: 0, y: 230, z: 0, color: PALETTE.text, scale: 1 });
+  transients.push(formula, tmp);
   C(420, (p) => { tmp.sprite.position.x = bx(k) * p; tmp.sprite.position.y = 230 + (45 - 230) * p; }, () => tmp.remove());
   ensureArrow(k);
   return { formula, tmp };
@@ -140,10 +142,24 @@ function find(value) {
   finish(formula, tmp);
 }
 
+function clearAll() {
+  engine.clear();
+  for (const t of transients) t.remove();
+  transients.length = 0;
+  for (let i = 0; i < SIZE; i++) {
+    slots[i] = '';
+    array.elems[i].setText('');
+    array.elems[i].setColor(PALETTE.node, PALETTE.nodeEmissive);
+  }
+  if (arrow) { arrow.remove(); arrow = null; arrowX = null; }
+  status.textContent = '已清空';
+}
+
 let input = panel.addInput('值', (v) => { if (v) insert(v.trim()); }, 6);
 panel.addButton('插入', () => { if (input.value) insert(input.value.trim()); });
 panel.addButton('删除', () => { if (input.value) del(input.value.trim()); });
 panel.addButton('查找', () => { if (input.value) find(input.value.trim()); });
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

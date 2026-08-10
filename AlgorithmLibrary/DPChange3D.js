@@ -21,6 +21,7 @@ const aux = [];
 let table = null;
 
 function clearAll() {
+  engine.clear();
   for (const o of aux) o.remove();
   aux.length = 0;
   if (table) {
@@ -29,6 +30,8 @@ function clearAll() {
     for (const l of table.colLabels) l.remove();
     table = null;
   }
+  hint.setText('输入金额与币种，选择模式开始');
+  status.textContent = '已清空';
 }
 
 // ---- 模型（与 /tmp/3dtest/2i_model.mjs 一致）----
@@ -235,6 +238,7 @@ panel.addButton('更改表', () => runTable('table'));
 panel.addButton('更改贪婪', runGreedy);
 panel.addButton('更改递归', runRec);
 panel.addButton('更改记忆', () => runTable('memo'));
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

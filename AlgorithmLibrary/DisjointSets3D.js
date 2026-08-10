@@ -38,6 +38,30 @@ function clearAux() {
   if (findText) { findText.remove(); findText = null; }
 }
 
+function clearAll() {
+  engine.clear();
+  clearAux();
+  parent = Array.from({ length: 8 }, (_, i) => i);
+  size = Array(8).fill(1);
+  lastSel = 0;
+  for (let i = 0; i < 8; i++) {
+    const e = tree.nodes.get(String(i));
+    if (!e) continue;
+    e.parentId = null;
+    e.x = -225 + (i % 4) * 150; e.y = i < 4 ? 130 : 20; e.z = 0;
+    e.node.mesh.position.set(e.x, e.y, e.z);
+    e.node.mesh.scale.set(1, 1, 1);
+    e.highlighted = false;
+    e.node.mesh.material.color.setHex(e.color);
+    e.node.mesh.material.emissive.setHex(e.color);
+    table.cells[0][i].setText(String(i));
+    table.cells[1][i].setText('1');
+  }
+  tree.drawEdges();
+  hint.setText('输入值(0~7)，点「查找」或「联合」');
+  status.textContent = '已清空';
+}
+
 // ---- 模型（与 /tmp/3dtest/2i_model.mjs 一致）----
 function findRoot(x) {
   const chain = [x];
@@ -144,6 +168,7 @@ const valueInput = panel.addInput('值(0~7)', () => runFind(), 1);
 valueInput.value = '0';
 panel.addButton('查找', runFind);
 panel.addButton('联合', runUnion);
+panel.addButton('清空', clearAll);
 panel.addLabel('（联合对象 = 上次查找的值；拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

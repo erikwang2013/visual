@@ -130,7 +130,25 @@ function runKruskal() {
   step();
 }
 
+function clearAll() {
+  engine.clear();
+  parentText.remove();
+  for (let r = 0; r < M; r++) for (let c = 0; c < 3; c++) if (table.cells[r] && table.cells[r][c]) table.cells[r][c].remove();
+  table.rowLabels.forEach((l) => l.remove());
+  table.colLabels.forEach((l) => l.remove());
+  for (const [, e] of graph.nodes) e.node.remove();
+  graph.nodes.clear();
+  for (const [, e] of graph.edges) {
+    scene.remove(e.mesh);
+    if (e.weightLabel) e.weightLabel.remove();
+  }
+  graph.edges.clear();
+  status.textContent = '';
+  hint.setText('已清空画布');
+}
+
 panel.addButton('运行Kruskal', runKruskal);
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

@@ -5,7 +5,15 @@
   // 每页演示序列：steps = [{ btn: 按钮文本（省略=第一个真实动作）, fills: [输入框值...] }]
   // 无条目页面执行单次默认动作
   const DEMOS = {
-    'BellmanFord.html': { steps: [{ fills: ['s'] }] },
+    'BellmanFord.html': { steps: [{ btn: '运行Bellman-Ford', fills: ['s'] }] },
+    'DFS.html': { steps: [{ btn: '运行DFS' }] },
+    'ConnectedComponent.html': { steps: [{ btn: '运行连接组件' }] },
+    'Dijkstra.html': { steps: [{ btn: '运行Dijkstra' }] },
+    'Prim.html': { steps: [{ btn: '运行Prim' }] },
+    'Kruskal.html': { steps: [{ btn: '运行Kruskal' }] },
+    'Floyd.html': { steps: [{ btn: '运行Floyd-Warshall' }] },
+    'TopoSortIndegree.html': { steps: [{ btn: '做拓扑排序' }] },
+    'TopoSortDFS.html': { steps: [{ btn: '做拓扑排序' }] },
     'BST.html': { steps: [{ btn: '删除', fills: ['50'] }, { btn: '插入', fills: ['50'] }] },
     'AVLtree.html': { steps: [{ btn: '删除', fills: ['50'] }, { btn: '插入', fills: ['50'] }] },
     'RedBlack.html': { steps: [{ btn: '删除', fills: ['50'] }, { btn: '插入', fills: ['50'] }] },
@@ -34,6 +42,17 @@
     'SegmentTree.html': { steps: [{ btn: '建树' }, { btn: '区间查询', fills: ['2', '5'] }, { btn: '点更新', fills: ['2', '5', '3', '9'] }, { btn: '区间查询', fills: ['2', '5'] }] },
     'DPFib.html': { steps: [{ fills: ['10'] }] },
     'ComparisonSort.html': { steps: [{ select: '选择演示算法' }] },
+    'AStar.html': { steps: [{ btn: '运行 A*' }] },
+    'Dinic.html': { steps: [{ btn: '运行 Dinic' }] },
+    'Tarjan.html': { steps: [{ btn: '运行 Tarjan' }] },
+    'MatrixChain.html': { steps: [{ btn: '求解' }] },
+    'LIS.html': { steps: [{ btn: '求解' }] },
+    'EditDistance.html': { steps: [{ btn: '求解' }] },
+    'Manacher.html': { steps: [{ btn: '求解' }] },
+    'ACAutomaton.html': { steps: [{ btn: '构建' }] },
+    'Fenwick.html': { steps: [{ btn: '点更新', fills: ['3 5'] }] },
+    'Treap.html': { steps: [{ btn: '插入', fills: ['15'] }] },
+    'PairingHeap.html': { steps: [{ btn: '插入', fills: ['15'] }] },
   };
 
   // 每页算法说明：第一段为总述，其余为子算法/子功能说明
@@ -91,6 +110,17 @@
     'ChangingCoordinates3D.html': ['三维改变坐标系：点先绕 Z 轴再绕 X 轴各旋转 90°，最后平移 (x,y,z)。', '子操作：变换点（旋转+平移）、移动对象（整体变换）'],
     'DisjointSets.html': ['不相交集（并查集）：维护分组集合，支持查找（路径压缩）与合并（按秩合并）。', '子操作：find 路径压缩、union 按秩合并'],
     'KMP.html': ['KMP 字符串匹配：预处理 next 前缀表，失配时利用已匹配信息跳过重复比较。', '子步骤：构建 next 表 → 主串扫描匹配'],
+    'AStar.html': ['A* 寻路：启发式搜索，f = g + h 优先扩展最有希望的节点，扩展节点少且能找到最短路径。', '子步骤：计算启发值 → 扩展最小 f 节点 → 回溯路径'],
+    'Dinic.html': ['Dinic 最大流：BFS 构建分层图，DFS 沿分层路径寻找增广路并更新残量，直到无法增广。', '子步骤：BFS 分层 → DFS 增广 → 更新残量'],
+    'Tarjan.html': ['Tarjan 强连通分量：DFS 计算 dfn 与 low，栈中 dfn == low 的节点构成一个强连通分量。', '子步骤：DFS 编号 → 回边更新 low → 出栈形成 SCC'],
+    'MatrixChain.html': ['矩阵连乘：动态规划求最优括号化方案，使标量乘法次数最少。', '子步骤：按链长自底向上填表 → s 表回溯括号化'],
+    'LIS.html': ['最长递增子序列：逐位置比较前序位置，dp[i] = max(dp[j] + 1)，并回溯出最长序列。', '子步骤：逐位置递推 → 回溯最长序列'],
+    'EditDistance.html': ['编辑距离：二维 DP 求两串最少编辑操作（插入/删除/替换）数，并回溯操作序列。', '子步骤：逐格填表 → 回溯操作路径'],
+    'Manacher.html': ['Manacher 回文：利用回文对称性线性时间求最长回文子串，O(n)。', '子步骤：扩展半径 → 对称复制 → 更新最右回文'],
+    'ACAutomaton.html': ['AC 自动机：Trie 加 fail 指针，一次扫描主串同时匹配全部模式串。', '子步骤：建 Trie → 构建 fail → 扫描匹配'],
+    'Fenwick.html': ['树状数组（BIT）：lowbit 技巧支持前缀和查询与单点更新，均为 O(log n)。', '子步骤：点更新逐层上溯 → 前缀查询逐段累加'],
+    'Treap.html': ['Treap：二叉搜索树加随机优先级堆性质，期望 O(log n) 的平衡搜索树。', '子步骤：BST 下降 → 违反堆性质时旋转修复'],
+    'PairingHeap.html': ['配对堆：多树森林结构，插入与合并均摊 O(1)，删除最小需要两遍成对合并。', '子步骤：插入合并 → 删除最小 → 成对合并'],
   };
 
   const fileName = location.pathname.split('/').pop();

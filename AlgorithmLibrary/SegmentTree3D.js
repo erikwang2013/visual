@@ -147,6 +147,16 @@ function runUpdate() {
   }, () => {});
 }
 
+function clearAll() {
+  engine.clear();
+  for (const o of aux) o.remove();
+  aux.length = 0;
+  for (const id in boxes) delete boxes[id];
+  built = false;
+  hint.setText('点击「建树」构建线段树，再尝试区间查询与点更新');
+  status.textContent = '已清空';
+}
+
 const qLInput = panel.addInput('查询左', runQuery, 4);
 qLInput.value = '2';
 const qRInput = panel.addInput('查询右', runQuery, 4);
@@ -158,6 +168,7 @@ const uValInput = panel.addInput('新值', runUpdate, 4);
 uValInput.value = '9';
 panel.addButton('点更新', runUpdate);
 panel.addButton('建树', buildTree);
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

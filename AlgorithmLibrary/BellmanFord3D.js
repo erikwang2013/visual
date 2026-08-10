@@ -128,9 +128,26 @@ function run() {
   }
 }
 
+function clearAll() {
+  engine.clear();
+  for (const id of NODES) {
+    if (distLabels[id]) { distLabels[id].remove(); distLabels[id] = null; }
+  }
+  for (const [, e] of graph.nodes) e.node.remove();
+  graph.nodes.clear();
+  for (const [, e] of graph.edges) {
+    scene.remove(e.mesh);
+    if (e.weightLabel) e.weightLabel.remove();
+  }
+  graph.edges.clear();
+  status.textContent = '';
+  hint.setText('已清空画布');
+}
+
 const startInput = panel.addInput('起点', run, 2);
 startInput.value = 's';
 panel.addButton('运行Bellman-Ford', run);
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

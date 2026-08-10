@@ -177,11 +177,20 @@ function printWords() {
   status.textContent = '';
 }
 
+function clearAll() {
+  engine.clear();
+  tree.clear();
+  model.clear();
+  root = null;
+  status.textContent = '已清空';
+}
+
 let input = panel.addInput('输入单词', (v) => { if (v) insertWord(v.trim()); }, 12);
 panel.addButton('插入', () => { if (input.value) insertWord(input.value.trim()); });
 panel.addButton('查找', () => { if (input.value) findWord(input.value.trim()); });
 panel.addButton('打印', printWords);
 panel.addButton('删除', () => { if (input.value) deleteWord(input.value.trim()); });
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

@@ -20,6 +20,7 @@ array.create();
 const status = panel.addStatus('');
 const state = { chains: Array.from({ length: BUCKETS }, () => []) };
 const nullTexts = [];
+const transients = [];
 const h = (x) => ((x % BUCKETS) + BUCKETS) % BUCKETS;
 const bx = (k) => array.xOf(k);
 const chainX = (k) => bx(k) + OX;
@@ -56,6 +57,7 @@ function insert(value) {
   status.textContent = '插入 ' + x + '：h(x) = ' + x + ' % 10 = ' + k;
   const formula = new VText(scene, { text: 'h(' + x + ') = ' + x + ' % 10 = ' + k, x: 0, y: 175, z: 0, color: PALETTE.textGlow, scale: 1 });
   const tmp = new VText(scene, { text: x, x: 0, y: 230, z: 0, color: PALETTE.text, scale: 1 });
+  transients.push(formula, tmp);
   let from = { x: 0, y: 230 };
   C(420, (p) => moveXY(tmp.sprite, from, { x: bx(k), y: 40 }, p), () => tmp.remove());
   const chain = state.chains[k];
@@ -89,6 +91,7 @@ function del(value) {
   status.textContent = '删除 ' + x + '：h(x) = ' + x + ' % 10 = ' + k;
   const formula = new VText(scene, { text: 'h(' + x + ') = ' + x + ' % 10 = ' + k, x: 0, y: 175, z: 0, color: PALETTE.textGlow, scale: 1 });
   const tmp = new VText(scene, { text: x, x: 0, y: 230, z: 0, color: PALETTE.text, scale: 1 });
+  transients.push(formula, tmp);
   let from = { x: 0, y: 230 };
   C(420, (p) => moveXY(tmp.sprite, from, { x: bx(k), y: 40 }, p), () => tmp.remove());
   const chain = state.chains[k];
@@ -136,6 +139,7 @@ function find(value) {
   status.textContent = '查找 ' + x + '：h(x) = ' + x + ' % 10 = ' + k;
   const formula = new VText(scene, { text: 'h(' + x + ') = ' + x + ' % 10 = ' + k, x: 0, y: 175, z: 0, color: PALETTE.textGlow, scale: 1 });
   const tmp = new VText(scene, { text: x, x: 0, y: 230, z: 0, color: PALETTE.text, scale: 1 });
+  transients.push(formula, tmp);
   let from = { x: 0, y: 230 };
   C(420, (p) => moveXY(tmp.sprite, from, { x: bx(k), y: 40 }, p), () => tmp.remove());
   const chain = state.chains[k];
@@ -160,10 +164,30 @@ function find(value) {
   C(60, () => formula.remove(), () => {});
 }
 
+function clearAll() {
+  engine.clear();
+  for (const t of transients) t.remove();
+  transients.length = 0;
+  for (const chain of state.chains) {
+    for (const node of chain) {
+      node.box.remove();
+      dropTube(node.tube);
+    }
+    chain.length = 0;
+  }
+  for (const t of nullTexts) t.remove();
+  nullTexts.length = 0;
+  for (let k = 0; k < BUCKETS; k++) {
+    nullTexts.push(new VText(scene, { text: '/', x: bx(k), y: 0, z: 0, color: PALETTE.textDim, scale: 0.8 }));
+  }
+  status.textContent = '已清空';
+}
+
 let input = panel.addInput('值', (v) => { if (v) insert(v.trim()); }, 6);
 panel.addButton('插入', () => { if (input.value) insert(input.value.trim()); });
 panel.addButton('删除', () => { if (input.value) del(input.value.trim()); });
 panel.addButton('查找', () => { if (input.value) find(input.value.trim()); });
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

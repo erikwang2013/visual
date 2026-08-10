@@ -22,6 +22,7 @@ let table = null;
 const aux = [];
 
 function clearAll() {
+  engine.clear();
   for (const o of aux) o.remove();
   aux.length = 0;
   if (table) {
@@ -30,6 +31,8 @@ function clearAll() {
     for (const l of table.colLabels) l.remove();
     table = null;
   }
+  hint.setText('输入物品(重量/价值)与容量，点击「求解」开始');
+  status.textContent = '已清空';
 }
 
 // ---- 模型 ----
@@ -147,6 +150,7 @@ itemInput.value = '2/3,3/4,4/5,5/6';
 const capInput = panel.addInput('容量', run, 4);
 capInput.value = '8';
 panel.addButton('求解', run);
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

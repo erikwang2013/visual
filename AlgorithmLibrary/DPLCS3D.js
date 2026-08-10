@@ -21,6 +21,7 @@ const flyTexts = [];
 let table = null;
 
 function clearAll() {
+  engine.clear();
   for (const t of flyTexts) t.remove();
   flyTexts.length = 0;
   resultText.setText('LCS: ');
@@ -30,6 +31,8 @@ function clearAll() {
     for (const l of table.colLabels) l.remove();
     table = null;
   }
+  hint.setText('输入串A、串B，选择模式开始');
+  status.textContent = '已清空';
 }
 
 // ---- 模型（与 /tmp/3dtest/2i_model.mjs 一致）----
@@ -132,6 +135,7 @@ bInput.value = 'ac';
 panel.addButton('LCS表', () => runLCS('table'));
 panel.addButton('LCS 递归', () => runLCS('rec'));
 panel.addButton('LCS 记忆', () => runLCS('memo'));
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

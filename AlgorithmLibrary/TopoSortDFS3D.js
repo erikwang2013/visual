@@ -161,7 +161,25 @@ function runTopo() {
   }, () => {});
 }
 
+function clearAll() {
+  engine.clear();
+  orderTexts.forEach((vt) => vt.remove());
+  orderTexts.length = 0;
+  cones.forEach((c) => scene.remove(c));
+  cones.length = 0;
+  for (const [, e] of graph.nodes) e.node.remove();
+  graph.nodes.clear();
+  for (const [, e] of graph.edges) {
+    scene.remove(e.mesh);
+    if (e.weightLabel) e.weightLabel.remove();
+  }
+  graph.edges.clear();
+  status.textContent = '';
+  hint.setText('已清空画布');
+}
+
 panel.addButton('做拓扑排序', runTopo);
+panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 
 scene.start(engine);

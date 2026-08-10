@@ -31,12 +31,16 @@ export function glowMaterial(color, opts = {}) {
 
 export function textTexture(text, opts = {}) {
   const size = opts.size || 256;
+  const fontSize = opts.fontSize || Math.floor(size * 0.34);
   const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size * 0.5;
   const ctx = canvas.getContext('2d');
+  ctx.font = `bold ${fontSize}px "Noto Sans SC", "Microsoft YaHei", sans-serif`;
+  const pad = Math.ceil(fontSize * 0.62); // 辉光留白，防止长文本被画布边缘裁掉
+  const w = Math.max(size, Math.ceil(ctx.measureText(String(text)).width) + pad * 2);
+  canvas.width = w;
+  canvas.height = size * 0.5;
+  ctx.font = `bold ${fontSize}px "Noto Sans SC", "Microsoft YaHei", sans-serif`;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.font = `bold ${opts.fontSize || Math.floor(size * 0.34)}px "Noto Sans SC", "Microsoft YaHei", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const color = opts.color || PALETTE.text;
@@ -51,12 +55,17 @@ export function textTexture(text, opts = {}) {
   return tex;
 }
 
+function spriteAspect(tex) {
+  return [tex.image.width / 256, tex.image.height / 128];
+}
+
 export function makeTextSprite(text, opts = {}) {
   const tex = textTexture(text, opts);
   const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
   const sprite = new THREE.Sprite(mat);
   const scale = opts.scale || 1;
-  sprite.scale.set(100 * scale, 50 * scale, 1);
+  const [w, h] = spriteAspect(tex);
+  sprite.scale.set(100 * scale * w, 50 * scale * h, 1);
   return sprite;
 }
 
@@ -66,7 +75,8 @@ export function setSpriteText(sprite, text, opts = {}) {
   sprite.material.map = tex;
   sprite.material.needsUpdate = true;
   const scale = opts.scale || 1;
-  sprite.scale.set(100 * scale, 50 * scale, 1);
+  const [w, h] = spriteAspect(tex);
+  sprite.scale.set(100 * scale * w, 50 * scale * h, 1);
 }
 
 // —— 页面视觉主题：每页一套主色，柱子/节点/连线/地面/星空/背景各有身份 ——

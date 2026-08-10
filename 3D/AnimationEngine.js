@@ -41,6 +41,7 @@ export class AnimationEngine {
 
   undo() {
     this.pause();
+    if (this.current) { const c = this.current.cmd; if (c && c.undo) c.undo(); this.current = null; }
     const cmd = this.done.pop();
     if (cmd && cmd.undo) cmd.undo();
     if (!this.current && this.queue.length) {

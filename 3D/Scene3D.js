@@ -57,6 +57,10 @@ export class Scene3D {
     if (opts.ground !== false) this.addGround();
 
     window.addEventListener('resize', () => this.resize());
+    if (typeof ResizeObserver !== 'undefined') {
+      this.ro = new ResizeObserver(() => this.resize());
+      this.ro.observe(container);
+    }
     this.resize();
   }
 

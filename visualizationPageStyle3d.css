@@ -1,6 +1,6 @@
 /* visualizationPageStyle3d.css */
 body { margin:0; background:#030514; color:#e2e8f0; font-family:"Noto Sans SC","Microsoft YaHei",sans-serif; overflow:hidden; }
-#app { display:flex; flex-direction:column; height:100vh; }
+#app { display:flex; flex-direction:column; height:calc(100vh - 26px); }
 #header { display:flex; align-items:center; gap:16px; padding:10px 18px; background:rgba(10,15,46,.6); border-bottom:1px solid rgba(59,130,246,.25); }
 #header h1 { font-size:18px; margin:0; color:#e0f2fe; text-shadow:0 0 12px rgba(59,130,246,.5); }
 .home-link { color:#7dd3fc; text-decoration:none; font-size:13px; margin-left:auto; }
@@ -23,4 +23,4 @@ body { margin:0; background:#030514; color:#e2e8f0; font-family:"Noto Sans SC","
 .play-btn { background:rgba(59,130,246,.15); color:#bfdbfe; border:1px solid rgba(59,130,246,.4); padding:4px 12px; border-radius:6px; cursor:pointer; font-size:12px; }
 .play-btn:hover { background:rgba(59,130,246,.32); }
 .speed-slider { width:160px; accent-color:#3b82f6; }
-footer { text-align:center; padding:6px; font-size:12px; color:#64748b; background:rgba(3,5,20,.8); position:fixed; bottom:0; width:100%; }
+footer { text-align:center; padding:6px; font-size:12px; color:#64748b; background:rgba(3,5,20,.8); }

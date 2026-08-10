@@ -38,17 +38,11 @@
     transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
   }
   .card a.title { flex: 1; color: #e2e8f0; font-size: 14px; line-height: 1.45; text-decoration: none; }
-  .card a.demo {
-    flex: none; font-size: 12px; color: #22d3ee; text-decoration: none; white-space: nowrap;
-    border: 1px solid rgba(34, 211, 238, 0.5); border-radius: 6px; padding: 3px 9px;
-    transition: background 0.18s ease, box-shadow 0.18s ease;
-  }
   .card:hover {
     transform: translateY(-2px); border-color: #22d3ee;
     box-shadow: 0 0 16px rgba(34, 211, 238, 0.5), 0 4px 22px rgba(2, 6, 23, 0.7);
   }
   .card:hover a.title { color: #cffafe; }
-  .card a.demo:hover { background: rgba(34, 211, 238, 0.18); box-shadow: 0 0 10px rgba(34, 211, 238, 0.45); }
   footer { position: relative; z-index: 1; text-align: center; color: #64748b; font-size: 13px; padding: 18px 0 26px; }
   footer a { color: #94a3b8; text-decoration: none; }
   footer a:hover { color: #7dd3fc; }
@@ -68,103 +62,103 @@
   <section class="cat">
     <h2>基本</h2>
     <div class="grid">
-      <div class="card"><a href="StackArray.html" class="title">堆栈：数组实现</a><a href="StackArray.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="StackLL.html" class="title">堆栈：链表实现</a><a href="StackLL.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="QueueArray.html" class="title">队列：数组实现</a><a href="QueueArray.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="QueueLL.html" class="title">队列：链表实现</a><a href="QueueLL.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="SimpleStack.html" class="title">简单堆栈</a><a href="SimpleStack.html?demo=1" class="demo">▶ 演示</a></div>
+      <div class="card"><a href="StackArray.html" class="title">堆栈：数组实现</a></div>
+      <div class="card"><a href="StackLL.html" class="title">堆栈：链表实现</a></div>
+      <div class="card"><a href="QueueArray.html" class="title">队列：数组实现</a></div>
+      <div class="card"><a href="QueueLL.html" class="title">队列：链表实现</a></div>
+      <div class="card"><a href="SimpleStack.html" class="title">简单堆栈</a></div>
     </div>
   </section>
 
   <section class="cat">
     <h2>递归</h2>
     <div class="grid">
-      <div class="card"><a href="RecFact.html" class="title">阶乘</a><a href="RecFact.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="RecReverse.html" class="title">反转字符串</a><a href="RecReverse.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="RecQueens.html" class="title">N-皇后问题</a><a href="RecQueens.html?demo=1" class="demo">▶ 演示</a></div>
+      <div class="card"><a href="RecFact.html" class="title">阶乘</a></div>
+      <div class="card"><a href="RecReverse.html" class="title">反转字符串</a></div>
+      <div class="card"><a href="RecQueens.html" class="title">N-皇后问题</a></div>
     </div>
   </section>
 
   <section class="cat">
     <h2>索引</h2>
     <div class="grid">
-      <div class="card"><a href="Search.html" class="title">二分和线性搜索（排序列表）</a><a href="Search.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="BST.html" class="title">二叉搜索树</a><a href="BST.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="AVLtree.html" class="title">AVL 树（平衡二叉搜索树）</a><a href="AVLtree.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="RedBlack.html" class="title">红黑树</a><a href="RedBlack.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="SplayTree.html" class="title">展开树</a><a href="SplayTree.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="OpenHash.html" class="title">开放哈希表（封闭寻址）</a><a href="OpenHash.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="ClosedHash.html" class="title">封闭哈希表（开放寻址）</a><a href="ClosedHash.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="ClosedHashBucket.html" class="title">封闭哈希表（使用桶）</a><a href="ClosedHashBucket.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="Trie.html" class="title">Trie（前缀树，26 叉树）</a><a href="Trie.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="RadixTree.html" class="title">基数树（Compact Trie）</a><a href="RadixTree.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="TST.html" class="title">三元搜索树（Trie with BST of children）</a><a href="TST.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="BTree.html" class="title">B树</a><a href="BTree.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="BPlusTree.html" class="title">B+树</a><a href="BPlusTree.html?demo=1" class="demo">▶ 演示</a></div>
+      <div class="card"><a href="Search.html" class="title">二分和线性搜索（排序列表）</a></div>
+      <div class="card"><a href="BST.html" class="title">二叉搜索树</a></div>
+      <div class="card"><a href="AVLtree.html" class="title">AVL 树（平衡二叉搜索树）</a></div>
+      <div class="card"><a href="RedBlack.html" class="title">红黑树</a></div>
+      <div class="card"><a href="SplayTree.html" class="title">展开树</a></div>
+      <div class="card"><a href="OpenHash.html" class="title">开放哈希表（封闭寻址）</a></div>
+      <div class="card"><a href="ClosedHash.html" class="title">封闭哈希表（开放寻址）</a></div>
+      <div class="card"><a href="ClosedHashBucket.html" class="title">封闭哈希表（使用桶）</a></div>
+      <div class="card"><a href="Trie.html" class="title">Trie（前缀树，26 叉树）</a></div>
+      <div class="card"><a href="RadixTree.html" class="title">基数树（Compact Trie）</a></div>
+      <div class="card"><a href="TST.html" class="title">三元搜索树（Trie with BST of children）</a></div>
+      <div class="card"><a href="BTree.html" class="title">B树</a></div>
+      <div class="card"><a href="BPlusTree.html" class="title">B+树</a></div>
     </div>
   </section>
 
   <section class="cat">
     <h2>排序</h2>
     <div class="grid">
-      <div class="card"><a href="ComparisonSort.html" class="title">比较排序（冒泡/选择/插入/壳/归并/快排）</a><a href="ComparisonSort.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="BucketSort.html" class="title">桶排序</a><a href="BucketSort.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="CountingSort.html" class="title">计数排序</a><a href="CountingSort.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="RadixSort.html" class="title">基数排序</a><a href="RadixSort.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="HeapSort.html" class="title">堆排序</a><a href="HeapSort.html?demo=1" class="demo">▶ 演示</a></div>
+      <div class="card"><a href="ComparisonSort.html" class="title">比较排序（冒泡/选择/插入/壳/归并/快排）</a></div>
+      <div class="card"><a href="BucketSort.html" class="title">桶排序</a></div>
+      <div class="card"><a href="CountingSort.html" class="title">计数排序</a></div>
+      <div class="card"><a href="RadixSort.html" class="title">基数排序</a></div>
+      <div class="card"><a href="HeapSort.html" class="title">堆排序</a></div>
     </div>
   </section>
 
   <section class="cat">
     <h2>类堆数据结构</h2>
     <div class="grid">
-      <div class="card"><a href="Heap.html" class="title">堆</a><a href="Heap.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="BinomialQueue.html" class="title">二项式队列</a><a href="BinomialQueue.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="FibonacciHeap.html" class="title">斐波那契堆</a><a href="FibonacciHeap.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="LeftistHeap.html" class="title">左派堆</a><a href="LeftistHeap.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="SkewHeap.html" class="title">倾斜堆</a><a href="SkewHeap.html?demo=1" class="demo">▶ 演示</a></div>
+      <div class="card"><a href="Heap.html" class="title">堆</a></div>
+      <div class="card"><a href="BinomialQueue.html" class="title">二项式队列</a></div>
+      <div class="card"><a href="FibonacciHeap.html" class="title">斐波那契堆</a></div>
+      <div class="card"><a href="LeftistHeap.html" class="title">左派堆</a></div>
+      <div class="card"><a href="SkewHeap.html" class="title">倾斜堆</a></div>
     </div>
   </section>
 
   <section class="cat">
     <h2>图算法</h2>
     <div class="grid">
-      <div class="card"><a href="BFS.html" class="title">广度优先搜索</a><a href="BFS.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="DFS.html" class="title">深度优先搜索</a><a href="DFS.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="ConnectedComponent.html" class="title">连接组件</a><a href="ConnectedComponent.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="Dijkstra.html" class="title">Dijkstra 的最短路径</a><a href="Dijkstra.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="Prim.html" class="title">Prim 的最小成本生成树</a><a href="Prim.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="TopoSortIndegree.html" class="title">拓扑排序（使用入度数组）</a><a href="TopoSortIndegree.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="TopoSortDFS.html" class="title">拓扑排序（使用 DFS）</a><a href="TopoSortDFS.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="Floyd.html" class="title">Floyd-Warshall（所有对最短路径）</a><a href="Floyd.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="Kruskal.html" class="title">Kruskal 最小成本生成树</a><a href="Kruskal.html?demo=1" class="demo">▶ 演示</a></div>
+      <div class="card"><a href="BFS.html" class="title">广度优先搜索</a></div>
+      <div class="card"><a href="DFS.html" class="title">深度优先搜索</a></div>
+      <div class="card"><a href="ConnectedComponent.html" class="title">连接组件</a></div>
+      <div class="card"><a href="Dijkstra.html" class="title">Dijkstra 的最短路径</a></div>
+      <div class="card"><a href="Prim.html" class="title">Prim 的最小成本生成树</a></div>
+      <div class="card"><a href="TopoSortIndegree.html" class="title">拓扑排序（使用入度数组）</a></div>
+      <div class="card"><a href="TopoSortDFS.html" class="title">拓扑排序（使用 DFS）</a></div>
+      <div class="card"><a href="Floyd.html" class="title">Floyd-Warshall（所有对最短路径）</a></div>
+      <div class="card"><a href="Kruskal.html" class="title">Kruskal 最小成本生成树</a></div>
     </div>
   </section>
 
   <section class="cat">
     <h2>动态规划</h2>
     <div class="grid">
-      <div class="card"><a href="DPFib.html" class="title">计算第 n 个斐波那契数</a><a href="DPFib.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="DPChange.html" class="title">做出改变（找零）</a><a href="DPChange.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="DPLCS.html" class="title">最长公共子序列</a><a href="DPLCS.html?demo=1" class="demo">▶ 演示</a></div>
+      <div class="card"><a href="DPFib.html" class="title">计算第 n 个斐波那契数</a></div>
+      <div class="card"><a href="DPChange.html" class="title">做出改变（找零）</a></div>
+      <div class="card"><a href="DPLCS.html" class="title">最长公共子序列</a></div>
     </div>
   </section>
 
   <section class="cat">
     <h2>几何算法</h2>
     <div class="grid">
-      <div class="card"><a href="RotateScale2D.html" class="title">二维旋转和缩放矩阵</a><a href="RotateScale2D.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="RotateTranslate2D.html" class="title">二维旋转和平移矩阵</a><a href="RotateTranslate2D.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="ChangingCoordinates2D.html" class="title">二维改变坐标系</a><a href="ChangingCoordinates2D.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="RotateScale3D.html" class="title">三维旋转和缩放矩阵</a><a href="RotateScale3D.html?demo=1" class="demo">▶ 演示</a></div>
-      <div class="card"><a href="ChangingCoordinates3D.html" class="title">三维改变坐标系</a><a href="ChangingCoordinates3D.html?demo=1" class="demo">▶ 演示</a></div>
+      <div class="card"><a href="RotateScale2D.html" class="title">二维旋转和缩放矩阵</a></div>
+      <div class="card"><a href="RotateTranslate2D.html" class="title">二维旋转和平移矩阵</a></div>
+      <div class="card"><a href="ChangingCoordinates2D.html" class="title">二维改变坐标系</a></div>
+      <div class="card"><a href="RotateScale3D.html" class="title">三维旋转和缩放矩阵</a></div>
+      <div class="card"><a href="ChangingCoordinates3D.html" class="title">三维改变坐标系</a></div>
     </div>
   </section>
 
   <section class="cat">
     <h2>其他</h2>
     <div class="grid">
-      <div class="card"><a href="DisjointSets.html" class="title">不相交集（并查集）</a><a href="DisjointSets.html?demo=1" class="demo">▶ 演示</a></div>
+      <div class="card"><a href="DisjointSets.html" class="title">不相交集（并查集）</a></div>
     </div>
   </section>
 </main>

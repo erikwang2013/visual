@@ -62,6 +62,7 @@ export function makeTextSprite(text, opts = {}) {
 
 export function setSpriteText(sprite, text, opts = {}) {
   const tex = textTexture(text, opts);
+  const old = sprite.material.map; if (old) old.dispose();
   sprite.material.map = tex;
   sprite.material.needsUpdate = true;
   const scale = opts.scale || 1;

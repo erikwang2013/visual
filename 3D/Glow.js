@@ -99,15 +99,15 @@ const THEMES = {
 };
 
 const PAGE_THEMES = {
-  AVL3D: 'cyan', BFS3D: 'cyan', BinomialQueue3D: 'azure', BPlusTree3D: 'indigo', BST3D: 'emerald',
+  AVL3D: 'cyan', BellmanFord3D: 'rose', BFS3D: 'cyan', BinomialQueue3D: 'azure', BPlusTree3D: 'indigo', BST3D: 'emerald',
   BTree3D: 'azure', BucketSort3D: 'teal', ChangingCoordinates2D3D: 'purple', ChangingCoordinates3D3D: 'amber',
   ClosedHash3D: 'violet', ClosedHashBucket3D: 'pink', ComparisonSort3D: 'azure', ConnectedComponent3D: 'emerald',
   CountingSort3D: 'violet', DFS3D: 'violet', Dijkstra3D: 'amber', DisjointSets3D: 'magenta', DPChange3D: 'emerald',
   DPFib3D: 'gold', DPLCS3D: 'violet', FibonacciHeap3D: 'gold', Floyd3D: 'magenta', Heap3D: 'amber',
-  HeapSort3D: 'purple', Kruskal3D: 'orange', LeftistHeap3D: 'emerald', OpenHash3D: 'rose', Prim3D: 'pink',
+  HeapSort3D: 'purple', KMP3D: 'cyan', Knapsack3D: 'amber', Kruskal3D: 'orange', LeftistHeap3D: 'emerald', OpenHash3D: 'rose', Prim3D: 'pink',
   QueueArray3D: 'azure', QueueLL3D: 'indigo', RadixSort3D: 'magenta', RadixTree3D: 'violet', RecFact3D: 'purple',
   RecQueens3D: 'rose', RecReverse3D: 'cyan', RedBlack3D: 'red', RotateScale2D3D: 'azure', RotateScale3D3D: 'emerald',
-  RotateTranslate2D3D: 'cyan', Search3D: 'azure', SimpleStack3D: 'magenta', SkewHeap3D: 'orange', SplayTree3D: 'orange',
+  RotateTranslate2D3D: 'cyan', Search3D: 'azure', SegmentTree3D: 'indigo', SimpleStack3D: 'magenta', SkewHeap3D: 'orange', SplayTree3D: 'orange',
   StackArray3D: 'cyan', StackLL3D: 'teal', TopoSortDFS3D: 'indigo', TopoSortIndegree3D: 'azure', Trie3D: 'purple',
   TST3D: 'teal',
 };

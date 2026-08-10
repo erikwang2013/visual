@@ -5,6 +5,7 @@
   // 每页演示序列：steps = [{ btn: 按钮文本（省略=第一个真实动作）, fills: [输入框值...] }]
   // 无条目页面执行单次默认动作
   const DEMOS = {
+    'BellmanFord.html': { steps: [{ fills: ['s'] }] },
     'BST.html': { steps: [{ btn: '删除', fills: ['50'] }, { btn: '插入', fills: ['50'] }] },
     'AVLtree.html': { steps: [{ btn: '删除', fills: ['50'] }, { btn: '插入', fills: ['50'] }] },
     'RedBlack.html': { steps: [{ btn: '删除', fills: ['50'] }, { btn: '插入', fills: ['50'] }] },
@@ -15,6 +16,8 @@
     'RadixTree.html': { steps: [{ btn: '删除', fills: ['abc'] }, { btn: '插入', fills: ['abc'] }] },
     'TST.html': { steps: [{ btn: '删除', fills: ['abc'] }, { btn: '插入', fills: ['abc'] }] },
     'Heap.html': { steps: [{ fills: ['10'] }, { fills: ['20'] }, { fills: ['30'] }] },
+    'KMP.html': { steps: [{ fills: ['ABABABCABAB', 'ABABC'] }] },
+    'Knapsack.html': { steps: [{ fills: ['2/3,3/4,4/5,5/6', '8'] }] },
     'BinomialQueue.html': { steps: [{ fills: ['10'] }, { fills: ['20'] }, { fills: ['30'] }] },
     'FibonacciHeap.html': { steps: [{ fills: ['10'] }, { fills: ['20'] }, { fills: ['30'] }] },
     'LeftistHeap.html': { steps: [{ fills: ['10'] }, { fills: ['20'] }, { fills: ['30'] }] },
@@ -28,6 +31,7 @@
     'QueueLL.html': { steps: [{ fills: ['5'] }, { fills: ['6'] }, { fills: ['7'] }] },
     'SimpleStack.html': { steps: [{ fills: ['5'] }, { fills: ['6'] }, { fills: ['7'] }] },
     'RecReverse.html': { steps: [{ fills: ['hello'] }] },
+    'SegmentTree.html': { steps: [{ btn: '建树' }, { btn: '区间查询', fills: ['2', '5'] }, { btn: '点更新', fills: ['2', '5', '3', '9'] }, { btn: '区间查询', fills: ['2', '5'] }] },
     'DPFib.html': { steps: [{ fills: ['10'] }] },
   };
 

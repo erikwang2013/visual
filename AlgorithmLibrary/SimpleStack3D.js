@@ -10,7 +10,7 @@ const SIZE = 15;
 const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
 const engine = new AnimationEngine({ speed: 1.2 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand({ duration, fn, undo: undo || (() => {}) });
+const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
 const array = new Array3D(scene, { count: SIZE, startY: -40, w: 46, h: 46, spacing: 50 });
 array.create();

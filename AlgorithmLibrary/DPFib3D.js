@@ -11,7 +11,7 @@ import { PALETTE } from '../3D/Glow.js';
 const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 55 });
 const engine = new AnimationEngine({ speed: 1.2 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand({ duration, fn, undo: undo || (() => {}) });
+const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
 const MAXN = 15;
 const table = new Table3D(scene, { rows: 1, cols: MAXN + 1, startY: 40, cellW: 64, cellH: 48 });

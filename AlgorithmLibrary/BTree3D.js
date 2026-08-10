@@ -318,7 +318,7 @@ let input = panel.addInput('输入数字', (v) => { if (v) insertValue(v); }, 6)
 panel.addButton('插入', () => { if (input.value) insertValue(input.value); });
 panel.addButton('查找', () => { if (input.value) findValue(input.value); });
 panel.addButton('打印', printTree);
-panel.addButton('清楚', clearAll);
+panel.addButton('清空', clearAll);
 panel.addButton('删除', () => { if (input.value) deleteValue(input.value); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

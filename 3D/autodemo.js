@@ -140,9 +140,9 @@
     btn.textContent = '▶ 演示';
     btn.addEventListener('click', runDemo);
     controls.prepend(btn);
-    // 页面自身没有「清空」按钮时注入：重置演示（停止动画并恢复初始状态）
-    const hasNativeClear = [...controls.querySelectorAll('button.algo-btn')].some((b) => b.textContent.trim() === '清空');
-    if (!hasNativeClear) {
+    // 页面自身没有重置类按钮时注入：重置演示（停止动画并恢复初始状态）
+    const hasNativeReset = [...controls.querySelectorAll('button.algo-btn')].some((b) => /清空|清除|清楚|随机|重置|新图|clear/i.test(b.textContent.trim()));
+    if (!hasNativeReset) {
       const clearBtn = document.createElement('button');
       clearBtn.id = 'clear-run-btn';
       clearBtn.className = 'algo-btn';

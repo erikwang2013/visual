@@ -75,12 +75,24 @@
 
 ## 7. 分期实施计划
 
-| 阶段 | 内容 | 页面 |
-|------|------|------|
+算法可视化页共 **49 页**（53 个 HTML − Algorithms.html 首页 − template.html 模板 − flash/slideTest 测试页）。
+
+| 阶段 | 内容 | 页面数 |
+|------|------|--------|
 | 0 地基 | 下载 three.js 本地文件；搭建 `3D/` 基础设施 | — |
 | 1 模式验证 | StackArray(Array3D)、BST(Tree3D)、BFS(Graph3D)、DPFib(Table3D)、RotateScale3D(Geometry3D) | 5 |
-| 2 批量铺开 | 基本结构(7) → 排序(9) → 索引(14) → 堆(5) → 图(9) → DP(3) → 几何(5)，每批 Playwright 冒烟测试 | 48 |
+| 2a 基本结构 | SimpleStack、StackLL、QueueArray、QueueLL | 4 |
+| 2b 递归 | RecFact、RecReverse、RecQueens | 3 |
+| 2c 索引 | Search、AVLtree、RedBlack、SplayTree、OpenHash、ClosedHash、ClosedHashBucket、Trie、RadixTree、TST、BTree、BPlusTree | 12 |
+| 2d 排序 | ComparisonSort、BucketSort、CountingSort、RadixSort、HeapSort | 5 |
+| 2e 堆 | Heap、BinomialQueue、FibonacciHeap、LeftistHeap、SkewHeap | 5 |
+| 2f 图 | DFS、ConnectedComponent、Dijkstra、Prim、TopoSortIndegree、TopoSortDFS、Floyd、Kruskal | 8 |
+| 2g DP | DPChange、DPLCS | 2 |
+| 2h 几何 | RotateScale2D、RotateTranslate2D、ChangingCoordinates2D、ChangingCoordinates3D | 4 |
+| 2i 其他 | DisjointSets | 1 |
 | 3 首页+收尾 | Algorithms.html 漫游空间；template.html 更新；全站验证 | 1 |
+
+每批（2a–2i）完成后用 Playwright 冒烟测试该批页面。
 
 ## 8. 边界与错误处理
 

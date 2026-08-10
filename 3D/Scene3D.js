@@ -1,6 +1,7 @@
 // 3D/Scene3D.js
 import * as THREE from 'three';
 import { OrbitControls } from '../ThirdParty/three/examples/jsm/controls/OrbitControls.js';
+import { CURRENT_THEME } from './Glow.js';
 
 export const BGCSS = { top: '#0a0f2e', bottom: '#030514' };
 
@@ -9,6 +10,7 @@ export class Scene3D {
     const container = document.getElementById(containerId);
     this.width = container.clientWidth || window.innerWidth;
     this.height = container.clientHeight || window.innerHeight;
+    const th = opts.theme || CURRENT_THEME || {};
 
     try {
       this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -23,8 +25,8 @@ export class Scene3D {
 
     this.scene = new THREE.Scene();
     this.scene.background = this.makeBackgroundTexture(
-      new THREE.Color(opts.bgTop || BGCSS.top),
-      new THREE.Color(opts.bgBottom || BGCSS.bottom));
+      new THREE.Color(opts.bgTop || th.bgTop || BGCSS.top),
+      new THREE.Color(opts.bgBottom || th.bgBottom || BGCSS.bottom));
 
     // 相机
     const camPos = opts.cameraPos || [0, 260, 420];
@@ -51,9 +53,9 @@ export class Scene3D {
     this.controls.maxDistance = 1800;
 
     // 雾
-    this.scene.fog = new THREE.FogExp2(0x0a0f2e, 0.00045);
+    this.scene.fog = new THREE.FogExp2(th.fog ?? 0x0a0f2e, th.fogDensity ?? 0.00045);
 
-    if (opts.stars !== false) this.addStars(opts.starCount || 400);
+    if (opts.stars !== false) this.addStars(opts.starCount || 400, th.stars);
     if (opts.ground !== false) this.addGround();
 
     window.addEventListener('resize', () => this.resize());
@@ -78,10 +80,10 @@ export class Scene3D {
     return tex;
   }
 
-  addStars(count) {
+  addStars(count, starColors) {
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
-    const palette = [0xffffff, 0xbfdbfe, 0x93c5fd, 0xe0f2fe];
+    const palette = starColors || [0xffffff, 0xbfdbfe, 0x93c5fd, 0xe0f2fe];
     for (let i = 0; i < count; i++) {
       positions[i*3]   = (Math.random() - 0.5) * 1800;
       positions[i*3+1] = (Math.random() - 0.5) * 1200 + 200;
@@ -99,7 +101,8 @@ export class Scene3D {
   }
 
   addGround() {
-    const grid = new THREE.GridHelper(1400, 42, 0x3b82f6, 0x1e3a8a);
+    const th = CURRENT_THEME || {};
+    const grid = new THREE.GridHelper(1400, 42, th.ground ?? 0x3b82f6, th.groundEm ?? 0x1e3a8a);
     grid.position.y = -10;
     grid.material.transparent = true;
     grid.material.opacity = 0.35;

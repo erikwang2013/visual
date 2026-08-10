@@ -5,7 +5,8 @@ import { AnimationEngine } from '../3D/AnimationEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { Tree3D } from '../3D/modes/Tree3D.js';
 import { VText, VNode, easeInOut } from '../3D/VisualObject3D.js';
-import { PALETTE } from '../3D/Glow.js';
+import { PALETTE, applyTheme } from '../3D/Glow.js';
+applyTheme('AVL3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 240, 560], fov: 55 });
 const engine = new AnimationEngine({ speed: 1.2 });

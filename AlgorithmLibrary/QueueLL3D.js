@@ -3,7 +3,8 @@ import { Scene3D } from '../3D/Scene3D.js';
 import { AnimationEngine } from '../3D/AnimationEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { LinkedList3D } from '../3D/modes/LinkedList3D.js';
-import { PALETTE } from '../3D/Glow.js';
+import { PALETTE, applyTheme } from '../3D/Glow.js';
+applyTheme('QueueLL3D');
 
 const MAX = 8;
 const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });

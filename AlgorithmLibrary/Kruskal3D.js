@@ -9,7 +9,8 @@ import { ControlPanel } from '../3D/ControlPanel.js';
 import { Graph3D } from '../3D/modes/Graph3D.js';
 import { Table3D } from '../3D/modes/Table3D.js';
 import { VText } from '../3D/VisualObject3D.js';
-import { PALETTE } from '../3D/Glow.js';
+import { PALETTE, applyTheme } from '../3D/Glow.js';
+applyTheme('Kruskal3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 300, 620], fov: 55 });
 const engine = new AnimationEngine({ speed: 1.2 });

@@ -46,6 +46,17 @@
   footer { position: relative; z-index: 1; text-align: center; color: #64748b; font-size: 13px; padding: 18px 0 26px; }
   footer a { color: #94a3b8; text-decoration: none; }
   footer a:hover { color: #7dd3fc; }
+  #toTop {
+    position: fixed; right: 24px; bottom: 28px; z-index: 5;
+    width: 46px; height: 46px; border-radius: 50%;
+    background: rgba(15, 23, 42, 0.82); border: 1px solid rgba(125, 211, 252, 0.35);
+    color: #7dd3fc; font-size: 20px; line-height: 1; cursor: pointer;
+    opacity: 0; pointer-events: none; transform: translateY(6px);
+    transition: opacity 0.25s ease, transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    box-shadow: 0 0 14px rgba(34, 211, 238, 0.25);
+  }
+  #toTop.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
+  #toTop:hover { border-color: #22d3ee; box-shadow: 0 0 18px rgba(34, 211, 238, 0.5); }
 </style>
 </head>
 <body>
@@ -164,7 +175,7 @@
 </main>
 
 <footer>
-  Copyright 2011 <a href="http://www.cs.usfca.edu/galles" target="_blank">David Galles</a>
+  Copyright 2011-2026 <a href="http://www.cs.usfca.edu/galles" target="_blank">David Galles</a>
   <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
   &nbsp;&nbsp;<a href="https://www.erik.xyz" target="_blank">艾瑞可erik·导航</a>
   &nbsp;&nbsp;<a href="https://erik.xyz" target="_blank">艾瑞可erik</a>
@@ -172,10 +183,16 @@
   <span id="busuanzi_container_site_uv" style="display: inline;">本站访客数<span id="busuanzi_value_site_uv"></span>人次</span>
 </footer>
 
+<button id="toTop" title="返回顶部" aria-label="返回顶部">↑</button>
+
 <script type="module">
 import * as THREE from 'three';
 import { Scene3D } from './3D/Scene3D.js';
 import { PALETTE } from './3D/Glow.js';
+
+const toTop = document.getElementById('toTop');
+window.addEventListener('scroll', () => toTop.classList.toggle('show', window.scrollY > 420), { passive: true });
+toTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
 const scene = new Scene3D('hero', { cameraPos: [0, 130, 330], fov: 50, ground: true, stars: true });
 const world = scene.scene;

@@ -6,7 +6,8 @@ import { AnimationEngine } from '../3D/AnimationEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { Array3D } from '../3D/modes/Array3D.js';
 import { VText, VBox, tubeBetween, easeInOut } from '../3D/VisualObject3D.js';
-import { PALETTE } from '../3D/Glow.js';
+import { PALETTE, applyTheme } from '../3D/Glow.js';
+applyTheme('OpenHash3D');
 
 const BUCKETS = 10, STEP = -56, OX = 30;
 const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });

@@ -51,6 +51,19 @@ export class Scene3D {
     this.controls.dampingFactor = 0.08;
     this.controls.minDistance = 80;
     this.controls.maxDistance = 1800;
+    // 滚轮策略：页面可滚动时滚轮滚动页面，否则滚轮缩放；按住 Ctrl/⌘ 始终缩放
+    this.controls.enableZoom = false;
+    const canvas = this.renderer.domElement;
+    canvas.addEventListener('wheel', (e) => {
+      const pageScrollable = document.documentElement.scrollHeight > window.innerHeight + 4;
+      if (!e.ctrlKey && !e.metaKey && pageScrollable) return;
+      e.preventDefault();
+      const offset = new THREE.Vector3().subVectors(this.camera.position, this.controls.target);
+      const dist = offset.length();
+      const factor = e.deltaY > 0 ? 1.12 : 0.9;
+      const nd = Math.min(Math.max(dist * factor, this.controls.minDistance), this.controls.maxDistance);
+      this.camera.position.copy(this.controls.target).addScaledVector(offset.normalize(), nd);
+    }, { passive: false });
 
     // 雾
     this.scene.fog = new THREE.FogExp2(th.fog ?? 0x0a0f2e, th.fogDensity ?? 0.00045);

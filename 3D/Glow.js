@@ -134,6 +134,7 @@ const PAGE_THEMES = {
   LFU3D: 'violet', Clock3D: 'rose', SSTF3D: 'orange', SCAN3D: 'pink', Banker3D: 'magenta',
   SPFA3D: 'amber', EdmondsKarp3D: 'cyan', Hungarian3D: 'rose', Kosaraju3D: 'violet', Boruvka3D: 'emerald',
   Sieve3D: 'gold', FastPow3D: 'purple', Graham3D: 'teal', Gauss3D: 'indigo', ExGcd3D: 'magenta',
+  SkipList3D: 'amber', ConsistentHash3D: 'cyan', Huffman3D: 'emerald', BoyerMoore3D: 'indigo', RabinKarp3D: 'violet', ZAlgorithm3D: 'teal',
 };
 
 export let CURRENT_THEME = null;

@@ -132,7 +132,8 @@ export class VBar {
 // ---- 两点间管状连线 ----
 export function tubeBetween(scene, a, b, opts = {}) {
   const color = opts.color || PALETTE.edge;
-  const points = [a, b];
+  const toV3 = p => (p instanceof THREE.Vector3) ? p : new THREE.Vector3(p[0], p[1], p[2]);
+  const points = [toV3(a), toV3(b)];
   const curve = new THREE.CatmullRomCurve3(points);
   const geo = new THREE.TubeGeometry(curve, 2, opts.radius || 2.5, 6, false);
   const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: opts.opacity ?? 0.55 });

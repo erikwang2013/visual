@@ -135,6 +135,8 @@ const PAGE_THEMES = {
   SPFA3D: 'amber', EdmondsKarp3D: 'cyan', Hungarian3D: 'rose', Kosaraju3D: 'violet', Boruvka3D: 'emerald',
   Sieve3D: 'gold', FastPow3D: 'purple', Graham3D: 'teal', Gauss3D: 'indigo', ExGcd3D: 'magenta',
   SkipList3D: 'amber', ConsistentHash3D: 'cyan', Huffman3D: 'emerald', BoyerMoore3D: 'indigo', RabinKarp3D: 'violet', ZAlgorithm3D: 'teal',
+  Caesar3D: 'amber', Vigenere3D: 'cyan', DES3D: 'rose', AES3D: 'violet', RSA3D: 'emerald',
+  DiffieHellman3D: 'gold', RLE3D: 'purple', LZ773D: 'teal', LZ783D: 'indigo', ArithmeticCoding3D: 'magenta',
 };
 
 export let CURRENT_THEME = null;

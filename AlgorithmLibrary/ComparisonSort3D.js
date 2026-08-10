@@ -241,7 +241,6 @@ panel.addButton('归并排序', () => sortGuard(mergeSort));
 panel.addButton('快速排序', () => sortGuard(quickSort));
 const SORTS = { '插入排序': insertionSort, '选择排序': selectionSort, '冒泡排序': bubbleSort, '壳排序': shellSort, '归并排序': mergeSort, '快速排序': quickSort };
 const algoSelect = panel.addSelect('选择演示算法', Object.keys(SORTS), '插入排序');
-panel.addButton('演示所选', () => { const fn = SORTS[algoSelect.value]; if (fn) sortGuard(fn); });
 const sizeInput = panel.addInput('大小 (5-30)', () => {}, 2);
 sizeInput.value = '20';
 panel.addButton('更改大小', () => {

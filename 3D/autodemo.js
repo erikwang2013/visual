@@ -33,7 +33,7 @@
     'RecReverse.html': { steps: [{ fills: ['hello'] }] },
     'SegmentTree.html': { steps: [{ btn: '建树' }, { btn: '区间查询', fills: ['2', '5'] }, { btn: '点更新', fills: ['2', '5', '3', '9'] }, { btn: '区间查询', fills: ['2', '5'] }] },
     'DPFib.html': { steps: [{ fills: ['10'] }] },
-    'ComparisonSort.html': { steps: [{ btn: '演示所选' }] },
+    'ComparisonSort.html': { steps: [{ select: '选择演示算法' }] },
   };
 
   // 每页算法说明：第一段为总述，其余为子算法/子功能说明
@@ -97,7 +97,7 @@
   const demo = DEMOS[fileName] || null;
   const steps = demo ? demo.steps : [{ btn: null, fills: null }];
 
-  const allBtns = () => [...document.querySelectorAll('#controls button.algo-btn:not(#demo-run-btn)')];
+  const allBtns = () => [...document.querySelectorAll('#controls button.algo-btn:not(#demo-run-btn):not(#clear-run-btn)')];
   const pickBtn = () => allBtns().find((b) => !/随机|random|更改大小/i.test(b.textContent));
 
   const waitPlayback = () => new Promise((resolve) => {
@@ -110,11 +110,18 @@
   async function runDemo() {
     for (let i = 0; i < steps.length; i++) {
       const s = steps[i];
-      if (s.fills) {
-        const inputs = document.querySelectorAll('#controls input.algo-input');
-        s.fills.forEach((v, k) => { if (inputs[k]) inputs[k].value = v; });
+      let btn;
+      if (s.select) {
+        const sel = document.querySelector('#controls .algo-select-input');
+        const v = sel && sel.selectedOptions[0] ? sel.selectedOptions[0].textContent : '';
+        btn = v ? allBtns().find((b) => b.textContent.trim() === v) : null;
+      } else {
+        if (s.fills) {
+          const inputs = document.querySelectorAll('#controls input.algo-input');
+          s.fills.forEach((v, k) => { if (inputs[k]) inputs[k].value = v; });
+        }
+        btn = s.btn ? allBtns().find((b) => b.textContent.includes(s.btn)) : pickBtn();
       }
-      const btn = s.btn ? allBtns().find((b) => b.textContent.includes(s.btn)) : pickBtn();
       if (!btn) return;
       btn.click();
       await new Promise((r) => setTimeout(r, 600));
@@ -150,6 +157,19 @@
         if (native) { injected.remove(); clearInterval(t); }
       }, 300);
     }
+    // 页面有「选择演示算法」类选择器时，演示按钮移到选择器前面（选择器紧跟演示按钮）
+    const moveT = setInterval(() => {
+      const b = document.getElementById('demo-run-btn');
+      if (!b) { clearInterval(moveT); return; }
+      const sel = controls.querySelector('.algo-select');
+      if (!sel) return;
+      if (b.nextElementSibling !== sel) {
+        const c = document.getElementById('clear-run-btn');
+        controls.insertBefore(b, sel);
+        if (c && b.nextElementSibling !== c) controls.insertBefore(c, b.nextSibling);
+      }
+      clearInterval(moveT);
+    }, 300);
   };
 
   // 算法说明条：插在 header 与 controls 之间，不占用 3D 画布、不影响演示

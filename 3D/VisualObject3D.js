@@ -71,7 +71,15 @@ export class VBox {
     }
     scene.add(this.mesh);
   }
-  setText(text) { this.text = text; if (this.label) setSpriteText(this.label, text, { scale: 1 }); }
+  setText(text) {
+    this.text = text;
+    if (!this.label) {
+      this.label = makeTextSprite('', { scale: 1 });
+      this.label.position.set(0, 0, this.d / 2 + 14);
+      this.mesh.add(this.label);
+    }
+    setSpriteText(this.label, text, { scale: 1 });
+  }
   setColor(color, emissive) {
     const m = this.mesh.material;
     m.color.setHex(color);

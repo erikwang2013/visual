@@ -157,16 +157,18 @@
         if (native) { injected.remove(); clearInterval(t); }
       }, 300);
     }
-    // 页面有「选择演示算法」类选择器时，演示按钮移到选择器前面（选择器紧跟演示按钮）
+    // 页面有「选择演示算法」类选择器时，把选择器移到演示按钮正后方（选择器紧跟演示按钮）
+    let moveTries = 0;
     const moveT = setInterval(() => {
+      if (moveTries++ > 50) { clearInterval(moveT); return; }
       const b = document.getElementById('demo-run-btn');
       if (!b) { clearInterval(moveT); return; }
       const sel = controls.querySelector('.algo-select');
       if (!sel) return;
       if (b.nextElementSibling !== sel) {
         const c = document.getElementById('clear-run-btn');
-        controls.insertBefore(b, sel);
-        if (c && b.nextElementSibling !== c) controls.insertBefore(c, b.nextSibling);
+        controls.insertBefore(sel, b.nextSibling);
+        if (c) controls.insertBefore(c, sel.nextSibling);
       }
       clearInterval(moveT);
     }, 300);

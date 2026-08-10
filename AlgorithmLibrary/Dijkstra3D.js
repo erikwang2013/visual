@@ -70,6 +70,7 @@ function spawnDistLabel(u) {
 }
 
 function updateDistLabel(u, text, color) {
+  if (!distLabels[u]) spawnDistLabel(u);
   const vt = distLabels[u];
   vt.setText(text, { color: color || PALETTE.text });
   const [x, , z] = POS[u];

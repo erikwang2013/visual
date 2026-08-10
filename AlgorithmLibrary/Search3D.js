@@ -72,6 +72,7 @@ function linearSearch(v) {
 }
 
 let input = panel.addInput('输入数字', (v) => { if (v) binarySearch(v); }, 4);
+input.value = '41';
 panel.addButton('二分查找', () => { if (input.value) binarySearch(input.value); });
 panel.addButton('线性搜索', () => { if (input.value) linearSearch(input.value); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');

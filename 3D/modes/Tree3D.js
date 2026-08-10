@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { VNode, VText, tubeBetween } from '../VisualObject3D.js';
 import { PALETTE } from '../Glow.js';
+import { ripple, land } from '../effects/Fx.js';
 
 export class Tree3D {
   constructor(scene, opts = {}) {
@@ -21,6 +22,7 @@ export class Tree3D {
       emissive: opts.emissive,
     });
     this.nodes.set(id, { node, x, y, z, parentId: opts.parentId ?? null, color: opts.color || this.defaultColor, highlighted: false });
+    land(this.scene, node.mesh);
     this.drawEdges();
     return node;
   }
@@ -58,7 +60,9 @@ export class Tree3D {
     if (e.highlighted) return;
     e.highlighted = true;
     const base = e.color;
+    let fxDone = false;
     cmd({ duration: 300, fn: (p) => {
+      if (!fxDone) { fxDone = true; ripple(this.scene, e.node.mesh.position.x, e.node.mesh.position.y, e.node.mesh.position.z, PALETTE.highlight, this.radius * 2.6); }
       e.node.mesh.material.color.lerpColors(new THREE.Color(base), new THREE.Color(PALETTE.highlight), p);
       e.node.mesh.material.emissive.setHex(PALETTE.highlightEmissive);
       e.node.mesh.scale.setScalar(1 + p * 0.18);

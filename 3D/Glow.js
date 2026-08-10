@@ -1,5 +1,6 @@
 // 3D/Glow.js
 import * as THREE from 'three';
+import { setFxCategory } from './effects/Fx.js';
 
 export const PALETTE = {
   node:        0x4a90e2, nodeEmissive:  0x143a6e,
@@ -98,6 +99,22 @@ const THEMES = {
   pink:     { node: 0xf472b6, nodeEmissive: 0x831843, highlight: 0xfbcfe8, highlightEmissive: 0xa21caf, edge: 0xf9a8d4, edgeEmissive: 0x9d174d, ground: 0xec4899, groundEm: 0x831843, bgTop: '#10030a', bgBottom: '#050102', fog: 0x10030a, stars: [0xffffff, 0xfbcfe8, 0xf9a8d4], textGlow: '#f9a8d4' },
 };
 
+// 每页动画特效类别：sort=交换光束, tree=落地生长, graph=边粒子流, dp=格子波纹,
+// string=比对火花, search=命中爆散, 其余共享 ripple/pop 轻量反馈
+const FX_CATEGORIES = {
+  AVL3D: 'tree', BellmanFord3D: 'graph', BFS3D: 'graph', BinomialQueue3D: 'heap', BPlusTree3D: 'tree', BST3D: 'tree',
+  BTree3D: 'tree', BucketSort3D: 'sort', ChangingCoordinates2D3D: 'geom', ChangingCoordinates3D3D: 'geom',
+  ClosedHash3D: 'hash', ClosedHashBucket3D: 'hash', ComparisonSort3D: 'sort', ConnectedComponent3D: 'graph',
+  CountingSort3D: 'sort', DFS3D: 'graph', Dijkstra3D: 'graph', DisjointSets3D: 'tree', DPChange3D: 'dp',
+  DPFib3D: 'dp', DPLCS3D: 'dp', FibonacciHeap3D: 'heap', Floyd3D: 'graph', Heap3D: 'heap',
+  HeapSort3D: 'sort', KMP3D: 'string', Knapsack3D: 'dp', Kruskal3D: 'graph', LeftistHeap3D: 'heap', OpenHash3D: 'hash', Prim3D: 'graph',
+  QueueArray3D: 'link', QueueLL3D: 'link', RadixSort3D: 'sort', RadixTree3D: 'tree', RecFact3D: 'math',
+  RecQueens3D: 'math', RecReverse3D: 'string', RedBlack3D: 'tree', RotateScale2D3D: 'geom', RotateScale3D3D: 'geom',
+  RotateTranslate2D3D: 'geom', Search3D: 'search', SegmentTree3D: 'tree', SimpleStack3D: 'link', SkewHeap3D: 'heap', SplayTree3D: 'tree',
+  StackArray3D: 'link', StackLL3D: 'link', TopoSortDFS3D: 'graph', TopoSortIndegree3D: 'graph', Trie3D: 'tree',
+  TST3D: 'tree',
+};
+
 const PAGE_THEMES = {
   AVL3D: 'cyan', BellmanFord3D: 'rose', BFS3D: 'cyan', BinomialQueue3D: 'azure', BPlusTree3D: 'indigo', BST3D: 'emerald',
   BTree3D: 'azure', BucketSort3D: 'teal', ChangingCoordinates2D3D: 'purple', ChangingCoordinates3D3D: 'amber',
@@ -123,6 +140,7 @@ export function applyTheme(pageName) {
     edge: t.edge, edgeEmissive: t.edgeEmissive,
     ground: t.ground, textGlow: t.textGlow,
   });
+  setFxCategory(FX_CATEGORIES[pageName] || 'generic');
   CURRENT_THEME = t;
   return t;
 }

@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { VNode, VText, tubeBetween } from '../VisualObject3D.js';
 import { PALETTE } from '../Glow.js';
+import { ripple, flow } from '../effects/Fx.js';
 
 export class Graph3D {
   constructor(scene, opts = {}) {
@@ -69,7 +70,9 @@ export class Graph3D {
     const key = `${a}->${b}`;
     const e = this.edges.get(key);
     if (!e) return;
+    let fxDone = false;
     cmd({ duration: 250, fn: (p) => {
+      if (!fxDone) { fxDone = true; if (on) { const A = this.nodes.get(a), B = this.nodes.get(b); if (A && B) flow(this.scene, A.node.mesh.position.clone(), B.node.mesh.position.clone(), PALETTE.highlight); } }
       if (on) { e.mesh.material.color.setHex(PALETTE.highlight); e.mesh.material.opacity = 0.45 + p * 0.5; e.mesh.material.emissiveIntensity = p; }
       else { e.mesh.material.color.setHex(e.baseColor); e.mesh.material.opacity = e.baseOpacity; e.mesh.material.emissiveIntensity = 0; }
     }, undo: () => { e.mesh.material.color.setHex(e.baseColor); e.mesh.material.opacity = e.baseOpacity; } });
@@ -79,7 +82,8 @@ export class Graph3D {
     const e = this.nodes.get(id);
     if (!e) return;
     const c = color || PALETTE.highlight;
-    cmd({ duration: 250, fn: (p) => { e.node.mesh.material.color.lerpColors(new THREE.Color(PALETTE.node), new THREE.Color(c), p); e.node.mesh.material.emissive.setHex(PALETTE.highlightEmissive); e.node.mesh.scale.setScalar(1 + p * 0.15); }, undo: () => { e.node.mesh.material.color.setHex(PALETTE.node); e.node.mesh.material.emissive.setHex(PALETTE.nodeEmissive); e.node.mesh.scale.set(1, 1, 1); } });
+    let fxDone = false;
+    cmd({ duration: 250, fn: (p) => { if (!fxDone) { fxDone = true; ripple(this.scene, e.node.mesh.position.x, e.node.mesh.position.y, e.node.mesh.position.z, c, e.radius * 2.6); } e.node.mesh.material.color.lerpColors(new THREE.Color(PALETTE.node), new THREE.Color(c), p); e.node.mesh.material.emissive.setHex(PALETTE.highlightEmissive); e.node.mesh.scale.setScalar(1 + p * 0.15); }, undo: () => { e.node.mesh.material.color.setHex(PALETTE.node); e.node.mesh.material.emissive.setHex(PALETTE.nodeEmissive); e.node.mesh.scale.set(1, 1, 1); } });
   }
 
   dehighlightNode(id, cmd) {

@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { VBox, VBar, VText, tubeBetween } from '../VisualObject3D.js';
 import { PALETTE } from '../Glow.js';
+import { ripple, beam, pop } from '../effects/Fx.js';
 
 export class Array3D {
   constructor(scene, opts = {}) {
@@ -43,7 +44,8 @@ export class Array3D {
     const el = this.elems[i];
     if (this.type === 'box') {
       const prev = el.text;
-      cmd({ duration: 200, fn: () => el.setText(String(value)), undo: () => el.setText(prev) });
+      let fxDone = false;
+      cmd({ duration: 200, fn: () => { if (!fxDone) { fxDone = true; pop(this.scene, el.mesh); } el.setText(String(value)); }, undo: () => el.setText(prev) });
     } else {
       const v = parseInt(value) || 1;
       const prevH = el.height;
@@ -54,7 +56,8 @@ export class Array3D {
   highlight(i, cmd, color) {
     const el = this.elems[i];
     const c = color || PALETTE.highlight;
-    cmd({ duration: 250, fn: (p) => { el.mesh.material.emissiveIntensity = 0.35 + p * 0.55; el.mesh.material.color.setHex(c); }, undo: () => { el.mesh.material.emissiveIntensity = 0.35; el.mesh.material.color.setHex(PALETTE.node); } });
+    let fxDone = false;
+    cmd({ duration: 250, fn: (p) => { if (!fxDone) { fxDone = true; ripple(this.scene, el.mesh.position.x, el.mesh.position.y, el.mesh.position.z, c); } el.mesh.material.emissiveIntensity = 0.35 + p * 0.55; el.mesh.material.color.setHex(c); }, undo: () => { el.mesh.material.emissiveIntensity = 0.35; el.mesh.material.color.setHex(PALETTE.node); } });
   }
 
   unhighlight(i, cmd) {
@@ -66,7 +69,11 @@ export class Array3D {
     const a = this.elems[i], b = this.elems[j];
     const ax = this.xOf(i), bx = this.xOf(j);
     const ay = a.mesh.position.y, by = b.mesh.position.y;
-    cmd({ duration: 450, fn: (p) => { a.mesh.position.x = ax + (bx - ax) * p; b.mesh.position.x = bx + (ax - bx) * p; a.mesh.position.y = ay + 60 * Math.sin(p * Math.PI); b.mesh.position.y = by + 60 * Math.sin(p * Math.PI); }, undo: () => { a.mesh.position.set(ax, ay, this.z); b.mesh.position.set(bx, by, this.z); } });
+    let fxDone = false;
+    cmd({ duration: 450, fn: (p) => {
+      if (!fxDone) { fxDone = true; beam(this.scene, new THREE.Vector3(ax, ay, this.z), new THREE.Vector3(bx, by, this.z), PALETTE.highlight); }
+      a.mesh.position.x = ax + (bx - ax) * p; b.mesh.position.x = bx + (ax - bx) * p; a.mesh.position.y = ay + 60 * Math.sin(p * Math.PI); b.mesh.position.y = by + 60 * Math.sin(p * Math.PI);
+    }, undo: () => { a.mesh.position.set(ax, ay, this.z); b.mesh.position.set(bx, by, this.z); } });
   }
 
   addLine(from, to, cmd, opts) {

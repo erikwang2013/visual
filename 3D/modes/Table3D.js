@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { VBox, VText } from '../VisualObject3D.js';
 import { PALETTE } from '../Glow.js';
+import { ripple, pop } from '../effects/Fx.js';
 
 export class Table3D {
   constructor(scene, opts = {}) {
@@ -42,7 +43,8 @@ export class Table3D {
     const box = this.cells[r][c];
     if (!box) return;
     const prev = box.text;
-    cmd({ duration: 250, fn: () => box.setText(String(value)), undo: () => box.setText(prev) });
+    let fxDone = false;
+    cmd({ duration: 250, fn: () => { if (!fxDone) { fxDone = true; pop(this.scene, box.mesh); } box.setText(String(value)); }, undo: () => box.setText(prev) });
   }
 
   setRowLabel(r, text) {
@@ -54,7 +56,8 @@ export class Table3D {
     const box = this.cells[r][c];
     if (!box) return;
     const baseY = box.mesh.position.y;
-    cmd({ duration: 300, fn: (p) => { box.mesh.material.color.lerpColors(new THREE.Color(PALETTE.node), new THREE.Color(PALETTE.highlight), p); box.mesh.material.emissive.setHex(PALETTE.highlightEmissive); box.mesh.position.y = baseY + Math.sin(p * Math.PI) * 8; }, undo: () => { box.mesh.material.color.setHex(PALETTE.node); box.mesh.material.emissive.setHex(PALETTE.nodeEmissive); box.mesh.position.y = baseY; } });
+    let fxDone = false;
+    cmd({ duration: 300, fn: (p) => { if (!fxDone) { fxDone = true; ripple(this.scene, box.mesh.position.x, box.mesh.position.y, box.mesh.position.z, PALETTE.highlight, 52); } box.mesh.material.color.lerpColors(new THREE.Color(PALETTE.node), new THREE.Color(PALETTE.highlight), p); box.mesh.material.emissive.setHex(PALETTE.highlightEmissive); box.mesh.position.y = baseY + Math.sin(p * Math.PI) * 8; }, undo: () => { box.mesh.material.color.setHex(PALETTE.node); box.mesh.material.emissive.setHex(PALETTE.nodeEmissive); box.mesh.position.y = baseY; } });
   }
 
   unhighlightCell(r, c, cmd) {

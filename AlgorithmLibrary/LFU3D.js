@@ -86,7 +86,7 @@ function runLFU() {
   status.textContent = 'LFU 完成：缺页 ' + misses + ' 次，命中 ' + hits + ' 次';
 }
 
-panel.addButton('运行LFU', runLFU);
+panel.addButton('运行 LFU', runLFU);
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

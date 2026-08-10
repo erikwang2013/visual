@@ -15,7 +15,7 @@ const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object'
 const GREEN = 0x4ade80, DIM = 0x475569;
 const PTS = [[-180, 40], [120, 90], [220, -30], [60, -120], [-60, -160], [-200, -90], [-260, 0], [160, 150], [20, 170], [-120, 120], [0, -40], [-40, 60]];
 const nodes = PTS.map((p, i) => new VNode(scene, { radius: 14, x: p[0], y: p[1], z: 0, label: String(i), color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-const hint = new VText(scene, { text: '点击「运行Graham」开始：求点集凸包', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行 Graham」开始：求点集凸包', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('');
 const hullEdges = [];
 
@@ -98,7 +98,7 @@ function runGraham() {
   step();
 }
 
-panel.addButton('运行Graham', runGraham);
+panel.addButton('运行 Graham', runGraham);
 panel.addButton('清空', () => {
   engine.clear();
   for (const m of hullEdges) scene.remove(m);

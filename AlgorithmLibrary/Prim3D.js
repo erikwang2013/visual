@@ -59,7 +59,7 @@ function primModel(adj, w, n, start) {
 }
 
 const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「运行Prim」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行 Prim」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const seqTexts = [];
 
 function colorEdge(a, b, color) {
@@ -163,7 +163,7 @@ function clearAll() {
 let startId = 0;
 panel.addLabel('起始节点: ');
 panel.addInput('0', (v) => { startId = parseInt(v, 10) || 0; runPrim(); }, 1);
-panel.addButton('运行Prim', runPrim);
+panel.addButton('运行 Prim', runPrim);
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

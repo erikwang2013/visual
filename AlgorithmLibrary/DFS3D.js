@@ -50,7 +50,7 @@ function dfsModel(adj, n, start) {
 }
 
 const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「运行DFS」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行 DFS」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const orderTexts = [];
 
 // 树边点亮为青绿
@@ -136,7 +136,7 @@ function clearAll() {
 let startId = 0;
 panel.addLabel('起始节点: ');
 panel.addInput('0', (v) => { startId = parseInt(v, 10) || 0; runDFS(); }, 2);
-panel.addButton('运行DFS', runDFS);
+panel.addButton('运行 DFS', runDFS);
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

@@ -65,7 +65,7 @@ function runSCAN() {
   status.textContent = 'SCAN 完成：总寻道距离 ' + total;
 }
 
-panel.addButton('运行SCAN', runSCAN);
+panel.addButton('运行 SCAN', runSCAN);
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

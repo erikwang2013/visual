@@ -27,16 +27,17 @@
   .cat { margin-bottom: 30px; }
   .cat h2 {
     font-size: 20px; margin: 0 0 12px; padding-left: 12px; letter-spacing: 2px;
-    color: #7dd3fc; border-left: 4px solid #22d3ee;
-    text-shadow: 0 0 10px rgba(34, 211, 238, 0.55);
+    color: var(--cc, #7dd3fc); border-left: 4px solid var(--cc, #22d3ee);
+    text-shadow: 0 0 10px var(--cc, rgba(34, 211, 238, 0.55));
     scroll-margin-top: 76px;
   }
-  .cat .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+  .cat .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; perspective: 900px; }
   .card {
     display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 12px; border-radius: 10px;
     background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(125, 211, 252, 0.22);
     box-shadow: 0 2px 14px rgba(2, 6, 23, 0.55);
-    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    transition: transform 0.16s ease-out, border-color 0.18s ease, box-shadow 0.18s ease;
+    will-change: transform;
   }
   .card a.title { width: 100%; color: #e2e8f0; font-size: 14px; line-height: 1.45; text-decoration: none; }
   .card .intro { margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5; }
@@ -401,6 +402,24 @@
       const target = document.querySelector(a.getAttribute('href'));
       if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     });
+  });
+
+  // 分类专属主题色（与各算法页面主题呼应，增强明辨度）
+  const CAT_COLORS = ['#22d3ee', '#a78bfa', '#fbbf24', '#60a5fa', '#34d399', '#fb923c', '#fcd34d', '#2dd4bf', '#f472b6', '#818cf8', '#e879f9', '#8b5cf6', '#fb7185', '#f87171', '#38bdf8', '#94a3b8'];
+  document.querySelectorAll('.cat').forEach(function (sec, i) {
+    const c = CAT_COLORS[i % CAT_COLORS.length];
+    sec.style.setProperty('--cc', c);
+  });
+
+  // 卡片鼠标跟随 3D 倾斜
+  document.querySelectorAll('.card').forEach(function (card) {
+    card.addEventListener('pointermove', function (e) {
+      const r = card.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width - 0.5;
+      const y = (e.clientY - r.top) / r.height - 0.5;
+      card.style.transform = 'perspective(520px) rotateY(' + (x * 8).toFixed(2) + 'deg) rotateX(' + (-y * 8).toFixed(2) + 'deg) translateY(-2px)';
+    });
+    card.addEventListener('pointerleave', function () { card.style.transform = ''; });
   });
 })();
 </script>

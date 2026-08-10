@@ -80,7 +80,7 @@ function VBoxMark(scene, x) {
   };
 }
 
-panel.addButton('运行SSTF', runSSTF);
+panel.addButton('运行 SSTF', runSSTF);
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

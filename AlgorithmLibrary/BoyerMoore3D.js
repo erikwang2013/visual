@@ -21,7 +21,7 @@ const pX = c => -400 + (curStart + c) * SP;
 const tBoxes = TEXT.split('').map((ch, c) => new VBox(scene, { w: 30, h: 34, d: 34, x: tX(c), y: 150, z: 0, label: ch, color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 const pBoxes = PAT.split('').map((ch, c) => new VBox(scene, { w: 30, h: 34, d: 34, x: pX(c), y: -20, z: 0, label: ch, color: PALETTE.blue, emissive: PALETTE.blue }));
 const arrow = new VArrow(scene, { x: 0, y: 60, z: 0, down: true });
-const hint = new VText(scene, { text: '点击「运行Boyer-Moore」开始：从右往左比较', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行 Boyer-Moore」开始：从右往左比较', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('');
 const lastLabel = new VText(scene, { text: '', x: 0, y: -90, z: 0, color: PALETTE.text, scale: 0.75 });
 const cmpLabel = new VText(scene, { text: '', x: 0, y: -125, z: 0, color: PALETTE.textGlow, scale: 0.8 });
@@ -98,7 +98,7 @@ function runBoyerMoore() {
   step();
 }
 
-panel.addButton('运行Boyer-Moore', runBoyerMoore);
+panel.addButton('运行 Boyer-Moore', runBoyerMoore);
 panel.addButton('清空', () => { engine.clear(); resetColors(); lastLabel.setText(''); cmpLabel.setText(''); hint.setText('已清空画布'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

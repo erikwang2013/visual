@@ -98,7 +98,7 @@ function runClock() {
   status.textContent = 'Clock 完成：缺页 ' + misses + ' 次，命中 ' + hits + ' 次';
 }
 
-panel.addButton('运行Clock', runClock);
+panel.addButton('运行 Clock', runClock);
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

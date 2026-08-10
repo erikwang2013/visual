@@ -43,7 +43,7 @@ const fw = { '0->1': 3, '0->2': 8, '1->2': 4, '1->3': 1, '2->3': 2, '2->4': 7, '
 const fmt = (v) => (v === Infinity ? '∞' : String(v));
 
 const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「运行Floyd-Warshall」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行 Floyd-Warshall」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const roundTexts = [];
 
 // 更新单元闪光后熄灭：直接改材质颜色，不经过 unhighlightCell（避免在命令 fn 内再入队）
@@ -115,7 +115,7 @@ function clearAll() {
   hint.setText('已清空画布');
 }
 
-panel.addButton('运行Floyd-Warshall', runFloyd);
+panel.addButton('运行 Floyd-Warshall', runFloyd);
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

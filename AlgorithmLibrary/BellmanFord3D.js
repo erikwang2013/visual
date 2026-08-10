@@ -16,7 +16,7 @@ const panel = new ControlPanel({ engine });
 const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
 const status = panel.addStatus('');
-const hint = new VText(scene, { text: '选择起点，点击「运行Bellman-Ford」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '选择起点，点击「运行 Bellman-Ford」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 
 const NODES = ['s', 't', 'x', 'y', 'z'];
 const N = NODES.length, R = 210;
@@ -146,7 +146,7 @@ function clearAll() {
 
 const startInput = panel.addInput('起点', run, 2);
 startInput.value = 's';
-panel.addButton('运行Bellman-Ford', run);
+panel.addButton('运行 Bellman-Ford', run);
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

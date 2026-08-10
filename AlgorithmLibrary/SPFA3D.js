@@ -29,7 +29,7 @@ const w = { '0->1': 5, '0->2': -2, '1->2': 1, '1->3': 3, '2->3': -3, '2->4': 4, 
 for (let u = 0; u < N; u++) for (const v of adjW[u]) graph.addEdge(String(u), String(v), { weight: w[`${u}->${v}`], directed: true });
 
 const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「运行SPFA」开始（起点 0）', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行 SPFA」开始（起点 0）', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const distLabels = [];
 const queueLabel = new VText(scene, { text: '队列：', x: -520, y: -225, z: 0, color: PALETTE.textDim, scale: 0.8 });
 
@@ -119,7 +119,7 @@ function clearAll() {
   hint.setText('已清空画布');
 }
 
-panel.addButton('运行SPFA', runSPFA);
+panel.addButton('运行 SPFA', runSPFA);
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

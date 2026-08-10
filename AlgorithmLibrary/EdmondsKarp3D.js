@@ -29,7 +29,7 @@ const flow = new Map();
 const flowLabels = new Map();
 const arrows = new Map();
 const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「运行EK」开始：BFS 找增广路', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行 EK」开始：BFS 找增广路', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 let buildDone = false;
 
 function keyOf(a, b) { return a + '->' + b; }
@@ -145,7 +145,7 @@ function clearAll() {
   hint.setText('已清空画布');
 }
 
-panel.addButton('运行EK', runEK);
+panel.addButton('运行 EK', runEK);
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

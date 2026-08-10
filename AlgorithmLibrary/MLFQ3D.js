@@ -83,7 +83,7 @@ function clearAll() {
   status.textContent = '已清空';
 }
 
-panel.addButton('运行MLFQ', runMLFQ);
+panel.addButton('运行 MLFQ', runMLFQ);
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

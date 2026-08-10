@@ -23,7 +23,7 @@ const sBoxes = S.split('').map((ch, c) => new VBox(scene, {
 PAT.split('').forEach((ch, c) => new VText(scene, { text: ch, x: -220 + c * SP, y: 225, z: 0, color: PALETTE.blue, scale: 0.7 }));
 new VText(scene, { text: '模式', x: -270, y: 225, z: 0, color: PALETTE.textDim, scale: 0.6 });
 const zLabels = S.split('').map((_, c) => new VText(scene, { text: '', x: -220 + c * SP, y: 105, z: 0, color: PALETTE.textGlow, scale: 0.75 }));
-const hint = new VText(scene, { text: '点击「运行Z算法」开始：计算 Z 数组', x: 0, y: 290, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行 Z算法」开始：计算 Z 数组', x: 0, y: 290, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('');
 const matchNote = new VText(scene, { text: '', x: 0, y: 20, z: 0, color: GREEN, scale: 0.85 });
 
@@ -86,7 +86,7 @@ function runZAlgorithm() {
   step();
 }
 
-panel.addButton('运行Z算法', runZAlgorithm);
+panel.addButton('运行 Z算法', runZAlgorithm);
 panel.addButton('清空', () => { engine.clear(); resetColors(); hint.setText('已清空画布'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

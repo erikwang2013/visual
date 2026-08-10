@@ -13,7 +13,7 @@ const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object'
 
 const FREQ = [['a', 5], ['b', 9], ['c', 12], ['d', 13], ['e', 16], ['f', 45]];
 const GREEN = 0x4ade80, YELLOW = 0xfacc15;
-const hint = new VText(scene, { text: '点击「运行Huffman」开始：构造最优前缀编码', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行 Huffman」开始：构造最优前缀编码', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('');
 const dynamic = []; // 运行中创建的对象
 const leaves = [];  // 叶子节点（供高亮）
@@ -111,7 +111,7 @@ function runHuffman() {
   revealStep();
 }
 
-panel.addButton('运行Huffman', runHuffman);
+panel.addButton('运行 Huffman', runHuffman);
 panel.addButton('清空', () => { clearAll(); hint.setText('已清空画布'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

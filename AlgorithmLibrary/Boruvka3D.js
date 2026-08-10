@@ -31,7 +31,7 @@ for (const [u, v, w] of EDGES) {
 }
 
 const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「运行Boruvka」开始：分量合并求最小生成树', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行 Boruvka」开始：分量合并求最小生成树', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 
 // 预计算各轮：cands 每分量最廉价边 / adds 本轮新增边 / comps 合并后分量
 function computeRounds() {
@@ -143,7 +143,7 @@ function clearAll() {
   hint.setText('已清空画布');
 }
 
-panel.addButton('运行Boruvka', runBoruvka);
+panel.addButton('运行 Boruvka', runBoruvka);
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

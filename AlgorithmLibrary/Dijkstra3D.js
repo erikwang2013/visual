@@ -56,7 +56,7 @@ function dijkstraModel(adj, w, n, start) {
 }
 
 const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「运行Dijkstra」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行 Dijkstra」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const distLabels = [];
 
 // 节点上方的距离标注（独立 VText，避免与 id 标签混淆）
@@ -158,7 +158,7 @@ function clearAll() {
 let startId = 0;
 panel.addLabel('起始节点: ');
 panel.addInput('0', (v) => { startId = parseInt(v, 10) || 0; runDijkstra(); }, 1);
-panel.addButton('运行Dijkstra', runDijkstra);
+panel.addButton('运行 Dijkstra', runDijkstra);
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

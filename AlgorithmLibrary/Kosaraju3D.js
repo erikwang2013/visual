@@ -49,7 +49,7 @@ for (let u = 0; u < N; u++) {
 }
 
 const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「运行Kosaraju」开始：求强连通分量', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行 Kosaraju」开始：求强连通分量', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const orderLabels = [];
 const resultLabel = new VText(scene, { text: '', x: 0, y: -270, z: 0, color: PALETTE.textDim, scale: 0.8 });
 
@@ -146,7 +146,7 @@ function clearAll() {
   resultLabel.setText('');
 }
 
-panel.addButton('运行Kosaraju', runKosaraju);
+panel.addButton('运行 Kosaraju', runKosaraju);
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

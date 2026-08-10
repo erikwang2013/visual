@@ -64,7 +64,7 @@ function clearAll() {
   status.textContent = '已清空';
 }
 
-panel.addButton('运行RR', runRR);
+panel.addButton('运行 RR', runRR);
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

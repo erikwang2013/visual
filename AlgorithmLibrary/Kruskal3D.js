@@ -59,7 +59,7 @@ function kruskalModel(edges, n) {
 
 const edges = EDGES.map(([a, b]) => ({ a, b, w: w6[`${a}->${b}`] }));
 const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「运行Kruskal」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行 Kruskal」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const parentText = new VText(scene, { text: '', x: 0, y: 215, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
 function colorEdge(a, b, color) {
@@ -147,7 +147,7 @@ function clearAll() {
   hint.setText('已清空画布');
 }
 
-panel.addButton('运行Kruskal', runKruskal);
+panel.addButton('运行 Kruskal', runKruskal);
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

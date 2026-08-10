@@ -20,7 +20,7 @@ let curStart = 0;
 const pX = c => -360 + (curStart + c) * SP;
 const tBoxes = TEXT.split('').map((ch, c) => new VBox(scene, { w: 30, h: 34, d: 34, x: tX(c), y: 150, z: 0, label: ch, color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 const pBoxes = PAT.split('').map((ch, c) => new VBox(scene, { w: 30, h: 34, d: 34, x: pX(c), y: -20, z: 0, label: ch, color: BLUE, emissive: BLUE }));
-const hint = new VText(scene, { text: '点击「运行Rabin-Karp」开始：滚动哈希匹配', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行 Rabin-Karp」开始：滚动哈希匹配', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('');
 const hashLabel = new VText(scene, { text: '', x: 0, y: -90, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const formulaLabel = new VText(scene, { text: '', x: 0, y: -125, z: 0, color: PALETTE.text, scale: 0.7 });
@@ -83,7 +83,7 @@ function runRabinKarp() {
   step();
 }
 
-panel.addButton('运行Rabin-Karp', runRabinKarp);
+panel.addButton('运行 Rabin-Karp', runRabinKarp);
 panel.addButton('清空', () => { engine.clear(); resetColors(); hashLabel.setText(''); formulaLabel.setText(''); hint.setText('已清空画布'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

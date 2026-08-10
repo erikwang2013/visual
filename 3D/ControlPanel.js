@@ -33,6 +33,27 @@ export class ControlPanel {
     return input;
   }
 
+  addSelect(label, options, value) {
+    const wrap = document.createElement('span');
+    wrap.className = 'algo-select';
+    if (label) {
+      const lbl = document.createElement('span');
+      lbl.textContent = label;
+      wrap.appendChild(lbl);
+    }
+    const sel = document.createElement('select');
+    sel.className = 'algo-select-input';
+    for (const opt of options) {
+      const o = document.createElement('option');
+      o.value = opt; o.textContent = opt;
+      sel.appendChild(o);
+    }
+    sel.value = value || options[0];
+    wrap.appendChild(sel);
+    this.controlsEl.appendChild(wrap);
+    return sel;
+  }
+
   addLabel(text) {
     const span = document.createElement('span');
     span.className = 'algo-label';

@@ -62,7 +62,8 @@ function spriteAspect(tex) {
 
 export function makeTextSprite(text, opts = {}) {
   const tex = textTexture(text, opts);
-  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+  // depthTest:false 保证文字标注始终显示在最上层，不被柱子/节点/方块遮挡
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false });
   const sprite = new THREE.Sprite(mat);
   const scale = opts.scale || 1;
   const [w, h] = spriteAspect(tex);

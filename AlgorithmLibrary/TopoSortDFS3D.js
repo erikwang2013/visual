@@ -82,9 +82,17 @@ function colorEdge(a, b, color) {
   }, () => { e.mesh.material.color.setHex(e.baseColor); e.mesh.material.opacity = e.baseOpacity; });
 }
 
-function flashEdge(a, b) {
-  colorEdge(a, b, RED_COLOR);
-  C(550, () => colorEdge(a, b, RED_COLOR), () => {});
+// 回边闪红后熄灭：直接改材质颜色，不经过 colorEdge（避免在命令 fn 内再入队）
+function fadeRedEdge(a, b) {
+  const e = graph.edges.get(`${a}->${b}`);
+  if (!e) return;
+  const from = new THREE.Color(RED_COLOR);
+  const to = new THREE.Color(e.baseColor);
+  C(450, (p) => {
+    e.mesh.material.color.copy(from).lerp(to, p);
+    e.mesh.material.opacity = e.baseOpacity;
+    e.mesh.material.emissiveIntensity = 0;
+  }, () => { e.mesh.material.color.setHex(e.baseColor); e.mesh.material.opacity = e.baseOpacity; });
 }
 
 function colorNode(u, color) {
@@ -124,34 +132,32 @@ function runTopo() {
   const posInOrder = {};
   order.forEach((u, i) => { posInOrder[u] = i; });
 
-  let ei = 0;
-  function step() {
-    if (ei >= events.length) {
-      status.textContent = '拓扑排序: ' + order.join(' → ');
-      hint.setText('拓扑排序（DFS 后序逆序）完成: ' + order.join(' → '));
-      return;
-    }
-    const e = events[ei];
+  // 预展开为扁平命令序列：命令 fn 会在动画期间每帧被调用，
+  // 若在 fn 内再入队命令会指数膨胀，必须一次性入队。
+  for (const e of events) {
     if (e.t === 'visit') {
       graph.highlightNode(String(e.u), C);
       const m = graph.nodes.get(String(e.u)).node.mesh;
       C(380, (p) => { m.scale.setScalar(1.15 + 0.2 * Math.sin(p * Math.PI)); }, () => m.scale.setScalar(1));
-      hint.setText('访问节点 ' + e.u + '（标为灰色）');
+      C(1, () => hint.setText('访问节点 ' + e.u + '（标为灰色）'), () => {});
     } else if (e.t === 'tree') {
       colorEdge(e.u, e.v, TREE_COLOR);
-      hint.setText('沿树边 ' + e.u + ' → ' + e.v + ' 深入');
+      C(1, () => hint.setText('沿树边 ' + e.u + ' → ' + e.v + ' 深入'), () => {});
     } else if (e.t === 'red') {
-      flashEdge(e.u, e.v);
-      hint.setText('边 ' + e.u + ' → ' + e.v + ' 指向已访问节点，跳过');
+      colorEdge(e.u, e.v, RED_COLOR);
+      C(1, () => hint.setText('边 ' + e.u + ' → ' + e.v + ' 指向已访问节点，跳过'), () => {});
+      fadeRedEdge(e.u, e.v);
     } else {
       colorNode(e.u, DONE_COLOR);
       flyToRow(e.u, posInOrder[e.u]);
-      hint.setText('节点 ' + e.u + ' 完成（标为黑色）');
+      C(1, () => hint.setText('节点 ' + e.u + ' 完成（标为黑色）'), () => {});
     }
-    const idx = ei + 1;
-    C(200, () => step(idx));
+    C(240, () => {}, () => {});
   }
-  step();
+  C(1, () => {
+    status.textContent = '拓扑排序: ' + order.join(' → ');
+    hint.setText('拓扑排序（DFS 后序逆序）完成: ' + order.join(' → '));
+  }, () => {});
 }
 
 panel.addButton('做拓扑排序', runTopo);

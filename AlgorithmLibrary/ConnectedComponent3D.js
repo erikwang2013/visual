@@ -95,13 +95,9 @@ function runCC() {
   const edgeComp = new Map();
   for (const [a, b] of EDGES) edgeComp.set(`${a}->${b}`, compOf[a]);
 
-  let total = 0;
-  function runComp(ci) {
-    if (ci >= comps.length) {
-      status.textContent = '共 ' + comps.length + ' 个连通分量，遍历完成';
-      hint.setText('连接组件分析完成：共 ' + comps.length + ' 个连通分量');
-      return;
-    }
+  // 预展开为扁平命令序列：命令 fn 会在动画期间每帧被调用，
+  // 若在 fn 内再入队命令会指数膨胀，必须一次性入队。
+  for (let ci = 0; ci < comps.length; ci++) {
     const comp = comps[ci];
     const color = COMP_COLORS[ci % COMP_COLORS.length];
     // 分量编号标签（置于分量几何中心上方）
@@ -110,29 +106,24 @@ function runCC() {
     lbl.sprite.scale.set(0.1, 0.05, 1);
     C(300, (p) => { const s = 0.01 + p * 0.99; lbl.sprite.scale.set(80 * s, 40 * s, 1); }, () => lbl.sprite.remove());
     compLabels.push(lbl);
-    hint.setText('开始遍历连通分量 ' + (ci + 1) + '：' + comp.join(', '));
-
-    let i = 0;
-    function visit() {
-      if (i >= comp.length) {
-        status.textContent = '分量 ' + (ci + 1) + ' 完成（' + comp.join(', ') + '），共 ' + comps.length + ' 个分量';
-        C(200, () => runComp(ci + 1));
-        return;
-      }
-      const u = comp[i];
+    C(1, () => hint.setText('开始遍历连通分量 ' + (ci + 1) + '：' + comp.join(', ')), () => {});
+    for (const u of comp) {
       graph.highlightNode(String(u), C);
       colorNode(u, color);
-      hint.setText('分量 ' + (ci + 1) + '：访问节点 ' + u);
+      C(1, () => hint.setText('分量 ' + (ci + 1) + '：访问节点 ' + u), () => {});
       // 点亮本分量内与该节点相连的边
       for (const v of adj[u]) {
         if (compOf[v] === ci && v > u) colorEdge(u, v, color);
       }
-      i++;
-      C(160, () => visit());
+      C(160, () => {}, () => {});
     }
-    visit();
+    C(1, () => { status.textContent = '分量 ' + (ci + 1) + ' 完成（' + comp.join(', ') + '），共 ' + comps.length + ' 个分量'; }, () => {});
+    C(220, () => {}, () => {});
   }
-  runComp(0);
+  C(1, () => {
+    status.textContent = '共 ' + comps.length + ' 个连通分量，遍历完成';
+    hint.setText('连接组件分析完成：共 ' + comps.length + ' 个连通分量');
+  }, () => {});
 }
 
 panel.addButton('运行连接组件', runCC);

@@ -92,30 +92,28 @@ function runDFS() {
   const start = Math.min(Math.max((startId | 0), 0), N - 1);
   const { events, order } = dfsModel(adj, N, start);
   let idx = 0;
-
-  function step(i) {
-    if (i >= events.length) {
-      status.textContent = 'DFS 访问顺序: ' + order.join(' → ');
-      hint.setText('DFS 完成，访问顺序: ' + order.join(' → '));
-      return;
-    }
-    const e = events[i];
+  // 预展开为扁平命令序列：命令 fn 会在动画期间每帧被调用，
+  // 若在 fn 内再入队命令会指数膨胀，必须一次性入队。
+  for (const e of events) {
     if (e.t === 'visit') {
       const id = String(e.u);
       graph.highlightNode(id, C);
       const m = graph.nodes.get(id).node.mesh;
       C(380, (p) => { m.scale.setScalar(1.15 + 0.2 * Math.sin(p * Math.PI)); }, () => m.scale.setScalar(1));
       spawnOrderText(e.u, idx); idx++;
-      hint.setText('访问节点 ' + e.u);
+      C(1, () => hint.setText('访问节点 ' + e.u), () => {});
     } else if (e.t === 'tree') {
       colorEdge(e.u, e.v, TREE_COLOR);
-      hint.setText('沿树边 ' + e.u + ' → ' + e.v + ' 深入');
+      C(1, () => hint.setText('沿树边 ' + e.u + ' → ' + e.v + ' 深入'), () => {});
     } else {
-      hint.setText(e.u + ' 的邻居 ' + e.v + ' 已访问，跳过（回退）');
+      C(1, () => hint.setText(e.u + ' 的邻居 ' + e.v + ' 已访问，跳过（回退）'), () => {});
     }
-    C(180, () => step(i + 1));
+    C(240, () => {}, () => {});
   }
-  step(0);
+  C(1, () => {
+    status.textContent = 'DFS 访问顺序: ' + order.join(' → ');
+    hint.setText('DFS 完成，访问顺序: ' + order.join(' → '));
+  }, () => {});
 }
 
 let startId = 0;

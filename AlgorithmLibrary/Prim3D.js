@@ -116,13 +116,9 @@ function runPrim() {
   let total = 0;
   for (const [a, b] of selected) total += w6[`${a}->${b}`];
 
-  let si = 0;
-  function step() {
-    if (si >= steps.length) {
-      status.textContent = 'MST 总权重 = ' + total;
-      hint.setText('Prim 完成，MST 总权重 = ' + total);
-      return;
-    }
+  // 预展开为扁平命令序列：命令 fn 会在动画期间每帧被调用，
+  // 若在 fn 内再入队命令会指数膨胀，必须一次性入队。
+  for (let si = 0; si < steps.length; si++) {
     const { u, cand } = steps[si];
     const isFirst = si === 0;
     if (!isFirst) {
@@ -131,25 +127,20 @@ function runPrim() {
       spawnSeqText(pa, pb);
     }
     markTreeNode(u);
-    hint.setText('将节点 ' + u + ' 加入树' + (isFirst ? '（起点）' : '，经边 (' + selected[si - 1].join(',') + ') 连接'));
+    C(1, () => hint.setText('将节点 ' + u + ' 加入树' + (isFirst ? '（起点）' : '，经边 (' + selected[si - 1].join(',') + ') 连接')), () => {});
     // 候选边闪烁
-    if (cand.length) {
-      let j = 0;
-      function flickNext() {
-        if (j >= cand.length) { C(250, step); return; }
-        const v = cand[j];
-        hint.setText('节点 ' + u + ' 的候选边 ' + u + '→' + v + '（权重 ' + w6[`${u}->${v}`] + '）');
-        graph.lightEdge(String(u), String(v), true, C);
-        C(550, () => graph.lightEdge(String(u), String(v), false, C));
-        j++;
-        C(650, flickNext);
-      }
-      flickNext();
-    } else {
-      C(250, step);
+    for (const v of cand) {
+      C(1, () => hint.setText('节点 ' + u + ' 的候选边 ' + u + '→' + v + '（权重 ' + w6[`${u}->${v}`] + '）'), () => {});
+      graph.lightEdge(String(u), String(v), true, C);
+      C(550, () => graph.lightEdge(String(u), String(v), false, C));
+      C(180, () => {}, () => {});
     }
+    C(250, () => {}, () => {});
   }
-  step();
+  C(1, () => {
+    status.textContent = 'MST 总权重 = ' + total;
+    hint.setText('Prim 完成，MST 总权重 = ' + total);
+  }, () => {});
 }
 
 let startId = 0;

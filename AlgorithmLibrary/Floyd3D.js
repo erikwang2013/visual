@@ -1,6 +1,7 @@
 // AlgorithmLibrary/Floyd3D.js
 // Floyd-Warshall 全源最短路径：5x5 距离矩阵（∞ 表示不可达），
 // 每轮 k 高亮第 k 行/列，发生更新的单元闪亮并写入新值，全部完成后展示最终矩阵。
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { AnimationEngine } from '../3D/AnimationEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
@@ -44,6 +45,18 @@ const status = panel.addStatus('');
 const hint = new VText(scene, { text: '点击「运行Floyd-Warshall」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const roundTexts = [];
 
+// 更新单元闪光后熄灭：直接改材质颜色，不经过 unhighlightCell（避免在命令 fn 内再入队）
+function fadeCellBack(r, c, delay) {
+  const box = table.cells[r][c];
+  if (!box) return;
+  const from = new THREE.Color(PALETTE.highlight);
+  const to = new THREE.Color(PALETTE.node);
+  C(delay, (p) => {
+    box.mesh.material.color.copy(from).lerp(to, p);
+    box.mesh.material.emissive.setHex(PALETTE.nodeEmissive);
+  }, () => { box.mesh.material.color.setHex(PALETTE.node); box.mesh.material.emissive.setHex(PALETTE.nodeEmissive); });
+}
+
 function runFloyd() {
   engine.clear();
   roundTexts.forEach((vt) => vt.remove());
@@ -61,43 +74,33 @@ function runFloyd() {
   const { d, updates } = floydModel(fw, N);
   const updatesByK = Array.from({ length: N }, () => []);
   for (const u of updates) updatesByK[u.k].push(u);
-  hint.setText('初始矩阵（∞ 表示不可达）');
+  C(1, () => hint.setText('初始矩阵（∞ 表示不可达）'), () => {});
 
-  let k = 0;
-  function round() {
-    if (k >= N) {
-      const lines = d.map((row) => row.map(fmt).join(' ')).join(' | ');
-      status.textContent = '最终距离矩阵: ' + lines;
-      hint.setText('Floyd-Warshall 完成，最短路径矩阵已就绪');
-      return;
-    }
-    const vt = new VText(scene, { text: '第 ' + k + ' 轮：经过节点 ' + k, x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+  // 预展开为扁平命令序列：命令 fn 会在动画期间每帧被调用，
+  // 若在 fn 内再入队命令会指数膨胀，必须一次性入队。
+  for (let k = 0; k < N; k++) {
+    const vt = new VText(scene, { text: '第 ' + k + ' 轮：经过节点 ' + k, x: 0, y: 230 - k * 22, z: 0, color: PALETTE.textGlow, scale: 0.75 });
     vt.sprite.scale.set(0.1, 0.05, 1);
     C(250, (p) => { const s = 0.01 + p * 0.99; vt.sprite.scale.set(75 * s, 37 * s, 1); }, () => vt.sprite.scale.set(0.1, 0.05, 1));
     roundTexts.push(vt);
-    // 高亮第 k 行与第 k 列
+    C(1, () => hint.setText('第 ' + k + ' 轮：经过节点 ' + k + '，高亮第 ' + k + ' 行与列'), () => {});
     for (let i = 0; i < N; i++) { table.highlightCell(k, i, C); table.highlightCell(i, k, C); }
     const us = updatesByK[k];
-    let ui = 0;
-    function upd() {
-      if (ui >= us.length) {
-        for (let i = 0; i < N; i++) { table.unhighlightCell(k, i, C); table.unhighlightCell(i, k, C); }
-        hint.setText('第 ' + k + ' 轮完成，' + us.length + ' 个单元更新');
-        k++;
-        C(300, round);
-        return;
-      }
-      const u = us[ui];
+    for (const u of us) {
       table.highlightCell(u.i, u.j, C);
       table.setCell(u.i, u.j, fmt(u.val), C);
-      hint.setText('d[' + u.i + '][' + u.j + ']: ' + fmt(u.old) + ' → ' + u.val + '（经节点 ' + k + '）');
-      C(350, () => table.unhighlightCell(u.i, u.j, C));
-      ui++;
-      C(500, upd);
+      C(1, () => hint.setText('d[' + u.i + '][' + u.j + ']: ' + fmt(u.old) + ' → ' + u.val + '（经节点 ' + k + '）'), () => {});
+      fadeCellBack(u.i, u.j, 350);
     }
-    upd();
+    for (let i = 0; i < N; i++) { table.unhighlightCell(k, i, C); table.unhighlightCell(i, k, C); }
+    C(1, () => hint.setText('第 ' + k + ' 轮完成，' + us.length + ' 个单元更新'), () => {});
+    C(300, () => {}, () => {});
   }
-  round();
+  C(1, () => {
+    const lines = d.map((row) => row.map(fmt).join(' ')).join(' | ');
+    status.textContent = '最终距离矩阵: ' + lines;
+    hint.setText('Floyd-Warshall 完成，最短路径矩阵已就绪');
+  }, () => {});
 }
 
 panel.addButton('运行Floyd-Warshall', runFloyd);

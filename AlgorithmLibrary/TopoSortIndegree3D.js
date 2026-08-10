@@ -81,6 +81,18 @@ function popIndegText(u, val) {
   C(300, (p) => { const s = 1.05 - 0.35 * p; vt.sprite.scale.set(100 * s, 50 * s, 1); }, () => vt.sprite.scale.set(70, 35, 1));
 }
 
+// 候选边熄灭：直接改材质颜色，不经过 lightEdge（避免在命令 fn 内再入队）
+function fadeEdgeBack(a, b, delay) {
+  const e = graph.edges.get(`${a}->${b}`);
+  if (!e) return;
+  const from = new THREE.Color(PALETTE.highlight);
+  const to = new THREE.Color(e.baseColor);
+  C(delay, (p) => {
+    e.mesh.material.color.copy(from).lerp(to, p);
+    e.mesh.material.emissiveIntensity = 0;
+  }, () => { e.mesh.material.color.setHex(e.baseColor); e.mesh.material.emissiveIntensity = 0; });
+}
+
 function hideNode(u) {
   const m = graph.nodes.get(String(u)).node.mesh;
   m.material.transparent = true;
@@ -123,36 +135,28 @@ function runTopo() {
   for (let i = 0; i < N; i++) spawnIndegText(i, initIndeg[i]);
   hint.setText('初始入度：' + initIndeg.join(', '));
 
-  let si = 0;
-  function step() {
-    if (si >= steps.length) {
-      status.textContent = '拓扑排序: ' + order.join(' → ');
-      hint.setText('拓扑排序完成: ' + order.join(' → '));
-      return;
-    }
+  // 预展开为扁平命令序列：命令 fn 会在动画期间每帧被调用，
+  // 若在 fn 内再入队命令会指数膨胀，必须一次性入队。
+  for (let si = 0; si < steps.length; si++) {
     const { u, dec } = steps[si];
     graph.highlightNode(String(u), C);
-    hint.setText('入度为 0，选取节点 ' + u);
+    C(1, () => hint.setText('入度为 0，选取节点 ' + u), () => {});
     spawnOrderText(u, si);
-    C(450, () => hideNode(u));
-    if (dec.length) {
-      let j = 0;
-      function decNext() {
-        if (j >= dec.length) { C(250, step); return; }
-        const v = dec[j];
-        graph.lightEdge(String(u), String(v), true, C);
-        popIndegText(v, initIndeg[v] - dec.slice(0, j + 1).length);
-        hint.setText('节点 ' + u + ' 的出边 ' + v + '：入度减 1');
-        C(500, () => graph.lightEdge(String(u), String(v), false, C));
-        j++;
-        C(650, decNext);
-      }
-      decNext();
-    } else {
-      C(250, step);
+    hideNode(u);
+    for (let j = 0; j < dec.length; j++) {
+      const v = dec[j];
+      C(1, () => hint.setText('节点 ' + u + ' 的出边 ' + v + '：入度减 1'), () => {});
+      graph.lightEdge(String(u), String(v), true, C);
+      popIndegText(v, initIndeg[v] - dec.slice(0, j + 1).length);
+      fadeEdgeBack(u, v, 500);
+      C(200, () => {}, () => {});
     }
+    C(250, () => {}, () => {});
   }
-  step();
+  C(1, () => {
+    status.textContent = '拓扑排序: ' + order.join(' → ');
+    hint.setText('拓扑排序完成: ' + order.join(' → '));
+  }, () => {});
 }
 
 panel.addButton('做拓扑排序', runTopo);

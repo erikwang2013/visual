@@ -175,6 +175,13 @@
     'MurmurHash.html': ['MurmurHash3：乘法×旋转×异或三连混合 + fmix 终混，非加密但极快，用于哈希表/布隆过滤器。', '子步骤：切块 → 逐块混合 → 尾部 → fmix → 雪崩'],
     'CityHash.html': ['CityHash64：Google 设计，4 路流水线并行混合 + 种子传播，64bit 散列，吞吐极高。', '子步骤：载入 a/c/d → 混合轮 → 终混 → 雪崩'],
     'Shor.html': ['Shor 分解：量子求 a^x mod N 的周期，经典 gcd 后处理提取因子，可破解 RSA。', '子步骤：并行求模幂 → 找周期 → gcd 出因子'],
+    'Johnson.html': ['Johnson 全源最短路：Bellman-Ford 重加权消除负边 → 跑 n 次 Dijkstra，负权图专用。', '子步骤：加超级源重加权 → 还原真实距离'],
+    'FordFulkerson.html': ['Ford-Fulkerson 最大流：DFS 在残余网络找增广路并送流，反向边退流纠错，直到无路可走。', '子步骤：找增广路 → 沿路增广 → 反向边退流'],
+    'PushRelabel.html': ['Push-Relabel 预流推进：s 灌满预流，节点只向 h-1 邻居「推」过剩流量，推不动就 relabel 抬升。', '子步骤：预流 → 局部 push → 推不动 relabel'],
+    'MinCostFlow.html': ['最小费用最大流：每轮用 Bellman-Ford 找单位费用最短路增广（含反向负费用边），贪心保证全局最优。', '子步骤：找最便宜增广路 → 增广 → 更新费用'],
+    'Biconnected.html': ['双连通分量（Tarjan）：DFS 记 dfn，回溯算 low；low[子] > dfn[父] 是桥，≥ 是割点。', '子步骤：DFS 进点 → 回边更新 low → 判定割点/桥'],
+    'KM.html': ['Kuhn-Munkres 最大权匹配：顶标维护相等子图，仅在其上增广；找不到就调顶标（delta）让新边进入。', '子步骤：初始化顶标 → 相等子图增广 → 顶标调整'],
+    'HopcroftKarp.html': ['Hopcroft-Karp 最大匹配：BFS 给未匹配 L 分层，DFS 沿层一次找多条最短增广路并整体换位，O(E√V)。', '子步骤：BFS 分层 → DFS 冲突链 → 整体换位'],
   };
 
   const fileName = location.pathname.split('/').pop();

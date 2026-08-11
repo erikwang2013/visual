@@ -144,6 +144,8 @@ const PAGE_THEMES = {
   Johnson3D: 'cyan', FordFulkerson3D: 'orange', PushRelabel3D: 'rose', MinCostFlow3D: 'teal', Biconnected3D: 'indigo', KM3D: 'violet', HopcroftKarp3D: 'gold',
   RodCutting3D: 'orange', StoneMerge3D: 'rose', OptimalBST3D: 'indigo', TreeDP3D: 'emerald', TSPDP3D: 'purple',
   DigitDP3D: 'cyan', ActivitySelect3D: 'amber', TaskSched3D: 'magenta', UnboundedKnapsack3D: 'teal', SetCover3D: 'pink',
+  BruteForce3D: 'red', Sunday3D: 'orange', SuffixTree3D: 'teal', SuffixArray3D: 'violet', SuffixAutomaton3D: 'rose',
+  BKDRHash3D: 'magenta', ELFHash3D: 'amber', LCP3D: 'emerald',
 };
 
 export let CURRENT_THEME = null;

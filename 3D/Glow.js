@@ -152,6 +152,7 @@ const PAGE_THEMES = {
   NTT3D: 'azure', FWT3D: 'red',
   SM43D: 'red', TripleDES3D: 'rose', RC43D: 'orange', ECC3D: 'violet', ElGamal3D: 'purple',
   SM23D: 'magenta', ECDH3D: 'gold', DSA3D: 'indigo', ECDSA3D: 'emerald',
+  LZSS3D: 'cyan', DEFLATE3D: 'gold', Brotli3D: 'rose', Zstd3D: 'indigo', Hamming3D: 'teal', CRC3D: 'amber', RS3D: 'violet', LDPC3D: 'emerald',
 };
 
 export let CURRENT_THEME = null;

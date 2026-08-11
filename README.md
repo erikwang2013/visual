@@ -1,10 +1,10 @@
 # 算法可视化 · 3D 动态演示
 
-基于 three.js 的算法可视化网站：**166 个数据结构与算法**，每个算法都有可交互的 3D 动画演示、逐步执行与文字讲解。
+基于 three.js 的算法可视化网站：**174 个数据结构与算法**，每个算法都有可交互的 3D 动画演示、逐步执行与文字讲解。
 
 ## 特性
 
-- **166 个算法页面**：线性结构、树、堆、图、排序、查找、哈希、动态规划、字符串匹配、网络流、密码学、压缩、机器学习、分布式、量子算法等
+- **174 个算法页面**：线性结构、树、堆、图、排序、查找、哈希、动态规划、字符串匹配、网络流、密码学、压缩、机器学习、分布式、量子算法等
 - **3D 可视化**：Three.js 实时渲染，节点、边、路径高亮均可拖拽旋转视角
 - **自动演示**：每个页面内置「▶ 演示」按钮，一键播放完整算法流程（播放/暂停/调速）
 - **逐步讲解**：演示过程中顶部提示条同步说明当前步骤的原理与状态
@@ -30,7 +30,7 @@ npx serve .
 
 ```
 visual/
-├── index.html                  # 首页目录（166 个算法入口 + 搜索 + 浮动导航）
+├── index.html                  # 首页目录（174 个算法入口 + 搜索 + 浮动导航）
 ├── visualizationPageStyle3d.css# 详情页统一样式
 ├── 3D/
 │   ├── Scene3D.js              # 3D 场景基座（相机/光照/星空/背景/滚轮策略）
@@ -56,7 +56,7 @@ visual/
 - **图论补全**：SPFA 最短路、Edmonds-Karp 最大流、匈牙利算法、Kosaraju SCC、Borůvka MST、Johnson 全源最短路、Ford-Fulkerson、Push-Relabel 预流推进、最小费用最大流、双连通分量（Tarjan 割点/桥）、KM 最大权匹配、Hopcroft-Karp 匹配
 - **数学与数值**：埃氏筛/线性筛、快速幂、Graham 凸包、高斯消元、扩展欧几里得、欧几里得、矩阵快速幂、LU 分解、QR 分解、Cholesky、Strassen、Miller-Rabin、Pollard-Rho、计算几何基础、最近点对、半平面交、FFT、NTT、FWT
 - **搜索与字符串**：跳表、一致性哈希、Huffman 编码、Boyer-Moore、Rabin-Karp、Z 算法
-- **密码学与压缩**：凯撒、维吉尼亚、DES、AES、RSA、Diffie-Hellman、MD5、SHA-256、SM3、MurmurHash、CityHash；SM4、3DES、RC4、ECC、ElGamal、SM2、ECDH、DSA、ECDSA；RLE、LZ77、LZ78、算术编码
+- **密码学与压缩**：凯撒、维吉尼亚、DES、AES、RSA、Diffie-Hellman、MD5、SHA-256、SM3、MurmurHash、CityHash；SM4、3DES、RC4、ECC、ElGamal、SM2、ECDH、DSA、ECDSA；RLE、LZ77、LZ78、算术编码、LZSS、DEFLATE、Brotli、Zstandard、汉明码、CRC-32、Reed-Solomon、LDPC
 - **机器学习与分布式**：KNN、K-Means、线性回归、决策树（ID3）、Raft 共识、两阶段提交（2PC）
 - **量子算法**：Grover 搜索、Shor 质因数分解
 - **其他**：并查集、KMP、Manacher、AC 自动机

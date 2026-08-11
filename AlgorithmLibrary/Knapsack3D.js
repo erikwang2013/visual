@@ -1,156 +1,119 @@
-// AlgorithmLibrary/Knapsack3D.js
-// 0/1 背包：物品盒（重量/价值）一行排开，DP 表格逐格填。
-// 填表高亮比较「不含 vs 含」，回溯阶段选中物品橙色上浮，路径格绿色。
+// AlgorithmLibrary/Knapsack3D.js — 0/1 背包：物品盒一行 + DP 表逐格填（不含 vs 含），回溯阶段路径格金色、选中物品橙色上浮（function* 生成器驱动）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Table3D } from '../3D/modes/Table3D.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Knapsack3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 360, 880], fov: 60 });
-const engine = new AnimationEngine({ speed: 1.5 });
+const scene = new Scene3D('scene', { cameraPos: [0, 380, 920], fov: 55 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const status = panel.addStatus('');
-const hint = new VText(scene, { text: '输入物品(重量/价值)与容量，点击「求解」开始', x: 0, y: 310, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「运行演示」开始：0/1 背包（容量 8）', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: -150, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
-let table = null;
-const aux = [];
+const ITEMS = [{ w: 2, v: 3 }, { w: 3, v: 4 }, { w: 4, v: 5 }, { w: 5, v: 6 }];
+const N = ITEMS.length, CAP = 8;
+const itemBox = new Map();    // i -> VBox
+const cellView = new Map();   // 'r-c' -> VBox
+const dp = Array.from({ length: N + 1 }, () => Array(CAP + 1).fill(0));
 
-function clearAll() {
-  engine.clear();
-  for (const o of aux) o.remove();
-  aux.length = 0;
-  if (table) {
-    for (const row of table.cells) for (const b of row) if (b) b.remove();
-    for (const l of table.rowLabels) l.remove();
-    for (const l of table.colLabels) l.remove();
-    table = null;
-  }
-  hint.setText('输入物品(重量/价值)与容量，点击「求解」开始');
-  status.textContent = '已清空';
+function clearView() {
+  itemBox.forEach(b => scene.remove(b.mesh));
+  cellView.forEach(c => scene.remove(c.box.mesh));
+  itemBox.clear(); cellView.clear();
 }
-
-// ---- 模型 ----
-function parseItems(s) {
-  const out = [];
-  for (const part of s.split(/[,，;；\s]+/)) {
-    const m = part.match(/^(\d+)\/(\d+)$/);
-    if (m) out.push({ w: parseInt(m[1], 10), v: parseInt(m[2], 10) });
+function buildView() {
+  clearView();
+  for (let i = 0; i < N; i++) {
+    const x = -150 + i * 88;
+    const b = new VBox(scene, { w: 56, h: 56, d: 24, x, y: 280, z: 0, label: 'w' + ITEMS[i].w, color: BLUE, emissive: BLUE });
+    itemBox.set(i, b);
+    new VText(scene, { text: '物品' + (i + 1) + ' v' + ITEMS[i].v, x, y: 330, z: 0, color: WHITE, scale: 0.5 });
   }
-  return out.slice(0, 6);
+  const capBox = new VBox(scene, { w: 72, h: 72, d: 28, x: 250, y: 280, z: 0, label: 'C=' + CAP, color: ORANGE, emissive: ORANGE });
+  new VText(scene, { text: '0', x: -216, y: 190, z: 0, color: WHITE, scale: 0.42 });
+  for (let c = 1; c <= CAP; c++) {
+    new VText(scene, { text: String(c), x: -216 + c * 54, y: 190, z: 0, color: WHITE, scale: 0.42 });
+  }
+  new VText(scene, { text: '无', x: -270, y: 135, z: 0, color: WHITE, scale: 0.46 });
+  for (let r = 1; r <= N; r++) {
+    new VText(scene, { text: '物品' + r, x: -270, y: 135 - r * 48, z: 0, color: WHITE, scale: 0.46 });
+  }
+  for (let r = 0; r <= N; r++) {
+    for (let c = 0; c <= CAP; c++) {
+      const box = new VBox(scene, { w: 50, h: 42, d: 14, x: -216 + c * 54, y: 135 - r * 48, z: 0, label: String(dp[r][c]), color: BLUE, emissive: BLUE });
+      cellView.set(r + '-' + c, { box, val: dp[r][c] });
+    }
+  }
 }
+function setCell(r, c, v, col) {
+  dp[r][c] = v;
+  const e = cellView.get(r + '-' + c);
+  e.box.setText(String(v));
+  e.box.setColor(col, col);
+}
+function setCellColor(r, c, col) { const e = cellView.get(r + '-' + c); if (e) e.box.setColor(col, col); }
 
-function knapModel(items, cap) {
-  const n = items.length;
-  const dp = Array.from({ length: n + 1 }, () => Array(cap + 1).fill(0));
-  const fill = [];   // {r, c, skip, take, useTake, w, v}
-  for (let r = 1; r <= n; r++) {
-    const { w, v } = items[r - 1];
-    for (let c = 1; c <= cap; c++) {
+function* knapGen() {
+  for (let r = 1; r <= N; r++) {
+    const { w, v } = ITEMS[r - 1];
+    yield S(() => outT.setText('——— 处理物品' + r + '（w=' + w + ', v=' + v + '）———'));
+    yield W(380);
+    for (let c = 1; c <= CAP; c++) {
       const skip = dp[r - 1][c];
-      const take = c >= w ? dp[r - 1][c - w] + v : -Infinity;
-      dp[r][c] = Math.max(skip, take);
-      fill.push({ r, c, skip, take, useTake: take > skip, w, v });
+      const take = c >= w ? dp[r - 1][c - w] + v : -1;
+      setCellColor(r, c, CYAN);
+      yield S(() => outT.setText('dp[' + r + '][' + c + ']：不含 = ' + skip + '；含 = ' + (take < 0 ? '容量不足' : dp[r - 1][c - w] + '+' + v + '=' + take) + ' → 取 max'));
+      yield W(230);
+      setCell(r, c, Math.max(skip, take), take > skip ? ORANGE : BLUE);
+      yield W(160);
     }
   }
-  const chosen = []; // 0-based 物品下标
-  let r = n, c = cap;
+  yield S(() => outT.setText('填表完成。② 回溯：从 dp[' + N + '][' + CAP + ']=' + dp[N][CAP] + ' 倒推：若与上行相同则未选，否则选物品并左移容量'));
+  yield W(650);
+  const chosen = [];
+  let r = N, c = CAP;
   while (r > 0 && c > 0) {
-    if (dp[r][c] === dp[r - 1][c]) r--;
-    else { chosen.push(r - 1); c -= items[r - 1].w; r--; }
-  }
-  return { dp, fill, chosen: chosen.reverse(), max: dp[n][cap] };
-}
-
-function fadeBack(r, c) {
-  const box = table.cells[r][c];
-  const from = new THREE.Color(PALETTE.highlight), to = new THREE.Color(PALETTE.node);
-  C(280, (p) => {
-    box.mesh.material.color.copy(from).lerp(to, p);
-    box.mesh.material.emissive.setHex(PALETTE.nodeEmissive);
-  }, () => { box.mesh.material.color.setHex(PALETTE.node); box.mesh.material.emissive.setHex(PALETTE.nodeEmissive); });
-}
-
-function run() {
-  engine.clear();
-  clearAll();
-  const items = parseItems(itemInput.value);
-  const cap = Math.min(Math.max(parseInt(capInput.value, 10) || 8, 1), 12);
-  if (!items.length) { status.textContent = '物品格式：重量/价值，逗号分隔，如 2/3,3/4'; return; }
-  itemInput.value = items.map((x) => x.w + '/' + x.v).join(',');
-  capInput.value = String(cap);
-  const n = items.length;
-
-  // 物品盒一行
-  const boxes = [];
-  for (let i = 0; i < n; i++) {
-    const x = -170 + i * 95;
-    const b = new VBox(scene, { w: 58, h: 58, d: 26, x, y: 200, z: 0, label: 'w' + items[i].w, color: PALETTE.blue, emissive: PALETTE.blueEmissive });
-    boxes.push(b); aux.push(b);
-    const capT = new VText(scene, { text: '物品' + (i + 1), x, y: 256, z: 0, color: PALETTE.textDim, scale: 0.62 });
-    const valT = new VText(scene, { text: 'v' + items[i].v, x, y: 148, z: 0, color: PALETTE.textDim, scale: 0.62 });
-    aux.push(capT, valT);
-  }
-  const capBox = new VBox(scene, { w: 72, h: 72, d: 30, x: 300, y: 200, z: 0, label: 'C=' + cap, color: PALETTE.orange, emissive: PALETTE.orangeEmissive });
-  aux.push(capBox);
-
-  // DP 表格
-  table = new Table3D(scene, { rows: n + 1, cols: cap + 1, cellW: 44, cellH: 40, startX: 0, startY: -8 });
-  table.create();
-  for (let r = 1; r <= n; r++) table.setRowLabel(r, '物品' + r);
-  table.rowLabels[0].setText('无');
-  table.colLabels[0].setText('0');
-  for (let c = 0; c <= cap; c++) table.setCell(0, c, 0, C);
-
-  const { fill, chosen, max } = knapModel(items, cap);
-  C(1, () => hint.setText('① 填表：dp[r][c] = max(不含物品r, 含物品r)'), () => {});
-  for (const e of fill) {
-    table.highlightCell(e.r, e.c, C);
-    table.setCell(e.r, e.c, dpVal(e.skip, e.take), C);
-    C(1, () => {
-      hint.setText('dp[' + e.r + '][' + e.c + ']：不含=' + e.skip + '，含(价值' + e.v + ')= ' + (e.take === -Infinity ? '容量不足' : e.take) + ' → ' + (e.useTake ? '含更优' : '不含更优'));
-    }, () => {});
-    fadeBack(e.r, e.c);
-  }
-
-  C(1, () => hint.setText('② 回溯：从 dp[' + n + '][' + cap + '] 倒推选取哪些物品'), () => {});
-  let rr = n, cc = cap;
-  while (rr > 0 && cc > 0) {
-    if (knapAt(rr, cc) === knapAt(rr - 1, cc)) {
-      table.highlightCell(rr, cc, C);
-      C(1, () => hint.setText('dp[' + rr + '][' + cc + '] = dp[' + (rr - 1) + '][' + cc + ']，物品' + rr + ' 未选，上行'), () => {});
-      rr--;
+    setCellColor(r, c, GOLD);
+    if (dp[r][c] === dp[r - 1][c]) {
+      yield S(() => outT.setText('dp[' + r + '][' + c + '] = dp[' + (r - 1) + '][' + c + '] → 物品' + r + ' 未选，上行'));
+      yield W(400);
+      r--;
     } else {
-      const idx = rr - 1;
-      table.highlightCell(rr, cc, C);
-      const bx = boxes[idx];
-      const baseY = bx.mesh.position.y;
-      C(500, (p) => { bx.mesh.position.y = baseY + 46 * Math.sin(p * Math.PI); bx.mesh.material.emissiveIntensity = 0.35 + 0.65 * p; }, () => { bx.mesh.position.y = baseY; bx.mesh.material.emissiveIntensity = 0.35; });
-      C(1, () => hint.setText('物品' + (idx + 1) + ' 被选中（w=' + items[idx].w + '），容量左移 ' + items[idx].w + ' 继续'), () => {});
-      cc -= items[idx].w;
-      rr--;
+      const idx = r - 1;
+      chosen.push(idx);
+      yield S(() => outT.setText('dp[' + r + '][' + c + '] ≠ 上行 → 选中物品' + r + '（w=' + ITEMS[idx].w + ', v=' + ITEMS[idx].v + '），容量 -' + ITEMS[idx].w));
+      yield W(420);
+      const b = itemBox.get(idx);
+      const baseY = b.mesh.position.y;
+      yield A(500, p => { b.mesh.position.y = baseY + 46 * Math.sin(p * Math.PI); });
+      b.setColor(ORANGE, ORANGE);
+      c -= ITEMS[idx].w;
+      r--;
     }
   }
-  C(1, () => {
-    status.textContent = '最大价值 ' + max + '：选取物品 [' + chosen.map((x) => x + 1).join(', ') + ']';
-    hint.setText('完成：最大价值 ' + max + '，选取物品 ' + chosen.map((x) => x + 1).join('、'));
-  }, () => {});
-
-  function dpVal(skip, take) { return take === -Infinity ? skip : Math.max(skip, take); }
-  function knapAt(r, c) { return table.cells[r][c].text; }
+  const totalV = chosen.reduce((s, i) => s + ITEMS[i].v, 0);
+  yield S(() => outT.setText('完成：最大价值 ' + totalV + '，选取物品 [' + chosen.map(i => i + 1).join(', ') + ']'));
+  yield W(600);
+  yield S(() => { status.textContent = '0/1 背包完成：最大价值 ' + totalV + '（物品' + chosen.map(i => i + 1).join('、') + '），O(nC)'; });
+  yield W(450);
 }
 
-const itemInput = panel.addInput('物品(w/v)', run, 30);
-itemInput.value = '2/3,3/4,4/5,5/6';
-const capInput = panel.addInput('容量', run, 4);
-capInput.value = '8';
-panel.addButton('求解', run);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+function* runKnap() {
+  buildView();
+  hint.setText('0/1 背包：dp[r][c] = max(不含, 含)，回溯找选取方案');
+  yield W(400);
+  yield* knapGen();
+  yield S(() => { outT.setText(''); hint.setText('0/1 背包完成：最大价值 10（物品2 + 物品4），O(nC)'); });
+}
+
+panel.addButton('运行演示', () => engine.start(runKnap()));
+panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 计算中，橙 = 含更优，金 = 回溯路径；选中物品橙色上浮）');
 
 scene.start(engine);

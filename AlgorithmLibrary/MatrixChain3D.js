@@ -1,146 +1,119 @@
-// AlgorithmLibrary/MatrixChain3D.js
-// 矩阵连乘（矩阵链乘法）：n=5 个矩阵横向排布（VBox + VText 标注维度 p 序列），
-// 右上三角 DP 表 m[i][j] 按链长自底向上逐格填写（当前格 cyan 高亮，未计算格暗色），
-// 填表后按最优分裂点 s 表回溯，绿色高亮矩阵链并输出最优括号化方案。
-import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
-import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
-import { pop } from '../3D/effects/Fx.js';
+// AlgorithmLibrary/MatrixChain3D.js — 矩阵连乘：右上三角 m 表按链长自底向上填，分裂 k 两侧子问题黄色闪烁，最优分割金色写入 + 括号化方案还原（function* 生成器驱动）
 import * as THREE from 'three';
+import { Scene3D } from '../3D/Scene3D.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
+import { ControlPanel } from '../3D/ControlPanel.js';
+import { VText, VBox } from '../3D/VisualObject3D.js';
+import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('MatrixChain3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 230, 840], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 330, 760], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const status = panel.addStatus('');
-const hint = new VText(scene, { text: 'p = [5, 4, 6, 2, 7, 3]，5 个矩阵，点击「求解」', x: 0, y: 385, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, YELLOW = 0xfde047;
+const hint = new VText(scene, { text: '点击「运行演示」开始：矩阵连乘（A1..A5，P=[5,4,6,2,7,3]）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: -150, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
-const N = 5;                 // 矩阵个数
-const P = [5, 4, 6, 2, 7, 3]; // 维度序列，共 N+1 项
-const CW = 64, CH = 48, TY = 40;
-const DARK = 0x334155, DARK_EM = 0x1e293b;
+const P = [5, 4, 6, 2, 7, 3];
+const N = P.length - 1;
+const CW = 64, CH = 48, TY = 35;
+const cellView = new Map();   // 'i-j' -> VBox
+const matrixBox = [];         // Ai -> VBox
+const m = Array.from({ length: N + 1 }, () => Array(N + 1).fill(0));
+const s = Array.from({ length: N + 1 }, () => Array(N + 1).fill(0));
 
-const matrixBoxes = [];
-const dimTexts = [];
-let cells = [];   // cells[i][j]（1 <= i <= j <= N）
-let m = null, s = null;
-
-const cellX = (j) => (j - 3) * CW;
-const cellZ = (i) => (2 - i) * CH * 0.85;
-const hexStr = (c) => '#' + c.toString(16).padStart(6, '0');
-
-function buildMatrices() {
-  const y = 265;
-  for (let i = 0; i < N; i++) {
-    const x = (i - 2) * 118;
-    const box = new VBox(scene, { w: 84, h: 52, d: 34, x, y, z: 0, label: 'A' + (i + 1), color: PALETTE.node, emissive: PALETTE.nodeEmissive });
-    matrixBoxes.push(box);
-    const dim = new VText(scene, { text: P[i] + '×' + P[i + 1], x, y: y - 52, z: 0, color: PALETTE.textDim, scale: 0.7 });
-    dimTexts.push(dim);
-  }
+function cellX(j) { return (j - 3) * CW; }
+function cellZ(i) { return (2 - i) * CH * 0.85; }
+function clearView() {
+  cellView.forEach(c => scene.remove(c.box.mesh));
+  matrixBox.forEach(b => scene.remove(b.mesh));
+  cellView.clear(); matrixBox.length = 0;
 }
-
-function buildTable() {
-  m = Array.from({ length: N + 1 }, () => new Array(N + 1).fill(0));
-  s = Array.from({ length: N + 1 }, () => new Array(N + 1).fill(0));
+function buildView() {
+  clearView();
   for (let i = 1; i <= N; i++) {
-    cells[i] = [];
-    for (let j = i; j <= N; j++) {
-      const box = new VBox(scene, { w: CW - 8, h: CH - 8, d: 22, x: cellX(j), y: TY, z: cellZ(i), label: '', color: DARK, emissive: DARK_EM });
-      cells[i][j] = box;
-    }
-    cells[i][i].setText('0'); // 对角线 m[i][i] = 0
+    const b = new VBox(scene, { w: 84, h: 44, d: 20, x: (i - 3) * 118, y: 260, z: 0, label: 'A' + i, color: BLUE, emissive: BLUE });
+    matrixBox.push(b);
+    new VText(scene, { text: P[i - 1] + '×' + P[i], x: (i - 3) * 118, y: 212, z: 0, color: WHITE, scale: 0.45 });
   }
+  for (let i = 1; i <= N; i++) {
+    for (let j = i; j <= N; j++) {
+      const box = new VBox(scene, { w: 56, h: 42, d: 14, x: cellX(j), y: TY, z: cellZ(i), label: i === j ? '0' : '', color: BLUE, emissive: BLUE });
+      cellView.set(i + '-' + j, { box });
+    }
+  }
+  new VText(scene, { text: 'm[i][j] = min_{i≤k<j} m[i][k]+m[k+1][j] + p[i-1]·p[k]·p[j]', x: 0, y: 118, z: 0, color: GOLD, scale: 0.5 });
 }
-
-// 当前格高亮 cyan（未计算格为暗色）
-function hlCyan(i, j) {
-  const box = cells[i][j];
-  const from = box.mesh.material.color.getHex();
-  C(280, (p) => {
-    box.mesh.material.color.lerpColors(new THREE.Color(from), new THREE.Color(PALETTE.highlight), Math.min(p * 1.2, 1));
-    box.mesh.material.emissive.setHex(PALETTE.highlightEmissive);
-  }, () => { box.mesh.material.color.setHex(from); box.mesh.material.emissive.setHex(from === DARK ? DARK_EM : PALETTE.nodeEmissive); });
+function setCell(i, j, v, c) {
+  m[i][j] = v;
+  const e = cellView.get(i + '-' + j);
+  e.box.setText(String(v));
+  e.box.setColor(c, c);
 }
-
-function toNode(i, j) {
-  const box = cells[i][j];
-  C(240, (p) => box.mesh.material.color.lerpColors(new THREE.Color(PALETTE.highlight), new THREE.Color(PALETTE.node), p), () => {});
+function setCellColor(i, j, c) { const e = cellView.get(i + '-' + j); if (e) e.box.setColor(c, c); }
+function* flashCell(i, j, label) {
+  if (i > j) return;
+  setCellColor(i, j, YELLOW);
+  yield S(() => outT.setText(label));
+  yield W(170);
+  setCellColor(i, j, BLUE);
 }
-
-// 参与计算的两个已填格子闪黄
-function flashCell(i, j) {
-  const box = cells[i][j];
-  const from = box.mesh.material.color.getHex();
-  C(140, (p) => box.mesh.material.color.lerpColors(new THREE.Color(from), new THREE.Color(PALETTE.yellow), p), () => box.mesh.material.color.setHex(from));
-  C(140, (p) => box.mesh.material.color.lerpColors(new THREE.Color(PALETTE.yellow), new THREE.Color(from), p), () => box.mesh.material.color.setHex(from));
-}
-
-function setVal(i, j, v) {
-  const box = cells[i][j];
-  const prev = box.text;
-  let fx = false;
-  C(260, () => { if (!fx) { fx = true; pop(scene, box.mesh); } box.setText(String(v)); }, () => box.setText(prev));
-}
-
 function parens(i, j) {
   if (i === j) return 'A' + i;
-  return '(' + parens(i, s[i][j]) + parens(s[i][j] + 1, j) + ')';
+  const k = s[i][j];
+  return '(' + parens(i, k) + parens(k + 1, j) + ')';
 }
 
-function solve() {
-  engine.clear();
-  clearAll();
-  buildMatrices();
-  buildTable();
-  hint.setText('按链长自底向上填表：m[i][j] = min(m[i][k] + m[k+1][j] + p[i-1]·p[k]·p[j])');
+function* mcGen() {
+  yield S(() => outT.setText('矩阵连乘：m[i][j] = 最小标量乘法次数；先填链长 1（=0），再逐级增长'));
+  yield W(600);
   for (let len = 2; len <= N; len++) {
-    for (let i = 1; i + len - 1 <= N; i++) {
+    for (let i = 1; i <= N - len + 1; i++) {
       const j = i + len - 1;
-      hlCyan(i, j);
-      let best = Infinity, bestK = -1;
+      setCellColor(i, j, CYAN);
+      yield S(() => outT.setText('——— m[' + i + '][' + j + ']（链长 ' + len + '）：尝试所有分割点 k ———'));
+      yield W(380);
+      let best = Infinity, bk = -1;
+      const cands = [];
       for (let k = i; k < j; k++) {
-        const cand = m[i][k] + m[k + 1][j] + P[i - 1] * P[k] * P[j];
-        flashCell(i, k);
-        flashCell(k + 1, j);
-        C(1, () => { status.textContent = 'm[' + i + '][' + j + '] k=' + k + '：' + m[i][k] + '+' + m[k + 1][j] + '+' + P[i - 1] + '·' + P[k] + '·' + P[j] + ' = ' + cand; }, () => {});
-        if (cand < best) { best = cand; bestK = k; }
+        yield* flashCell(i, k, '左子 ' + 'm[' + i + '][' + k + ']=' + m[i][k]);
+        yield* flashCell(k + 1, j, '右子 ' + 'm[' + (k + 1) + '][' + j + ']=' + m[k + 1][j]);
+        const v = m[i][k] + m[k + 1][j] + P[i - 1] * P[k] * P[j];
+        cands.push('k=' + k + '→' + v);
+        yield S(() => outT.setText('k=' + k + '：' + m[i][k] + ' + ' + m[k + 1][j] + ' + ' + P[i - 1] + '×' + P[k] + '×' + P[j] + ' = ' + v + (v < best ? ' ← 暂优' : '')));
+        yield W(300);
+        if (v < best) { best = v; bk = k; }
       }
-      m[i][j] = best; s[i][j] = bestK;
-      setVal(i, j, best);
-      toNode(i, j);
-      C(1, () => { status.textContent = 'm[' + i + '][' + j + '] = ' + best + '（最优分裂点 k=' + bestK + '）'; }, () => {});
+      setCell(i, j, best, GOLD);
+      s[i][j] = bk;
+      yield S(() => outT.setText('→ m[' + i + '][' + j + '] = ' + best + '（最优分割 k=' + bk + '）；候选：' + cands.join('、')));
+      yield W(450);
     }
   }
-  const expr = parens(1, N);
-  for (let i = 0; i < N; i++) {
-    C(300, () => matrixBoxes[i].setColor(PALETTE.green, PALETTE.greenEmissive), () => matrixBoxes[i].setColor(PALETTE.node, PALETTE.nodeEmissive));
-  }
-  C(1, () => {
-    hint.setText('最优括号化：' + expr + '，乘法次数 = ' + m[1][N]);
-    status.textContent = '矩阵连乘 ' + expr + ' 最少 ' + m[1][N] + ' 次乘法';
-  }, () => {});
+  yield S(() => outT.setText('填表完成：m[1][' + N + '] = ' + m[1][N] + '。② 按 s 表递归还原括号化方案'));
+  yield W(550);
+  const tree = parens(1, N);
+  yield S(() => outT.setText('最小代价 = ' + m[1][N] + '，方案：' + tree));
+  yield W(800);
+  for (let i = 1; i <= N; i++) matrixBox[i - 1].setColor(GREEN, GREEN);
+  yield S(() => outT.setText('完成：全部矩阵绿色 = 方案 (A1(((A2A3)A4)A5)) 参与计算，O(n³)'));
+  yield W(650);
+  yield S(() => { status.textContent = '矩阵连乘最小代价 ' + m[1][N] + '，方案 ' + tree + '，O(n³)'; });
+  yield W(450);
 }
 
-function clearAll() {
-  engine.clear();
-  for (let i = 1; i <= N; i++) if (cells[i]) for (let j = i; j <= N; j++) if (cells[i][j]) { cells[i][j].remove(); cells[i][j] = null; }
-  cells = [];
-  for (const b of matrixBoxes) b.remove();
-  for (const t of dimTexts) t.remove();
-  matrixBoxes.length = 0;
-  dimTexts.length = 0;
-  m = null; s = null;
-  hint.setText('p = [5, 4, 6, 2, 7, 3]，5 个矩阵，点击「求解」');
-  status.textContent = '已清空';
+function* runMC() {
+  buildView();
+  hint.setText('矩阵连乘：右上三角 m 表，链长自底向上');
+  yield W(400);
+  yield* mcGen();
+  yield S(() => { outT.setText(''); hint.setText('矩阵连乘完成：最小代价 192（(A1(((A2A3)A4)A5))），O(n³)'); });
 }
 
-panel.addButton('求解', solve);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+panel.addButton('运行演示', () => engine.start(runMC()));
+panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 计算中，黄 = 分裂 k 两侧子问题闪烁，金 = 最优值，绿 = 全部矩阵）');
 
 scene.start(engine);

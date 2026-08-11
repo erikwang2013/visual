@@ -1,244 +1,109 @@
-// AlgorithmLibrary/DPChange3D.js
-// 找零钱四种模式：表（逐格填 dp）/记忆（按递归记忆顺序填充，保留高亮）/
-// 递归（金额-币种递归树，深度限制）/贪婪（金额递减 + 选币脉冲，提示是否最优）。
+// AlgorithmLibrary/DPChange3D.js — 找零钱（DP）：币 1/5/10/25 凑 26，dp[r][c]=min(不含, 含) 逐格填表，回溯金色路径 25+1，结尾对比贪心反例（function* 生成器驱动）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Table3D } from '../3D/modes/Table3D.js';
-import { VNode, VBox, VText, tubeBetween, easeInOut } from '../3D/VisualObject3D.js';
+import { VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('DPChange3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 780], fov: 62 });
-const engine = new AnimationEngine({ speed: 1.5 });
+const scene = new Scene3D('scene', { cameraPos: [0, 320, 900], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const status = panel.addStatus('');
-const hint = new VText(scene, { text: '输入金额与币种，选择模式开始', x: 0, y: 270, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const aux = [];
-let table = null;
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「运行演示」开始：找零钱（币种 1/5/10/25，凑 26）', x: 0, y: 308, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const stageT = new VText(scene, { text: '', x: 0, y: 265, z: 0, color: GOLD, scale: 0.72 });
+const outT = new VText(scene, { text: '', x: 0, y: -260, z: 0, color: PALETTE.textGlow, scale: 0.6 });
 
-function clearAll() {
-  engine.clear();
-  for (const o of aux) o.remove();
-  aux.length = 0;
-  if (table) {
-    for (const row of table.cells) for (const b of row) if (b) b.remove();
-    for (const l of table.rowLabels) l.remove();
-    for (const l of table.colLabels) l.remove();
-    table = null;
-  }
-  hint.setText('输入金额与币种，选择模式开始');
-  status.textContent = '已清空';
+const COINS = [1, 5, 10, 25];
+const AMT = 26;
+const R = COINS.length;
+const CW = 30, CH = 36, TY = 85;
+const dp = Array.from({ length: R + 1 }, () => Array(AMT + 1).fill(Infinity));
+for (let r = 0; r <= R; r++) dp[r][0] = 0;
+const steps = [];
+for (let r = 1; r <= R; r++) for (let c = 1; c <= AMT; c++) {
+  const use = c >= COINS[r - 1] ? dp[r][c - COINS[r - 1]] + 1 : Infinity;
+  const skip = dp[r - 1][c];
+  dp[r][c] = Math.min(skip, use);
+  steps.push({ r, c, v: dp[r][c], use: use < skip, skip, useV: use });
+}
+const sol = [];
+let r = R, c = AMT;
+while (c > 0 && r > 0) {
+  if (dp[r][c] === dp[r - 1][c]) r--;
+  else { sol.push(COINS[r - 1]); c -= COINS[r - 1]; }
 }
 
-// ---- 模型（与 /tmp/3dtest/2i_model.mjs 一致）----
-function parseCoins(s) {
-  const arr = s.split(/[,，\s]+/).map((v) => parseInt(v, 10)).filter((v) => v > 0);
-  return [...new Set(arr)].sort((a, b) => a - b);
+const cellView = new Map();
+for (let r = 0; r <= R; r++) for (let c = 0; c <= AMT; c++) {
+  const box = new VBox(scene, { w: CW - 6, h: CH - 6, d: 10, x: -405 + c * CW, y: TY - r * CH, z: 0, label: c === 0 ? '0' : (r === 0 ? '∞' : ''), color: BLUE, emissive: BLUE });
+  cellView.set(r + '-' + c, { box });
 }
-function changeModel(coins, amount, mode) {
-  const R = coins.length;
-  const dp = Array.from({ length: R + 1 }, () => Array(amount + 1).fill(Infinity));
-  for (let r = 0; r <= R; r++) dp[r][0] = 0;
-  const events = [];
-  const memo = Array.from({ length: R + 1 }, () => Array(amount + 1).fill(false));
-  const rec = (r, c) => {
-    if (memo[r][c]) return dp[r][c];
-    memo[r][c] = true;
-    if (r === 0 || c === 0) return dp[r][c];
-    const use = c >= coins[r - 1] ? rec(r, c - coins[r - 1]) + 1 : Infinity;
-    const skip = rec(r - 1, c);
-    dp[r][c] = Math.min(skip, use);
-    events.push({ r, c, v: dp[r][c], use: use < skip });
-    return dp[r][c];
-  };
-  if (mode === 'memo') {
-    rec(R, amount);
-  } else {
-    for (let r = 1; r <= R; r++) for (let c = 1; c <= amount; c++) {
-      const use = c >= coins[r - 1] ? dp[r][c - coins[r - 1]] + 1 : Infinity;
-      const skip = dp[r - 1][c];
-      dp[r][c] = Math.min(skip, use);
-      events.push({ r, c, v: dp[r][c], use: use < skip });
-    }
-  }
-  const sol = [];
-  let r = R, c = amount;
-  while (c > 0 && r > 0) {
-    if (dp[r][c] === dp[r - 1][c]) r--;
-    else { sol.push(coins[r - 1]); c -= coins[r - 1]; }
-  }
-  return { dp, events, sol, min: dp[R][amount] };
+for (let r = 1; r <= R; r++) new VText(scene, { text: COINS[r - 1] + '币', x: -405 - 40, y: TY - r * CH, z: 0, color: WHITE, scale: 0.45 });
+new VText(scene, { text: 'dp[r][c] = 用前 r 种币凑 c 分的最少枚数；dp[r][c] = min(不含第 r 种, 含一枚第 r 种) —— 每格只依赖左/上', x: 0, y: -232, z: 0, color: WHITE, scale: 0.62 });
+new VText(scene, { text: '凑零钱：给定币种无限量，求凑出 26 分的最少硬币数（无限背包变体）', x: 0, y: 235, z: 0, color: WHITE, scale: 0.68 });
+const ansT = new VText(scene, { text: '', x: 0, y: -178, z: 0, color: GOLD, scale: 0.8 });
+
+function cell(r, c) { return cellView.get(r + '-' + c); }
+function setCell(r, c, v, col) {
+  const e = cell(r, c);
+  e.box.setText(v === Infinity ? '∞' : String(v));
+  if (col) e.box.setColor(col, col);
 }
-function greedyModel(coins, amount) {
-  const sorted = [...coins].sort((a, b) => b - a);
-  const steps = [];
-  let rem = amount;
-  for (const c of sorted) while (rem >= c) { steps.push(c); rem -= c; }
-  return { steps, rem, count: steps.length };
-}
-function recModel(coins, amount, maxDepth) {
-  const R = coins.length;
-  const dp = changeModel(coins, amount, 'table').dp;
-  const nodes = [], edges = [];
-  const MAX = 90;
-  const visit = (r, c, depth, parentId) => {
-    if (nodes.length >= MAX) return;
-    const id = nodes.length;
-    nodes.push({ id, r, c, depth, parentId });
-    if (parentId !== null) edges.push([parentId, id]);
-    if (r === 0 || c === 0 || depth >= maxDepth) return;
-    if (c >= coins[r - 1]) visit(r, c - coins[r - 1], depth + 1, id);
-    visit(r - 1, c, depth + 1, id);
-  };
-  visit(R, amount, 0, null);
-  const path = new Set();
-  let r = R, c = amount;
-  while (c > 0 && r > 0) {
-    path.add(r + ',' + c);
-    if (dp[r][c] === dp[r - 1][c]) r--;
-    else c -= coins[r - 1];
-  }
-  return { nodes, edges, path, min: dp[R][amount] };
+function clearView() {
+  cellView.forEach((e, k) => {
+    const [, r, c] = k.split('-').map(Number);
+    e.box.setText(c === 0 ? '0' : (r === 0 ? '∞' : ''));
+    e.box.setColor(BLUE, BLUE);
+  });
+  ansT.setText(''); stageT.setText(''); outT.setText('');
 }
 
-function layoutTree(nodes, edges) {
-  const children = new Map();
-  for (const e of edges) { if (!children.has(e[0])) children.set(e[0], []); children.get(e[0]).push(e[1]); }
-  const xof = new Map();
-  let leafCount = 0;
-  const assign = (id) => {
-    const ch = children.get(id) || [];
-    if (ch.length === 0) { xof.set(id, leafCount++); return; }
-    for (const cid of ch) assign(cid);
-    xof.set(id, (xof.get(ch[0]) + xof.get(ch[ch.length - 1])) / 2);
-  };
-  assign(0);
-  return nodes.map((n) => ({ ...n, x: (xof.get(n.id) - (leafCount - 1) / 2) * 76, y: 180 - n.depth * 64 }));
+function* chGen() {
+  yield S(() => outT.setText('第一行 = 只有 0 分可用：除了 0 分其余全 ∞（凑不出）；首列 dp[r][0] = 0（凑 0 分用 0 枚）'));
+  yield W(700);
+  for (const s of steps) {
+    const e = cell(s.r, s.c);
+    e.box.setColor(CYAN, CYAN);
+    yield S(() => outT.setText('dp[' + s.r + '][' + s.c + '] = min(不含 ' + COINS[s.r - 1] + ': ' + (s.skip === Infinity ? '∞' : s.skip) + ', 含一枚: ' + (s.useV === Infinity ? '∞' : s.useV) + ')'));
+    yield W(150);
+    setCell(s.r, s.c, s.v, s.v < Infinity ? (s.use ? ORANGE : BLUE) : BLUE);
+    yield S(() => stageT.setText('dp[' + s.r + '][' + s.c + '] = ' + (s.v === Infinity ? '∞' : s.v) + (s.use ? '（含 ' + COINS[s.r - 1] + ' 更优）' : '（不用 ' + COINS[s.r - 1] + ' 更优）')));
+    yield W(130);
+  }
+  yield S(() => { ansT.setText('dp[4][26] = ' + dp[R][AMT] + ' → 26 分最少 ' + dp[R][AMT] + ' 枚'); stageT.setText('表填完！回溯：从 dp[4][26] 出发，凡 dp[r][c]==dp[r−1][c] 就上行（不用），否则用一枚该币左移'); });
+  yield W(800);
+  let rr = R, cc = AMT;
+  const path = [];
+  while (cc > 0 && rr > 0) {
+    cell(rr, cc).box.setColor(GOLD, GOLD);
+    if (dp[rr][cc] === dp[rr - 1][cc]) { path.push('上'); rr--; }
+    else { path.push('用' + COINS[rr - 1]); cc -= COINS[rr - 1]; }
+    yield S(() => outT.setText('回溯 ' + path.join(' → ')));
+    yield W(280);
+  }
+  cell(R, AMT).box.setColor(GOLD, GOLD);
+  yield S(() => { ansT.setText('26 = ' + sol.join(' + ') + '，共 ' + dp[R][AMT] + ' 枚'); stageT.setText('最优解：' + sol.join(' + ') + ' —— 贪心（先取 25 → 1）恰好也是最优'); });
+  yield W(800);
+  yield S(() => outT.setText('但贪心不总是对：币种 1/3/4 凑 6 时，贪心取 4+1+1 = 3 枚，而 DP 取 3+3 = 2 枚 —— 这正是要 DP 的原因'));
+  yield W(750);
+  yield S(() => { status.textContent = '找零 26 最少 ' + dp[R][AMT] + ' 枚（25+1）'; outT.setText('完成：找零 26 = 25+1 共 2 枚，O(币种数 × 金额)；无限背包的模板'); });
+  yield W(600);
 }
 
-const fmt = (v) => (v === Infinity ? '∞' : String(v));
-
-function fadeCellBack(r, c, delay) {
-  const box = table.cells[r][c];
-  const from = new THREE.Color(PALETTE.highlight), to = new THREE.Color(PALETTE.node);
-  C(delay, (p) => {
-    box.mesh.material.color.copy(from).lerp(to, p);
-    box.mesh.material.emissive.setHex(PALETTE.nodeEmissive);
-  }, () => { box.mesh.material.color.setHex(PALETTE.node); box.mesh.material.emissive.setHex(PALETTE.nodeEmissive); });
+function* runCH() {
+  clearView();
+  hint.setText('找零钱：dp[r][c] = min(不含, 含)，逐格填表 + 回溯');
+  yield W(400);
+  yield* chGen();
+  yield S(() => { outT.setText(''); hint.setText('找零完成：26 = 25+1 共 2 枚，O(4×26)'); });
 }
 
-function runTable(mode) {
-  engine.clear();
-  clearAll();
-  const amount = Math.min(Math.max(parseInt(amountInput.value, 10) || 26, 1), 30);
-  const coins = parseCoins(coinInput.value);
-  amountInput.value = String(amount); coinInput.value = coins.join(',');
-  const rows = coins.length + 1, cols = amount + 1;
-  table = new Table3D(scene, { rows, cols, cellW: 30, cellH: 38, startX: 0, startY: 85 });
-  table.create();
-  for (let r = 1; r < rows; r++) table.setRowLabel(r, coins[r - 1] + '币');
-  table.colLabels[0].setText('0');
-  for (let c = 0; c < cols; c++) table.setCell(0, c, c === 0 ? '0' : '∞', C);
-  const res = changeModel(coins, amount, mode);
-  const isMemo = mode === 'memo';
-  C(1, () => hint.setText(isMemo ? '记忆化递归：按递归记忆顺序填充，已算格保留高亮' : '动态规划填表：用币 ' + coins[0] + ' 时 min(不含, 含)'), () => {});
-  for (const e of res.events) {
-    table.highlightCell(e.r, e.c, C);
-    table.setCell(e.r, e.c, fmt(e.v), C);
-    if (!isMemo) fadeCellBack(e.r, e.c, 300);
-    if (e.use) C(1, () => hint.setText('dp[' + e.r + '][' + e.c + ']=' + e.v + '：含币 ' + coins[e.r - 1] + ' 更优'), () => {});
-  }
-  C(1, () => {
-    status.textContent = amount + ' 最少需 ' + res.min + ' 枚硬币: ' + res.sol.join('+');
-    hint.setText('完成：' + amount + ' = ' + res.sol.join('+') + '，共 ' + res.min + ' 枚');
-  }, () => {});
-}
-
-function runGreedy() {
-  engine.clear();
-  clearAll();
-  const amount = Math.min(Math.max(parseInt(amountInput.value, 10) || 26, 1), 30);
-  const coins = parseCoins(coinInput.value);
-  amountInput.value = String(amount); coinInput.value = coins.join(',');
-  const { steps, count } = greedyModel(coins, amount);
-  const opt = changeModel(coins, amount, 'table').min;
-  const boxes = [];
-  for (let i = 0; i < coins.length; i++) {
-    const b = new VBox(scene, { w: 56, h: 56, d: 24, x: -250 + i * 72, y: 40, z: 0, label: String(coins[i]), color: PALETTE.blue, emissive: PALETTE.blueEmissive });
-    boxes.push(b); aux.push(b);
-  }
-  const amtBox = new VBox(scene, { w: 76, h: 76, d: 30, x: 230, y: 60, z: 0, label: String(amount), color: PALETTE.orange, emissive: PALETTE.orangeEmissive });
-  aux.push(amtBox);
-  const formula = new VText(scene, { text: '', x: -230, y: -70, z: 0, color: PALETTE.text, scale: 0.8 });
-  aux.push(formula);
-  C(1, () => hint.setText('贪婪：每次取不超过剩余金额的最大币'), () => {});
-  let rem = amount, used = [];
-  for (const c of steps) {
-    const i = coins.indexOf(c);
-    C(500, (p) => { const s = 1 + 0.25 * Math.sin(p * Math.PI); boxes[i].mesh.scale.setScalar(s); }, () => boxes[i].mesh.scale.setScalar(1));
-    rem -= c; used.push(c);
-    C(1, () => { amtBox.setText(String(rem)); hint.setText('取币 ' + c + '，剩余 ' + rem); formula.setText(used.join('+')); }, () => {});
-    C(260, () => {}, () => {});
-  }
-  C(1, () => {
-    const optimal = count === opt;
-    hint.setText('贪婪共 ' + count + ' 枚，' + (optimal ? '即最优方案' : '非最优（最优 ' + opt + ' 枚）'));
-    status.textContent = amount + ' 贪婪需 ' + count + ' 枚: ' + steps.join('+') + (optimal ? '' : '（最优 ' + opt + ' 枚）');
-  }, () => {});
-}
-
-function runRec() {
-  engine.clear();
-  clearAll();
-  const amount = Math.min(Math.max(parseInt(amountInput.value, 10) || 26, 1), 30);
-  const coins = parseCoins(coinInput.value);
-  amountInput.value = String(amount); coinInput.value = coins.join(',');
-  const { nodes, edges, path, min } = recModel(coins, amount, 12);
-  const laid = layoutTree(nodes, edges);
-  for (const e of edges) {
-    const a = laid[e[0]], b = laid[e[1]];
-    const t = tubeBetween(scene, new THREE.Vector3(a.x, a.y, 0), new THREE.Vector3(b.x, b.y, 0), { color: PALETTE.edge, opacity: 0.4, radius: 1.6 });
-    aux.push({ remove: () => { scene.remove(t); t.geometry.dispose(); t.material.dispose(); } });
-  }
-  let lastDepth = -1;
-  for (const n of laid) {
-    const node = new VNode(scene, { label: 'f' + n.c + ',' + n.r, x: n.x, y: n.y, z: 0, radius: 15, color: PALETTE.blue, emissive: PALETTE.blueEmissive });
-    node.mesh.scale.setScalar(0.01);
-    aux.push(node);
-    C(280, (p) => node.mesh.scale.setScalar(0.01 + 0.99 * easeInOut(p)), () => {});
-    if (n.depth !== lastDepth) {
-      lastDepth = n.depth;
-      const branch = n.r > 0 && n.c > 0 ? '：用币 ' + coins[n.r - 1] + ' 或不用' : '（边界：' + (n.c === 0 ? '已凑齐' : '币已用尽') + '）';
-      C(1, () => hint.setText('递归深度 ' + n.depth + '：f(' + n.c + ',' + n.r + ')' + branch), () => {});
-    } else {
-      C(1, () => hint.setText('展开 f(' + n.c + ',' + n.r + ')'), () => {});
-    }
-  }
-  C(1, () => hint.setText('最优路径高亮'), () => {});
-  for (const n of laid) {
-    if (path.has(n.r + ',' + n.c)) {
-      C(1, () => n.node.setColor(PALETTE.highlight, PALETTE.highlightEmissive), () => {});
-    }
-  }
-  C(1, () => {
-    status.textContent = amount + ' 最少需 ' + min + ' 枚硬币';
-    hint.setText('递归树完成：f(' + amount + ',' + coins.length + ') = ' + min);
-  }, () => {});
-}
-
-const amountInput = panel.addInput('金额', () => runTable('table'), 4);
-amountInput.value = '26';
-const coinInput = panel.addInput('币种(逗号分隔)', () => runTable('table'), 20);
-coinInput.value = '1,5,10,25';
-panel.addButton('运行表法', () => runTable('table'));
-panel.addButton('运行贪心', runGreedy);
-panel.addButton('运行递归', runRec);
-panel.addButton('运行记忆', () => runTable('memo'));
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+panel.addButton('运行演示', () => engine.start(runCH()));
+panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 计算中，橙 = 含币更优，金 = 回溯路径；行 = 前 r 种币，列 = 金额）');
 
 scene.start(engine);

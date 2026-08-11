@@ -1,149 +1,116 @@
-// AlgorithmLibrary/EditDistance3D.js
-// 编辑距离：两个输入串的字符 VBox 序列 + (m+1)×(n+1) DP 表网格（VBox + 值），
-// 逐格填充时高亮上（删除）/左（插入）/对角（替换）三种转移来源，
-// 回溯路径绿色逐格高亮，状态文本显示编辑距离与操作序列。
-import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
-import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
-import { pop } from '../3D/effects/Fx.js';
+// AlgorithmLibrary/EditDistance3D.js — 编辑距离：kitten→sitting 的 (m+1)×(n+1) DP 斜板表，三种来源（上=删/左=插/对角=替）黄色闪烁取最小，回溯路径绿色（function* 生成器驱动）
 import * as THREE from 'three';
+import { Scene3D } from '../3D/Scene3D.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
+import { ControlPanel } from '../3D/ControlPanel.js';
+import { VText, VBox } from '../3D/VisualObject3D.js';
+import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('EditDistance3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 260, 780], fov: 54 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const scene = new Scene3D('scene', { cameraPos: [0, 260, 800], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const status = panel.addStatus('');
-const hint = new VText(scene, { text: '输入两个字符串，点击「求解」计算编辑距离', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, YELLOW = 0xfde047;
+const hint = new VText(scene, { text: '点击「运行演示」开始：编辑距离（kitten → sitting）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: -190, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
-const CW = 46, CH = 42, TY = 70;
-const DARK = 0x334155, DARK_EM = 0x1e293b;
-let A = '', B = '';
-let cells = [];     // cells[i][j]
-let aBoxes = [], bBoxes = [];
-let dp = null;
-let halfC = 0, halfR = 0;
+const SA = 'kitten', B = 'sitting';
+const N = SA.length, M = B.length;
+const CW = 46, CH = 40, TY = 70, halfC = N / 2, halfR = M / 2;
+const cellView = new Map();   // 'i-j' -> VBox
+const aBoxes = [], bBoxes = [];
+const dp = Array.from({ length: M + 1 }, () => Array(N + 1).fill(0));
 
-const px = (j) => (j - halfC) * CW;
-const pz = (i) => (halfR - i) * CH * 0.85;
-
-// 格子高亮（cyan=当前格，green=回溯路径格）
-function hl(box, color, em) {
-  const from = box.mesh.material.color.getHex();
-  C(280, (p) => {
-    box.mesh.material.color.lerpColors(new THREE.Color(from), new THREE.Color(color), Math.min(p * 1.2, 1));
-    box.mesh.material.emissive.setHex(em);
-  }, () => { box.mesh.material.color.setHex(from); box.mesh.material.emissive.setHex(PALETTE.nodeEmissive); });
+function px(j) { return (j - halfC) * CW; }
+function pz(i) { return (halfR - i) * CH; }
+function clearView() {
+  cellView.forEach(c => scene.remove(c.box.mesh));
+  aBoxes.forEach(b => scene.remove(b.mesh));
+  bBoxes.forEach(b => scene.remove(b.mesh));
+  cellView.clear(); aBoxes.length = 0; bBoxes.length = 0;
 }
-
-function toNode(i, j) {
-  const box = cells[i][j];
-  C(220, (p) => box.mesh.material.color.lerpColors(new THREE.Color(PALETTE.highlight), new THREE.Color(PALETTE.node), p), () => {});
-}
-
-// 转移来源闪黄：分别对应 上=删除、左=插入、对角=替换/匹配
-function flash(i, j, label) {
-  const box = cells[i][j];
-  const from = box.mesh.material.color.getHex();
-  C(1, () => { status.textContent = '来源：' + label; }, () => {});
-  C(130, (p) => box.mesh.material.color.lerpColors(new THREE.Color(from), new THREE.Color(PALETTE.yellow), p), () => box.mesh.material.color.setHex(from));
-  C(130, (p) => box.mesh.material.color.lerpColors(new THREE.Color(PALETTE.yellow), new THREE.Color(from), p), () => box.mesh.material.color.setHex(from));
-}
-
-function setVal(i, j, v) {
-  const box = cells[i][j];
-  const prev = box.text;
-  let fx = false;
-  C(220, () => { if (!fx) { fx = true; pop(scene, box.mesh); } box.setText(String(v)); }, () => box.setText(prev));
-}
-
-function clearAll() {
-  engine.clear();
-  for (const row of cells) for (const box of row) if (box) box.remove();
-  for (const b of aBoxes) b.remove();
-  for (const b of bBoxes) b.remove();
-  cells = []; aBoxes = []; bBoxes = []; dp = null;
-  hint.setText('输入两个字符串，点击「求解」计算编辑距离');
-  status.textContent = '已清空';
-}
-
-function run() {
-  engine.clear();
-  clearAll();
-  A = aInput.value.trim().slice(0, 8); B = bInput.value.trim().slice(0, 8);
-  if (!A) A = 'kitten';
-  if (!B) B = 'sitting';
-  aInput.value = A; bInput.value = B;
-  const n = A.length, m = B.length;
-  halfC = n / 2; halfR = m / 2;
-  dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
-  for (let i = 0; i <= m; i++) {
-    cells[i] = [];
-    for (let j = 0; j <= n; j++) {
-      cells[i][j] = new VBox(scene, { w: CW - 8, h: CH - 8, d: 18, x: px(j), y: TY, z: pz(i), label: '', color: DARK, emissive: DARK_EM });
+function buildTable() {
+  clearView();
+  for (let i = 0; i <= M; i++) {
+    for (let j = 0; j <= N; j++) {
+      const box = new VBox(scene, { w: 38, h: 34, d: 16, x: px(j), y: TY, z: pz(i), label: String(dp[i][j]), color: BLUE, emissive: BLUE });
+      cellView.set(i + '-' + j, { box });
     }
   }
-  // 字符序列：上行 A（对齐列），左列 B（对齐行）
-  for (let j = 1; j <= n; j++) {
-    aBoxes.push(new VBox(scene, { w: 32, h: 32, d: 14, x: px(j), y: TY + 54, z: (halfR + 1) * CH * 0.85, label: A[j - 1], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+  for (let j = 1; j <= N; j++) {
+    aBoxes.push(new VBox(scene, { w: 32, h: 32, d: 14, x: px(j), y: TY + 56, z: (halfR + 1) * CH, label: SA[j - 1], color: CYAN, emissive: CYAN }));
   }
-  for (let i = 1; i <= m; i++) {
-    bBoxes.push(new VBox(scene, { w: 32, h: 32, d: 14, x: -halfC * CW - 54, y: TY, z: pz(i), label: B[i - 1], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+  for (let i = 1; i <= M; i++) {
+    bBoxes.push(new VBox(scene, { w: 32, h: 32, d: 14, x: -halfC * CW - 56, y: TY, z: pz(i), label: B[i - 1], color: CYAN, emissive: CYAN }));
   }
-  // 边界：首行（插入）、首列（删除）
-  for (let j = 0; j <= n; j++) { dp[0][j] = j; setVal(0, j, j); toNode(0, j); }
-  for (let i = 1; i <= m; i++) { dp[i][0] = i; setVal(i, 0, i); toNode(i, 0); }
-  C(1, () => { status.textContent = '边界：d[0][j]=j（插入）、d[i][0]=i（删除）'; }, () => {});
-  // 逐格填表：上=删 B[i-1]、左=插 A[j-1]、对角=替换/匹配
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      const eq = A[j - 1] === B[i - 1];
-      hl(cells[i][j], PALETTE.highlight, PALETTE.highlightEmissive);
-      C(1, () => { status.textContent = 'd[' + i + '][' + j + ']：' + B[i - 1] + ' 与 ' + A[j - 1] + (eq ? ' 相同 → 取对角' : ' 不同 → 三种来源取最小'); }, () => {});
-      flash(i - 1, j, '上（删除 ' + B[i - 1] + '）+1');
-      flash(i, j - 1, '左（插入 ' + A[j - 1] + '）+1');
-      flash(i - 1, j - 1, eq ? '对角（匹配 ' + A[j - 1] + '）+0' : '对角（替换 ' + B[i - 1] + '→' + A[j - 1] + '）+1');
+}
+function setCell(i, j, v, c) {
+  dp[i][j] = v;
+  const e = cellView.get(i + '-' + j);
+  e.box.setText(String(v));
+  e.box.setColor(c, c);
+}
+function setCellColor(i, j, c) { const e = cellView.get(i + '-' + j); if (e) e.box.setColor(c, c); }
+function* flashCell(i, j, label) {
+  setCellColor(i, j, YELLOW);
+  yield S(() => outT.setText(label));
+  yield W(170);
+  setCellColor(i, j, BLUE);
+}
+
+function* edGen() {
+  yield S(() => outT.setText('编辑距离：d[i][j] = 把 B[0..i) 变 A[0..j) 的最少操作；来源 = 上(删)/左(插)/对角(替或匹配)'));
+  yield W(650);
+  for (let j = 1; j <= N; j++) { setCell(0, j, j, BLUE); }
+  for (let i = 1; i <= M; i++) { setCell(i, 0, i, BLUE); }
+  yield S(() => outT.setText('边界：首行 d[0][j]=j（全插入），首列 d[i][0]=i（全删除）'));
+  yield W(550);
+  for (let i = 1; i <= M; i++) {
+    for (let j = 1; j <= N; j++) {
+      const eq = SA[j - 1] === B[i - 1];
+      setCellColor(i, j, CYAN);
+      yield* flashCell(i - 1, j, '上（删除 ' + B[i - 1] + '）+1 = ' + (dp[i - 1][j] + 1));
+      yield* flashCell(i, j - 1, '左（插入 ' + SA[j - 1] + '）+1 = ' + (dp[i][j - 1] + 1));
+      yield* flashCell(i - 1, j - 1, eq ? '对角（匹配 ' + SA[j - 1] + '）+0 = ' + dp[i - 1][j - 1] : '对角（替换 ' + B[i - 1] + '→' + SA[j - 1] + '）+1 = ' + (dp[i - 1][j - 1] + 1));
       const up = dp[i - 1][j] + 1, left = dp[i][j - 1] + 1, diag = dp[i - 1][j - 1] + (eq ? 0 : 1);
-      let v;
-      if (eq) v = diag;
-      else if (diag <= up && diag <= left) v = diag;
-      else if (up <= left) v = up;
-      else v = left;
-      dp[i][j] = v;
-      setVal(i, j, v);
-      toNode(i, j);
-      C(1, () => { status.textContent = 'd[' + i + '][' + j + '] = ' + v; }, () => {});
+      const v = eq ? diag : Math.min(diag, up, left);
+      setCell(i, j, v, eq ? GOLD : ORANGE);
+      yield S(() => outT.setText('d[' + i + '][' + j + '] = min(上 ' + up + ', 左 ' + left + ', 对角 ' + diag + ') = ' + v + (eq ? '（字符相同优先对角）' : '')));
+      yield W(350);
     }
   }
-  // 右下角绿色高亮 + 回溯路径
-  const dist = dp[m][n];
-  hl(cells[m][n], PALETTE.green, PALETTE.greenEmissive);
+  const dist = dp[M][N];
+  yield S(() => outT.setText('填表完成：编辑距离 = d[' + M + '][' + N + '] = ' + dist + '。② 回溯：沿「来源最小」反向走出操作序列'));
+  yield W(600);
   const ops = [];
-  let i = m, j = n;
+  let i = M, j = N;
   while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && A[j - 1] === B[i - 1]) { ops.unshift('保持 ' + A[j - 1]); i--; j--; }
-    else if (i > 0 && j > 0 && dp[i][j] === dp[i - 1][j - 1] + 1) { ops.unshift('替换 ' + B[i - 1] + '→' + A[j - 1]); i--; j--; }
+    setCellColor(i, j, GREEN);
+    if (i > 0 && j > 0 && SA[j - 1] === B[i - 1]) { ops.unshift('保持 ' + SA[j - 1]); i--; j--; }
+    else if (i > 0 && j > 0 && dp[i][j] === dp[i - 1][j - 1] + 1) { ops.unshift('替换 ' + B[i - 1] + '→' + SA[j - 1]); i--; j--; }
     else if (i > 0 && dp[i][j] === dp[i - 1][j] + 1) { ops.unshift('删除 ' + B[i - 1]); i--; }
-    else if (j > 0) { ops.unshift('插入 ' + A[j - 1]); j--; }
-    else break;
-    hl(cells[i][j], PALETTE.green, PALETTE.greenEmissive);
-    C(1, () => { status.textContent = '回溯路径：' + ops.join('，'); }, () => {});
+    else { ops.unshift('插入 ' + SA[j - 1]); j--; }
+    yield S(() => outT.setText('回溯：' + ops.join('，')));
+    yield W(380);
   }
-  C(1, () => {
-    hint.setText('编辑距离 = ' + dist + '，操作：' + ops.join('，'));
-    status.textContent = '编辑距离(' + A + ', ' + B + ') = ' + dist + '（' + ops.join('，') + '）';
-  }, () => {});
+  yield S(() => outT.setText('完成：编辑距离 ' + dist + '，操作：' + ops.join('，')));
+  yield W(650);
+  yield S(() => { status.textContent = '编辑距离(kitten, sitting) = ' + dist + '（' + ops.join('，') + '），O(nm)'; });
+  yield W(450);
 }
 
-const aInput = panel.addInput('串A', () => run(), 10);
-aInput.value = 'kitten';
-const bInput = panel.addInput('串B', () => run(), 10);
-bInput.value = 'sitting';
-panel.addButton('求解', run);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+function* runED() {
+  buildTable();
+  hint.setText('编辑距离：黄 = 三种来源，金 = 匹配格，绿 = 回溯路径');
+  yield W(400);
+  yield* edGen();
+  yield S(() => { outT.setText(''); hint.setText('编辑距离完成：kitten→sitting = 3，O(nm)'); });
+}
+
+panel.addButton('运行演示', () => engine.start(runED()));
+panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；黄 = 转移来源闪烁，金 = 匹配对角，橙 = 最小值格，绿 = 回溯路径）');
 
 scene.start(engine);

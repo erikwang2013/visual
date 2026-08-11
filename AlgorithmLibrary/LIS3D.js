@@ -1,124 +1,100 @@
-// AlgorithmLibrary/LIS3D.js
-// 最长递增子序列：随机数组 VBar + 每位置 dp 值 VText 标注 + 前驱记录（高亮表示），
-// 求解时逐位置与全部前序位置比较更新 dp（比较对高亮），
-// 最终 dp 最大值标注绿色，最长 LIS 元素绿色高亮。
+// AlgorithmLibrary/LIS3D.js — 最长递增子序列：柱状数组 + 逐位比较更新 dp（前驱链），最终 LIS 元素绿色高亮、dp 值金色标注（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Array3D } from '../3D/modes/Array3D.js';
-import { VText } from '../3D/VisualObject3D.js';
+import { VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('LIS3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 240, 680], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const status = panel.addStatus('');
-const hint = new VText(scene, { text: '最长递增子序列：先随机化数组，再点「求解」', x: 0, y: 235, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「运行演示」开始：最长递增子序列 LIS', x: 0, y: 270, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: -230, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
-const N = 12;
-const data = new Array(N);
-const dp = new Array(N);
-const pred = new Array(N);
-let array = null;
-const dpLabels = [];
+const SA = [10, 22, 9, 33, 21, 50, 41, 60, 80];
+const N = SA.length;
+const barView = new Map();   // i -> VBox
+const dpView = new Map();    // i -> VText
+const dp = Array(N).fill(0);
+const pred = Array(N).fill(-1);
 
-const xOf = (i) => (i - (N - 1) / 2) * 58;
-const hexStr = (c) => '#' + c.toString(16).padStart(6, '0');
-
-function buildArray() {
-  array = new Array3D(scene, { type: 'bar', count: N, w: 32, h: 32, spacing: 58, startY: 0, z: 0 });
-  array.create();
+function xOf(i) { return (i - (N - 1) / 2) * 66; }
+function clearView() {
+  barView.forEach(b => scene.remove(b.mesh));
+  dpView.forEach(t => scene.remove(t.sprite));
+  barView.clear(); dpView.clear();
+}
+function buildBars() {
+  clearView();
   for (let i = 0; i < N; i++) {
-    dpLabels.push(new VText(scene, { text: '', x: xOf(i), y: 168, z: 0, color: PALETTE.textDim, scale: 0.7 }));
+    const h = SA[i] * 7;
+    const b = new VBox(scene, { w: 38, h, d: 16, x: xOf(i), y: -h / 2, z: 0, label: String(SA[i]), color: BLUE, emissive: BLUE });
+    barView.set(i, b);
+    const t = new VText(scene, { text: '', x: xOf(i), y: h / 2 + 34, z: 0, color: GOLD, scale: 0.62 });
+    dpView.set(i, t);
   }
 }
+function setBarColor(i, c) { const e = barView.get(i); if (e) e.setColor(c, c); }
 
-// 恢复柱体本色并清空 dp 标注（数组不存在则重建）
-function resetBars() {
-  if (!array) buildArray();
+function* lisGen() {
+  yield S(() => outT.setText('LIS：dp[i] = max(dp[j]+1 | j<i 且 a[j]<a[i])；前驱链记录构成序列，O(n²)'));
+  yield W(650);
   for (let i = 0; i < N; i++) {
-    const el = array.elems[i];
-    el.mesh.material.color.setHex(PALETTE.node);
-    el.mesh.material.emissive.setHex(PALETTE.nodeEmissive);
-    el.mesh.material.emissiveIntensity = 0.35;
-    dpLabels[i].setText('');
-  }
-}
-
-function randomize(animate) {
-  engine.clear();
-  resetBars();
-  if (animate) C(1, () => { status.textContent = '随机化数组'; }, () => {});
-  else status.textContent = '随机化数组';
-  for (let i = 0; i < N; i++) {
-    data[i] = 1 + Math.floor(Math.random() * 20);
-    if (animate) array.setValue(i, data[i], C);
-    else array.elems[i].setHeight(data[i] * 6);
-  }
-  hint.setText('已生成 ' + N + ' 个 1-20 的随机数，点击「求解」计算最长递增子序列');
-}
-
-function solve() {
-  if (!array) randomize(false);
-  engine.clear();
-  resetBars();
-  C(1, () => { status.textContent = 'dp[i] = max(dp[j] + 1 | j < i 且 a[j] < a[i])'; }, () => {});
-  for (let i = 0; i < N; i++) {
-    array.highlight(i, C);
+    setBarColor(i, CYAN);
     let best = 1, pre = -1;
+    yield S(() => outT.setText('——— 计算 dp[' + i + ']（a[' + i + ']=' + SA[i] + '）：与全部前驱比较 ———'));
+    yield W(380);
     for (let j = 0; j < i; j++) {
-      array.highlight(j, C);
-      C(1, () => { status.textContent = '比较 a[' + j + ']=' + data[j] + ' 与 a[' + i + ']=' + data[i] + '，当前 dp[' + i + ']=' + best; }, () => {});
-      if (data[j] < data[i] && dp[j] + 1 > best) {
+      setBarColor(j, ORANGE);
+      yield S(() => outT.setText('比较 a[' + j + ']=' + SA[j] + ' 与 a[' + i + ']=' + SA[i] + (SA[j] < SA[i] ? '：a[j]<a[i]' + (dp[j] + 1 > best ? ' → dp[' + j + ']+1=' + (dp[j] + 1) + ' 更新暂优' : '，但 dp[' + j + ']+1=' + (dp[j] + 1) + ' ≤ 当前 ' + best) : '：a[j]≥a[i]，跳过')));
+      yield W(250);
+      if (SA[j] < SA[i] && dp[j] + 1 > best) {
         best = dp[j] + 1;
         pre = j;
-        C(180, () => array.elems[j].mesh.material.color.setHex(PALETTE.green), () => array.elems[j].mesh.material.color.setHex(PALETTE.node));
+        setBarColor(j, GREEN);
       }
-      array.unhighlight(j, C);
+      setBarColor(j, BLUE);
     }
     dp[i] = best; pred[i] = pre;
-    C(240, () => dpLabels[i].setText(String(best), { color: PALETTE.text }), () => dpLabels[i].setText(''));
-    C(1, () => { status.textContent = 'dp[' + i + '] = ' + best + (pre >= 0 ? '（前驱 a[' + pre + ']=' + data[pre] + '）' : ''); }, () => {});
-    array.unhighlight(i, C);
+    dpView.get(i).setText('dp=' + best);
+    yield S(() => outT.setText('→ dp[' + i + '] = ' + best + (pre >= 0 ? '（前驱 a[' + pre + ']=' + SA[pre] + '）' : '（自身为起点）')));
+    yield W(450);
+    setBarColor(i, BLUE);
   }
-  // 找 dp 最大值，沿前驱链还原最长递增子序列
   let idx = 0;
   for (let i = 1; i < N; i++) if (dp[i] > dp[idx]) idx = i;
   const seqIdx = [];
   for (let i = idx; i >= 0; i = pred[i]) seqIdx.push(i);
   seqIdx.reverse();
+  yield S(() => outT.setText('最大 dp[' + idx + ']=' + dp[idx] + '，沿前驱链还原 LIS'));
+  yield W(500);
   for (const i of seqIdx) {
-    array.highlight(i, C, PALETTE.green);
-    C(240, () => dpLabels[i].setText(String(dp[i]), { color: hexStr(PALETTE.green) }), () => {});
+    setBarColor(i, GREEN);
+    yield S(() => outT.setText('LIS 成员：a[' + i + ']=' + SA[i]));
+    yield W(350);
   }
-  const seq = seqIdx.map((i) => data[i]).join(' ');
-  C(1, () => {
-    hint.setText('最长递增子序列长度 = ' + dp[idx] + '：' + seq);
-    status.textContent = 'LIS 长度 ' + dp[idx] + '，序列：' + seq;
-  }, () => {});
+  const seq = seqIdx.map(i => SA[i]).join(' → ');
+  yield S(() => outT.setText('完成：LIS 长度 ' + dp[idx] + '：' + seq + '，O(n²)'));
+  yield W(650);
+  yield S(() => { status.textContent = 'LIS 长度 ' + dp[idx] + '：' + seq; });
+  yield W(450);
 }
 
-function clearAll() {
-  engine.clear();
-  if (array) {
-    for (const el of array.elems) el.remove();
-    for (const l of array.indexLabels) l.remove();
-    array.clearLines();
-    array = null;
-  }
-  for (const l of dpLabels) l.remove();
-  dpLabels.length = 0;
-  hint.setText('最长递增子序列：先随机化数组，再点「求解」');
-  status.textContent = '已清空';
+function* runLIS() {
+  buildBars();
+  hint.setText('LIS：逐位比较前驱，dp 表 + 前驱链还原');
+  yield W(400);
+  yield* lisGen();
+  yield S(() => { outT.setText(''); hint.setText('LIS 完成：长度 6（10→22→33→50→60→80），O(n²)'); });
 }
 
-panel.addButton('随机化数组', () => randomize(true));
-panel.addButton('求解', solve);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+panel.addButton('运行演示', () => engine.start(runLIS()));
+panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 当前位，橙 = 比较位，绿 = 更优前驱/最终 LIS 成员；柱顶 dp=N 标注）');
 
-randomize(false);
 scene.start(engine);

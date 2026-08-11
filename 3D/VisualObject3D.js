@@ -17,6 +17,7 @@ export class VNode {
     this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.radius, 24, 18), mat);
     this.mesh.position.set(opts.x ?? 0, opts.y ?? 0, opts.z ?? 0);
     this.label = null;
+    this.text = opts.label || '';
     if (opts.label !== undefined && opts.label !== null && opts.label !== '') {
       this.label = makeTextSprite(opts.label, { scale: 1.1 });
       this.label.position.set(0, this.radius + 18, 0);

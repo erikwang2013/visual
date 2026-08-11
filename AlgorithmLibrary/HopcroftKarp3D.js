@@ -113,8 +113,8 @@ function setMatchTexts(pairL, pairR) {
 }
 function resetAll() {
   engine.clear();
-  nodesL.forEach(n => { n.setColor(VIOLET, VIOLET); n.setText(n.label); });
-  nodesR.forEach(n => { n.setColor(CYAN, CYAN); n.setText(n.label); });
+  nodesL.forEach(n => { n.setColor(VIOLET, VIOLET); n.setText(n.text); });
+  nodesR.forEach(n => { n.setColor(CYAN, CYAN); n.setText(n.text); });
   matchT.forEach(t => t.setText('未匹配', { color: PALETTE.textDim }));
   freeT.forEach(t => t.setText('自由', { color: PALETTE.textDim }));
   paintBase();

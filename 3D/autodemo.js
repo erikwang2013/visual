@@ -182,6 +182,16 @@
     'Biconnected.html': ['双连通分量（Tarjan）：DFS 记 dfn，回溯算 low；low[子] > dfn[父] 是桥，≥ 是割点。', '子步骤：DFS 进点 → 回边更新 low → 判定割点/桥'],
     'KM.html': ['Kuhn-Munkres 最大权匹配：顶标维护相等子图，仅在其上增广；找不到就调顶标（delta）让新边进入。', '子步骤：初始化顶标 → 相等子图增广 → 顶标调整'],
     'HopcroftKarp.html': ['Hopcroft-Karp 最大匹配：BFS 给未匹配 L 分层，DFS 沿层一次找多条最短增广路并整体换位，O(E√V)。', '子步骤：BFS 分层 → DFS 冲突链 → 整体换位'],
+    'RodCutting.html': ['钢条切割：dp[i] = max(p[i], dp[j]+dp[i-j]) 分治最优子结构，从 1 寸到 8 寸自底向上填表。', '子步骤：切一刀 → 拆两段最优 → 自底向上填表'],
+    'StoneMerge.html': ['石子合并：区间 DP，dp[i][j] = min(dp[i][k]+dp[k+1][j]) + 前缀和，先小区间后大区间。', '子步骤：枚举区间长 → 枚举切分点 → 加区间和'],
+    'OptimalBST.html': ['最优二叉搜索树：e[i][j] = min(e[i][k-1]+e[k+1][j]) + w[i][j]，CLRS 教科书数据全流程。', '子步骤：填 w 表 → 填 e 表 → 按 root 建树'],
+    'TreeDP.html': ['树形DP（没有上司的舞会）：f1[u]=h[u]+Σf0[v]，f0[u]=Σmax(f0,f1)，后序遍历自底向上。', '子步骤：后序遍历 → 孩子算完算父亲 → 全局答案在根'],
+    'TSPDP.html': ['旅行商（状态压缩DP）：dp[mask][i] = min(dp[mask\\{i}][k]+d[k][i])，集合压位 + 回溯最优环。', '子步骤：初始直达 → 集合合并 → 回溯重建环'],
+    'DigitDP.html': ['数位DP：统计 1..120 不含数字 6 的个数，f[p][紧][开始] 自底向上填表，与数字大小无关。', '子步骤：拆位数 → 填状态表 → 减全 0 得答案'],
+    'ActivitySelect.html': ['活动选择（贪心）：按结束时间排序，每次选最早结束且兼容的活动，交换论证证明最优。', '子步骤：排序 → 指针扫描 → 兼容即选'],
+    'TaskSched.html': ['任务调度（贪心+并查集）：按利润降序，每个任务放入最晚的空闲截止槽，O(n log n)。', '子步骤：利润排序 → 并查集找槽 → 累计收益'],
+    'UnboundedKnapsack.html': ['完全背包：dp[w] = max(dp[w-wi]+vi)，物品无限件，正着扫容量，回溯最优组合。', '子步骤：容量递推 → 选最后一件 → 回溯组合'],
+    'SetCover.html': ['集合覆盖（贪心）：每轮选覆盖最多未覆盖元素的集合，NP-难问题求 ln n 近似解。', '子步骤：统计新覆盖 → 选最大 → 更新覆盖集'],
   };
 
   const fileName = location.pathname.split('/').pop();

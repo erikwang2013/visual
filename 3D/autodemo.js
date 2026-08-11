@@ -243,6 +243,15 @@
     'CNN.html': ['CNN 卷积网络：卷积核滑动做局部加权求和提取特征，最大池化降维浓缩（图像识别基石）。', '子步骤：卷积窗口滑动 → 特征图 → 池化降维'],
     'Transformer.html': ['Transformer 自注意力：Q 与所有 K 点积打分，softmax 归一后加权聚合 V——任意词直接看任意词。', '子步骤：Q/K/V 生成 → 点积得分 → softmax → 加权聚合'],
     'QLearning.html': ['Q-Learning：Q(s,a) ← Q + lr·(R + γ·maxQ − Q) 试错更新，终点的奖励沿状态一路回传。', '子步骤：探索行动 → 拿奖励 → Q 表更新 → 回传收敛'],
+    'Paxos.html': ['Paxos：Prepare 编号压制 + 多数 Promise + Accept 提交，新旧提案被老值驯服达成一致（分布式共识鼻祖）。', '子步骤：Prepare(n) → Promise → Accept(v) → 多数锁定'],
+    'ZAB.html': ['ZAB：先多数票选 Leader，写事务以 zxid(epoch:seq) 广播，崩溃后日志对齐再恢复广播（ZooKeeper 核心）。', '子步骤：选举 → 广播事务 → ACK → 恢复同步'],
+    'Gossip.html': ['Gossip 流言协议：每轮每个知情节点随机闲聊几人，对数轮全网知情——无中心、容错强（Cassandra/Redis Cluster 在用）。', '子步骤：起始知情 → 随机闲聊 → 翻倍扩散 → 全群皆知'],
+    'LoadBalance.html': ['加权轮询负载均衡：按服务器权重 2:1:1 轮流分发请求，权重高接得多（Nginx/HAProxy 调度策略）。', '子步骤：请求到达 → 轮转选服务器 → 计数分配'],
+    'RateLimit.html': ['令牌桶限流：桶里先存令牌，请求来一个取一个，桶空直接拒绝 429——削峰填谷的瞬时保护。', '子步骤：取令牌 → 有则放行 → 无则拒绝'],
+    'Snowflake.html': ['Snowflake 雪花 ID：41bit 时间戳 + 10bit 机器 + 12bit 序列拼出 64 位全局唯一递增 ID（分布式发号器）。', '子步骤：取时间戳 → 拼机器位 → 序列递增'],
+    'ThreePC.html': ['三阶段提交 3PC：CanCommit/PreCommit/DoCommit，协调者崩溃时参与方超时回滚——2PC 阻塞问题的改良。', '子步骤：CanCommit → PreCommit → DoCommit / 超时回滚'],
+    'TCC.html': ['TCC 事务：Try 锁定资源 → Confirm 正式提交 / Cancel 反向补偿，业务级两阶段（Seata 框架实现）。', '子步骤：Try 冻结 → Confirm 扣款 / Cancel 解冻'],
+    'Saga.html': ['Saga 长事务：跨库长流程拆小步各自提交，任一步失败就逆序执行补偿动作撤销副作用（微服务事务）。', '子步骤：下单 → 扣库存 → 支付 → 失败 → 反向补偿'],
   };
 
   const fileName = location.pathname.split('/').pop();

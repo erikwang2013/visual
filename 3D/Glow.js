@@ -156,6 +156,8 @@ const PAGE_THEMES = {
   LogisticRegression3D: 'gold', NaiveBayes3D: 'purple', SVM3D: 'cyan', RandomForest3D: 'emerald',
   GBDT3D: 'amber', AdaBoost3D: 'orange', DBSCAN3D: 'violet', PCA3D: 'azure', MLP3D: 'rose',
   CNN3D: 'teal', Transformer3D: 'magenta', QLearning3D: 'indigo',
+  Paxos3D: 'gold', ZAB3D: 'cyan', Gossip3D: 'rose', LoadBalance3D: 'emerald',
+  RateLimit3D: 'amber', Snowflake3D: 'azure', ThreePC3D: 'violet', TCC3D: 'orange', Saga3D: 'indigo',
 };
 
 export let CURRENT_THEME = null;

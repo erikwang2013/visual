@@ -1,0 +1,93 @@
+// AlgorithmLibrary/Gossip3D.js — Gossip：感染式传播，每轮随机聊几人，全网快速知情
+import { Scene3D } from '../3D/Scene3D.js';
+import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { ControlPanel } from '../3D/ControlPanel.js';
+import { VBox, VText } from '../3D/VisualObject3D.js';
+import { PALETTE, applyTheme } from '../3D/Glow.js';
+applyTheme('Gossip3D');
+
+const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const engine = new AnimationEngine({ speed: 1.3 });
+const panel = new ControlPanel({ engine });
+const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
+
+const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
+const hint = new VText(scene, { text: '点击「Gossip 传播」开始', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('');
+
+// 6 节点环形排列
+const R = 175;
+const pos = (i) => {
+  const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+  return { x: Math.cos(a) * R, y: Math.sin(a) * R * 0.75 };
+};
+const nodes = [0, 1, 2, 3, 4, 5].map((i) => {
+  const p = pos(i);
+  return new VBox(scene, { w: 72, h: 72, d: 72, x: p.x, y: p.y, z: 0, label: 'N' + i, color: DIM, emissive: 0 });
+});
+new VText(scene, { text: '6 个节点，每个已知情节点每轮随机「闲聊」2 人（fanout=2）', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
+
+// 聊天连线（每轮显示）
+const line = new VBox(scene, { w: 200, h: 2.5, d: 2.5, x: 0, y: 0, z: 0, label: '', color: YELLOW, emissive: YELLOW });
+line.mesh.visible = false;
+
+const roundT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const stepT = new VText(scene, { text: '', x: 0, y: -175, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+
+// 每轮聊天对（从 N0 出发模拟）与知情数
+const ROUNDS = [
+  { pairs: [[0, 1], [0, 2]], known: 3, desc: 'N0 把消息告诉 N1、N2 → 知情 1 → 3' },
+  { pairs: [[0, 3], [1, 4], [2, 5]], known: 6, desc: '3 个知情者各聊 2 人 → 3 → 6 全部知情' },
+];
+const lineTo = (a, b) => {
+  const p1 = pos(a), p2 = pos(b);
+  line.mesh.position.set((p1.x + p2.x) / 2, (p1.y + p2.y) / 2, 0);
+  line.mesh.rotation.z = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+  line.mesh.scale.set(Math.hypot(p2.x - p1.x, p2.y - p1.y) / 200, 1, 1);
+  line.mesh.visible = true;
+};
+
+function resetAll() {
+  engine.clear();
+  nodes.forEach(b => b.setColor(DIM, 0));
+  line.mesh.visible = false;
+  roundT.setText(''); stepT.setText('');
+}
+
+function runGossip() {
+  resetAll();
+  hint.setText('Gossip：消息像流言一样扩散 — 每轮与随机几人分享，对数轮全群皆知');
+  C(300, () => { stepT.setText('起始：N0 得知新消息（集群变更/新路由），其余节点不知情'); });
+  C(800, () => {
+    nodes[0].setColor(YELLOW, YELLOW);
+    roundT.setText('t = 0：知情数 1');
+    stepT.setText('N0 持有消息，准备开始「闲聊」');
+  });
+  C(900, () => {
+    ROUNDS[0].pairs.forEach(([a, b]) => lineTo(a, b));
+    nodes[1].setColor(GREEN, GREEN); nodes[2].setColor(GREEN, GREEN);
+    roundT.setText('t = 1：知情数 3');
+    stepT.setText('第 1 轮：N0 与 N1、N2 闲聊，把消息带过去 — 知情者翻三倍');
+  });
+  C(900, () => {
+    line.mesh.visible = false;
+    ROUNDS[1].pairs.forEach(([a, b]) => lineTo(a, b));
+    nodes[3].setColor(GREEN, GREEN); nodes[4].setColor(GREEN, GREEN); nodes[5].setColor(GREEN, GREEN);
+    roundT.setText('t = 2：知情数 6（全群知情）');
+    stepT.setText('第 2 轮：N0、N1、N2 三人各自再聊 2 人 → N3、N4、N5 全部知情');
+  });
+  C(900, () => {
+    line.mesh.visible = false;
+    stepT.setText('传播完成：2 轮（log₂6 ≈ 2.6）全网知情 — 无需中心，任何节点挂了都不影响');
+    hint.setText('Gossip 无中心、容错强 — Cassandra/Redis Cluster 的节点发现与状态同步靠它');
+  });
+  C(800, () => {
+    status.textContent = 'Gossip 完成：6 节点 fanout=2，t0=1 → t1=3 → t2=6 全知，2 轮对数收敛';
+  });
+}
+
+panel.addButton('Gossip 传播', runGossip);
+panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；黄=消息源，绿=已知情，连线=本轮闲聊）');
+
+scene.start(engine);

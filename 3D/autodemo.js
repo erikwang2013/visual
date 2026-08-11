@@ -2,13 +2,19 @@
 // 自动跳过"随机列表/随机化数组/更改大小"类辅助按钮，选中第一个真正的演示动作并播放动画。
 // 空输入页（树/堆/哈希/栈/队列等）按页面填充默认演示输入；树类先删后插保证插入必成功。
 (function () {
-  // 右侧对照说明栏：同步创建（本脚本先于模块脚本执行，模块的 addStatus/addLabel 依赖它）
+  // 右侧对照说明栏 + 场景底部结果条：同步创建（本脚本先于模块脚本执行，模块的 addStatus/addLabel 依赖它）
   const sceneEl = document.querySelector('#scene');
   if (sceneEl && !document.querySelector('#side-panel')) {
     const side = document.createElement('div');
     side.id = 'side-panel';
-    side.innerHTML = '<h2 class="panel-title">算法说明</h2><div id="algo-desc"></div><div id="algo-note"></div><div id="side-hints"></div>';
+    side.innerHTML = '<h2 class="panel-title">算法说明</h2><div id="algo-desc"></div><div id="side-hints"></div>';
     sceneEl.parentNode.insertBefore(side, sceneEl.nextSibling);
+  }
+  if (sceneEl && !document.querySelector('#result-bar')) {
+    const bar = document.createElement('div');
+    bar.id = 'result-bar';
+    bar.innerHTML = '<span class="result-tag">演示结果</span>';
+    sceneEl.parentNode.insertBefore(bar, sceneEl.nextSibling);
   }
   // 每页演示序列：steps = [{ btn: 按钮文本（省略=第一个真实动作）, fills: [输入框值...] }]
   // 无条目页面执行单次默认动作

@@ -69,9 +69,9 @@ export class ControlPanel {
     const el = document.createElement('div');
     el.className = 'algo-status';
     el.textContent = text;
-    // 结果状态进右侧说明栏「结果」区，不遮挡 3D 演示
-    const note = document.getElementById('algo-note');
-    (note || this.controlsEl).appendChild(el);
+    // 演示结果进场景底部「结果条」，独立成行不遮挡 3D 演示
+    const bar = document.getElementById('result-bar');
+    (bar || this.controlsEl).appendChild(el);
     return el;
   }
 

@@ -3,10 +3,11 @@
    说明栏独立成列，绝不遮挡演示；窄屏自动折叠到下方。 */
 html, body { height:100%; }
 body { margin:0; display:flex; flex-direction:column; background:#030514; color:#e2e8f0; font-family:"Noto Sans SC","Microsoft YaHei",sans-serif; overflow-x:hidden; overflow-y:auto; }
-#app { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 300px; grid-template-rows:auto auto minmax(0,1fr) auto; grid-template-areas:
+#app { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 300px; grid-template-rows:auto auto minmax(0,1fr) auto auto; grid-template-areas:
   "header  header"
   "controls controls"
   "scene   aside"
+  "result  aside"
   "playbar aside"; gap:0; min-width:0; }
 #header { grid-area:header; display:flex; align-items:center; gap:16px; padding:8px 18px; background:rgba(10,15,46,.6); border-bottom:1px solid rgba(59,130,246,.25); }
 #header h1 { font-size:16px; margin:0; color:#e0f2fe; text-shadow:0 0 12px rgba(59,130,246,.5); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -37,12 +38,16 @@ body { margin:0; display:flex; flex-direction:column; background:#030514; color:
 #algo-desc { font-size:12.5px; color:#94a3b8; line-height:1.75; }
 #algo-desc p { margin:3px 0; }
 #algo-desc .d-sub { color:#a5b4fc; }
-#algo-note { display:flex; flex-direction:column; gap:6px; }
-#algo-note .algo-status { line-height:1.65; white-space:pre-wrap; }
-#algo-note .algo-status:empty { display:none; }
 #side-hints { margin-top:auto; display:flex; flex-direction:column; gap:4px; }
 #side-hints .algo-label { font-size:11.5px; color:#475569; line-height:1.6; }
 #side-panel .side-hint { font-size:11.5px; color:#475569; line-height:1.6; margin-top:auto; }
+
+/* —— 场景底部结果条：演示结果独立成行，绝不遮挡 3D 演示内容 —— */
+#result-bar { grid-area:result; display:flex; flex-wrap:wrap; align-items:center; gap:4px 20px; padding:6px 18px;
+  background:rgba(10,15,46,.55); border-top:1px solid rgba(59,130,246,.2); min-height:30px; }
+#result-bar .result-tag { font-size:11px; letter-spacing:.12em; color:#64748b; text-transform:uppercase; }
+#result-bar .algo-status { color:#7dd3fc; font-size:13px; line-height:1.6; white-space:pre-wrap; font-family:ui-monospace,monospace; }
+#result-bar .algo-status:empty { display:none; }
 
 #playbar { grid-area:playbar; display:flex; gap:8px; align-items:center; padding:8px 18px; background:rgba(10,15,46,.5); border-top:1px solid rgba(59,130,246,.25); }
 .play-btn { background:rgba(59,130,246,.15); color:#bfdbfe; border:1px solid rgba(59,130,246,.4); padding:4px 12px; border-radius:6px; cursor:pointer; font-size:12px; }
@@ -52,7 +57,7 @@ footer { text-align:center; padding:6px; font-size:12px; color:#64748b; backgrou
 
 /* 窄屏：说明栏折叠到播放条下方，恢复整屏演示 */
 @media (max-width: 900px) {
-  #app { grid-template-columns:minmax(0,1fr); grid-template-rows:auto auto minmax(0,1fr) auto auto; grid-template-areas:
-    "header" "controls" "scene" "playbar" "aside"; }
+  #app { grid-template-columns:minmax(0,1fr); grid-template-rows:auto auto minmax(0,1fr) auto auto auto; grid-template-areas:
+    "header" "controls" "scene" "result" "playbar" "aside"; }
   #side-panel { border-left:none; border-top:1px solid rgba(59,130,246,.2); max-height:170px; }
 }

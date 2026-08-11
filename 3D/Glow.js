@@ -153,6 +153,9 @@ const PAGE_THEMES = {
   SM43D: 'red', TripleDES3D: 'rose', RC43D: 'orange', ECC3D: 'violet', ElGamal3D: 'purple',
   SM23D: 'magenta', ECDH3D: 'gold', DSA3D: 'indigo', ECDSA3D: 'emerald',
   LZSS3D: 'cyan', DEFLATE3D: 'gold', Brotli3D: 'rose', Zstd3D: 'indigo', Hamming3D: 'teal', CRC3D: 'amber', RS3D: 'violet', LDPC3D: 'emerald',
+  LogisticRegression3D: 'gold', NaiveBayes3D: 'purple', SVM3D: 'cyan', RandomForest3D: 'emerald',
+  GBDT3D: 'amber', AdaBoost3D: 'orange', DBSCAN3D: 'violet', PCA3D: 'azure', MLP3D: 'rose',
+  CNN3D: 'teal', Transformer3D: 'magenta', QLearning3D: 'indigo',
 };
 
 export let CURRENT_THEME = null;

@@ -1,0 +1,104 @@
+// AlgorithmLibrary/GBDT3D.js — GBDT：逐棵决策树拟合残差（梯度提升回归）
+import { Scene3D } from '../3D/Scene3D.js';
+import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { ControlPanel } from '../3D/ControlPanel.js';
+import { VBox, VText, VBar } from '../3D/VisualObject3D.js';
+import { PALETTE, applyTheme } from '../3D/Glow.js';
+applyTheme('GBDT3D');
+
+const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const engine = new AnimationEngine({ speed: 1.3 });
+const panel = new ControlPanel({ engine });
+const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
+
+const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
+const hint = new VText(scene, { text: '点击「梯度提升」开始', x: 0, y: 260, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('');
+
+const Y = [5.1, 4.9, 8.2, 7.8];
+const XS = [-150, -50, 50, 150];
+const yBars = [], yVals = [];
+Y.forEach((v, i) => {
+  yBars.push(new VBar(scene, { w: 52, d: 52, x: XS[i], z: 0, height: v * 8, color: GREEN, emissive: GREEN }));
+  yVals.push(new VText(scene, { text: String(v), x: XS[i], y: v * 8 + 14, z: 0, color: PALETTE.textGlow, scale: 0.55 }));
+});
+new VBox(scene, { w: 640, h: 2, d: 2, x: 0, y: 0, z: 0, label: '', color: DIM, emissive: 0 });
+new VText(scene, { text: '样本 y₁ ~ y₄', x: -230, y: -14, z: 0, color: PALETTE.textDim, scale: 0.55 });
+
+const f0 = new VBox(scene, { w: 620, h: 3, d: 3, x: 0, y: 52, z: 0, label: '', color: BLUE, emissive: BLUE });
+f0.mesh.visible = false;
+const f0T = new VText(scene, { text: '', x: 0, y: 72, z: 0, color: BLUE, scale: 0.6 });
+
+// 残差条：挂在 f₀ 线上（正上负下），x 向右偏移
+const R1 = [-1.4, -1.6, 1.7, 1.3];
+const rBars = R1.map((r, i) => {
+  const b = new VBar(scene, { w: 30, d: 30, x: XS[i] + 34, z: 0, height: Math.abs(r) * 8, color: ROSE, emissive: ROSE });
+  b.mesh.position.y = 52 + r * 4;
+  b.mesh.visible = false;
+  return b;
+});
+const rT = new VText(scene, { text: '', x: 0, y: -18, z: 0, color: ROSE, scale: 0.6 });
+
+const leafL = new VBox(scene, { w: 180, h: 36, d: 36, x: -105, y: -55, z: 0, label: '', color: YELLOW, emissive: YELLOW });
+const leafR = new VBox(scene, { w: 180, h: 36, d: 36, x: 105, y: -55, z: 0, label: '', color: YELLOW, emissive: YELLOW });
+[leafL, leafR].forEach(b => (b.mesh.visible = false));
+const leafLt = new VText(scene, { text: '', x: -105, y: -55, z: 22, color: PALETTE.textGlow, scale: 0.55 });
+const leafRt = new VText(scene, { text: '', x: 105, y: -55, z: 22, color: PALETTE.textGlow, scale: 0.55 });
+
+const F1 = [6.35, 6.35, 6.65, 6.65];
+const f1Bars = F1.map((v, i) => {
+  const b = new VBar(scene, { w: 34, d: 34, x: XS[i] - 34, z: 0, height: v * 8, color: YELLOW, emissive: YELLOW });
+  b.mesh.visible = false;
+  return b;
+});
+
+const stepT = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const eqT = new VText(scene, { text: '', x: 0, y: -160, z: 0, color: PALETTE.textDim, scale: 0.7 });
+
+function resetAll() {
+  engine.clear();
+  Y.forEach((v, i) => { yBars[i].setHeight(v * 8); yVals[i].setText(String(v)); });
+  rBars.forEach(b => (b.mesh.visible = false));
+  f0.mesh.visible = false; f0T.setText('');
+  rT.setText('');
+  [leafL, leafR].forEach(b => (b.mesh.visible = false));
+  leafLt.setText(''); leafRt.setText('');
+  f1Bars.forEach(b => (b.mesh.visible = false));
+  stepT.setText(''); eqT.setText('');
+}
+
+function runGBDT() {
+  resetAll();
+  hint.setText('GBDT：先用均值预测，再一棵棵决策树拟合残差（梯度下降的方向）');
+  C(300, () => { stepT.setText('回归问题：预测 y = [5.1, 4.9, 8.2, 7.8]（绿条为真实值）'); });
+  C(800, () => {
+    f0.mesh.visible = true;
+    f0T.setText('f₀ = 均值 = (5.1+4.9+8.2+7.8)/4 = 6.5');
+    stepT.setText('第 1 步：初始预测 f₀ = 6.5（蓝线）— 全部样本的均值');
+  });
+  C(900, () => {
+    rBars.forEach(b => (b.mesh.visible = true));
+    rT.setText('残差 r = y − f₀ = [−1.4, −1.6, +1.7, +1.3]（红条：真实值与蓝线的差距）');
+    stepT.setText('第 2 步：算残差 — 决策树的目标从 y 换成 r');
+  });
+  C(1000, () => {
+    [leafL, leafR].forEach(b => (b.mesh.visible = true));
+    leafLt.setText('叶 L = −1.5'); leafRt.setText('叶 R = +1.5');
+    stepT.setText('第 3 步：树按 x 分裂 → 左叶（残差 −1.4,−1.6）均值 −1.5；右叶（+1.7,+1.3）均值 +1.5');
+  });
+  C(1000, () => {
+    f1Bars.forEach(b => (b.mesh.visible = true));
+    stepT.setText('第 4 步：f₁ = f₀ + lr × 叶值（lr = 0.1）→ [6.35, 6.35, 6.65, 6.65]（黄条贴近真实值）');
+    eqT.setText('新残差 [−1.25, −1.45, +1.55, +1.15] 更小 → 下一棵树继续拟合');
+  });
+  C(900, () => {
+    status.textContent = 'GBDT 完成：f₀=6.5 → 拟合残差（叶 −1.5/+1.5）→ f₁ 更贴近 y（梯度提升）';
+    hint.setText('GBDT 每棵树拟合残差/梯度方向，XGBoost 是其加正则化的加速版 — 推荐系统/风控之王');
+  });
+}
+
+panel.addButton('梯度提升', runGBDT);
+panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；绿=真实值，蓝=f₀，红=残差，黄=更新后的预测）');
+
+scene.start(engine);

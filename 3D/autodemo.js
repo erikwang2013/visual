@@ -2,6 +2,14 @@
 // 自动跳过"随机列表/随机化数组/更改大小"类辅助按钮，选中第一个真正的演示动作并播放动画。
 // 空输入页（树/堆/哈希/栈/队列等）按页面填充默认演示输入；树类先删后插保证插入必成功。
 (function () {
+  // 右侧对照说明栏：同步创建（本脚本先于模块脚本执行，模块的 addStatus/addLabel 依赖它）
+  const sceneEl = document.querySelector('#scene');
+  if (sceneEl && !document.querySelector('#side-panel')) {
+    const side = document.createElement('div');
+    side.id = 'side-panel';
+    side.innerHTML = '<h2 class="panel-title">算法说明</h2><div id="algo-desc"></div><div id="algo-note"></div><div id="side-hints"></div>';
+    sceneEl.parentNode.insertBefore(side, sceneEl.nextSibling);
+  }
   // 每页演示序列：steps = [{ btn: 按钮文本（省略=第一个真实动作）, fills: [输入框值...] }]
   // 无条目页面执行单次默认动作
   const DEMOS = {
@@ -252,6 +260,10 @@
     'ThreePC.html': ['三阶段提交 3PC：CanCommit/PreCommit/DoCommit，协调者崩溃时参与方超时回滚——2PC 阻塞问题的改良。', '子步骤：CanCommit → PreCommit → DoCommit / 超时回滚'],
     'TCC.html': ['TCC 事务：Try 锁定资源 → Confirm 正式提交 / Cancel 反向补偿，业务级两阶段（Seata 框架实现）。', '子步骤：Try 冻结 → Confirm 扣款 / Cancel 解冻'],
     'Saga.html': ['Saga 长事务：跨库长流程拆小步各自提交，任一步失败就逆序执行补偿动作撤销副作用（微服务事务）。', '子步骤：下单 → 扣库存 → 支付 → 失败 → 反向补偿'],
+    'NRU.html': ['NRU 最近未使用页面置换：R/M 参考位组合分四类 (0,0)(0,1)(1,0)(1,1)，缺页时优先淘汰低类页，并周期性清零 R 位。', '子步骤：访问页 → 命中/缺页 → 选最低类 → 置换'],
+    'CSCAN.html': ['C-SCAN 循环扫描磁盘调度：磁头单向服务直到最远端再折返，途中只服务同方向请求，等待时间更均匀。', '子步骤：按方向扫 → 服务最近请求 → 到头折返'],
+    'Deadlock.html': ['死锁检测：资源分配图找环——进程持资源又申请资源，成环即死锁；抢占解除可消环。', '子步骤：申请边 → 分配边 → 找环 → 解除'],
+    'QuantumAnnealing.html': ['量子退火：哈密顿量从横场强态缓慢演化到问题哈密顿量，隧穿效应跳出局部最优找到全局最小（D-Wave 原理）。', '子步骤：初始横场 → 缓慢演化 → 隧穿跳出 → 全局最小'],
   };
 
   const fileName = location.pathname.split('/').pop();
@@ -335,23 +347,18 @@
     }, 300);
   };
 
-  // 算法说明条：插在 header 与 controls 之间，不占用 3D 画布、不影响演示
+  // 算法说明：写入右侧「对照说明栏」的 #algo-desc 区
   const injectDesc = () => {
-    const header = document.querySelector('#header');
-    const controls = document.querySelector('#controls');
-    if (!header || !controls || document.querySelector('#algo-desc')) return;
+    const descEl = document.querySelector('#algo-desc');
+    if (!descEl || descEl.childElementCount) return;
     const desc = ALGO_DESC[fileName];
     if (!desc) return;
-    const div = document.createElement('div');
-    div.id = 'algo-desc';
-    div.className = 'algo-desc';
     desc.forEach((line, i) => {
       const p = document.createElement('p');
       if (i > 0) p.className = 'd-sub';
       p.textContent = line;
-      div.appendChild(p);
+      descEl.appendChild(p);
     });
-    header.parentNode.insertBefore(div, controls);
   };
 
   // URL 带 ?demo=1 时自动触发一次（保持兼容）

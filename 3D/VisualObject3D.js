@@ -19,13 +19,13 @@ export class VNode {
     this.label = null;
     this.text = opts.label || '';
     if (opts.label !== undefined && opts.label !== null && opts.label !== '') {
-      this.label = makeTextSprite(opts.label, { scale: 1.1 });
+      this.label = makeTextSprite(opts.label, { scale: 1.1, wrapChars: 6, maxWidth: this.radius * 5.5 });
       this.label.position.set(0, this.radius + 18, 0);
       this.mesh.add(this.label);
     }
     scene.add(this.mesh);
   }
-  setText(text) { if (this.label) setSpriteText(this.label, text, { scale: 1.1 }); }
+  setText(text) { if (this.label) setSpriteText(this.label, text, { scale: 1.1, wrapChars: 6, maxWidth: this.radius * 5.5 }); }
   setColor(color, emissive) {
     const m = this.mesh.material;
     m.color.setHex(color);
@@ -66,7 +66,7 @@ export class VBox {
     this.label = null;
     this.text = opts.label || '';
     if (opts.label !== undefined && opts.label !== null && opts.label !== '') {
-      this.label = makeTextSprite(opts.label, { scale: 1 });
+      this.label = makeTextSprite(opts.label, { scale: 1, wrapChars: 8, maxWidth: Math.max(this.w * 1.2, 110) });
       this.label.position.set(0, 0, this.d / 2 + 14);
       this.mesh.add(this.label);
     }
@@ -75,11 +75,11 @@ export class VBox {
   setText(text) {
     this.text = text;
     if (!this.label) {
-      this.label = makeTextSprite('', { scale: 1 });
+      this.label = makeTextSprite('', { scale: 1, wrapChars: 8, maxWidth: Math.max(this.w * 1.2, 110) });
       this.label.position.set(0, 0, this.d / 2 + 14);
       this.mesh.add(this.label);
     }
-    setSpriteText(this.label, text, { scale: 1 });
+    setSpriteText(this.label, text, { scale: 1, wrapChars: 8, maxWidth: Math.max(this.w * 1.2, 110) });
   }
   setColor(color, emissive) {
     const m = this.mesh.material;

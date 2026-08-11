@@ -58,7 +58,10 @@ export class ControlPanel {
     const span = document.createElement('span');
     span.className = 'algo-label';
     span.textContent = text;
-    this.controlsEl.appendChild(span);
+    // 长提示（操作说明）进右侧说明栏，控件行只留按钮/输入，避免挤在一起
+    const hints = document.getElementById('side-hints');
+    const target = text.length > 12 && hints ? hints : this.controlsEl;
+    target.appendChild(span);
     return span;
   }
 
@@ -66,7 +69,9 @@ export class ControlPanel {
     const el = document.createElement('div');
     el.className = 'algo-status';
     el.textContent = text;
-    this.controlsEl.appendChild(el);
+    // 结果状态进右侧说明栏「结果」区，不遮挡 3D 演示
+    const note = document.getElementById('algo-note');
+    (note || this.controlsEl).appendChild(el);
     return el;
   }
 

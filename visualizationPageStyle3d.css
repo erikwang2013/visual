@@ -1,10 +1,17 @@
-/* visualizationPageStyle3d.css */
-body { margin:0; background:#030514; color:#e2e8f0; font-family:"Noto Sans SC","Microsoft YaHei",sans-serif; overflow-x:hidden; overflow-y:auto; display:flex; flex-direction:column; height:100vh; }
-#app { flex:1; display:flex; flex-direction:column; min-height:0; }
-#header { display:flex; align-items:center; gap:16px; padding:10px 18px; background:rgba(10,15,46,.6); border-bottom:1px solid rgba(59,130,246,.25); }
-#header h1 { font-size:18px; margin:0; color:#e0f2fe; text-shadow:0 0 12px rgba(59,130,246,.5); }
-.home-link { color:#7dd3fc; text-decoration:none; font-size:13px; margin-left:auto; }
-#controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px 18px; background:rgba(10,15,46,.5); }
+/* visualizationPageStyle3d.css
+   布局：左侧 3D 演示主区 + 右侧固定「对照说明栏」（算法介绍 + 结果状态）。
+   说明栏独立成列，绝不遮挡演示；窄屏自动折叠到下方。 */
+html, body { height:100%; }
+body { margin:0; display:flex; flex-direction:column; background:#030514; color:#e2e8f0; font-family:"Noto Sans SC","Microsoft YaHei",sans-serif; overflow-x:hidden; overflow-y:auto; }
+#app { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 300px; grid-template-rows:auto auto minmax(0,1fr) auto; grid-template-areas:
+  "header  header"
+  "controls controls"
+  "scene   aside"
+  "playbar aside"; gap:0; min-width:0; }
+#header { grid-area:header; display:flex; align-items:center; gap:16px; padding:8px 18px; background:rgba(10,15,46,.6); border-bottom:1px solid rgba(59,130,246,.25); }
+#header h1 { font-size:16px; margin:0; color:#e0f2fe; text-shadow:0 0 12px rgba(59,130,246,.5); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.home-link { color:#7dd3fc; text-decoration:none; font-size:13px; margin-left:auto; white-space:nowrap; }
+#controls { grid-area:controls; display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:8px 18px; background:rgba(10,15,46,.5); }
 .algo-btn { background:rgba(59,130,246,.15); color:#bfdbfe; border:1px solid rgba(59,130,246,.4); padding:6px 14px; border-radius:8px; cursor:pointer; font-size:13px; transition:all .15s; }
 .algo-btn:hover { background:rgba(59,130,246,.32); box-shadow:0 0 10px rgba(59,130,246,.3); }
 .algo-btn:disabled { opacity:.4; cursor:not-allowed; }
@@ -18,15 +25,34 @@ body { margin:0; background:#030514; color:#e2e8f0; font-family:"Noto Sans SC","
 .algo-select { display:inline-flex; align-items:center; gap:8px; font-size:13px; color:#9db8d9; }
 .algo-select-input { background:rgba(3,5,20,.8); color:#e2e8f0; border:1px solid rgba(59,130,246,.4); border-radius:8px; padding:5px 8px; font-size:13px; }
 .algo-select-input:focus { outline:none; border-color:#22d3ee; box-shadow:0 0 8px rgba(34,211,238,.35); }
-.algo-desc { padding:8px 18px; background:rgba(10,15,46,.45); color:#94a3b8; font-size:13px; line-height:1.7; border-bottom:1px solid rgba(59,130,246,.15); }
-.algo-desc p { margin:2px 0; }
-.algo-desc .d-sub { color:#a5b4fc; }
 .webgl-error { padding:40px; text-align:center; color:#f87171; font-size:15px; line-height:2; }
 .webgl-error a { color:#7dd3fc; }
-#scene { flex:1; position:relative; min-height:420px; }
+#scene { grid-area:scene; position:relative; min-height:380px; min-width:0; }
 #scene canvas { display:block; }
-#playbar { display:flex; gap:8px; align-items:center; padding:8px 18px; background:rgba(10,15,46,.5); border-top:1px solid rgba(59,130,246,.25); }
+
+/* —— 右侧对照说明栏：算法介绍（上）+ 结果状态（下），独立成列不遮挡演示 —— */
+#side-panel { grid-area:aside; display:flex; flex-direction:column; gap:10px; padding:12px 14px; min-width:0; overflow-y:auto;
+  background:rgba(10,15,46,.35); border-left:1px solid rgba(59,130,246,.2); }
+#side-panel .panel-title { font-size:12px; letter-spacing:.12em; color:#64748b; margin:0; text-transform:uppercase; }
+#algo-desc { font-size:12.5px; color:#94a3b8; line-height:1.75; }
+#algo-desc p { margin:3px 0; }
+#algo-desc .d-sub { color:#a5b4fc; }
+#algo-note { display:flex; flex-direction:column; gap:6px; }
+#algo-note .algo-status { line-height:1.65; white-space:pre-wrap; }
+#algo-note .algo-status:empty { display:none; }
+#side-hints { margin-top:auto; display:flex; flex-direction:column; gap:4px; }
+#side-hints .algo-label { font-size:11.5px; color:#475569; line-height:1.6; }
+#side-panel .side-hint { font-size:11.5px; color:#475569; line-height:1.6; margin-top:auto; }
+
+#playbar { grid-area:playbar; display:flex; gap:8px; align-items:center; padding:8px 18px; background:rgba(10,15,46,.5); border-top:1px solid rgba(59,130,246,.25); }
 .play-btn { background:rgba(59,130,246,.15); color:#bfdbfe; border:1px solid rgba(59,130,246,.4); padding:4px 12px; border-radius:6px; cursor:pointer; font-size:12px; }
 .play-btn:hover { background:rgba(59,130,246,.32); }
 .speed-slider { width:160px; accent-color:#3b82f6; }
 footer { text-align:center; padding:6px; font-size:12px; color:#64748b; background:rgba(3,5,20,.8); }
+
+/* 窄屏：说明栏折叠到播放条下方，恢复整屏演示 */
+@media (max-width: 900px) {
+  #app { grid-template-columns:minmax(0,1fr); grid-template-rows:auto auto minmax(0,1fr) auto auto; grid-template-areas:
+    "header" "controls" "scene" "playbar" "aside"; }
+  #side-panel { border-left:none; border-top:1px solid rgba(59,130,246,.2); max-height:170px; }
+}

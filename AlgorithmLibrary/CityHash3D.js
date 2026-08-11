@@ -1,19 +1,18 @@
-// AlgorithmLibrary/CityHash3D.js — CityHash64：Google 设计，4 路并行混合 + 种子传播，64bit 散列
+// AlgorithmLibrary/CityHash3D.js — CityHash64：Google 设计，4 路并行混合 + 种子传播，64bit 散列（function* 生成器驱动）
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('CityHash3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, PUR = 0xc4b5fd, VIOLET = 0xa78bfa, ROSE = 0xfb7185;
-const hint = new VText(scene, { text: '点击「运行 CityHash」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const hint = new VText(scene, { text: '点击「运行演示」开始：CityHash64', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
 
 const MSG = 'city hash demo!!';
 const K1 = 0x9ae16a3b2f90404fn;
@@ -64,7 +63,6 @@ const outT = new VText(scene, { text: '', x: 0, y: -190, z: 0, color: PALETTE.te
 const SNAME = ['a', 'c', 'd', '种子 x'];
 
 function resetAll() {
-  engine.clear();
   bt.forEach((b, i) => { b.setText(String.fromCharCode(bytes[i])); b.setColor(VIOLET, VIOLET); });
   states.forEach((s, i) => { s.setColor(PUR, PUR); s.setText(SNAME[i] + ' = 0'); });
   outBox.setColor(DIM, DIM); outBox.setText('hash = 0');
@@ -72,12 +70,13 @@ function resetAll() {
 }
 const hex64 = (v) => BigInt.asUintN(64, v).toString(16).padStart(16, '0');
 
-function runCity() {
+function* cityGen() {
   resetAll();
-  hint.setText('CityHash 是 Google 为哈希表/布隆过滤器设计的 64bit 散列：比 MurmurHash 更快，比加密哈希安全得多');
-  const steps = run1.steps;
-  steps.forEach((s) => {
-    C(700, () => {
+  yield S(() => hint.setText('CityHash 是 Google 为哈希表/布隆过滤器设计的 64bit 散列：比 MurmurHash 更快，比加密哈希安全得多'));
+  yield S(() => { stageT.setText('初始化：16 字节 → 3 个 64bit 块并行载入 a/c/d，种子 x/y/z 就位'); });
+  yield W(500);
+  for (const s of run1.steps) {
+    yield S(() => {
       states[0].setText('a = ' + hex64(s.a));
       states[1].setText('c = ' + hex64(s.c));
       states[2].setText('d = ' + hex64(s.d));
@@ -87,23 +86,31 @@ function runCity() {
       stageT.setText('[' + s.stage + '] ' + s.op);
       hint.setText('四路状态同时流动 —— 这就是"并行混合"：一个周期内让 4 个数据通道交叉影响');
     });
-  });
-  C(900, () => {
+    yield W(750);
+  }
+  yield S(() => {
     states.forEach(b => b.setColor(DIM, DIM));
     outBox.setColor(GREEN, GREEN);
     outT.setText('CityHash64("' + MSG + '") = 0x' + run1.hex);
     status.textContent = 'CityHash64 = 0x' + run1.hex + ' —— 64bit 散列（16 字节输入）';
     hint.setText('64bit 空间 2⁶⁴ ≈ 1.8×10¹⁹ —— 十亿条数据碰撞概率约万亿分之一');
   });
-  C(1100, () => {
-    outT.setText('雪崩：CityHash64("city hash demo!a") = 0x' + run2.hex + '\n1 字符之差 → 16 位 hex 全变');
+  yield W(1100);
+  yield S(() => {
+    outT.setText('雪崩：CityHash64("city hash demo!a") = 0x' + run2.hex + '  —  1 字符之差 → 16 位 hex 全变');
     status.textContent = '雪崩：0x' + run1.hex + ' → 0x' + run2.hex;
     hint.setText('CityHash 与 MurmurHash 同类（非加密），但吞吐更高；Google 用于 BigTable 等内部系统');
   });
+  yield W(1000);
+  yield S(() => {
+    outT.setText('复杂度 O(n)（块级 8 字节/次加载）：64bit 输出 2⁶⁴ 空间 — 碰撞率远低于 32bit 散列');
+    hint.setText('对比 BKDR：BKDR 逐字符滚乘；CityHash 4 路并行 + 乘法/旋转，吞吐是逐字符的 4-8 倍');
+  });
+  yield W(900);
 }
 
-panel.addButton('运行 CityHash', runCity);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；消息 "city hash demo!!"）');
+panel.addButton('运行演示', () => engine.start(cityGen()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；紫/蓝/红 = 三组 64bit 块，金 = 当前四路状态，绿 = 输出哈希）');
 
 scene.start(engine);

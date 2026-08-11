@@ -1,107 +1,107 @@
-// AlgorithmLibrary/BruteForce3D.js — BF 朴素匹配：逐位对齐 + 逐字符比较，O(nm) 最坏
+// AlgorithmLibrary/BruteForce3D.js — BF 朴素匹配：i/j 双指针逐字符比对，失配 i 回溯、j 归零（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, VArrow } from '../3D/VisualObject3D.js';
+import { VBox, VText, VNode, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('BruteForce3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const scene = new Scene3D('scene', { cameraPos: [0, 430, 780], fov: 60 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9;
-const hint = new VText(scene, { text: '点击「运行 BF 匹配」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const BLUE = 0x60a5fa, RED = 0xfb7185, GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x67e8f9;
+const hint = new VText(scene, { text: '点击「运行 BF 匹配」开始', x: 0, y: 640, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
 
-const TEXT = 'ABABABAB', PAT = 'ABAB';
+const TXT = 'AACABAB', P = 'ABAB';
+const SP = 46;
+const lerp = (a, b, p) => a + (b - a) * p;
+const mx = k => (k - (TXT.length - 1) / 2) * SP;
+const px = k => (k - (P.length - 1) / 2) * SP;
+const sBox = [...TXT].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 150, label: ch, color: BLUE, emissive: BLUE }));
+const pBox = [...P].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: px(k), y: 430, label: ch, color: RED, emissive: RED }));
+const iBall = new VNode(scene, { radius: 11, x: mx(0), y: 70, color: CYAN, emissive: CYAN });
+const jBall = new VNode(scene, { radius: 11, x: px(0), y: 520, color: GOLD, emissive: GOLD });
+const ring = new VTorus(scene, { radius: 36, x: 0, y: 150, color: GREEN });
+ring.mesh.visible = false;
+const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+new VText(scene, { text: '主串 S', x: -330, y: 150, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '模式串 P', x: -330, y: 430, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
-function bruteForce(text, pat) {
-  const steps = [];
-  let cmpCount = 0;
-  for (let i = 0; i + pat.length <= text.length; i++) {
-    steps.push({ type: 'shift', i });
-    let j = 0;
-    while (j < pat.length && text[i + j] === pat[j]) { cmpCount++; steps.push({ type: 'cmp', i, j, ok: true }); j++; }
-    if (j < pat.length) { cmpCount++; steps.push({ type: 'cmp', i, j, ok: false }); }
-    else steps.push({ type: 'hit', i });
-  }
-  return { steps, cmpCount };
-}
-const bf = bruteForce(TEXT, PAT);
-const hits = bf.steps.filter(s => s.type === 'hit').map(s => s.i);
-
-const TX = k => -210 + k * 60;
-const PX = j => -90 + j * 60;
-const textBoxes = TEXT.split('').map((ch, k) =>
-  new VBox(scene, { w: 50, h: 50, d: 50, x: TX(k), y: 150, z: 0, label: ch, color: DIM, emissive: DIM }));
-const patBoxes = PAT.split('').map((ch, j) =>
-  new VBox(scene, { w: 50, h: 50, d: 50, x: PX(j), y: 10, z: 0, label: ch, color: DIM, emissive: DIM }));
-const tArrow = new VArrow(scene, { x: TX(0), y: 230, z: 0, down: true });
-const pArrow = new VArrow(scene, { x: PX(0), y: -55, z: 0 });
-const cmpT = new VText(scene, { text: '比较次数：0', x: -320, y: 150, z: 0, color: PALETTE.textDim, scale: 0.5 });
-new VText(scene, { text: 'BF 朴素匹配：文本每个位置都把模式「整个比一遍」—— 错了就右移一格重来，最坏 O(nm)', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '上面的 i 指针 = 对齐位置（模式窗口起点），下面的 j 指针 = 模式内部比较位', x: 0, y: -130, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: -185, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const fly = (ball, x, y, ms = 340) => {
+  const fx = ball.mesh.position.x, fy = ball.mesh.position.y;
+  return A(ms, p => {
+    const e = p * p * (3 - 2 * p);
+    ball.mesh.position.x = lerp(fx, x, e);
+    ball.mesh.position.y = lerp(fy, y, e);
+  });
+};
 
 function resetAll() {
-  engine.clear();
-  textBoxes.forEach(b => { b.setColor(DIM, DIM); b.setText(b.text); });
-  patBoxes.forEach(b => { b.setColor(DIM, DIM); b.setText(b.text); });
-  tArrow.moveTo(TX(0), 230, 0, 1); pArrow.moveTo(PX(0), -55, 0, 1);
-  cmpT.setText('比较次数：0'); stageT.setText(''); outT.setText('');
+  sBox.forEach(b => b.setColor(BLUE, BLUE));
+  pBox.forEach(b => b.setColor(RED, RED));
+  iBall.mesh.position.set(mx(0), 70, 0);
+  jBall.mesh.position.set(px(0), 520, 0);
+  ring.mesh.visible = false;
+  outT.setText('');
 }
-let cmpShown = 0;
 
-function runBF() {
-  resetAll();
-  cmpShown = 0;
-  hint.setText('思路：i 把模式窗口钉在文本上，j 从 0 比到失配为止 —— 每个位置都试，绝不错过任何一个命中');
-  for (const s of bf.steps) {
-    if (s.type === 'shift') {
-      C(400, () => {
-        tArrow.moveTo(TX(s.i), 230, 0, 350);
-        stageT.setText(`i = ${s.i}：窗口对齐文本第 ${s.i} 位，j 从 0 重新开始`);
-        hint.setText(`对齐位置共 ${TEXT.length - PAT.length + 1} 个（i = 0..${TEXT.length - PAT.length}）—— 这就是朴素做法要逐个尝试的「起点」`);
-      });
-    } else if (s.type === 'cmp') {
-      C(430, () => {
-        pArrow.moveTo(PX(s.j), -55, 0, 300);
-        textBoxes[s.i + s.j].setColor(CYAN, CYAN); patBoxes[s.j].setColor(CYAN, CYAN);
-        stageT.setText(`比较 text[${s.i + s.j}] = '${TEXT[s.i + s.j]}' 与 pat[${s.j}] = '${PAT[s.j]}' → ${s.ok ? '相同' : '不同！'}`);
-        cmpT.setText(`比较次数：${++cmpShown}`);
-      });
-      if (!s.ok) {
-        C(430, () => {
-          textBoxes[s.i + s.j].setColor(ROSE, ROSE); patBoxes[s.j].setColor(ROSE, ROSE);
-          textBoxes[s.i + s.j].pulse(0.3); patBoxes[s.j].pulse(0.3);
-          stageT.setText(`失配！j = ${s.j} 停下来 —— 整个窗口作废，i 右移 1 位重来`);
-          hint.setText(`i 每次只敢挪 1 格：虽然前面比过的字符白费了，但朴素做法就是这样「保守」`);
+function* runBF() {
+  yield S(resetAll);
+  yield S(() => { hint.setText('BF：窗口从左往右试。失配 → i 回溯到窗口起点+1、j 归零重试 —— 已确认的字符全部重比，这就是 O(n×m) 的来源'); });
+  let i = 0, j = 0, backtracks = 0;
+  while (i <= TXT.length - P.length) {
+    yield fly(iBall, mx(i), 70);
+    yield fly(jBall, px(0), 520);
+    while (j < P.length && i + j < TXT.length) {
+      yield fly(jBall, px(j), 520);
+      yield S(() => { sBox[i + j].setColor(GOLD, GOLD); pBox[j].setColor(GOLD, GOLD); });
+      yield W(380);
+      if (TXT[i + j] === P[j]) {
+        yield S(() => {
+          sBox[i + j].setColor(GREEN, GREEN); pBox[j].setColor(GREEN, GREEN);
+          outT.setText(`第 ${j + 1} 位匹配：S[${i + j}]='${TXT[i + j]}' == P[${j}]='${P[j]}'`);
         });
+        j++;
+      } else {
+        const back = i + 1;
+        backtracks++;
+        yield S(() => {
+          sBox[i + j].setColor(RED, RED); pBox[j].setColor(RED, RED);
+          outT.setText(`失配：S[${i + j}]='${TXT[i + j]}' ≠ P[${j}]='${P[j]}' —— i 回溯到 ${back}，j 归零重试`);
+        });
+        yield W(700);
+        i = back;
+        j = 0;
+        break;
       }
-    } else {
-      C(650, () => {
-        for (let k = 0; k < PAT.length; k++) { textBoxes[s.i + k].setColor(GOLD, GOLD); patBoxes[k].setColor(GOLD, GOLD); textBoxes[s.i + k].pulse(0.35); }
-        stageT.setText(`完整命中！模式出现在文本位置 ${s.i}（第 ${hits.indexOf(s.i) + 1} 次）`);
-        hint.setText('j 一直比到模式末尾都没失配 → 记录命中；然后继续向右试下一个位置');
-      });
     }
+    if (j === P.length) {
+      yield fly(jBall, px(P.length - 1), 520);
+      yield S(() => {
+        for (let k = 0; k < P.length; k++) sBox[i + k].setColor(GREEN, GREEN);
+        ring.mesh.position.set(mx(i), 150, 0);
+        ring.mesh.visible = true;
+        outT.setText(`匹配成功：S[${i}..${i + P.length - 1}] == P —— 第 ${i + 1} 次对齐命中`);
+        status.textContent = `BF 结果：主串 "${TXT}" 中 "${P}" 出现在位置 ${i}（回溯 ${backtracks} 次）`;
+        hint.setText(`复杂度 O(n×m)：本例回溯 ${backtracks} 次，已确认的字符每次全部重比。改进：KMP 让 j 按前缀表跳转、i 永不回溯`);
+      });
+      yield W(1400);
+      return;
+    }
+    yield S(() => { sBox.forEach(b => b.setColor(BLUE, BLUE)); pBox.forEach(b => b.setColor(RED, RED)); });
+    yield W(250);
   }
-  C(1000, () => {
-    outT.setText(`命中 ${hits.length} 处（位置 ${hits.join('、')}），共比较 ${bf.cmpCount} 次 —— KMP 只需 O(n+m) 就能完成同样任务`);
-    status.textContent = `BF 匹配命中 ${hits.length} 处（${hits.join('、')}），比较 ${bf.cmpCount} 次`;
-    hint.setText('对比：KMP/Boyer-Moore 失败后跳过一大段；BF 每次只进 1 格，但代码最简单、最不易错 —— 短模式场景的默认选择');
-  });
-  C(1200, () => {
-    outT.setText('复杂度 O(n·m)：最坏「AAAA…A」配「AAA…AB」—— 每次都试到底才失败；最好 O(n)（第一个字符就失配）');
-    hint.setText('应用：文本编辑器的小型查找、后缀自动机的对拍基准、GPU 上的并行字符匹配（每线程负责一个 i）');
+  yield S(() => {
+    outT.setText('匹配失败：主串中不存在模式串');
+    status.textContent = `BF 结果：主串 "${TXT}" 中未找到 "${P}"`;
   });
 }
 
-panel.addButton('运行 BF 匹配', runBF);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；金色 = 命中窗口，红色 = 本次失配的字符对）');
+panel.addButton('运行 BF 匹配', () => engine.start(runBF()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；青球 = 主串指针 i，金球 = 模式串指针 j）');
 
 scene.start(engine);

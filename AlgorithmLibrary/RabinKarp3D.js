@@ -1,90 +1,176 @@
-// AlgorithmLibrary/RabinKarp3D.js — Rabin-Karp：滚动哈希 + 哈希相等时逐字符验证
+// AlgorithmLibrary/RabinKarp3D.js — RK 滚动哈希：窗口哈希 O(1) 递推，折线顶点爆炸 = 哈希命中（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VBox, VText, VNode, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('RabinKarp3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 360, 820], fov: 50 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const scene = new Scene3D('scene', { cameraPos: [0, 430, 780], fov: 60 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const TEXT = '2359023141526739921';
-const PAT = '31415';
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x60a5fa;
-const SP = 38;
-const tX = c => -360 + c * SP;
-let curStart = 0;
-const pX = c => -360 + (curStart + c) * SP;
-const tBoxes = TEXT.split('').map((ch, c) => new VBox(scene, { w: 30, h: 34, d: 34, x: tX(c), y: 150, z: 0, label: ch, color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-const pBoxes = PAT.split('').map((ch, c) => new VBox(scene, { w: 30, h: 34, d: 34, x: pX(c), y: -20, z: 0, label: ch, color: BLUE, emissive: BLUE }));
-const hint = new VText(scene, { text: '点击「运行 Rabin-Karp」开始：滚动哈希匹配', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const BLUE = 0x60a5fa, RED = 0xfb7185, GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x67e8f9, VIOLET = 0xc4b5fd;
+const hint = new VText(scene, { text: '点击「运行 RK 匹配」开始', x: 0, y: 640, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
-const hashLabel = new VText(scene, { text: '', x: 0, y: -90, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const formulaLabel = new VText(scene, { text: '', x: 0, y: -125, z: 0, color: PALETTE.text, scale: 0.7 });
 
-function resetColors() {
-  tBoxes.forEach(b => b.setColor(PALETTE.node, PALETTE.nodeEmissive));
-  pBoxes.forEach(b => b.setColor(BLUE, BLUE));
-}
+const TXT = 'ABABABC', P = 'ABAB';
+const B = 29;
+const hash = s => { let h = 0; for (const ch of s) h = h * B + ch.charCodeAt(0); return h; };
+const HP = hash(P);
+const winH = [];
+for (let i = 0; i <= TXT.length - P.length; i++) winH.push(hash(TXT.slice(i, i + P.length)));
+const hMin = Math.min(...winH), hMax = Math.max(...winH);
 
-function runRabinKarp() {
-  engine.clear();
-  resetColors();
-  curStart = 0;
-  pBoxes.forEach((b, c) => b.moveTo(pX(c), -20, 0, 400));
-  const patHash = Number(PAT);
-  hashLabel.setText('h(模式) = ' + patHash + '（5 位十进制数，基数 = 10）');
-  formulaLabel.setText('');
-  hint.setText('滚动哈希：窗内子串当作整数；右移一位 = 减去最高位 ×10⁴，乘 10，再加新位');
+const SP = 46;
+const lerp = (a, b, p) => a + (b - a) * p;
+const mx = k => (k - (TXT.length - 1) / 2) * SP;
+const px = k => (k - (P.length - 1) / 2) * SP;
+const sBox = [...TXT].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 150, label: ch, color: BLUE, emissive: BLUE }));
+const pBox = [...P].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: px(k), y: 430, label: ch, color: RED, emissive: RED }));
+const iBall = new VNode(scene, { radius: 11, x: mx(0), y: 70, color: CYAN, emissive: CYAN });
+const jBall = new VNode(scene, { radius: 11, x: px(0), y: 520, color: GOLD, emissive: GOLD });
+const ring = new VTorus(scene, { radius: 36, x: 0, y: 150, color: GOLD });
+ring.mesh.visible = false;
+const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+new VText(scene, { text: '主串 S', x: -330, y: 150, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '模式串 P', x: -330, y: 430, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
-  const n = TEXT.length, m = PAT.length;
-  const events = [];
-  for (let s = 0; s <= n - m; s++) {
-    const w = Number(TEXT.substr(s, m));
-    events.push({ s, w, match: w === patHash });
+const chartX = i => -135 + i * 90;
+const chartY = h => 410 - 170 * (h - hMin) / (hMax - hMin);
+const verts = winH.map((h, i) => new VNode(scene, { radius: 7, x: chartX(i), y: chartY(h), color: 0x475569, emissive: 0x475569 }));
+winH.map((_, i) => new VText(scene, { text: 'i=' + i, x: chartX(i), y: 228, z: 0, color: PALETTE.textDim, scale: 0.5 }));
+new VText(scene, { text: '滚动哈希曲线 h(i)（顶点 = 各窗口哈希，绿色爆炸 = 哈希命中）', x: 0, y: 470, z: 0, color: VIOLET, scale: 0.62 });
+
+let fxGroup = new THREE.Group();
+scene.add(fxGroup);
+const clearFx = () => { scene.remove(fxGroup); fxGroup = new THREE.Group(); scene.add(fxGroup); };
+
+const fly = (ball, x, y, ms = 340) => {
+  const fx = ball.mesh.position.x, fy = ball.mesh.position.y;
+  return A(ms, p => {
+    const e = p * p * (3 - 2 * p);
+    ball.mesh.position.x = lerp(fx, x, e);
+    ball.mesh.position.y = lerp(fy, y, e);
+  });
+};
+
+const burst = (x, y) => {
+  const g = new THREE.Group();
+  const parts = [];
+  for (let k = 0; k < 26; k++) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(3, 6, 6), new THREE.MeshBasicMaterial({ color: GREEN }));
+    const start = new THREE.Vector3(x, y, 0);
+    m.position.copy(start);
+    const dir = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, (Math.random() - 0.5) * 0.5).normalize();
+    parts.push({ m, start, dir, d: 26 + Math.random() * 30 });
+    g.add(m);
   }
+  fxGroup.add(g);
+  return A(650, p => {
+    const e = p * p * (3 - 2 * p);
+    parts.forEach(pt => pt.m.position.copy(pt.start).addScaledVector(pt.dir, pt.d * e));
+  });
+};
 
-  let i = 0;
-  const step = () => {
-    if (i >= events.length) {
-      status.textContent = 'Rabin-Karp 完成：匹配于位置 6（仅一次逐字符验证）';
-      hint.setText('完成！哈希相等只出现一次，且逐字符验证成功');
-      return;
-    }
-    const e = events[i];
-    curStart = e.s;
-    pBoxes.forEach((b, c) => b.moveTo(pX(c), -20, 0, 450));
-    for (let k = 0; k < m; k++) tBoxes[e.s + k].setColor(YELLOW, YELLOW);
-    const prev = i > 0 ? events[i - 1].w : null;
-    formulaLabel.setText(prev !== null
-      ? 'w' + e.s + ' = (' + prev + ' − ' + TEXT[e.s - 1] + '×10⁴) ×10 + ' + TEXT[e.s + m - 1] + ' = ' + e.w
-      : 'w0 = ' + TEXT.substr(0, m) + ' = ' + e.w);
-    hashLabel.setText('w' + e.s + ' = ' + e.w + (e.match ? ' = h(模式) ✓' : ' ≠ ' + patHash));
-    if (e.match) {
-      hint.setText('窗口 ' + e.s + ' 哈希与模式相等 → 逐字符验证');
-      C(700, () => {
-        for (let k = 0; k < m; k++) { tBoxes[e.s + k].setColor(GREEN, GREEN); pBoxes[k].setColor(GREEN, GREEN); }
-        hint.setText('逐字符验证通过：匹配于位置 ' + e.s);
-        C(700, step);
-      });
-      i++;
-    } else {
-      hint.setText('窗口 ' + e.s + '：哈希 ' + e.w + ' ≠ ' + patHash + '，直接跳过，无需逐字符比较');
-      C(620, () => {
-        for (let k = 0; k < m; k++) tBoxes[e.s + k].setColor(PALETTE.node, PALETTE.nodeEmissive);
-        step();
-      });
-      i++;
-    }
-  };
-  step();
+function resetAll() {
+  clearFx();
+  sBox.forEach(b => b.setColor(BLUE, BLUE));
+  pBox.forEach(b => b.setColor(RED, RED));
+  verts.forEach(v => v.setColor(0x475569, 0x475569));
+  iBall.mesh.position.set(mx(0), 70, 0);
+  jBall.mesh.position.set(px(0), 520, 0);
+  ring.mesh.visible = false;
+  outT.setText('');
 }
 
-panel.addButton('运行 Rabin-Karp', runRabinKarp);
-panel.addButton('清空', () => { engine.clear(); resetColors(); hashLabel.setText(''); formulaLabel.setText(''); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+function* chartPoint(i, h) {
+  const hit = h === HP;
+  yield S(() => verts[i].setColor(hit ? GOLD : 0x475569, hit ? GOLD : 0x475569));
+  yield W(180);
+  if (i > 0) {
+    yield S(() => {
+      const a = new THREE.Vector3(chartX(i - 1), chartY(winH[i - 1]), 30);
+      const b = new THREE.Vector3(chartX(i), chartY(h), 30);
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]),
+        new THREE.LineBasicMaterial({ color: VIOLET, transparent: true, opacity: 0.9 }));
+      fxGroup.add(line);
+    });
+  }
+  if (hit) yield burst(chartX(i), chartY(h));
+}
+
+function* runRK() {
+  yield S(resetAll);
+  yield S(() => { hint.setText('RK：先算模式串哈希 H；每个窗口的哈希用「滚动」公式 O(1) 递推；哈希相等才逐字符验证（本例 base=29）'); });
+  const matches = [];
+  let h = winH[0];
+  for (let i = 0; i < winH.length; i++) {
+    yield fly(iBall, mx(i), 70);
+    yield S(() => {
+      outT.setText(i === 0
+        ? `窗口 0 直接计算哈希：${h}`
+        : `滚动：h${i} = (h${i - 1} − S[${i - 1}]·29³)·29 + S[${i + P.length - 1}] = ${h}`);
+    });
+    yield* chartPoint(i, h);
+    if (h === HP) {
+      matches.push(i);
+      yield S(() => { hint.setText(`h${i} == H = ${HP} —— 哈希命中！顶点爆炸，窗口金色，逐字符验证`); });
+      yield W(500);
+      let ok = true;
+      for (let k = 0; k < P.length; k++) {
+        yield fly(iBall, mx(i + k), 70);
+        yield fly(jBall, px(k), 520);
+        yield S(() => { sBox[i + k].setColor(GOLD, GOLD); pBox[k].setColor(GOLD, GOLD); });
+        yield W(240);
+        if (TXT[i + k] === P[k]) {
+          yield S(() => { sBox[i + k].setColor(GREEN, GREEN); pBox[k].setColor(GREEN, GREEN); });
+        } else {
+          ok = false;
+          yield S(() => { sBox[i + k].setColor(RED, RED); pBox[k].setColor(RED, RED); });
+          break;
+        }
+      }
+      yield S(() => {
+        pBox.forEach(b => b.setColor(RED, RED));
+        sBox.forEach(b => b.setColor(BLUE, BLUE));
+      });
+      yield W(250);
+      if (ok) {
+        yield S(() => {
+          for (let k = 0; k < P.length; k++) sBox[i + k].setColor(GREEN, GREEN);
+          ring.mesh.position.set(mx(i), 150, 0);
+          ring.mesh.visible = true;
+          outT.setText(`验证通过：S[${i}..${i + P.length - 1}] == P —— 匹配位置 ${i}（金色窗口框）`);
+        });
+        yield W(1100);
+        yield S(() => ring.mesh.visible = false);
+      } else {
+        yield S(() => outT.setText('哈希命中但字符不等 —— 哈希碰撞！验证环节就是为此存在的'));
+        yield W(900);
+      }
+    } else {
+      yield S(() => { outT.setText(`h${i} = ${h} ≠ H = ${HP} —— 哈希不等，整窗跳过，不逐字符`); });
+      yield W(650);
+    }
+    if (i < winH.length - 1) {
+      yield S(() => {});
+      h = (h - TXT.charCodeAt(i) * Math.pow(B, P.length - 1)) * B + TXT.charCodeAt(i + P.length);
+    }
+  }
+  yield S(() => {
+    matches.forEach(m => { for (let k = 0; k < P.length; k++) sBox[m + k].setColor(GREEN, GREEN); });
+    ring.mesh.position.set(mx(matches[0]), 150, 0);
+    ring.mesh.visible = true;
+    outT.setText(`扫描结束：匹配位置 ${matches.join('、')}。${winH.length} 个窗口 = 1 次直接哈希 + ${winH.length - 1} 次 O(1) 滚动`);
+    status.textContent = `RK 结果：主串 "${TXT}" 中 "${P}" 出现在位置 ${matches.join(' 和 ')}（哈希命中 ${matches.length} 次，均验证通过）`;
+    hint.setText('对比 BF：RK 把「比较字符串」变成「比较整数」；哈希不等直接跳过，命中才回查 —— 平均 O(n+m)');
+  });
+}
+
+panel.addButton('运行 RK 匹配', () => engine.start(runRK()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；紫色折线 = 哈希曲线，金色顶点 + 爆炸 = 命中，金环 = 匹配窗口）');
 
 scene.start(engine);

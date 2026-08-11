@@ -1,125 +1,152 @@
-// AlgorithmLibrary/Sunday3D.js — Sunday 匹配：失配时看「窗口后一位」，跳跃距离 = 模式中该字符末次出现位置
+// AlgorithmLibrary/Sunday3D.js — Sunday：窗口从左往右比，失配后看「窗口右侧第一个字符」，偏移量橙色标注（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, VArrow } from '../3D/VisualObject3D.js';
+import { VBox, VText, VNode, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Sunday3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const scene = new Scene3D('scene', { cameraPos: [0, 430, 780], fov: 60 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, AMBER = 0xfbbf24;
-const hint = new VText(scene, { text: '点击「运行 Sunday」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const BLUE = 0x60a5fa, RED = 0xfb7185, GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x67e8f9, ORANGE = 0xfb923c;
+const hint = new VText(scene, { text: '点击「运行 Sunday 匹配」开始', x: 0, y: 640, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
 
-const TEXT = 'WOWOWOW', PAT = 'WOW';
+const TXT = 'ABCABAB', P = 'BAB';
+const SP = 46;
+const lerp = (a, b, p) => a + (b - a) * p;
+const mx = k => (k - (TXT.length - 1) / 2) * SP;
+const sBox = [...TXT].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 150, label: ch, color: BLUE, emissive: BLUE }));
+const pBox = [...P].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 430, label: ch, color: RED, emissive: RED }));
+const iBall = new VNode(scene, { radius: 11, x: mx(0), y: 70, color: CYAN, emissive: CYAN });
+const jBall = new VNode(scene, { radius: 11, x: mx(0), y: 520, color: GOLD, emissive: GOLD });
+const ring = new VTorus(scene, { radius: 36, x: 0, y: 150, color: GOLD });
+ring.mesh.visible = false;
+const nextBall = new VNode(scene, { radius: 10, x: 0, y: 210, color: ORANGE, emissive: ORANGE });
+nextBall.mesh.visible = false;
+const shiftT = new VText(scene, { text: '', x: 0, y: 252, z: 0, color: ORANGE, scale: 0.62 });
+const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+new VText(scene, { text: '主串 S', x: -330, y: 150, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '模式串 P', x: -330, y: 430, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
-function sunday(text, pat) {
-  const shift = {};
-  for (let k = 0; k < pat.length; k++) shift[pat[k]] = pat.length - k;
-  const steps = [];
-  let cmpCount = 0, i = 0;
-  while (i + pat.length <= text.length) {
-    steps.push({ type: 'shift', i });
-    let j = 0;
-    while (j < pat.length && text[i + j] === pat[j]) { cmpCount++; steps.push({ type: 'cmp', i, j, ok: true }); j++; }
-    if (j === pat.length) { steps.push({ type: 'hit', i }); }
-    else { cmpCount++; steps.push({ type: 'cmp', i, j, ok: false }); }
-    const nxt = text[i + pat.length];
-    const d = nxt === undefined ? 1 : (shift[nxt] ?? pat.length + 1);
-    steps.push({ type: 'jump', i, nxt, d, to: i + d });
-    i += d;
-  }
-  return { steps, cmpCount };
-}
-const sd = sunday(TEXT, PAT);
-const hits = sd.steps.filter(s => s.type === 'hit').map(s => s.i);
-const maxShift = sd.steps.reduce((m, s) => Math.max(m, s.d), 0);
+let fxGroup = new THREE.Group();
+scene.add(fxGroup);
+const clearFx = () => { scene.remove(fxGroup); fxGroup = new THREE.Group(); scene.add(fxGroup); };
 
-const TX = k => -180 + k * 60;
-const PX = j => -60 + j * 60;
-const textBoxes = TEXT.split('').map((ch, k) =>
-  new VBox(scene, { w: 50, h: 50, d: 50, x: TX(k), y: 150, z: 0, label: ch, color: DIM, emissive: DIM }));
-const patBoxes = PAT.split('').map((ch, j) =>
-  new VBox(scene, { w: 50, h: 50, d: 50, x: PX(j), y: 10, z: 0, label: ch, color: DIM, emissive: DIM }));
-const tArrow = new VArrow(scene, { x: TX(0), y: 230, z: 0, down: true });
-const shiftT = [
-  new VText(scene, { text: 'shift[W] = 1', x: -320, y: 100, z: 0, color: CYAN, scale: 0.55 }),
-  new VText(scene, { text: 'shift[O] = 2', x: -320, y: 70, z: 0, color: CYAN, scale: 0.55 }),
-  new VText(scene, { text: 'shift[其他] = 4', x: -320, y: 40, z: 0, color: PALETTE.textDim, scale: 0.5 })
-];
-new VText(scene, { text: 'Sunday：失配时不看窗口里，而看「窗口后一位」—— 它必须出现在下个窗口里，按模式中它的末次位置跳', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '左侧 shift 表：字符 → 跳跃格数（模式长度 − 末次出现位置；不在模式中 → 模式长 + 1，直接跳整窗）', x: 0, y: -130, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: -185, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const fly = (ball, x, y, ms = 340) => {
+  const fx = ball.mesh.position.x, fy = ball.mesh.position.y;
+  return A(ms, p => {
+    const e = p * p * (3 - 2 * p);
+    ball.mesh.position.x = lerp(fx, x, e);
+    ball.mesh.position.y = lerp(fy, y, e);
+  });
+};
+
+const flyWindow = (i, ms = 480) => {
+  const from = pBox.map(b => b.mesh.position.x);
+  const fromI = iBall.mesh.position.x;
+  return A(ms, p => {
+    const e = p * p * (3 - 2 * p);
+    pBox.forEach((b, k) => { b.mesh.position.x = lerp(from[k], mx(i + k), e); });
+    iBall.mesh.position.x = lerp(fromI, mx(i), e);
+  });
+};
+
+const lastIndex = ch => { for (let k = P.length - 1; k >= 0; k--) if (P[k] === ch) return k; return -1; };
+
+const stretchArrow = (fromX, toX, y, ms) => {
+  const g = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 1, 8), new THREE.MeshBasicMaterial({ color: ORANGE }));
+  shaft.rotation.z = Math.PI / 2;
+  const head = new THREE.Mesh(new THREE.ConeGeometry(8, 18, 10), new THREE.MeshBasicMaterial({ color: ORANGE }));
+  head.rotation.z = Math.PI / 2;
+  g.add(shaft); g.add(head);
+  g.position.set(fromX, y, 50);
+  fxGroup.add(g);
+  return A(ms, p => {
+    const e = p * p * (3 - 2 * p);
+    const len = (toX - fromX) * e;
+    shaft.scale.x = Math.max(len, 0.001);
+    head.position.x = len;
+  });
+};
 
 function resetAll() {
-  engine.clear();
-  textBoxes.forEach(b => { b.setColor(DIM, DIM); b.setText(b.text); });
-  patBoxes.forEach(b => { b.setColor(DIM, DIM); b.setText(b.text); });
-  tArrow.moveTo(TX(0), 230, 0, 1);
-  shiftT[0].setText('shift[W] = 1', { color: CYAN });
-  shiftT[1].setText('shift[O] = 2', { color: CYAN });
-  shiftT[2].setText('shift[其他] = 4', { color: PALETTE.textDim });
-  stageT.setText(''); outT.setText('');
+  clearFx();
+  sBox.forEach(b => b.setColor(BLUE, BLUE));
+  pBox.forEach(b => b.setColor(RED, RED));
+  iBall.mesh.position.set(mx(0), 70, 0);
+  jBall.mesh.position.set(mx(0), 520, 0);
+  ring.mesh.visible = false;
+  nextBall.mesh.visible = false;
+  shiftT.setText('');
+  outT.setText('');
 }
 
-function runSunday() {
-  resetAll();
-  hint.setText('Sunday 的聪明处：比对窗口内的字符是「白费」的，真正决定跳多远的是窗口后一位 —— 先建表，后跳跃');
-  for (const s of sd.steps) {
-    if (s.type === 'shift') {
-      C(380, () => {
-        tArrow.moveTo(TX(s.i), 230, 0, 320);
-        stageT.setText(`i = ${s.i}：窗口对齐第 ${s.i} 位`);
-      });
-    } else if (s.type === 'cmp') {
-      C(400, () => {
-        textBoxes[s.i + s.j].setColor(s.ok ? CYAN : ROSE, s.ok ? CYAN : ROSE);
-        patBoxes[s.j].setColor(s.ok ? CYAN : ROSE, s.ok ? CYAN : ROSE);
-        if (!s.ok) { textBoxes[s.i + s.j].pulse(0.3); patBoxes[s.j].pulse(0.3); }
-        stageT.setText(s.ok
-          ? `text[${s.i + s.j}] = '${TEXT[s.i + s.j]}' 与 pat[${s.j}] 相同，继续`
-          : `失配！窗口内不看了 —— 直接看窗口后一位 text[${s.i + PAT.length}] 决定跳多远`);
-      });
-    } else if (s.type === 'hit') {
-      C(550, () => {
-        for (let k = 0; k < PAT.length; k++) { textBoxes[s.i + k].setColor(GOLD, GOLD); patBoxes[k].setColor(GOLD, GOLD); textBoxes[s.i + k].pulse(0.35); }
-        stageT.setText(`命中！位置 ${s.i} —— 但还要看一眼窗口后一位才能跳`);
-      });
-    } else {
-      C(620, () => {
-        if (s.nxt === undefined) {
-          stageT.setText('窗口已经顶到文本末尾，没有「后一位」了 → 结束');
-          hint.setText(`共命中 ${hits.length} 处（${hits.join('、')}）：最后的窗口命中后直接收工`);
-        } else {
-          textBoxes[s.i + PAT.length].setColor(AMBER, AMBER);
-          textBoxes[s.i + PAT.length].pulse(0.3);
-          const rule = s.nxt === 'W' ? 0 : s.nxt === 'O' ? 1 : 2;
-          shiftT[rule].setText(shiftT[rule].text, { color: AMBER });
-          stageT.setText(`后一位 = '${s.nxt}' → shift = ${s.d} → i 从 ${s.i} 跳到 ${s.to}`);
-          hint.setText(`为什么能跳 ${s.d} 格？后一位 '${s.nxt}' 若参与匹配，它在模式里最后一次出现在倒数第 ${s.d} 位 —— 跳少了会重比，跳多了会错过，${s.d} 是极限`);
-        }
-        tArrow.moveTo(TX(Math.min(s.to, TEXT.length - PAT.length)), 230, 0, 500);
-      });
+function* runSunday() {
+  yield S(resetAll);
+  yield S(() => { hint.setText('Sunday：窗口从左往右比。失配后不看失配位，看「窗口右侧第一个字符」S[i+m]：在 P 中 → 对齐到最后一次出现处；不在 → 整个跳过 m+1 格'); });
+  let i = 0;
+  while (i <= TXT.length - P.length) {
+    yield flyWindow(i);
+    let j = 0, full = true;
+    while (j < P.length) {
+      yield fly(jBall, mx(i + j), 520);
+      yield S(() => { sBox[i + j].setColor(GOLD, GOLD); pBox[j].setColor(GOLD, GOLD); });
+      yield W(300);
+      if (TXT[i + j] === P[j]) {
+        yield S(() => { sBox[i + j].setColor(GREEN, GREEN); pBox[j].setColor(GREEN, GREEN); outT.setText(`第 ${j + 1} 位匹配：S[${i + j}]='${TXT[i + j]}' == P[${j}]='${P[j]}'`); });
+        j++;
+      } else {
+        const nx = TXT[i + P.length];
+        const last = lastIndex(nx);
+        const shift = last >= 0 ? P.length - last : P.length + 1;
+        yield S(() => {
+          nextBall.mesh.position.set(mx(i + P.length), 210, 0);
+          nextBall.mesh.visible = true;
+          sBox[i + j].setColor(RED, RED); pBox[j].setColor(RED, RED);
+          shiftT.setText(`S[${i + P.length}]='${nx}' ${last >= 0 ? `在 P 中最后出现于 ${last}` : '不在 P 中'} → 偏移 ${shift} 格`);
+          outT.setText(`失配：S[${i + j}]='${TXT[i + j]}' ≠ P[${j}]='${P[j]}' —— Sunday 的决定者：窗口右侧的 '${nx}'`);
+        });
+        yield W(800);
+        yield S(() => hint.setText(`Sunday 偏移 ${shift}：窗口右移 ${shift} 格（橙色球 = 窗口右侧字符，橙色数字 = 偏移量）`));
+        yield stretchArrow(mx(i), mx(i + shift), 300, 700);
+        yield flyWindow(i + shift, 550);
+        yield W(300);
+        yield S(() => {
+          clearFx();
+          nextBall.mesh.visible = false;
+          shiftT.setText('');
+          pBox.forEach(b => b.setColor(RED, RED));
+          sBox.forEach(b => b.setColor(BLUE, BLUE));
+        });
+        i += shift;
+        full = false;
+        break;
+      }
     }
+    if (full) {
+      yield S(() => {
+        for (let k = 0; k < P.length; k++) sBox[i + k].setColor(GREEN, GREEN);
+        ring.mesh.position.set(mx(i), 150, 0);
+        ring.mesh.visible = true;
+        outT.setText(`匹配成功：S[${i}..${i + P.length - 1}] == P —— 第 ${i + 1} 次对齐命中`);
+        status.textContent = `Sunday 结果：主串 "${TXT}" 中 "${P}" 出现在位置 ${i}（偏移 2 次）`;
+        hint.setText('对比 BM 只看窗口内：Sunday 连窗口右侧的字符都用上 —— 平均跳得更远，尤其字符集大时');
+      });
+      yield W(1400);
+      return;
+    }
+    yield W(200);
   }
-  C(1000, () => {
-    outT.setText(`命中 ${hits.length} 处（${hits.join('、')}），共比较 ${sd.cmpCount} 次 —— 最大一次跳跃 ${maxShift} 格，BF 需要 5 次对齐，Sunday 只用 4 次`);
-    status.textContent = `Sunday 匹配命中 ${hits.length} 处（${hits.join('、')}），比较 ${sd.cmpCount} 次`;
-    hint.setText('最坏 O(nm)（反复跳 1 格），但平均接近 O(n)：字符集越大、模式越短，跳过越多 —— 现实中普遍快于 KMP');
-  });
-  C(1200, () => {
-    outT.setText('经典地位：Sunday 比 Boyer-Moore 的坏字符规则更激进（B-M 看窗口内最后失配位，Sunday 看窗口后一位）');
-    hint.setText('应用：GNU grep 类工具、RNA 序列比对、编辑器查找 —— 实现极简（一张 shift 表 + 一个循环）');
-  });
+  yield S(() => { outT.setText('匹配失败：主串中不存在模式串'); status.textContent = `Sunday 结果：主串 "${TXT}" 中未找到 "${P}"`; });
 }
 
-panel.addButton('运行 Sunday', runSunday);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；橙色 = 决定跳跃的后一位，金色 = 命中，左侧为 shift 跳跃表）');
+panel.addButton('运行 Sunday 匹配', () => engine.start(runSunday()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；橙色球 = 窗口右侧字符，橙色数字 = 偏移量，金球 = 比较指针）');
 
 scene.start(engine);

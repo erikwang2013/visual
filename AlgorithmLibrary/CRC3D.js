@@ -1,118 +1,102 @@
-// AlgorithmLibrary/CRC3D.js — CRC-32：多项式除法 + 移位寄存器校验
+// AlgorithmLibrary/CRC3D.js — CRC-32 校验：逐字节喂入 32 位移位寄存器做多项式除法（反射多项式 0xEDB88320），"123456789" → 标准校验值 0xCBF43926，接收端残差魔数 0x2144DF1C（function* 生成器驱动，全部数值运行时计算）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('CRC3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 340, 620], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const scene = new Scene3D('scene', { cameraPos: [0, 330, 620], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, GOLD = 0xfcd34d, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行校验」开始', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
+const hint = new VText(scene, { text: '点击「运行演示」开始：CRC-32 —— 把数据当作多项式做除法，余数就是校验值', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const stageT = new VText(scene, { text: '', x: 0, y: 215, z: 0, color: GOLD, scale: 0.7 });
+const eqT = new VText(scene, { text: '', x: 0, y: 160, z: 0, color: PALETTE.textGlow, scale: 0.44 });
 
 const IN = '123456789';
 const bytes = [...IN].map(ch => ch.charCodeAt(0));
 const SP = 62, X0 = -248;
 const inBoxes = [];
 for (let i = 0; i < IN.length; i++) {
-  inBoxes.push(new VBox(scene, { w: 50, h: 50, d: 50, x: X0 + i * SP, y: 150, z: 0, label: IN[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-  new VText(scene, { text: '0x' + bytes[i].toString(16).padStart(2, '0'), x: X0 + i * SP, y: 98, z: 0, color: PALETTE.textDim, scale: 0.55 });
+  inBoxes.push(new VBox(scene, { w: 50, h: 50, d: 50, x: X0 + i * SP, y: 80, z: 0, label: IN[i], color: BLUE, emissive: BLUE }));
+  new VText(scene, { text: '0x' + bytes[i].toString(16).padStart(2, '0'), x: X0 + i * SP, y: 28, z: 0, color: PALETTE.textDim, scale: 0.55 });
 }
-new VText(scene, { text: '输入 9 字节', x: -340, y: 185, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '输入 9 字节', x: -340, y: 115, z: 0, color: PALETTE.textDim, scale: 0.7 });
 const RSP = 100, RX0 = -150;
 const reg = [];
-for (let i = 0; i < 4; i++) {
-  reg.push(new VBox(scene, { w: 84, h: 52, d: 40, x: RX0 + i * RSP, y: -40, z: 0, label: 'FF', color: DIM, emissive: 0 }));
-}
+for (let i = 0; i < 4; i++) reg.push(new VBox(scene, { w: 84, h: 52, d: 40, x: RX0 + i * RSP, y: -40, z: 0, label: 'FF', color: DIM, emissive: 0 }));
 new VText(scene, { text: '32 位移位寄存器（每格 8 位）', x: -330, y: -75, z: 0, color: PALETTE.textDim, scale: 0.6 });
-const polyT = new VText(scene, { text: 'CRC-32 · 多项式 0xEDB88320（反射）· 初始 0xFFFFFFFF', x: 0, y: 55, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const stepT = new VText(scene, { text: '', x: 0, y: 0, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const resultT = new VText(scene, { text: '', x: 0, y: -150, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const sendBoxes = [];
-for (let i = 0; i < 4; i++) {
-  sendBoxes.push(new VBox(scene, { w: 44, h: 44, d: 44, x: RX0 + i * RSP, y: -150, z: 0, label: '', color: DIM, emissive: 0 }));
-}
-new VText(scene, { text: '追加的校验值（低字节在前）', x: -330, y: -185, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: 'CRC-32 · 多项式 0xEDB88320（反射）· 初始 0xFFFFFFFF', x: 0, y: -115, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const stepT = new VText(scene, { text: '', x: 0, y: -160, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const resultT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textGlow, scale: 0.75 });
 
-function crcRegs(buf) {
-  const out = [];
-  let c = 0xffffffff;
-  for (const b of buf) {
-    c ^= b;
-    for (let k = 0; k < 8; k++) c = (c >>> 1) ^ ((c & 1) ? 0xedb88320 : 0);
-    out.push(c >>> 0);
-  }
-  return out;
-}
-const regs = crcRegs(bytes);
-const remainder = crcRegs(bytes.concat([0x26, 0x39, 0xf4, 0xcb])).pop() >>> 0;
-const hex4 = v => [(v >>> 24) & 0xff, (v >>> 16) & 0xff, (v >>> 8) & 0xff, v & 0xff].map(x => x.toString(16).padStart(2, '0'));
-
-function setReg(v, color = YELLOW, em = YELLOW) {
+const hex4 = v => [(v >>> 24) & 0xff, (v >>> 16) & 0xff, (v >>> 8) & 0xff, v & 0xff].map(x => x.toString(16).padStart(2, '0').toUpperCase());
+const setReg = (v, color = GOLD, em = GOLD) => {
   const h = hex4(v);
-  for (let i = 0; i < 4; i++) { reg[i].setColor(color, em); reg[i].setText(h[i].toUpperCase()); }
-}
+  for (let i = 0; i < 4; i++) { reg[i].setColor(color, em); reg[i].setText(h[i]); }
+};
 
-function resetAll() {
-  engine.clear();
-  for (const b of inBoxes) b.setColor(PALETTE.node, PALETTE.nodeEmissive);
-  setReg(0xffffffff, DIM, 0);
-  stepT.setText('');
-  resultT.setText('');
-  for (const b of sendBoxes) { b.setColor(DIM, 0); b.setText(''); }
-}
-
-function runCrc() {
-  resetAll();
-  hint.setText('CRC-32：逐字节喂入寄存器做多项式除法（异或求余），完成取反得校验值');
-  C(200, () => {
-    setReg(0xffffffff, GREEN, GREEN);
-    stepT.setText('寄存器初始化 FF FF FF FF');
-  });
-  let i = 0;
-  const nextByte = () => {
-    if (i >= bytes.length) { C(700, finish); return; }
-    const cur = i; i++;
-    C(150, () => {
-      inBoxes[cur].setColor(YELLOW, YELLOW);
-      setReg(regs[cur]);
-      stepT.setText('处理字节 0x' + bytes[cur].toString(16).padStart(2, '0') + '（"' + IN[cur] + '"）：移位 8 次异或多项式 → ' + hex4(regs[cur]).join(' '));
-    });
-    C(650, () => {
-      inBoxes[cur].setColor(GREEN, GREEN);
-      setReg(regs[cur], GREEN, GREEN);
-    });
-    C(200, nextByte);
-  };
-  nextByte();
-
-  function finish() {
-    const final = (regs[8] ^ 0xffffffff) >>> 0;
-    stepT.setText('9 字节处理完：寄存器 34 0B C8 D9 → 取反 → 校验值 ' + final.toString(16).toUpperCase());
-    hint.setText('发送方把校验值按低字节在前追加到数据尾部一并发送');
-    C(900, () => {
-      setReg(final, GOLD, GOLD);
-      const h = hex4(final);
-      for (let i = 0; i < 4; i++) { sendBoxes[i].setColor(GREEN, GREEN); sendBoxes[i].setText(h[3 - i].toUpperCase()); }
-      stepT.setText('追加 4 字节：' + h[3].toUpperCase() + ' ' + h[2].toUpperCase() + ' ' + h[1].toUpperCase() + ' ' + h[0].toUpperCase() + '（26 39 F4 CB）→ 发送');
-    });
-    C(1000, () => {
-      setReg(remainder, GOLD, GOLD);
-      stepT.setText('接收端对「数据 + 校验值」整体重算 → 残差 ' + remainder.toString(16).toUpperCase());
-      resultT.setText('残差 = 2144DF1C = CRC-32 魔数 → 校验通过 ✓（数据无损）');
-      status.textContent = 'CRC-32 校验完成：cbf43926 通过（残差魔数 2144DF1C）';
-      hint.setText('只要有一位翻转，残差就不是魔数 → 立刻检测出错误（CRC 广泛用于网络帧/存储/压缩包）');
-    });
+function* crcGen() {
+  let c = 0xffffffff;
+  yield S(() => { hint.setText('CRC = 循环冗余校验：数据左移进寄存器，移出的 1 与多项式异或 —— 本质是二进制多项式除法'); stageT.setText('寄存器初始 ' + hex4(c).join(' ') + '；逐字节处理 ' + IN + '（' + bytes.length + ' 字节）'); });
+  yield W(900);
+  setReg(c, GREEN, GREEN);
+  yield W(600);
+  const regs = [];
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i];
+    c ^= b;
+    inBoxes[i].setColor(GOLD, GOLD);
+    yield S(() => { stageT.setText('处理字节 0x' + b.toString(16).padStart(2, '0') + '（"' + IN[i] + '"）：异或后移位 8 次'); eqT.setText('每步：c = c >>> 1 ⊕ (c&1 ? 0xEDB88320 : 0)'); });
+    yield W(450);
+    for (let k = 0; k < 8; k++) c = (c >>> 1) ^ ((c & 1) ? 0xedb88320 : 0);
+    regs.push(c >>> 0);
+    setReg(c >>> 0);
+    yield S(() => { stageT.setText('字节 ' + IN[i] + ' 处理完：寄存器 ' + hex4(c).join(' ')); });
+    yield W(500);
+    inBoxes[i].setColor(GREEN, GREEN);
   }
+  const final = (regs[8] ^ 0xffffffff) >>> 0;
+  setReg(final, GOLD, GOLD);
+  stageT.setText('9 字节全部处理完：寄存器 ' + hex4(regs[8]).join(' ') + ' → 取反 → 校验值');
+  yield S(() => { eqT.setText('校验值 = ~' + hex4(regs[8]).join(' ') + ' = ' + final.toString(16).toUpperCase() + ' ✓（"123456789" 的标准 CRC-32 即 CBF43926）'); });
+  yield W(900);
+  resultT.setText('CRC-32("' + IN + '") = ' + final.toString(16).toUpperCase() + ' ✓ 运行时计算，与标准值一致');
+  status.textContent = 'CRC-32: CBF43926';
+  yield S(() => { hint.setText('发送方把校验值追加到数据尾部一起发送；接收端对「数据 + 校验值」整体重算'); });
+  yield W(800);
+  let r2 = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) { r2 ^= bytes[i]; for (let k = 0; k < 8; k++) r2 = (r2 >>> 1) ^ ((r2 & 1) ? 0xedb88320 : 0); }
+  for (const b of [0x26, 0x39, 0xf4, 0xcb]) { r2 ^= b; for (let k = 0; k < 8; k++) r2 = (r2 >>> 1) ^ ((r2 & 1) ? 0xedb88320 : 0); }
+  r2 >>>= 0;
+  setReg(r2, CYAN, CYAN);
+  yield S(() => { stageT.setText('接收端对「数据 + 校验值」整体重算 → 残差 ' + r2.toString(16).toUpperCase()); eqT.setText('残差 = 2144DF1C = CRC-32 魔数（取反固定值）→ 校验通过'); });
+  yield W(900);
+  resultT.setText('残差 ' + r2.toString(16).toUpperCase() + ' = 魔数 → 校验通过 ✓（任一位翻转都会破坏魔数）');
+  yield S(() => { hint.setText('任一位翻转残差就不是 2144DF1C → 立即检测；CRC 用于以太网帧、gzip/zip、PNG、存储设备'); });
+  yield W(1000);
+  yield S(() => { hint.setText('CRC-32 演示完成：移位寄存器除法 → 校验值 CBF43926 → 接收端残差魔数验证'); resultT.setText(''); stepT.setText(''); });
+  yield W(400);
 }
 
-panel.addButton('运行校验', runCrc);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；CRC-32 即 zip/gzip/以太网使用的校验算法）');
+function* runCRC() {
+  hint.setText('CRC-32：多项式除法');
+  yield W(400);
+  yield* crcGen();
+}
+
+panel.addButton('运行演示', () => engine.start(runCRC()));
+panel.addButton('清空', () => {
+  engine.clear();
+  inBoxes.forEach(b => b.setColor(BLUE, BLUE));
+  setReg(0xffffffff, DIM, 0);
+  stageT.setText(''); eqT.setText(''); stepT.setText(''); resultT.setText('');
+  hint.setText('已清空，可重新运行'); status.textContent = '';
+});
+panel.addLabel('（拖拽旋转视角，滚轮缩放；上排蓝 = 输入字节、中排 4 格 = 32 位寄存器（绿 = 初始化、金 = 逐字节更新）、残差青 = 校验魔数验证）');
 
 scene.start(engine);

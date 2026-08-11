@@ -1,100 +1,112 @@
-// AlgorithmLibrary/Caesar3D.js — 凯撒密码：字母表移位加密
+// AlgorithmLibrary/Caesar3D.js — 凯撒密码：C = (P + k) mod 26 逐字符移位；字母表双排联动 + 消息行加密 + 回绕演示（function* 生成器驱动，移位全部运行时计算）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, VArrow } from '../3D/VisualObject3D.js';
+import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Caesar3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 700], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const scene = new Scene3D('scene', { cameraPos: [0, 320, 640], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x60a5fa, DIM = 0x334155;
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
+const hint = new VText(scene, { text: '点击「运行演示」开始：凯撒密码 —— 每个字母右移 3 位，C = (P + k) mod 26', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 148, z: 0, color: PALETTE.textGlow, scale: 0.44 });
+const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+
 const K = 3;
-const hint = new VText(scene, { text: '点击「运行加密」开始', x: 0, y: 320, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
-
-// 明文字母表（上）与移位后的密文字母表（下）
-const plainBoxes = {}, cipherBoxes = {};
-const SP = 34, X0 = -26 * SP / 2;
+const SP = 34, X0 = -26 * SP / 2 + SP / 2;
+const plainBoxes = [], cipherBoxes = [];
 for (let i = 0; i < 26; i++) {
-  const ch = String.fromCharCode(65 + i);
-  plainBoxes[i] = new VBox(scene, { w: 26, h: 26, d: 26, x: X0 + i * SP, y: 175, z: 0, label: ch, color: PALETTE.node, emissive: PALETTE.nodeEmissive });
-  cipherBoxes[i] = new VBox(scene, { w: 26, h: 26, d: 26, x: X0 + i * SP, y: 95, z: 0, label: '·', color: DIM, emissive: DIM });
+  plainBoxes.push(new VBox(scene, { w: 26, h: 26, d: 26, x: X0 + i * SP, y: 165, z: 0, label: String.fromCharCode(65 + i), color: BLUE, emissive: BLUE }));
+  cipherBoxes.push(new VBox(scene, { w: 26, h: 26, d: 26, x: X0 + i * SP, y: 85, z: 0, label: '·', color: DIM, emissive: DIM }));
 }
-new VText(scene, { text: '明文字母表', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.7 });
-new VText(scene, { text: '密文字母表（右移 ' + K + ' 位）', x: 0, y: 145, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '明文字母表', x: 0, y: 202, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '密文字母表（右移 ' + K + ' 位）', x: 0, y: 122, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
-// 消息行与密文行
 const MSG = 'HELLO WORLD';
 const mX = -440 + 44, mSP = 88;
 const msgBoxes = [], outBoxes = [];
 for (let i = 0; i < MSG.length; i++) {
   const c = MSG[i];
-  const mb = new VBox(scene, { w: 56, h: 56, d: 56, x: mX + i * mSP, y: -60, z: 0, label: c === ' ' ? '␣' : c, color: c === ' ' ? DIM : PALETTE.node, emissive: c === ' ' ? DIM : PALETTE.nodeEmissive });
-  const ob = new VBox(scene, { w: 56, h: 56, d: 56, x: mX + i * mSP, y: -160, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
-  msgBoxes.push(mb); outBoxes.push(ob);
+  msgBoxes.push(new VBox(scene, { w: 56, h: 56, d: 56, x: mX + i * mSP, y: -60, z: 0, label: c === ' ' ? '␣' : c, color: c === ' ' ? DIM : BLUE, emissive: c === ' ' ? DIM : BLUE }));
+  outBoxes.push(new VBox(scene, { w: 56, h: 56, d: 56, x: mX + i * mSP, y: -160, z: 0, label: '', color: DIM, emissive: DIM }));
 }
-const arrow = new VArrow(scene, { x: mX, y: 10, z: 0 });
-new VText(scene, { text: '明文', x: -520, y: -60, z: 0, color: PALETTE.textDim, scale: 0.7 });
-new VText(scene, { text: '密文', x: -520, y: -160, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '明文', x: -540, y: -60, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '密文', x: -540, y: -160, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const arrowT = new VText(scene, { text: '↓', x: mX, y: 8, z: 0, color: GOLD, scale: 0.8 });
 
-function resetAll() {
-  engine.clear();
-  for (const b of Object.values(plainBoxes)) b.setColor(PALETTE.node, PALETTE.nodeEmissive);
-  for (const b of Object.values(cipherBoxes)) { b.setColor(DIM, DIM); b.setText('·'); }
-  for (const b of msgBoxes) b.setColor(b.text === '␣' ? DIM : PALETTE.node, PALETTE.nodeEmissive);
-  for (const b of outBoxes) { b.setColor(PALETTE.node, PALETTE.nodeEmissive); b.setText(''); }
-  arrow.moveTo(mX, 10, 0, 1);
-}
-
-function runEncrypt() {
-  resetAll();
-  hint.setText('凯撒密码：每个字母向后移动 ' + K + ' 位，C = (P + k) mod 26');
-  let done = 0;
-  const next = () => {
-    if (done >= MSG.length) {
-      status.textContent = '加密完成：' + MSG.replace(/ /g, '') + ' → ' + MSG.split('').map((c, i) => c === ' ' ? ' ' : outBoxes[i].text).join('');
-      hint.setText('密文已生成（绿色）。解密只需把每个字母向前移 ' + K + ' 位');
-      return;
-    }
-    const i = done; done++;
+function* caesarGen() {
+  yield S(() => { hint.setText('凯撒密码：把字母表做成一个环，每个字母向后移动 k 位；' + MSG.replace(/ /g, '') + ' → ?'); stageT.setText('密钥 k = ' + K + '；字母表从 A(0) 到 Z(25)，越界从另一头绕回'); });
+  yield W(900);
+  for (let i = 0; i < 26; i++) {
+    const cp = (i + K) % 26;
+    cipherBoxes[cp].setText(String.fromCharCode(65 + cp));
+    cipherBoxes[cp].setColor(GOLD, GOLD);
+    yield S(() => { eqT.setText('A→D 排定：明文字母 ' + String.fromCharCode(65 + i) + '(' + i + ') 映射到密文 ' + String.fromCharCode(65 + cp) + '(' + cp + ') = (' + i + '+' + K + ') mod 26'); });
+    yield W(130);
+  }
+  yield S(() => { stageT.setText('字母表就位：A→D、B→E … 最后 X→A、Y→B、Z→C（回绕）'); });
+  yield W(700);
+  for (let i = 0; i < 26; i++) cipherBoxes[i].setColor(DIM, DIM);
+  const ct = [];
+  for (let i = 0; i < MSG.length; i++) {
     const ch = MSG[i];
     const bx = mX + i * mSP;
+    arrowT.moveTo(bx, 8, 0, 300);
     if (ch === ' ') {
-      arrow.moveTo(bx, 10, 0, 250);
-      C(200, () => outBoxes[i].setText('␣'));
-      C(100, () => outBoxes[i].setColor(DIM, DIM));
-      hint.setText('空格不参与加密，原样保留');
-      C(450, next);
-      return;
+      outBoxes[i].setText('␣'); outBoxes[i].setColor(DIM, DIM);
+      yield S(() => { stageT.setText('空格不参与加密，原样保留'); });
+      ct.push(' ');
+      yield W(420);
+      continue;
     }
     const p = ch.charCodeAt(0) - 65;
     const cp = (p + K) % 26;
-    arrow.moveTo(bx, 10, 0, 250);
-    C(150, () => {
-      plainBoxes[p].setColor(YELLOW, YELLOW);
-      msgBoxes[i].setColor(YELLOW, YELLOW);
-    });
-    hint.setText(ch + ' 在字母表中位置 ' + p + '：(' + p + ' + ' + K + ') mod 26 = ' + cp);
-    C(650, () => {
-      cipherBoxes[cp].setColor(GREEN, GREEN);
-      cipherBoxes[cp].setText(String.fromCharCode(65 + cp));
-      outBoxes[i].setColor(GREEN, GREEN);
-      outBoxes[i].setText(String.fromCharCode(65 + cp));
-      msgBoxes[i].setColor(GREEN, GREEN);
-      plainBoxes[p].setColor(PALETTE.node, PALETTE.nodeEmissive);
-    });
-    hint.setText(ch + ' → ' + String.fromCharCode(65 + cp));
-    C(450, next);
-  };
-  next();
+    const out = String.fromCharCode(65 + cp);
+    ct.push(out);
+    msgBoxes[i].setColor(GOLD, GOLD);
+    plainBoxes[p].setColor(ORANGE, ORANGE);
+    yield S(() => { stageT.setText(ch + ' 位置 ' + p + '：(' + p + ' + ' + K + ') mod 26 = ' + cp + ' → ' + out + (cp < p ? '（回绕！）' : '')); eqT.setText('加密公式 C = (P + k) mod 26：' + ch + ' → ' + out); });
+    yield W(550);
+    cipherBoxes[cp].setColor(GREEN, GREEN);
+    cipherBoxes[cp].setText(out);
+    outBoxes[i].setText(out);
+    outBoxes[i].setColor(GREEN, GREEN);
+    msgBoxes[i].setColor(GREEN, GREEN);
+    plainBoxes[p].setColor(BLUE, BLUE);
+    yield W(420);
+  }
+  outT.setText('密文：' + ct.join(''));
+  status.textContent = '凯撒：' + MSG + ' → ' + ct.join('');
+  yield S(() => { stageT.setText('加密完成：' + MSG + ' → ' + ct.join('') + ' —— 解密只需左移 ' + K + ' 位'); hint.setText('解密：P = (C − k) mod 26。密钥空间只有 26 种 —— 现代标准是一文不值，但它是密码学第一课'); });
+  yield W(1000);
+  yield S(() => { hint.setText('历史：尤利乌斯·凯撒用于军情（k=3 经典值）；暴力破解 = 试 26 个偏移看哪个可读'); eqT.setText('字母频率攻击：' + ct.join('') + ' 中最常见的是 L(3 次) → 对应 E 或 T'); });
+  yield W(1000);
+  yield S(() => { hint.setText('凯撒演示完成：移位 → 回绕 → 加密 ' + MSG + ' → ' + ct.join('')); outT.setText(''); });
+  yield W(400);
 }
 
-panel.addButton('运行加密', runEncrypt);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+function* runCaesar() {
+  hint.setText('凯撒：移位 + 回绕');
+  yield W(400);
+  yield* caesarGen();
+}
+
+panel.addButton('运行演示', () => engine.start(runCaesar()));
+panel.addButton('清空', () => {
+  engine.clear();
+  plainBoxes.forEach(b => b.setColor(BLUE, BLUE));
+  cipherBoxes.forEach(b => { b.setText('·'); b.setColor(DIM, DIM); });
+  msgBoxes.forEach((b, i) => { const c = MSG[i]; b.setText(c === ' ' ? '␣' : c); b.setColor(c === ' ' ? DIM : BLUE, c === ' ' ? DIM : BLUE); });
+  outBoxes.forEach(b => { b.setText(''); b.setColor(DIM, DIM); });
+  stageT.setText(''); eqT.setText(''); outT.setText('');
+  hint.setText('已清空，可重新运行'); status.textContent = '';
+});
+panel.addLabel('（拖拽旋转视角，滚轮缩放；上排蓝 = 明文字母表、下排金 = 映射、消息行蓝→金→绿 = 正在加密、绿 = 密文；X→A 等回绕自动演示）');
 
 scene.start(engine);

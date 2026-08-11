@@ -1,29 +1,28 @@
-// AlgorithmLibrary/Brotli3D.js — Brotli：LZ77 + 上下文建模 + 二阶熵编码
+// AlgorithmLibrary/Brotli3D.js — Brotli：LZ77 字典匹配 + 上下文三元组预测 + 熵编码字节流（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, VArrow } from '../3D/VisualObject3D.js';
+import { VBox, VText, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Brotli3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 380, 660], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
+const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, DIM = 0x334155, GOLD = 0xfcd34d;
 const hint = new VText(scene, { text: '点击「运行压缩」开始', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('');
 
 const INPUT = 'hello hello hello hello hello world';
-const SP = 32, W = 30;
+const SP = 32, BOX = 30;
 const pos = i => i < 18 ? { x: -272 + i * SP, y: 165 } : { x: -272 + (i - 18) * SP, y: 90 };
 const boxes = [];
 for (let i = 0; i < INPUT.length; i++) {
   const p = pos(i);
-  boxes.push(new VBox(scene, { w: W, h: W, d: W, x: p.x, y: p.y, z: 0, label: INPUT[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+  boxes.push(new VBox(scene, { w: BOX, h: BOX, d: BOX, x: p.x, y: p.y, z: 0, label: INPUT[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 }
-const arrow = new VArrow(scene, { x: 0, y: 245, z: 0 });
 new VText(scene, { text: '输入（35 字符）', x: -350, y: 215, z: 0, color: PALETTE.textDim, scale: 0.7 });
 const outText = new VText(scene, { text: '', x: 0, y: -30, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const hexT1 = new VText(scene, { text: '', x: 0, y: -100, z: 0, color: PALETTE.textDim, scale: 0.62 });
@@ -50,88 +49,91 @@ for (let i = 0; i < CTX.length; i++) {
 }
 const ctxT = new VText(scene, { text: '', x: 0, y: -10, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
+const ring = new VTorus(scene, { radius: 20, x: 0, y: 165, color: GOLD });
+ring.mesh.visible = false;
+
 function resetAll() {
-  engine.clear();
   for (const b of boxes) b.setColor(PALETTE.node, PALETTE.nodeEmissive);
-  arrow.moveTo(0, 245, 0, 1);
+  ring.mesh.visible = false;
   outText.setText('');
   hexT1.setText(''); hexT2.setText(''); statT.setText('');
   for (const g of ctxGroup) for (const b of g) { b.setColor(DIM, 0); b.setText(''); }
   ctxT.setText('');
 }
 
-function runCompress() {
-  resetAll();
-  hint.setText('阶段 1 · 字典匹配：' + INPUT.slice(0, 6) + ' 后全部是重复的 ' + INPUT.slice(0, 6) + '…');
+function* runCompress() {
+  yield S(resetAll);
+  yield S(() => { hint.setText('阶段 1 · 字典匹配：' + INPUT.slice(0, 6) + ' 后全部是重复的 ' + INPUT.slice(0, 6) + '…'); });
+  yield W(400);
   const parts = [];
-  let ti = 0;
-  const nextTok = () => {
-    if (ti >= tokens.length) {
-      statT.setText('匹配输出 ' + parts.join(' ') + ' → 进入上下文建模与熵编码');
-      C(400, runCtx);
-      return;
-    }
-    const t = tokens[ti]; ti++;
+  for (let ti = 0; ti < tokens.length; ti++) {
+    const t = tokens[ti];
     if (t.type === 'lit') {
       const p0 = pos(t.start);
-      arrow.moveTo(p0.x, p0.y + 70, 0, 300);
-      C(150, () => {
+      yield S(() => ring.mesh.visible = true);
+      yield A(300, p => { ring.mesh.position.x = p0.x; ring.mesh.position.y = p0.y; });
+      yield S(() => {
         for (let i = 0; i < t.n; i++) boxes[t.start + i].setColor(BLUE, BLUE);
         hint.setText('字面 ' + INPUT.slice(t.start, t.start + t.n) + ' 直接输出');
       });
-      C(600, () => {
+      yield W(600);
+      yield S(() => {
+        for (let i = 0; i < t.n; i++) boxes[t.start + i].setColor(GREEN, GREEN);
         parts.push(INPUT.slice(t.start, t.start + t.n));
         outText.setText('字典输出：' + parts.join(' '));
       });
-      C(300, nextTok);
+      yield W(300);
     } else {
       const dstC = pos(Math.round((t.dst[0] + t.dst[1]) / 2));
-      arrow.moveTo(dstC.x, dstC.y + 70, 0, 350);
-      C(150, () => {
+      yield S(() => ring.mesh.visible = true);
+      yield A(300, p => { ring.mesh.position.x = dstC.x; ring.mesh.position.y = dstC.y; });
+      yield S(() => {
         for (let i = t.src[0]; i <= t.src[1]; i++) boxes[i].setColor(YELLOW, YELLOW);
         for (let i = t.dst[0]; i <= t.dst[1]; i++) boxes[i].setColor(GREEN, GREEN);
         hint.setText('重复「' + INPUT.slice(t.dst[0], t.dst[0] + t.len) + '」在 6 字节前出现过 → 指针 M(6,6)');
       });
-      C(700, () => {
+      yield W(700);
+      yield S(() => {
         parts.push('M(6,6)');
         outText.setText('字典输出：' + parts.join(' '));
       });
-      C(300, nextTok);
-    }
-  };
-  nextTok();
-
-  function runCtx() {
-    hint.setText('阶段 2 · 上下文建模：用前 2 个字符预测下一个字符（Brotli 特色）');
-    let ci = 0;
-    const nextCtx = () => {
-      if (ci >= CTX.length) { C(400, runHex); return; }
-      const g = ctxGroup[ci]; ci++;
-      C(150, () => {
-        g[0].setColor(BLUE, BLUE); g[1].setColor(BLUE, BLUE);
-        g[2].setColor(YELLOW, YELLOW);
-        ctxT.setText('上下文 「' + CTX[ci - 1][0] + CTX[ci - 1][1] + '」 预测下一字符「' + CTX[ci - 1][2] + '」');
-      });
-      C(600, () => { g[2].setColor(GREEN, GREEN); });
-      C(350, nextCtx);
-    };
-    nextCtx();
-
-    function runHex() {
-      hint.setText('阶段 3 · 熵编码：上下文概率模型 + 二阶哈夫曼编码输出字节流');
-      hexT1.setText('输出 23 字节：1b 22 00 f8 8d 94 6e de 44 55 86 96');
-      hexT2.setText('              6c 20 6f 35 08 3d 75 40 0c 29 8e');
-      C(900, () => {
-        statT.setText('35 字节 → 23 字节（1.52×，含字典/上下文/熵编码三层，brotli 实测）');
-        status.textContent = 'Brotli 压缩完成：35 → 23 字节';
-        hint.setText('解压按逆序：熵解码 → 上下文反建模 → 字典展开，无损还原原文');
-      });
+      yield W(300);
     }
   }
+  yield S(() => { statT.setText('匹配输出 ' + parts.join(' ') + ' → 进入上下文建模与熵编码'); });
+  yield W(600);
+  // 阶段 2 · 上下文建模
+  yield S(() => { ring.mesh.visible = false; hint.setText('阶段 2 · 上下文建模：用前 2 个字符预测下一个字符（Brotli 特色）'); });
+  yield W(500);
+  for (let ci = 0; ci < CTX.length; ci++) {
+    const g = ctxGroup[ci];
+    yield S(() => {
+      g[0].setColor(BLUE, BLUE); g[1].setColor(BLUE, BLUE);
+      g[2].setColor(YELLOW, YELLOW);
+      ctxT.setText('上下文 「' + CTX[ci][0] + CTX[ci][1] + '」 预测下一字符「' + CTX[ci][2] + '」');
+    });
+    yield W(650);
+    yield S(() => g[2].setColor(GREEN, GREEN));
+    yield W(350);
+  }
+  // 阶段 3 · 熵编码
+  yield S(() => { hint.setText('阶段 3 · 熵编码：上下文概率模型 + 二阶哈夫曼编码输出字节流'); });
+  yield W(400);
+  yield S(() => {
+    hexT1.setText('输出 23 字节：1b 22 00 f8 8d 94 6e de 44 55 86 96');
+    hexT2.setText('              6c 20 6f 35 08 3d 75 40 0c 29 8e');
+  });
+  yield W(900);
+  yield S(() => {
+    statT.setText('35 字节 → 23 字节（1.52×，含字典/上下文/熵编码三层，brotli 实测）');
+    status.textContent = 'Brotli 压缩完成：35 → 23 字节';
+    hint.setText('解压按逆序：熵解码 → 上下文反建模 → 字典展开，无损还原原文');
+  });
+  yield W(500);
 }
 
-panel.addButton('运行压缩', runCompress);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；Brotli 是 Google 的通用压缩器，HTTP 传输优化利器）');
+panel.addButton('运行压缩', () => engine.start(runCompress()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；黄 = 源匹配，绿 = 目标；Brotli 是 Google 的通用压缩器，HTTP 传输优化利器）');
 
 scene.start(engine);

@@ -1,9 +1,7 @@
-// AlgorithmLibrary/ChangingCoordinates3D3D.js
-// 3D 坐标变换：点 P 与二十面体先绕 Z 轴旋转 90°，再绕 X 轴旋转 90°，
-// 最后平移 (x, y, z)；分步动画 + 矩阵 VText 逐步更新；移动对象对对象整体变换。
+// AlgorithmLibrary/ChangingCoordinates3D3D.js — 3D 坐标变换：点 P 与二十面体先绕 Z 轴旋转 90°，再绕 X 轴旋转 90°，最后平移 (30,20,-40) —— 分步 A() 动画 + 矩阵文本逐步更新（function* 生成器驱动，目标坐标运行时计算）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { Geometry3D } from '../3D/modes/Geometry3D.js';
 import { VNode, VText, easeInOut } from '../3D/VisualObject3D.js';
@@ -12,96 +10,74 @@ import { ripple } from '../3D/effects/Fx.js';
 applyTheme('ChangingCoordinates3D3D');
 
 const scene = new Scene3D('scene', { cameraPos: [260, 280, 560], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
 const geo = new Geometry3D(scene, { axisLen: 200 });
 const P0 = { x: 60, y: 70, z: 50 };
+const T = { x: 30, y: 20, z: -40 };
 const point = new VNode(scene, { label: 'P', x: P0.x, y: P0.y, z: P0.z, radius: 15, color: PALETTE.highlight, emissive: PALETTE.highlightEmissive });
 const ico = new THREE.Mesh(new THREE.IcosahedronGeometry(30, 0), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0x581c87, emissiveIntensity: 0.5, transparent: true, opacity: 0.9 }));
 ico.position.set(P0.x, P0.y, P0.z);
 scene.add(ico);
 
 const matrixText = new VText(scene, { text: '', x: 0, y: -140, z: 0, color: PALETTE.textDim, scale: 0.68 });
-const hint = new VText(scene, { text: '输入 x、y、z，点击「变换点」', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const hint = new VText(scene, { text: '点击「运行演示」开始：3D 坐标变换 —— 绕 Z 轴 90° → 绕 X 轴 90° → 平移', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
 
-function clearAll() {
+const FROM = new THREE.Vector3(P0.x, P0.y, P0.z);
+const K1 = new THREE.Vector3(-FROM.y, FROM.x, FROM.z);
+const K2 = new THREE.Vector3(K1.x, K1.z, -K1.y);
+const TO = new THREE.Vector3(K2.x + T.x, K2.y + T.y, K2.z + T.z);
+
+function* cc3dGen() {
+  yield S(() => { hint.setText('步骤 1：点 P 与紫色二十面体绕 Z 轴旋转 90°'); matrixText.setText('Rz = [ 0 -1 0 ; 1 0 0 ; 0 0 1 ]'); });
+  yield W(700);
+  yield A(700, p => {
+    const t = easeInOut(p);
+    point.mesh.position.lerpVectors(FROM, K1, t);
+    ico.rotation.z = Math.PI / 2 * t;
+    ico.position.lerpVectors(FROM, K1, t);
+  });
+  yield S(() => { ripple(scene, K1.x, K1.y, K1.z, PALETTE.green, 46); hint.setText('Rz 完成：P → (' + K1.x + ', ' + K1.y + ', ' + K1.z + ') —— (x,y,z) 变成 (−y,x,z)'); });
+  yield W(700);
+  yield S(() => { hint.setText('步骤 2：绕 X 轴旋转 90°'); matrixText.setText('Rx·Rz = [ 0 -1 0 ; 0 0 1 ; -1 0 0 ]'); });
+  yield W(700);
+  yield A(700, p => {
+    const t = easeInOut(p);
+    point.mesh.position.lerpVectors(K1, K2, t);
+    ico.rotation.x = Math.PI / 2 * t;
+    ico.position.lerpVectors(K1, K2, t);
+  });
+  yield S(() => { ripple(scene, K2.x, K2.y, K2.z, PALETTE.highlight, 46); hint.setText('Rx 完成：P → (' + K2.x + ', ' + K2.y + ', ' + K2.z + ') —— (y,z) 变成 (z,−y)'); });
+  yield W(700);
+  yield S(() => { hint.setText('步骤 3：平移 (' + T.x + ', ' + T.y + ', ' + T.z + ')'); matrixText.setText('T·Rx·Rz = [ 0 -1 0 ' + T.x + ' ; 0 0 1 ' + T.y + ' ; -1 0 0 ' + T.z + ' ; 0 0 0 1 ]'); });
+  yield W(700);
+  yield A(700, p => {
+    const t = easeInOut(p);
+    point.mesh.position.lerpVectors(K2, TO, t);
+    ico.position.lerpVectors(K2, TO, t);
+  });
+  yield S(() => {
+    ripple(scene, TO.x, TO.y, TO.z, PALETTE.highlight, 46);
+    hint.setText('变换完成：(' + P0.x + ',' + P0.y + ',' + P0.z + ') → (' + TO.x + ',' + TO.y + ',' + TO.z + ')');
+    status.textContent = '新坐标: (' + TO.x.toFixed(1) + ', ' + TO.y.toFixed(1) + ', ' + TO.z.toFixed(1) + ') —— 复合矩阵 T·Rx·Rz，先作用的后乘';
+  });
+  yield W(1000);
+  yield S(() => { hint.setText('3D 复合变换 = T·Rx·Rz：矩阵乘法从右往左读，变换从左往右执行'); });
+  yield W(500);
+}
+
+panel.addButton('运行演示', () => engine.start(cc3dGen()));
+panel.addButton('清空', () => {
   engine.clear();
   point.mesh.position.set(P0.x, P0.y, P0.z);
   point.mesh.scale.set(1, 1, 1);
   ico.position.set(P0.x, P0.y, P0.z);
   ico.rotation.set(0, 0, 0);
   matrixText.setText('');
-  hint.setText('输入 x、y、z，点击「变换点」');
-  status.textContent = '已清空';
-}
-
-// ---- 模型（与 /tmp/3dtest/2i_model.mjs 一致）----
-function transformPoint3DModel(px, py, pz, tx, ty, tz) {
-  const x1 = -py, y1 = px, z1 = pz;          // Rz(90°)
-  const x2 = x1, y2 = z1, z2 = -y1;          // 再 Rx(90°)
-  return { x: x2 + tx, y: y2 + ty, z: z2 + tz };
-}
-
-function runTransform() {
-  const tx = parseFloat(xInput.value);
-  const ty = parseFloat(yInput.value);
-  const tz = parseFloat(zInput.value);
-  if (isNaN(tx) || isNaN(ty) || isNaN(tz)) { hint.setText('请输入有效坐标'); return; }
-  xInput.value = String(tx); yInput.value = String(ty); zInput.value = String(tz);
-  const from = point.mesh.position.clone();
-  const k1 = new THREE.Vector3(-from.y, from.x, from.z);
-  const k2 = new THREE.Vector3(k1.x, k1.z, -k1.y);
-  const to = new THREE.Vector3(k2.x + tx, k2.y + ty, k2.z + tz);
-  matrixText.setText('Rz = [ 0 -1 0 ; 1 0 0 ; 0 0 1 ]');
-  C(1, () => hint.setText('步骤 1：绕 Z 轴旋转 90°'), () => {});
-  let fx1 = false, fx2 = false, fx3 = false;
-  C(600, (p) => { if (!fx1) { fx1 = true; ripple(scene, from.x, from.y, from.z, PALETTE.highlight, 46); } const t = easeInOut(p); point.mesh.position.lerpVectors(from, k1, t); }, () => {});
-  C(1, () => { matrixText.setText('Rx·Rz = [ 0 -1 0 ; 0 0 1 ; -1 0 0 ]'); hint.setText('步骤 2：绕 X 轴旋转 90°'); }, () => {});
-  C(600, (p) => { if (!fx2) { fx2 = true; ripple(scene, k1.x, k1.y, k1.z, PALETTE.green, 46); } const t = easeInOut(p); point.mesh.position.lerpVectors(k1, k2, t); }, () => {});
-  C(1, () => { matrixText.setText('T·Rx·Rz = [ 0 -1 0 ' + tx + ' ; 0 0 1 ' + ty + ' ; -1 0 0 ' + tz + ' ; 0 0 0 1 ]'); hint.setText('步骤 3：平移 (' + tx + ', ' + ty + ', ' + tz + ')'); }, () => {});
-  C(600, (p) => { if (!fx3) { fx3 = true; ripple(scene, k2.x, k2.y, k2.z, PALETTE.highlight, 46); } const t = easeInOut(p); point.mesh.position.lerpVectors(k2, to, t); }, () => {});
-  C(1, () => {
-    const r = transformPoint3DModel(from.x, from.y, from.z, tx, ty, tz);
-    status.textContent = '新坐标: (' + r.x.toFixed(1) + ', ' + r.y.toFixed(1) + ', ' + r.z.toFixed(1) + ')';
-    hint.setText('变换点完成：(' + from.x + ',' + from.y + ',' + from.z + ') → (' + r.x.toFixed(1) + ', ' + r.y.toFixed(1) + ', ' + r.z.toFixed(1) + ')');
-  }, () => {});
-}
-
-function runMoveObject() {
-  const tx = parseFloat(xInput.value);
-  const ty = parseFloat(yInput.value);
-  const tz = parseFloat(zInput.value);
-  if (isNaN(tx) || isNaN(ty) || isNaN(tz)) { hint.setText('请输入有效坐标'); return; }
-  const from = ico.position.clone();
-  const k1 = new THREE.Vector3(-from.y, from.x, from.z);
-  const k2 = new THREE.Vector3(k1.x, k1.z, -k1.y);
-  const to = new THREE.Vector3(k2.x + tx, k2.y + ty, k2.z + tz);
-  C(1, () => hint.setText('移动对象：绕 Z 轴旋转 90°'), () => {});
-  let fxM1 = false, fxM2 = false, fxM3 = false;
-  C(600, (p) => { if (!fxM1) { fxM1 = true; ripple(scene, from.x, from.y, from.z, PALETTE.highlight, 56); } const t = easeInOut(p); ico.rotation.z = Math.PI / 2 * t; ico.position.lerpVectors(from, k1, t); }, () => {});
-  C(1, () => hint.setText('移动对象：绕 X 轴旋转 90°'), () => {});
-  C(600, (p) => { if (!fxM2) { fxM2 = true; ripple(scene, k1.x, k1.y, k1.z, PALETTE.green, 56); } const t = easeInOut(p); ico.rotation.x = Math.PI / 2 * t; ico.position.lerpVectors(k1, k2, t); }, () => {});
-  C(1, () => hint.setText('移动对象：平移 (' + tx + ', ' + ty + ', ' + tz + ')'), () => {});
-  C(600, (p) => { if (!fxM3) { fxM3 = true; ripple(scene, k2.x, k2.y, k2.z, PALETTE.highlight, 56); } const t = easeInOut(p); ico.position.lerpVectors(k2, to, t); }, () => {});
-  C(1, () => {
-    const r = transformPoint3DModel(from.x, from.y, from.z, tx, ty, tz);
-    status.textContent = '对象新位置: (' + r.x.toFixed(1) + ', ' + r.y.toFixed(1) + ', ' + r.z.toFixed(1) + ')';
-    hint.setText('移动对象完成');
-  }, () => {});
-}
-
-const xInput = panel.addInput('x', () => runTransform(), 6);
-xInput.value = '30';
-const yInput = panel.addInput('y', () => runTransform(), 6);
-yInput.value = '20';
-const zInput = panel.addInput('z', () => runTransform(), 6);
-zInput.value = '-40';
-panel.addButton('变换点', runTransform);
-panel.addButton('移动对象', runMoveObject);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+  hint.setText('已清空，可重新运行'); status.textContent = '';
+});
+panel.addLabel('（拖拽旋转视角，滚轮缩放；点 P 与对象施加相同的 Rz → Rx → 平移复合变换）');
 
 scene.start(engine);

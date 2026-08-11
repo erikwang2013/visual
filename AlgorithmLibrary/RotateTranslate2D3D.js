@@ -1,9 +1,7 @@
-// AlgorithmLibrary/RotateTranslate2D3D.js
-// 2D 旋转+平移：转变 = 先绕 z 轴旋转 angle°，再平移 (dx, dy)，
-// 分步动画并实时显示 3x3 复合矩阵 T·R；改变形状轮换图形。
+// AlgorithmLibrary/RotateTranslate2D3D.js — 2D 旋转+平移：绿色三角先绕 z 轴旋转 45°，再平移 (60, 30) —— 分步 A() 动画 + 3x3 复合矩阵 T·R 实时更新（function* 生成器驱动，矩阵元素运行时计算）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { Geometry3D } from '../3D/modes/Geometry3D.js';
 import { VText, easeInOut } from '../3D/VisualObject3D.js';
@@ -12,97 +10,62 @@ import { ripple, spark } from '../3D/effects/Fx.js';
 applyTheme('RotateTranslate2D3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
 const geo = new Geometry3D(scene, { axisLen: 190 });
-const SHAPES = [
-  { name: '矩形', make: () => new THREE.BoxGeometry(100, 70, 10) },
-  { name: '三角', make: () => { const s = new THREE.Shape(); s.moveTo(0, 40); s.lineTo(-46, -30); s.lineTo(46, -30); s.closePath(); return new THREE.ShapeGeometry(s); } },
-  { name: '五角', make: () => { const s = new THREE.Shape(); for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2 - Math.PI / 2; const x = Math.cos(a) * 48, y = Math.sin(a) * 48; i === 0 ? s.moveTo(x, y) : s.lineTo(x, y); } s.closePath(); return new THREE.ShapeGeometry(s); } },
-  { name: '圆', make: () => new THREE.CircleGeometry(52, 40) },
-];
-let shapeIdx = 0;
-geo.addShape(SHAPES[0].make(), { color: 0x22c55e, opacity: 0.92 });
+const ANGLE = 45, DX = 60, DY = 30, RAD = ANGLE * Math.PI / 180;
+const tri = new THREE.Shape();
+tri.moveTo(0, 40); tri.lineTo(-46, -30); tri.lineTo(46, -30); tri.closePath();
+geo.addShape(new THREE.ShapeGeometry(tri), { color: 0x22c55e, opacity: 0.92 });
 
 const matrixText = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const hint = new VText(scene, { text: '输入角度与位移，点击「转变」', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const hint = new VText(scene, { text: '点击「运行演示」开始：2D 旋转 + 平移', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
 
-let curRot = 0, curDx = 0, curDy = 0;   // 当前姿态（旋转绝对值，位移累积）
+const m = v => v.toFixed(2);
+const updateMatrix = (angleDeg, dx, dy) => {
+  const r = angleDeg * Math.PI / 180;
+  matrixText.setText('M = T·R = [ ' + m(Math.cos(r)) + ' ' + m(-Math.sin(r)) + ' ' + m(dx) + ' ;  ' + m(Math.sin(r)) + ' ' + m(Math.cos(r)) + ' ' + m(dy) + ' ;  0 0 1 ]');
+};
+const e1 = {
+  x: Math.cos(RAD) * 1 - Math.sin(RAD) * 0 + DX,
+  y: Math.sin(RAD) * 1 + Math.cos(RAD) * 0 + DY,
+};
 
-// ---- 模型（与 /tmp/3dtest/2i_model.mjs 一致）----
-function rotateTranslateModel(angleDeg, dx, dy, x, y) {
-  const rad = angleDeg * Math.PI / 180;
-  return { x: Math.cos(rad) * x - Math.sin(rad) * y + dx, y: Math.sin(rad) * x + Math.cos(rad) * y + dy };
+function* rt2dGen() {
+  yield S(() => { hint.setText('初始：三角位于原点，M = I（单位阵）'); updateMatrix(0, 0, 0); });
+  yield W(700);
+  yield S(() => { hint.setText('第 1 步：绕 z 轴旋转 ' + ANGLE + '°'); });
+  yield W(700);
+  yield A(600, p => {
+    const t = easeInOut(p);
+    geo.shape.rotation.z = RAD * t;
+  });
+  yield S(() => { ripple(scene, 0, 0, 0, PALETTE.highlight, 80); hint.setText('旋转完成 —— 现在平移 (' + DX + ', ' + DY + ')'); updateMatrix(ANGLE, DX, DY); });
+  yield W(700);
+  yield A(600, p => {
+    const t = easeInOut(p);
+    geo.shape.position.lerpVectors(new THREE.Vector3(0, 0, 0), new THREE.Vector3(DX, DY, 0), t);
+  });
+  yield S(() => {
+    spark(scene, DX, DY, 0, PALETTE.highlight, 5);
+    hint.setText('变换完成：(1,0) → (' + e1.x.toFixed(2) + ', ' + e1.y.toFixed(2) + ') —— 旋转+平移复合');
+    status.textContent = '复合矩阵 M = T·R = [ ' + m(Math.cos(RAD)) + ' ' + m(-Math.sin(RAD)) + ' ' + DX + ' ; ' + m(Math.sin(RAD)) + ' ' + m(Math.cos(RAD)) + ' ' + DY + ' ; 0 0 1 ]';
+  });
+  yield W(1000);
+  yield S(() => { hint.setText('T·R：先旋转后平移 —— 3x3 矩阵把 2D 仿射变换统一为一次线性映射'); });
+  yield W(500);
 }
 
-function updateMatrix(angleDeg, dx, dy) {
-  const rad = angleDeg * Math.PI / 180, m = (v) => v.toFixed(2);
-  matrixText.setText('M = T·R = [ ' + m(Math.cos(rad)) + ' ' + m(-Math.sin(rad)) + ' ' + m(dx) + ' ;  ' + m(Math.sin(rad)) + ' ' + m(Math.cos(rad)) + ' ' + m(dy) + ' ;  0 0 1 ]');
-}
-
-function removeShape() {
-  if (!geo.shape) return;
-  geo.shape.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
-  scene.remove(geo.shape);
-  geo.shape = null;
-}
-
-function clearAll() {
+panel.addButton('运行演示', () => engine.start(rt2dGen()));
+panel.addButton('清空', () => {
   engine.clear();
-  shapeIdx = 0;
-  curRot = 0; curDx = 0; curDy = 0;
-  removeShape();
-  geo.addShape(SHAPES[0].make(), { color: 0x22c55e, opacity: 0.92 });
+  geo.shape.rotation.z = 0;
+  geo.shape.position.set(0, 0, 0);
   updateMatrix(0, 0, 0);
-  hint.setText('输入角度与位移，点击「转变」');
-  status.textContent = '已清空';
-}
+  hint.setText('已清空，可重新运行'); status.textContent = '';
+});
+panel.addLabel('（拖拽旋转视角，滚轮缩放；绿色三角 = 旋转 45° 后平移 (60, 30) 的复合变换）');
 
-function applyTransform() {
-  const angle = parseFloat(angleInput.value);
-  const dx = parseFloat(dxInput.value);
-  const dy = parseFloat(dyInput.value);
-  if (isNaN(angle)) { hint.setText('请输入有效角度'); return; }
-  const tDx = isNaN(dx) ? 0 : dx, tDy = isNaN(dy) ? 0 : dy;
-  const fromRot = geo.shape.rotation.z, fromPos = geo.shape.position.clone();
-  const toRot = angle * Math.PI / 180;
-  curRot = toRot; curDx += tDx; curDy += tDy;
-  const toPos = new THREE.Vector3(fromPos.x + tDx, fromPos.y + tDy, fromPos.z);
-  C(1, () => hint.setText('第 1 步：绕 z 轴旋转 ' + angle + '°'), () => {});
-  let fxRot = false, fxTr = false;
-  C(600, (p) => { if (!fxRot) { fxRot = true; ripple(scene, fromPos.x, fromPos.y, fromPos.z, PALETTE.highlight, 80); } const t = easeInOut(p); geo.shape.rotation.z = fromRot + (toRot - fromRot) * t; }, () => {});
-  C(1, () => { updateMatrix(angle, curDx, curDy); hint.setText('第 2 步：平移 (' + tDx + ', ' + tDy + ')'); }, () => {});
-  C(600, (p) => { if (!fxTr) { fxTr = true; spark(scene, toPos.x, toPos.y, toPos.z, PALETTE.highlight, 5); } const t = easeInOut(p); geo.shape.position.lerpVectors(fromPos, toPos, t); }, () => {});
-  C(1, () => {
-    updateMatrix(angle, curDx, curDy);
-    const p = rotateTranslateModel(angle, tDx, tDy, 1, 0);
-    status.textContent = '复合矩阵 M = T·R = [ ' + Math.cos(angle * Math.PI / 180).toFixed(2) + ' ' + (-Math.sin(angle * Math.PI / 180)).toFixed(2) + ' ' + tDx + ' ; ' + Math.sin(angle * Math.PI / 180).toFixed(2) + ' ' + Math.cos(angle * Math.PI / 180).toFixed(2) + ' ' + tDy + ' ; 0 0 1 ]';
-    hint.setText('变换完成：(1,0) → (' + p.x.toFixed(2) + ', ' + p.y.toFixed(2) + ')');
-  }, () => {});
-}
-
-function changeShape() {
-  shapeIdx = (shapeIdx + 1) % SHAPES.length;
-  removeShape();
-  geo.addShape(SHAPES[shapeIdx].make(), { color: 0x22c55e, opacity: 0.92 });
-  geo.shape.rotation.z = curRot;
-  geo.shape.position.set(curDx, curDy, 0);
-  C(1, () => hint.setText('形状切换为' + SHAPES[shapeIdx].name + '（保留当前变换）'), () => {});
-}
-
-const angleInput = panel.addInput('角度', () => applyTransform(), 6);
-angleInput.value = '45';
-const dxInput = panel.addInput('dx', () => applyTransform(), 5);
-dxInput.value = '0';
-const dyInput = panel.addInput('dy', () => applyTransform(), 5);
-dyInput.value = '0';
-panel.addButton('转变', applyTransform);
-panel.addButton('改变形状', changeShape);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
-
-updateMatrix(0, 0, 0);
 scene.start(engine);

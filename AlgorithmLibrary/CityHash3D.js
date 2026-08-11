@@ -58,7 +58,7 @@ const states = ['a', 'c', 'd', '种子 x'].map((name, i) =>
   new VBox(scene, { w: 150, h: 48, d: 48, x: -235 + i * 158, y: 45, z: 0, label: name + ' = 0', color: PUR, emissive: PUR }));
 const outBox = new VBox(scene, { w: 240, h: 55, d: 55, x: 0, y: -95, z: 0, label: 'hash = 0', color: DIM, emissive: DIM });
 new VText(scene, { text: '"city hash demo!!" = 16 字节 → 3 个 64bit 块并行载入 a/c/d', x: 0, y: 218, z: 0, color: PALETTE.textDim, scale: 0.7 });
-new VText(scene, { text: '特色：4 路流水线并行（a/c/d + 种子）· 大素数 K1/K2 乘法 · 无内存依赖', x: 0, y: -135, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '特色：4 路流水线并行', x: 0, y: -138, z: 0, color: PALETTE.textDim, scale: 0.6 });
 const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
 const outT = new VText(scene, { text: '', x: 0, y: -190, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 const SNAME = ['a', 'c', 'd', '种子 x'];

@@ -38,14 +38,14 @@ const CX = k => -120 + k * 60;
 const charBoxes = S1.split('').map((ch, k) =>
   new VBox(scene, { w: 50, h: 50, d: 50, x: CX(k), y: 170, z: 0, label: ch, color: DIM, emissive: DIM }));
 const codeT = S1.split('').map((ch, k) =>
-  new VText(scene, { text: '', x: CX(k), y: 210, z: 0, color: PALETTE.textDim, scale: 0.42 }));
+  new VText(scene, { text: '', x: CX(k), y: 196, z: 0, color: PALETTE.textDim, scale: 0.42 }));
 const eqT = new VText(scene, { text: '', x: 0, y: 115, z: 0, color: PALETTE.textGlow, scale: 0.6 });
 const hT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: GOLD, scale: 0.62 });
 const bitBoxes = [...Array(BITS)].map((_, b) =>
   new VBox(scene, { w: 10, h: 10, d: 10, x: -217 + b * 14, y: 5, z: 0, label: b % 4 === 0 ? String((BITS - 1 - b)) : '', color: DIM, emissive: DIM }));
-new VText(scene, { text: 'BKDR 哈希：每个字符「乘 31 再相加」—— 31 是质数，让相邻字符的贡献错开位次，冲突远少于朴素求和', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: 'BKDR：乘 31 再加', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.6 });
 new VText(scene, { text: '下方 = 32 位寄存器的每一位（金色 = 1）；第 2 行演示「world」的哈希，字符被滚动送入同一个寄存器', x: 0, y: -70, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
+const stageT = new VText(scene, { text: '', x: 0, y: 260, z: 0, color: GOLD, scale: 0.72 });
 const outT = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 function setBits(h) { bitBoxes.forEach((b, i) => b.setColor(((h >>> (BITS - 1 - i)) & 1) === 1 ? GOLD : DIM, ((h >>> (BITS - 1 - i)) & 1) === 1 ? GOLD : DIM)); }
@@ -53,7 +53,7 @@ function resetAll() {
   engine.clear();
   for (let k = 0; k < N; k++) {
     charBoxes[k].setColor(DIM, DIM); charBoxes[k].setText(S1[k]);
-    codeT[k].setText(''); codeT[k].moveTo(CX(k), 210, 0, 1);
+    codeT[k].setText(''); codeT[k].moveTo(CX(k), 196, 0, 1);
   }
   setBits(0);
   eqT.setText(''); hT.setText(''); stageT.setText(''); outT.setText('');
@@ -74,7 +74,7 @@ function animateHash(label, stepsArr, targetT, useRow2) {
       stageT.setText(`${label} 第 ${t + 1} 个字符：寄存器滚动混合 —— 前一位的贡献随 ×31 左移约 5 位，永不丢失`);
     });
   });
-  C(650, () => { targetT.setText(`哈希值 = ${stepsArr[stepsArr.length - 1].h}`); });
+  C(650, () => { if (targetT) targetT.setText(`哈希值 = ${stepsArr[stepsArr.length - 1].h}`); });
 }
 
 function runBKDR() {

@@ -34,7 +34,7 @@ new VText(scene, { text: '卷积核 2×2（黄=1）', x: 325, y: 215, z: 0, colo
 // 2×2 特征图（初始暗，滑动后点亮）
 const CONV_VAL = [[2, 0], [0, 2]];
 const convBoxes = CONV_VAL.map((row, r) => row.map((v, c) => new VBox(scene, { w: 84, h: 84, d: 26, x: kcols[c], y: -130 + (r ? -40 : 0), z: 0, label: '?', color: DIM, emissive: 0 })));
-new VText(scene, { text: '特征图 2×2（卷积结果）', x: 325, y: -165, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '特征图 2×2（卷积结果）', x: 325, y: -156, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
 // 最大池化输出
 const poolBox = new VBox(scene, { w: 84, h: 84, d: 26, x: 520, y: -85, z: 0, label: 'max = 2', color: BLUE, emissive: BLUE });

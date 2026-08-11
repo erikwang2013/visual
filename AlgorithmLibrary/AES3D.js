@@ -12,11 +12,24 @@ const panel = new ControlPanel({ engine });
 const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
 const YELLOW = 0xfacc15, GREEN = 0x4ade80, ORANGE = 0xfb923c, BLUE = 0x60a5fa;
-const hint = new VText(scene, { text: '点击「运行一轮」开始', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行一轮」开始', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
 
 // ---- 真实 AES 原语 ----
-const SBOX = [0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76];
+// 完整 256 项 AES S 盒：GF(2⁸) 乘法逆元（生成元 3 的离散对数表）+ 仿射变换
+const SBOX = (() => {
+  const s = new Uint8Array(256);
+  const exp = new Uint8Array(256), log = new Uint8Array(256);
+  let x = 1;
+  for (let i = 0; i < 255; i++) { exp[i] = x; log[x] = i; x ^= (x << 1) ^ (x & 0x80 ? 0x1b : 0); x &= 0xff; }
+  exp[255] = exp[0]; // 3²⁵⁵ ≡ 1，使 255 - log[i] 落在表内
+  const rotl8 = (v, n) => ((v << n) | (v >>> (8 - n))) & 0xff;
+  for (let i = 0; i < 256; i++) {
+    const inv = i === 0 ? 0 : exp[255 - log[i]];
+    s[i] = inv ^ rotl8(inv, 1) ^ rotl8(inv, 2) ^ rotl8(inv, 3) ^ rotl8(inv, 4) ^ 0x63;
+  }
+  return s;
+})();
 const xtime = a => ((a << 1) ^ (a & 0x80 ? 0x1b : 0)) & 0xff;
 const gfMul = (a, b) => {
   let r = 0;
@@ -37,8 +50,8 @@ for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
   box[r][c] = new VBox(scene, { w: 56, h: 56, d: 56, x: px(c), y: py(r), z: 0, label: hex2(val[r][c]), color: PALETTE.node, emissive: PALETTE.nodeEmissive });
 }
 for (let r = 0; r < 4; r++) new VText(scene, { text: '行 ' + r, x: -170, y: py(r), z: 0, color: PALETTE.textDim, scale: 0.65 });
-for (let c = 0; c < 4; c++) new VText(scene, { text: '列 ' + c, x: px(c), y: 270, z: 0, color: PALETTE.textDim, scale: 0.65 });
-new VText(scene, { text: '输入 000102...0F（列主序填充）', x: 0, y: 300, z: 0, color: PALETTE.textDim, scale: 0.7 });
+for (let c = 0; c < 4; c++) new VText(scene, { text: '列 ' + c, x: px(c), y: 262, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '输入 000102...0F（列主序填充）', x: 0, y: 290, z: 0, color: PALETTE.textDim, scale: 0.6 });
 const outText = new VText(scene, { text: '', x: 0, y: -110, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 
 function resetAll() {

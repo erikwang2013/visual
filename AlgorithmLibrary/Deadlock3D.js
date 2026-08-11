@@ -20,9 +20,10 @@ const procs = ['P1', 'P2', 'P3'].map((n, i) => new VBox(scene, { w: 92, h: 92, d
 const resBoxes = [new VBox(scene, { w: 92, h: 92, d: 92, x: -100, y: -95, z: 0, label: 'R1', color: BLUE, emissive: BLUE }),
   new VBox(scene, { w: 92, h: 92, d: 92, x: 100, y: -95, z: 0, label: 'R2', color: BLUE, emissive: BLUE })];
 new VText(scene, { text: '资源实例点（每资源 1 个）', x: 0, y: -165, z: 0, color: PALETTE.textDim, scale: 0.6 });
+// 实例点放在盒子前面板右上角，避开居中的 R1/R2 标签（标签半宽 20.5，点半宽 9）
 const dotT = [
-  new VText(scene, { text: '●', x: -100, y: -85, z: 20, color: PALETTE.textGlow, scale: 0.6 }),
-  new VText(scene, { text: '●', x: 100, y: -85, z: 20, color: PALETTE.textGlow, scale: 0.6 }),
+  new VText(scene, { text: '●', x: -66, y: -73, z: 20, color: PALETTE.textGlow, scale: 0.6 }),
+  new VText(scene, { text: '●', x: 134, y: -73, z: 20, color: PALETTE.textGlow, scale: 0.6 }),
 ];
 
 // 5 条边：请求边 P→R（黄），分配边 R→P（蓝）；前 4 条成环

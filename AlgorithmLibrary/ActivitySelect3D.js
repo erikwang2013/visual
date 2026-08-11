@@ -39,9 +39,9 @@ const bars = ACTS.map((a, i) => {
 tubeBetween(scene, { x: -360, y: -140, z: 0 }, { x: 24, y: -140, z: 0 }, { color: PALETTE.edge, opacity: 0.5, radius: 1.5 });
 [0, 4, 8, 12, 16].forEach(t =>
   new VText(scene, { text: String(t), x: -360 + t * K, y: -160, z: 0, color: PALETTE.textDim, scale: 0.5 }));
-new VText(scene, { text: '11 个活动（开始 s, 结束 f）按结束时间排好 —— 一间教室，最多能排几个不冲突的活动？', x: 0, y: 248, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: '11 个活动（开始 s, 结束 f）按结束时间排好 —— 一间教室，最多能排几个不冲突的活动？', x: 0, y: 196, z: 0, color: PALETTE.textDim, scale: 0.55 });
 new VText(scene, { text: '贪心策略：每次选「结束最早且与已选兼容」的活动 —— 留下的时间最多，后续选择空间最大', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const stageT = new VText(scene, { text: '', x: 0, y: 265, z: 0, color: GOLD, scale: 0.72 });
+const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.68 });
 const outT = new VText(scene, { text: '', x: 0, y: -245, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 const totalT = new VText(scene, { text: '', x: 0, y: -170, z: 0, color: GREEN, scale: 0.8 });
 

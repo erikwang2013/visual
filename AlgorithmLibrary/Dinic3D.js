@@ -1,275 +1,155 @@
-// AlgorithmLibrary/Dinic3D.js
-// 最大流（Dinic 算法）：6 节点有向图，源 s → 汇 t，边带容量/流量标注。
-// BFS 分层（level 标注）→ DFS 找增广路（路径边红色高亮）→ 残量更新（流量标注变化动画）
-// → 重复至无增广路，状态文本显示最大流值。
+// AlgorithmLibrary/Dinic3D.js — Dinic 最大流：BFS 分层网络（level 标注）+ DFS 阻塞流 + 残量更新（function* 生成器驱动）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Graph3D } from '../3D/modes/Graph3D.js';
-import { VText } from '../3D/VisualObject3D.js';
+import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Dinic3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 620], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 280, 700], fov: 55 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const N = 6, R = 185, SRC = 0, SNK = 5;
-const NAMES = ['s', '1', '2', '3', '4', 't'];
-const graph = new Graph3D(scene, { radius: 16 });
-const POS = [];
-for (let i = 0; i < N; i++) {
-  const a = (i / N) * Math.PI * 2 - Math.PI / 2;
-  POS[i] = [Math.cos(a) * R, 0, Math.sin(a) * R];
-  graph.addNode(String(i), NAMES[i], POS[i][0], POS[i][1], POS[i][2]);
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「运行演示」开始：Dinic 最大流（BFS 分层 + DFS 阻塞流）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: -245, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+
+const N = 6;
+const POS = [[0, 220, 0], [-120, 73, 0], [120, 73, 0], [-120, -73, 0], [120, -73, 0], [0, -220, 0]];
+const NAME = ['s', '1', '2', '3', '4', 't'];
+const E = [[0, 1, 3], [0, 2, 2], [1, 3, 2], [1, 4, 2], [2, 3, 1], [2, 4, 2], [3, 4, 1], [3, 5, 2], [4, 5, 3]];
+const nodeView = new Map();
+const edgeView = new Map();   // edgeIdx -> { tube, lbl }
+const lvlView = new Map();    // i -> level 标签
+let flow = [], level = [];
+
+function tube(a, b) {
+  const curve = new THREE.CatmullRomCurve3([a, b]);
+  return new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
 }
-
-const EDGES = [[0, 1], [0, 2], [1, 2], [1, 3], [2, 3], [2, 4], [3, 5], [4, 3], [4, 5]];
-const adj = Array.from({ length: N }, () => []);
-const cap = new Map();      // "u->v" -> 容量
-const flow = new Map();     // "u->v" -> 当前流量
-const arrows = new Map();   // "u->v" -> 箭头锥体
-const flowLabels = new Map(); // "u->v" -> VText
-const levelLabels = [];
-
-function keyOf(a, b) { return a + '->' + b; }
-
-function addArrow(a, b) {
-  const A = graph.nodes.get(String(a)).node.mesh;
-  const B = graph.nodes.get(String(b)).node.mesh;
-  const dir = B.position.clone().sub(A.position).normalize();
-  const tip = B.position.clone().addScaledVector(dir, -(graph.radius + 5));
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(8, 18, 10), new THREE.MeshBasicMaterial({ color: PALETTE.edge }));
-  cone.position.copy(tip);
-  cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-  scene.add(cone);
-  arrows.set(keyOf(a, b), cone);
+function clearView() {
+  nodeView.forEach(v => scene.remove(v.mesh));
+  edgeView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); scene.remove(e.lbl.sprite); });
+  nodeView.clear(); edgeView.clear();
 }
-
-function edgeMid(a, b) {
-  const A = graph.nodes.get(String(a)).node.mesh;
-  const B = graph.nodes.get(String(b)).node.mesh;
-  return A.position.clone().add(B.position).multiplyScalar(0.5).add(new THREE.Vector3(0, 18, 0));
-}
-
 function buildGraph() {
-  for (const cone of arrows.values()) scene.remove(cone);
-  arrows.clear();
-  for (const vt of flowLabels.values()) vt.remove();
-  flowLabels.clear();
-  for (const [a, b] of EDGES) {
-    if (!adj[a].includes(b)) adj[a].push(b);
-    graph.addEdge(String(a), String(b), { directed: true });
-    addArrow(a, b);
-    const mid = edgeMid(a, b);
-    flowLabels.set(keyOf(a, b), new VText(scene, { text: '0/' + cap.get(keyOf(a, b)), x: mid.x, y: mid.y, z: mid.z, color: PALETTE.textDim, scale: 0.7 }));
+  clearView();
+  for (let i = 0; i < N; i++) {
+    const [x, y, z] = POS[i];
+    const vn = new VNode(scene, { radius: 21, x, y, z, label: NAME[i], color: BLUE, emissive: BLUE });
+    nodeView.set(i, vn);
+    const lT = new VText(scene, { text: '', x: 0, y: 46, z: 0, color: CYAN, scale: 0.6 });
+    vn.mesh.add(lT.sprite);
+    lvlView.set(i, lT);
+  }
+  for (let i = 0; i < E.length; i++) {
+    const [u, v, c] = E[i];
+    const a = new THREE.Vector3(...POS[u]), b = new THREE.Vector3(...POS[v]);
+    const m = tube(a, b);
+    scene.add(m);
+    const mid = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2 + 18, (a.z + b.z) / 2);
+    const lbl = new VText(scene, { text: '0/' + c, x: mid.x, y: mid.y, z: mid.z, color: PALETTE.yellow, scale: 0.58 });
+    edgeView.set(i, { tube: m, lbl });
   }
 }
+function setNodeColor(i, c) { nodeView.get(i).setColor(c, c); }
+function setEdgeColor(i, c, op) { const e = edgeView.get(i); e.tube.material.color.setHex(c); e.tube.material.opacity = op; }
+function setEdgeLbl(i) { const [u, v, c] = E[i]; edgeView.get(i).lbl.setText(flow[i] + '/' + c); }
+function resetEdgeColors() { edgeView.forEach(e => { e.tube.material.color.setHex(WHITE); e.tube.material.opacity = 0.55; }); }
+function showLevels() { level.forEach((l, i) => lvlView.get(i).setText(l === -1 ? '' : 'L' + l)); }
 
-function setEdgeColor(a, b, color) {
-  const k = keyOf(a, b);
-  const e = graph.edges.get(k);
-  if (e) { e.mesh.material.color.setHex(color); e.mesh.material.emissiveIntensity = 0; }
-  const cone = arrows.get(k);
-  if (cone) cone.material.color.setHex(color);
-}
-
-function resetEdge(a, b) {
-  const k = keyOf(a, b);
-  const e = graph.edges.get(k);
-  if (e) { e.mesh.material.color.setHex(PALETTE.edge); e.mesh.material.emissiveIntensity = 0; }
-  const cone = arrows.get(k);
-  if (cone) cone.material.color.setHex(PALETTE.edge);
-}
-
-function setFlowText(k) {
-  const vt = flowLabels.get(k);
-  if (vt) vt.setText(flow.get(k) + '/' + cap.get(k), { color: PALETTE.textDim, scale: 0.7 });
-}
-
-function animateFlowLabel(a, b) {
-  const k = keyOf(a, b);
-  const vt = flowLabels.get(k);
-  if (!vt) return;
-  vt.setText(flow.get(k) + '/' + cap.get(k), { color: flow.get(k) >= cap.get(k) ? '#fde68a' : PALETTE.textGlow, scale: 0.7 });
-  vt.sprite.scale.set(0.1, 0.05, 1);
-  C(260, (p) => { const s = 0.01 + p * 0.99; vt.sprite.scale.set(70 * s, 35 * s, 1); }, () => vt.sprite.scale.set(70, 35, 1));
-}
-
-// Dinic 模型：分阶段（BFS 分层 + 本层多条增广路），预计算全部动画步骤
-function dinicModel() {
-  const capR = new Map([...cap].map(([k, v]) => [k, v]));
-  const phases = [];
-  let maxflow = 0;
-  for (;;) {
-    const level = Array(N).fill(-1);
-    const order = [];
-    const q = [SRC];
-    level[SRC] = 0;
-    order.push([SRC, 0]);
-    while (q.length) {
-      const u = q.shift();
-      for (const v of adj[u]) {
-        const k = keyOf(u, v);
-        if (level[v] < 0 && (capR.get(k) || 0) > 0) {
-          level[v] = level[u] + 1;
-          order.push([v, level[v]]);
-          q.push(v);
-        }
-      }
+function* bfsLevels() {
+  level = Array(N).fill(-1);
+  level[0] = 0;
+  const q = [0];
+  let head = 0;
+  while (head < q.length) {
+    const u = q[head++];
+    for (let i = 0; i < E.length; i++) {
+      const [a, b, c] = E[i];
+      if (a === u && flow[i] < c && level[b] === -1) { level[b] = level[u] + 1; q.push(b); }
+      if (b === u && flow[i] > 0 && level[a] === -1) { level[a] = level[u] + 1; q.push(a); }
     }
-    if (level[SNK] < 0) break;
-    const paths = [];
-    for (;;) {
-      const par = new Map();
-      const visited = new Set([SRC]);
-      const stack = [SRC];
-      let foundT = false;
-      while (stack.length && !foundT) {
-        const u = stack.pop();
-        for (const v of adj[u]) {
-          const k = keyOf(u, v);
-          if (visited.has(v)) continue;
-          if (level[v] === level[u] + 1 && (capR.get(k) || 0) > 0) {
-            visited.add(v);
-            par.set(v, u);
-            if (v === SNK) { foundT = true; break; }
-            stack.push(v);
-          }
-        }
+  }
+  showLevels();
+  yield S(() => outT.setText('BFS 分层：' + NAME.map((n, i) => n + '=L' + level[i]).join('  ') + (level[N - 1] === -1 ? ' → t 不可达' : ' → 汇 t 在 L' + level[N - 1])));
+  yield W(550);
+  return level[N - 1] !== -1;
+}
+
+function* dfsBlocking(u, pushed) {
+  if (u === N - 1) { setNodeColor(u, GOLD); return pushed; }
+  for (let i = 0; i < E.length; i++) {
+    const [a, b, c] = E[i];
+    if (a === u && flow[i] < c && level[b] === level[u] + 1) {
+      setEdgeColor(i, CYAN, 1);
+      yield S(() => outT.setText('DFS 沿分层边 ' + NAME[a] + '→' + NAME[b] + '（残量 ' + (c - flow[i]) + '）'));
+      yield W(280);
+      const d = yield* dfsBlocking(b, Math.min(pushed, c - flow[i]));
+      if (d > 0) {
+        flow[i] += d;
+        setEdgeLbl(i);
+        setEdgeColor(i, GOLD, 1);
+        yield S(() => outT.setText('增广 ' + d + '：' + NAME[a] + '→' + NAME[b] + ' flow → ' + flow[i] + '/' + c));
+        yield W(320);
+        return d;
       }
-      if (!foundT) break;
-      const chain = [];
-      let v = SNK;
-      let delta = Infinity;
-      while (v !== SRC) {
-        const u = par.get(v);
-        chain.unshift([u, v]);
-        delta = Math.min(delta, capR.get(keyOf(u, v)));
-        v = u;
-      }
-      for (const [u, vv] of chain) {
-        const k = keyOf(u, vv);
-        capR.set(k, capR.get(k) - delta);
-        const rk = keyOf(vv, u);
-        capR.set(rk, (capR.get(rk) || 0) + delta);
-      }
-      maxflow += delta;
-      paths.push({ chain, delta });
+      resetEdgeColors();
     }
-    phases.push({ levels: order, paths });
   }
-  return { phases, maxflow };
+  level[u] = -1;  // 剪枝：该点已无路
+  return 0;
 }
 
-const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「运行 Dinic」计算 s → t 最大流', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-
-function clearLevelLabels() {
-  for (const vt of levelLabels) vt.remove();
-  levelLabels.length = 0;
-}
-
-function spawnLevelLabel(u, lv) {
-  const [x, , z] = POS[u];
-  const vt = new VText(scene, { text: 'L=' + lv, x, y: 82, z, color: PALETTE.textGlow, scale: 0.6 });
-  vt.sprite.scale.set(0.1, 0.05, 1);
-  C(220, (p) => { const s = 0.01 + p * 0.99; vt.sprite.scale.set(60 * s, 30 * s, 1); }, () => vt.sprite.scale.set(0.1, 0.05, 1));
-  levelLabels.push(vt);
-}
-
-function runDinic() {
-  engine.clear();
-  clearLevelLabels();
-  for (let i = 0; i < N; i++) graph.dehighlightNode(String(i), C);
-  for (const [a, b] of EDGES) resetEdge(a, b);
-  for (const k of cap.keys()) { flow.set(k, 0); setFlowText(k); }
-  const { phases, maxflow } = dinicModel();
-  let pi = 0;
-  function nextPhase() {
-    if (pi >= phases.length) { finish(maxflow); return; }
-    const ph = phases[pi];
-    let li = 0;
-    function nextLevel() {
-      if (li >= ph.levels.length) { startPaths(); return; }
-      const [u, lv] = ph.levels[li];
-      graph.highlightNode(String(u), C);
-      spawnLevelLabel(u, lv);
-      hint.setText('BFS 分层：节点 ' + NAMES[u] + ' 在第 ' + lv + ' 层');
-      li++;
-      C(200, nextLevel);
+function* dinicGen() {
+  flow = E.map(() => 0);
+  buildGraph();
+  yield S(() => outT.setText('Dinic：BFS 建分层网络 → DFS 沿 level 递增边找阻塞流 → 重复直到 t 不可达'));
+  yield W(650);
+  let total = 0, phase = 0;
+  while (true) {
+    phase++;
+    yield S(() => outT.setText('——— 阶段 ' + phase + '：BFS 分层 ———'));
+    yield W(350);
+    const ok = yield* bfsLevels();
+    if (!ok) {
+      yield S(() => outT.setText('t 不可达 → 最大流已求得！'));
+      yield W(450);
+      break;
     }
-    function startPaths() {
-      let qi = 0;
-      function nextPath() {
-        if (qi >= ph.paths.length) { pi++; C(500, nextPhase); return; }
-        const p = ph.paths[qi];
-        for (const [u, v] of p.chain) setEdgeColor(u, v, 0xef4444);
-        hint.setText('DFS 找到增广路 ' + p.chain.map(([u, v]) => NAMES[u] + '→' + NAMES[v]).join(' ') + '，增广 ' + p.delta);
-        qi++;
-        let ei = 0;
-        function nextEdge() {
-          if (ei >= p.chain.length) { C(400, nextPath); return; }
-          const [u, v] = p.chain[ei];
-          flow.set(keyOf(u, v), flow.get(keyOf(u, v)) + p.delta);
-          animateFlowLabel(u, v);
-          resetEdge(u, v);
-          ei++;
-          C(260, nextEdge);
-        }
-        nextEdge();
-      }
-      nextPath();
-    }
-    nextLevel();
+    yield S(() => outT.setText('DFS 求阻塞流：只沿 level +1 的边前进'));
+    yield W(400);
+    let got;
+    do {
+      resetEdgeColors();
+      got = yield* dfsBlocking(0, Infinity);
+      total += got;
+      if (got > 0) yield S(() => outT.setText('本轮已增广，当前总流量 ' + total));
+    } while (got > 0);
+    yield S(() => outT.setText('阻塞流完成：阶段 ' + phase + ' 共增广至总流量 ' + total));
+    yield W(550);
+    resetEdgeColors();
   }
-  function finish(mf) {
-    for (const [a, b] of EDGES) {
-      if (flow.get(keyOf(a, b)) > 0) setEdgeColor(a, b, 0x34d399);
-    }
-    status.textContent = '最大流 = ' + mf;
-    hint.setText('Dinic 完成：s → t 最大流为 ' + mf);
-  }
-  nextPhase();
+  yield S(() => {
+    outT.setText('最大流 = ' + total + '：' + E.map(([u, v, c], i) => NAME[u] + '→' + NAME[v] + ' ' + flow[i] + '/' + c).join('，'));
+    status.textContent = 'Dinic 完成：最大流 ' + total + '，' + (phase - 1) + ' 个阶段，O(V²E)';
+  });
+  yield W(600);
+  resetEdgeColors();
+  nodeView.forEach(v => v.setColor(BLUE, BLUE));
 }
 
-function newGraph() {
-  engine.clear();
-  clearLevelLabels();
-  for (let i = 0; i < N; i++) graph.dehighlightNode(String(i), C);
-  for (const k of cap.keys()) {
-    cap.set(k, 1 + Math.floor(Math.random() * 9));
-    flow.set(k, 0);
-    setFlowText(k);
-    const [a, b] = k.split('->').map(Number);
-    resetEdge(a, b);
-  }
-  status.textContent = '';
-  hint.setText('新容量已生成，点击「运行 Dinic」计算最大流');
+function* runDinic() {
+  hint.setText('Dinic：分层网络 + 阻塞流，一般快于 EK');
+  yield W(400);
+  yield* dinicGen();
+  yield S(() => { outT.setText(''); hint.setText('Dinic 完成：最大流 = ' + flow.reduce((s, f, i) => E[i][0] === 0 ? s + f : s, 0)); });
 }
 
-function clearAll() {
-  engine.clear();
-  clearLevelLabels();
-  for (let i = 0; i < N; i++) graph.dehighlightNode(String(i), C);
-  for (const k of cap.keys()) {
-    flow.set(k, 0);
-    setFlowText(k);
-    const [a, b] = k.split('->').map(Number);
-    resetEdge(a, b);
-  }
-  status.textContent = '已清空';
-  hint.setText('已清空，点击「运行 Dinic」计算最大流');
-}
-
-for (const [a, b] of EDGES) cap.set(keyOf(a, b), 1 + Math.floor(Math.random() * 9));
-buildGraph();
-
-panel.addButton('运行 Dinic', runDinic);
-panel.addButton('新图', newGraph);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+panel.addButton('运行演示', () => engine.start(runDinic()));
+panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；节点上方 = level，青 = DFS 探测，金 = 增广边；标签 = 流量/容量）');
 
 scene.start(engine);

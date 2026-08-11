@@ -1,149 +1,150 @@
-// AlgorithmLibrary/ConnectedComponent3D.js
-// 连通分量：左右两个分量的样例图，逐分量 BFS 遍历，
-// 节点与边染成分量色（分量1 青绿、分量2 紫色），并标注分量编号。
+// AlgorithmLibrary/ConnectedComponent3D.js — 连通分量：左右两个分量的样例图，逐分量 BFS 遍历，节点与边染成分量色并标注分量编号（function* 生成器驱动）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Graph3D } from '../3D/modes/Graph3D.js';
-import { VText } from '../3D/VisualObject3D.js';
+import { VText, VNode, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ConnectedComponent3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 620], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 300, 640], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
+
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「运行演示」开始：连通分量（逐分量 BFS）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: -240, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
 const N = 8;
-const COMP_COLORS = [0x22d3ee, 0xa78bfa]; // 分量1 青绿，分量2 紫
-const graph = new Graph3D(scene, { radius: 16 });
+const COMP_COLORS = [CYAN, PUR];   // 分量1 青，分量2 紫
+const nodeView = new Map();
+const edgeView = new Map();        // 'a-b' -> { tube, lbl }，a<b
+const compView = new Map();        // i -> 分量编号标签
+const queueBoxes = [];
+const adj = Array.from({ length: N }, () => []);
+const compOf = new Array(N).fill(-1);
 
-// 分量1：左侧 5 节点圆；分量2：右侧 3 节点圆
-function circ(cx, cz, r, i, n) {
-  const a = (i / n) * Math.PI * 2 - Math.PI / 2;
-  return [cx + Math.cos(a) * r, 0, cz + Math.sin(a) * r];
-}
+function circ(cx, cz, r, i, n) { const a = (i / n) * Math.PI * 2 - Math.PI / 2; return [cx + Math.cos(a) * r, 0, cz + Math.sin(a) * r]; }
 const POS = [];
 for (let i = 0; i < 5; i++) POS[i] = circ(-170, 0, 120, i, 5);
 for (let i = 0; i < 3; i++) POS[5 + i] = circ(200, 0, 95, i, 3);
-for (let i = 0; i < N; i++) graph.addNode(String(i), String(i), POS[i][0], POS[i][1], POS[i][2]);
-
 const EDGES = [[0, 1], [1, 2], [2, 3], [3, 4], [0, 4], [1, 3], [5, 6], [6, 7], [5, 7]];
-const adj = Array.from({ length: N }, () => []);
-for (const [a, b] of EDGES) {
-  graph.addEdge(String(a), String(b));
-  adj[a].push(b); adj[b].push(a);
-}
 
-// ---- 模型（与 /tmp/3dtest/graphmodel.mjs 一致）----
-function connectedModel(adj, n) {
-  const comps = [];
-  const seen = new Set();
-  for (let s = 0; s < n; s++) {
-    if (seen.has(s)) continue;
-    const comp = [];
-    const stack = [s];
-    seen.add(s);
-    while (stack.length) {
-      const u = stack.pop();
-      comp.push(u);
-      for (const v of adj[u]) if (!seen.has(v)) { seen.add(v); stack.push(v); }
-    }
-    comps.push(comp);
+function tube(a, b) {
+  const curve = new THREE.CatmullRomCurve3([a, b]);
+  return new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
+}
+function clearView() {
+  nodeView.forEach(v => scene.remove(v.mesh));
+  edgeView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); });
+  queueBoxes.forEach(e => scene.remove(e.box.mesh));
+  nodeView.clear(); edgeView.clear(); queueBoxes.length = 0;
+}
+function buildGraph() {
+  clearView();
+  for (let i = 0; i < N; i++) { adj[i].length = 0; compOf[i] = -1; }
+  for (let i = 0; i < N; i++) {
+    const [x, y, z] = POS[i];
+    const vn = new VNode(scene, { radius: 20, x, y, z, label: String(i), color: BLUE, emissive: BLUE });
+    nodeView.set(i, vn);
+    const cT = new VText(scene, { text: '', x: 0, y: -48, z: 0, color: WHITE, scale: 0.5 });
+    vn.mesh.add(cT.sprite);
+    compView.set(i, cT);
   }
-  return comps;
+  for (const [a, b] of EDGES) {
+    const pa = new THREE.Vector3(...POS[a]), pb = new THREE.Vector3(...POS[b]);
+    const m = tube(pa, pb);
+    scene.add(m);
+    const key = a < b ? a + '-' + b : b + '-' + a;
+    edgeView.set(key, { tube: m });
+    adj[a].push(b); adj[b].push(a);
+  }
 }
-
-const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「运行连接组件」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const compLabels = [];
-
-function colorNode(id, color) {
-  const m = graph.nodes.get(String(id)).node.mesh;
-  const from = new THREE.Color(PALETTE.node);
-  const to = new THREE.Color(color);
-  C(300, (p) => {
-    m.material.color.copy(from).lerp(to, p);
-    m.material.emissive.setHex(color);
-  }, () => { m.material.color.setHex(PALETTE.node); m.material.emissive.setHex(PALETTE.nodeEmissive); });
+function setNodeColor(i, c) { nodeView.get(i).setColor(c, c); }
+function setEdgeColor(a, b, c, op) { const e = edgeView.get(a < b ? a + '-' + b : b + '-' + a); if (e) { e.tube.material.color.setHex(c); e.tube.material.opacity = op; } }
+function resetEdgeColors() { edgeView.forEach(e => { e.tube.material.color.setHex(WHITE); e.tube.material.opacity = 0.55; }); }
+function* pushBox(id) {
+  const x = -150 + queueBoxes.length * 55;
+  const box = new VBox(scene, { w: 42, h: 42, d: 20, x, y: 175, z: 0, label: id, color: ORANGE, emissive: ORANGE });
+  box.mesh.scale.setScalar(0.01);
+  yield A(280, p => { box.mesh.scale.setScalar(0.01 + 0.99 * p); });
+  queueBoxes.push({ id, box });
 }
-
-function colorEdge(a, b, color) {
-  const e = graph.edges.get(`${a}->${b}`);
+function* popBox() {
+  const e = queueBoxes.shift();
   if (!e) return;
-  const from = new THREE.Color(e.baseColor);
-  const to = new THREE.Color(color);
-  C(280, (p) => {
-    e.mesh.material.color.copy(from).lerp(to, p);
-    e.mesh.material.opacity = e.baseOpacity + p * 0.35;
-  }, () => { e.mesh.material.color.setHex(e.baseColor); e.mesh.material.opacity = e.baseOpacity; });
+  yield A(240, p => { e.box.mesh.scale.setScalar(1 - p); });
+  scene.remove(e.box.mesh);
+  const tasks = queueBoxes.map(b => ({ box: b.box, from: b.box.mesh.position.x }));
+  if (tasks.length) yield A(300, p => tasks.forEach(t => t.box.mesh.position.x = t.from - 55 * p));
 }
 
-function runCC() {
-  engine.clear();
-  for (let i = 0; i < N; i++) graph.dehighlightNode(String(i), C);
-  for (const key of graph.edges.keys()) {
-    const [a, b] = key.split('->');
-    graph.lightEdge(a, b, false, C);
-  }
-  compLabels.forEach((vt) => vt.remove());
-  compLabels.length = 0;
-
-  const comps = connectedModel(adj, N);
-  const compOf = Array(N).fill(-1);
-  comps.forEach((c, ci) => c.forEach((u) => { compOf[u] = ci; }));
-  const edgeComp = new Map();
-  for (const [a, b] of EDGES) edgeComp.set(`${a}->${b}`, compOf[a]);
-
-  // 预展开为扁平命令序列：命令 fn 会在动画期间每帧被调用，
-  // 若在 fn 内再入队命令会指数膨胀，必须一次性入队。
-  for (let ci = 0; ci < comps.length; ci++) {
-    const comp = comps[ci];
-    const color = COMP_COLORS[ci % COMP_COLORS.length];
-    // 分量编号标签（置于分量几何中心上方）
-    const cx = comp.reduce((s, u) => s + POS[u][0], 0) / comp.length;
-    const lbl = new VText(scene, { text: '连通分量 ' + (ci + 1), x: cx, y: 125, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-    lbl.sprite.scale.set(0.1, 0.05, 1);
-    C(300, (p) => { const s = 0.01 + p * 0.99; lbl.sprite.scale.set(80 * s, 40 * s, 1); }, () => lbl.sprite.remove());
-    compLabels.push(lbl);
-    C(1, () => hint.setText('开始遍历连通分量 ' + (ci + 1) + '：' + comp.join(', ')), () => {});
-    for (const u of comp) {
-      graph.highlightNode(String(u), C);
-      colorNode(u, color);
-      C(1, () => hint.setText('分量 ' + (ci + 1) + '：访问节点 ' + u), () => {});
-      // 点亮本分量内与该节点相连的边
-      for (const v of adj[u]) {
-        if (compOf[v] === ci && v > u) colorEdge(u, v, color);
-      }
-      C(160, () => {}, () => {});
+function* bfsComp(root, ci) {
+  const q = [root];
+  compOf[root] = ci;
+  setNodeColor(root, COMP_COLORS[ci]);
+  compView.get(root).setText('C' + (ci + 1));
+  yield* pushBox(String(root));
+  yield S(() => outT.setText('分量 ' + (ci + 1) + '：从节点 ' + root + ' 开始 BFS'));
+  yield W(350);
+  let head = 0;
+  while (head < q.length) {
+    const u = q[head++];
+    setNodeColor(u, GOLD);
+    yield S(() => outT.setText('出队 ' + u + '，扩展未访问邻居'));
+    yield* popBox();
+    yield W(280);
+    for (const v of adj[u]) {
+      if (compOf[v] !== -1) continue;
+      compOf[v] = ci;
+      setNodeColor(v, COMP_COLORS[ci]);
+      compView.get(v).setText('C' + (ci + 1));
+      setEdgeColor(u, v, COMP_COLORS[ci], 1);
+      q.push(v);
+      yield* pushBox(String(v));
+      yield S(() => outT.setText('入队 ' + v + ' → 同属分量 ' + (ci + 1)));
+      yield W(300);
     }
-    C(1, () => { status.textContent = '分量 ' + (ci + 1) + ' 完成（' + comp.join(', ') + '），共 ' + comps.length + ' 个分量'; }, () => {});
-    C(220, () => {}, () => {});
+    resetEdgeColors();
+    setNodeColor(u, COMP_COLORS[ci]);
   }
-  C(1, () => {
-    status.textContent = '共 ' + comps.length + ' 个连通分量，遍历完成';
-    hint.setText('连接组件分析完成：共 ' + comps.length + ' 个连通分量');
-  }, () => {});
 }
 
-function clearAll() {
-  engine.clear();
-  compLabels.forEach((vt) => vt.remove());
-  compLabels.length = 0;
-  for (const [, e] of graph.nodes) e.node.remove();
-  graph.nodes.clear();
-  for (const [, e] of graph.edges) {
-    scene.remove(e.mesh);
-    if (e.weightLabel) e.weightLabel.remove();
+function* ccGen() {
+  yield S(() => outT.setText('连通分量：反复选未访问节点做 BFS，一次 BFS 覆盖的节点 = 一个连通分量'));
+  yield W(600);
+  let ci = 0;
+  const members = [];
+  for (let i = 0; i < N; i++) members.push([]);
+  for (let i = 0; i < N; i++) {
+    if (compOf[i] === -1) {
+      yield S(() => outT.setText('——— 第 ' + (ci + 1) + ' 个分量：未访问节点 ' + i + ' 为新根 ———'));
+      yield W(350);
+      yield* bfsComp(i, ci);
+      for (let j = 0; j < N; j++) if (compOf[j] === ci) members[ci].push(j);
+      yield S(() => outT.setText('分量 ' + (ci + 1) + ' 完成：{' + members[ci].join(',') + '}，共 ' + members[ci].length + ' 个节点'));
+      yield W(500);
+      ci++;
+    }
   }
-  graph.edges.clear();
-  status.textContent = '';
-  hint.setText('已清空画布');
+  yield S(() => outT.setText('全部 ' + ci + ' 个连通分量：' + members.slice(0, ci).map((m, k) => 'C' + (k + 1) + '{' + m.join(',') + '}').join('  ')));
+  yield W(550);
+  yield S(() => { status.textContent = '连通分量完成：' + ci + ' 个，O(V+E)'; });
+  yield W(450);
+  resetEdgeColors();
 }
 
-panel.addButton('运行连接组件', runCC);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+function* runCC() {
+  buildGraph();
+  hint.setText('连通分量：BFS 逐分量染色');
+  yield W(400);
+  yield* ccGen();
+  yield S(() => { outT.setText(''); hint.setText('连通分量完成：青 = 分量 1，紫 = 分量 2'); });
+}
+
+panel.addButton('运行演示', () => engine.start(runCC()));
+panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；顶行 = BFS 队列；同色节点与边 = 同一连通分量，节点下方标注 C1/C2）');
 
 scene.start(engine);

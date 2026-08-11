@@ -1,152 +1,190 @@
-// AlgorithmLibrary/EdmondsKarp3D.js — 最大流（Edmonds-Karp）：BFS 找最短增广路并更新残量
+// AlgorithmLibrary/EdmondsKarp3D.js — Edmonds-Karp 最大流：BFS 找最短（边数最少）增广路 + 队列可视化 + 残余网络（function* 生成器驱动）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Graph3D } from '../3D/modes/Graph3D.js';
-import { VText } from '../3D/VisualObject3D.js';
+import { VText, VNode, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('EdmondsKarp3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 620], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const N = 6, R = 185, SRC = 0, SNK = 5;
-const NAMES = ['s', '1', '2', '3', '4', 't'];
-const graph = new Graph3D(scene, { radius: 16 });
-const POS = [];
-for (let i = 0; i < N; i++) {
-  const a = (i / N) * Math.PI * 2 - Math.PI / 2;
-  POS[i] = [Math.cos(a) * R, 0, Math.sin(a) * R];
-  graph.addNode(String(i), NAMES[i], POS[i][0], POS[i][1], POS[i][2]);
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「运行演示」开始：Edmonds-Karp 最大流（BFS 最短增广路）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+
+const N = 4;
+const POS = [[0, 170, 0], [-150, 0, 0], [150, 0, 0], [0, -170, 0]];
+const NAME = ['s', 'a', 'b', 't'];
+const E = [[0, 1, 3], [0, 2, 2], [1, 2, 1], [1, 3, 2], [2, 3, 3]];
+const nodeView = new Map();
+const edgeView = new Map();   // edgeIdx -> { tube, lbl }
+const resView = new Map();    // 'u->v' -> { tube, lbl } 反向残余边
+const queueBoxes = [];
+let flow = [];
+
+function tube(a, b, radius) {
+  const curve = new THREE.CatmullRomCurve3([a, b]);
+  return new THREE.Mesh(new THREE.TubeGeometry(curve, 4, radius || 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
 }
-const EDGES = [[0, 1], [0, 2], [1, 2], [1, 3], [2, 3], [2, 4], [3, 5], [4, 3], [4, 5]];
-const CAP = { '0->1': 12, '0->2': 8, '1->2': 6, '1->3': 10, '2->3': 10, '2->4': 4, '3->5': 16, '4->3': 6, '4->5': 8 };
-const adj = Array.from({ length: N }, () => []);
-const flow = new Map();
-const flowLabels = new Map();
-const arrows = new Map();
-const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「运行 EK」开始：BFS 找增广路', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-let buildDone = false;
-
-function keyOf(a, b) { return a + '->' + b; }
-
-function addArrow(a, b) {
-  const A = graph.nodes.get(String(a)).node.mesh;
-  const B = graph.nodes.get(String(b)).node.mesh;
-  const dir = B.position.clone().sub(A.position).normalize();
-  const tip = B.position.clone().addScaledVector(dir, -(graph.radius + 5));
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(8, 18, 10), new THREE.MeshBasicMaterial({ color: PALETTE.edge }));
-  cone.position.copy(tip);
-  cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-  scene.add(cone);
-  arrows.set(keyOf(a, b), cone);
+function clearView() {
+  nodeView.forEach(v => scene.remove(v.mesh));
+  edgeView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); scene.remove(e.lbl.sprite); });
+  resView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); scene.remove(e.lbl.sprite); });
+  queueBoxes.forEach(e => scene.remove(e.box.mesh));
+  nodeView.clear(); edgeView.clear(); resView.clear(); queueBoxes.length = 0;
 }
-
-function edgeMid(a, b) {
-  const A = graph.nodes.get(String(a)).node.mesh;
-  const B = graph.nodes.get(String(b)).node.mesh;
-  return A.position.clone().add(B.position).multiplyScalar(0.5).add(new THREE.Vector3(0, 18, 0));
-}
-
 function buildGraph() {
-  for (const [a, b] of EDGES) {
-    graph.addEdge(String(a), String(b), { directed: true });
-    addArrow(a, b);
-    adj[a].push(b);
-    flow.set(keyOf(a, b), 0);
-    const m = edgeMid(a, b);
-    const vt = new VText(scene, { text: '0/' + CAP[keyOf(a, b)], x: m.x, y: m.y, z: m.z, color: PALETTE.textDim, scale: 0.62 });
-    flowLabels.set(keyOf(a, b), vt);
+  clearView();
+  for (let i = 0; i < N; i++) {
+    const [x, y, z] = POS[i];
+    const vn = new VNode(scene, { radius: 21, x, y, z, label: NAME[i], color: BLUE, emissive: BLUE });
+    nodeView.set(i, vn);
   }
-  buildDone = true;
+  for (let i = 0; i < E.length; i++) {
+    const [u, v, c] = E[i];
+    const a = new THREE.Vector3(...POS[u]), b = new THREE.Vector3(...POS[v]);
+    const m = tube(a, b);
+    scene.add(m);
+    const mid = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2 + 18, (a.z + b.z) / 2);
+    const lbl = new VText(scene, { text: '0/' + c, x: mid.x, y: mid.y, z: mid.z, color: PALETTE.yellow, scale: 0.62 });
+    edgeView.set(i, { tube: m, lbl });
+  }
+}
+function setNodeColor(i, c) { nodeView.get(i).setColor(c, c); }
+function setEdgeColor(i, c, op) { const e = edgeView.get(i); e.tube.material.color.setHex(c); e.tube.material.opacity = op; }
+function setEdgeLbl(i) { const [u, v, c] = E[i]; edgeView.get(i).lbl.setText(flow[i] + '/' + c); }
+function resetEdgeColors() { edgeView.forEach(e => { e.tube.material.color.setHex(WHITE); e.tube.material.opacity = 0.55; }); }
+function refreshResidual() {
+  resView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); scene.remove(e.lbl.sprite); });
+  resView.clear();
+  for (let i = 0; i < E.length; i++) {
+    if (flow[i] === 0) continue;
+    const [u, v] = E[i];
+    const a = new THREE.Vector3(...POS[v]), b = new THREE.Vector3(...POS[u]);
+    const m = tube(a, b, 1.6);
+    m.material.color.setHex(PUR); m.material.opacity = 0.9;
+    scene.add(m);
+    const mid = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2 - 22, (a.z + b.z) / 2);
+    const lbl = new VText(scene, { text: String(flow[i]), x: mid.x, y: mid.y, z: mid.z, color: PUR, scale: 0.55 });
+    resView.set(v + '->' + u, { tube: m, lbl });
+  }
+}
+function* pushBox(id) {
+  const x = -120 + queueBoxes.length * 55;
+  const box = new VBox(scene, { w: 42, h: 42, d: 20, x, y: 175, z: 0, label: id, color: ORANGE, emissive: ORANGE });
+  box.mesh.scale.setScalar(0.01);
+  yield A(280, p => { box.mesh.scale.setScalar(0.01 + 0.99 * p); });
+  queueBoxes.push({ id, box });
+}
+function* popBox() {
+  const e = queueBoxes.shift();
+  if (!e) return;
+  yield A(240, p => { e.box.mesh.scale.setScalar(1 - p); });
+  scene.remove(e.box.mesh);
+  const tasks = queueBoxes.map(b => ({ box: b.box, from: b.box.mesh.position.x }));
+  if (tasks.length) yield A(300, p => tasks.forEach(t => t.box.mesh.position.x = t.from - 55 * p));
 }
 
-function setFlow(a, b, v) {
-  const vt = flowLabels.get(keyOf(a, b));
-  C(300, () => vt.setText(v + '/' + CAP[keyOf(a, b)], { color: PALETTE.textGlow }), () => {});
-  flow.set(keyOf(a, b), v);
+function* bfsPath() {
+  const parent = Array(N).fill(-1), dir = Array(N).fill(0), resC = Array(N).fill(0);
+  const visited = new Set([0]);
+  const q = [0];
+  yield* pushBox(NAME[0]);
+  setNodeColor(0, ORANGE);
+  let head = 0, found = false;
+  while (head < q.length && !found) {
+    const u = q[head++];
+    setNodeColor(u, GOLD);
+    yield S(() => outT.setText('BFS 出队 ' + NAME[u] + '，扩展残余出边'));
+    yield* popBox();
+    yield W(320);
+    for (let i = 0; i < E.length; i++) {
+      const [a, b, c] = E[i];
+      if (a === u && flow[i] < c && !visited.has(b)) {
+        visited.add(b); parent[b] = i; dir[b] = 1; resC[b] = c - flow[i]; q.push(b);
+        setEdgeColor(i, CYAN, 1);
+        setNodeColor(b, ORANGE);
+        yield S(() => outT.setText('入队 ' + NAME[b] + '（余量 ' + (c - flow[i]) + '）'));
+        yield* pushBox(NAME[b]);
+        yield W(300);
+      }
+      if (b === u && flow[i] > 0 && !visited.has(a)) {
+        visited.add(a); parent[a] = i; dir[a] = -1; resC[a] = flow[i]; q.push(a);
+        setNodeColor(a, ORANGE);
+        yield S(() => outT.setText('反向残余入队 ' + NAME[a] + '（退流 ' + flow[i] + '）'));
+        yield* pushBox(NAME[a]);
+        yield W(300);
+      }
+    }
+    resetEdgeColors();
+    setNodeColor(u, GREEN);
+  }
+  setNodeColor(0, GREEN);
+  return visited.has(N - 1) ? { parent, dir, resC } : null;
 }
 
-function runEK() {
-  engine.clear();
-  if (!buildDone) buildGraph();
-  for (let u = 0; u < N; u++) for (const v of adj[u]) flow.set(keyOf(u, v), 0);
-  for (const [k, vt] of flowLabels) vt.setText('0/' + CAP[k]);
-  for (const [, cone] of arrows) cone.material.color.setHex(PALETTE.edge);
-
-  let total = 0;
-  const rounds = [];
+function* ekGen() {
+  flow = E.map(() => 0);
+  buildGraph();
+  refreshResidual();
+  yield S(() => outT.setText('BFS 每次找「边数最少」的增广路（保证 O(VE²)）。s→a=3，s→b=2，a→b=1，a→t=2，b→t=3'));
+  yield W(700);
+  let total = 0, aug = 0;
   while (true) {
-    const prev = Array(N).fill(-1);
-    const seen = Array(N).fill(false);
-    seen[SRC] = true;
-    const q = [SRC];
-    while (q.length) {
-      const u = q.shift();
-      if (u === SNK) break;
-      for (const v of adj[u]) {
-        if (!seen[v] && flow.get(keyOf(u, v)) < CAP[keyOf(u, v)]) { seen[v] = true; prev[v] = u; q.push(v); }
-      }
+    aug++;
+    yield S(() => outT.setText('——— 第 ' + aug + ' 轮 BFS 找最短增广路 ———'));
+    yield W(400);
+    const path = yield* bfsPath();
+    if (!path) {
+      yield S(() => outT.setText('BFS 无法到达 t → 最大流已求得！'));
+      yield W(450);
+      break;
     }
-    if (prev[SNK] === -1) break;
-    let bottle = Infinity;
-    const path = [];
-    for (let v = SNK; v !== SRC; v = prev[v]) { path.unshift(v); bottle = Math.min(bottle, CAP[keyOf(prev[v], v)] - flow.get(keyOf(prev[v], v))); }
-    path.unshift(SRC);
-    rounds.push({ path, bottle });
-    total += bottle;
-    for (let i = 0; i + 1 < path.length; i++) flow.set(keyOf(path[i], path[i + 1]), flow.get(keyOf(path[i], path[i + 1])) + bottle);
+    let bf = Infinity, x = N - 1, chain = [];
+    while (x !== 0) {
+      const i = path.parent[x];
+      bf = Math.min(bf, path.resC[x]);
+      chain.unshift([i, x]);
+      const [a, b] = E[i];
+      x = path.dir[x] === 1 ? a : b;
+    }
+    yield S(() => outT.setText('最短增广路（' + chain.length + ' 条边）：' + chain.map(([i]) => NAME[E[i][0]] + '→' + NAME[E[i][1]]).join(' → ') + '，瓶颈 ' + bf));
+    for (const [i, x] of chain) {
+      const [a, b] = E[i];
+      setEdgeColor(i, GOLD, 1);
+      yield S(() => outT.setText('增广 ' + bf + '：' + NAME[a] + '→' + NAME[b] + ' flow ' + flow[i] + ' → ' + (flow[i] + path.dir[x] * bf)));
+      flow[i] += path.dir[x] * bf;
+      setEdgeLbl(i);
+      yield W(380);
+    }
+    total += bf;
+    refreshResidual();
+    yield S(() => outT.setText('第 ' + aug + ' 轮完成，总流量 ' + total));
+    yield W(500);
+    resetEdgeColors();
   }
-
-  let r = 0;
-  const step = () => {
-    if (r >= rounds.length) {
-      status.textContent = 'EK 完成：最大流 = ' + total;
-      hint.setText('无更多增广路，最大流 ' + total);
-      return;
-    }
-    const { path, bottle } = rounds[r]; r++;
-    hint.setText('第 ' + r + ' 轮增广：路径 ' + path.map(i => NAMES[i]).join(' → ') + '，瓶颈 ' + bottle);
-    path.forEach((u, i) => {
-      if (i + 1 < path.length) {
-        const v = path[i + 1];
-        C(500, () => arrows.get(keyOf(u, v)).material.color.setHex(PALETTE.red), () => {});
-      }
-      C(160, () => graph.highlightNode(String(u), C), () => {});
-    });
-    C(400, () => {
-      for (let i = 0; i + 1 < path.length; i++) setFlow(path[i], path[i + 1], flow.get(keyOf(path[i], path[i + 1])));
-      for (const [, cone] of arrows) cone.material.color.setHex(PALETTE.edge);
-    });
-    C(500, step);
-  };
-  step();
+  yield S(() => {
+    outT.setText('最大流 = ' + total + '：' + E.map(([u, v, c], i) => NAME[u] + '→' + NAME[v] + ' ' + flow[i] + '/' + c).join('，'));
+    status.textContent = 'Edmonds-Karp 完成：最大流 ' + total + '，' + (aug - 1) + ' 轮 BFS，O(VE²)';
+  });
+  yield W(600);
+  resetEdgeColors();
+  nodeView.forEach(v => v.setColor(BLUE, BLUE));
 }
 
-function clearAll() {
-  engine.clear();
-  for (const [, e] of graph.nodes) e.node.remove();
-  graph.nodes.clear();
-  for (const [, e] of graph.edges) {
-    scene.remove(e.mesh);
-    if (e.weightLabel) e.weightLabel.remove();
-  }
-  graph.edges.clear();
-  for (const cone of arrows.values()) scene.remove(cone);
-  arrows.clear();
-  for (const vt of flowLabels.values()) vt.remove();
-  flowLabels.clear();
-  buildDone = false;
-  status.textContent = '';
-  hint.setText('已清空画布');
+function* runEK() {
+  hint.setText('Edmonds-Karp：BFS 最短增广路 + 残余网络');
+  yield W(400);
+  yield* ekGen();
+  yield S(() => { outT.setText(''); hint.setText('Edmonds-Karp 完成：= FF 的 BFS 版，增广轮数 O(VE)'); });
 }
 
-panel.addButton('运行 EK', runEK);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+panel.addButton('运行演示', () => engine.start(runEK()));
+panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；橙/金 = BFS 队列，青 = 探索，金 = 增广边，紫细线 = 反向残余边）');
 
 scene.start(engine);

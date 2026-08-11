@@ -1,153 +1,134 @@
-// AlgorithmLibrary/BellmanFord3D.js
-// Bellman-Ford 最短路径：有向加权图（含负权边），V-1 轮全边松弛。
-// 松弛成功绿色更新距离，无变化青色闪烁；收尾验证轮检测负权环。
+// AlgorithmLibrary/BellmanFord3D.js — Bellman-Ford 最短路径：V-1 轮全边松弛 + 负权边高亮 + 负环检测 + 路径回溯（function* 生成器驱动）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Graph3D } from '../3D/modes/Graph3D.js';
-import { VText } from '../3D/VisualObject3D.js';
+import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('BellmanFord3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 620], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.6 });
+const scene = new Scene3D('scene', { cameraPos: [0, 260, 720], fov: 55 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const status = panel.addStatus('');
-const hint = new VText(scene, { text: '选择起点，点击「运行 Bellman-Ford」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「运行演示」开始：Bellman-Ford 从 0 出发（含负权边）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
-const NODES = ['s', 't', 'x', 'y', 'z'];
-const N = NODES.length, R = 210;
-// CLRS 经典带负权边样例（无负权环）
-const EDGES = [
-  ['s', 't', 6], ['s', 'y', 7], ['t', 'x', 5], ['t', 'y', 8], ['t', 'z', -4],
-  ['x', 't', -2], ['y', 'x', -3], ['y', 'z', 9], ['z', 's', 2], ['z', 'x', 7],
-];
-const POS = {};
-NODES.forEach((id, i) => {
-  const a = (i / N) * Math.PI * 2 - Math.PI / 2;
-  POS[id] = [Math.cos(a) * R, 0, Math.sin(a) * R];
-});
+const N = 5, R = 190;
+// 有向边 [from, to, w]，含负权 -2 与 -3
+const EDGES = [[0, 1, 4], [0, 2, -2], [1, 2, 3], [1, 3, 2], [2, 3, 1], [2, 4, 5], [3, 4, -3]];
+const adj = Array.from({ length: N }, () => []);
+const nodeView = new Map();
+const edgeView = new Map();  // 'f-t' -> { tube, lbl }
+const distView = new Map();
+let dist = [], prev = [];
 
-const graph = new Graph3D(scene, { radius: 17 });
-for (const id of NODES) graph.addNode(id, id, POS[id][0], POS[id][1], POS[id][2]);
-for (const [a, b, w] of EDGES) graph.addEdge(a, b, { weight: w, directed: true });
-
-// ---- 模型 ----
-function bellmanModel(edges, n, start) {
-  const dist = {};
-  for (const id of NODES) dist[id] = Infinity;
-  dist[start] = 0;
-  const rounds = [];   // {k, edges: [{u, v, w, old, updated}]}
-  for (let k = 1; k < n; k++) {
-    const list = edges.map(([u, v, w]) => ({ u, v, w, old: null, updated: false }));
-    for (const e of list) {
-      e.old = dist[e.v];
-      if (dist[e.u] === Infinity) continue;
-      const nd = dist[e.u] + e.w;
-      if (nd < dist[e.v]) { e.updated = true; dist[e.v] = nd; }
-    }
-    rounds.push({ k, edges: list });
-  }
-  const verify = edges.map(([u, v, w]) => ({ u, v, w, old: null, updated: false }));
-  for (const e of verify) {
-    e.old = dist[e.v];
-    if (dist[e.u] === Infinity) continue;
-    const nd = dist[e.u] + e.w;
-    if (nd < dist[e.v]) { e.updated = true; dist[e.v] = nd; }
-  }
-  rounds.push({ k: n, verify: true, edges: verify });
-  return { dist, rounds };
+function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R, 0, Math.sin(a) * R); }
+function tube(a, b) {
+  const curve = new THREE.CatmullRomCurve3([a, b]);
+  return new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
 }
-
-const fmt = (v) => (v === Infinity ? '∞' : String(v));
-const distLabels = {};
-
-function spawnDistLabel(id) {
-  const [x, , z] = POS[id];
-  const vt = new VText(scene, { text: '∞', x, y: 82, z, color: PALETTE.textDim, scale: 0.7 });
-  vt.sprite.scale.set(0.1, 0.05, 1);
-  distLabels[id] = vt;
-  C(250, (p) => { const s = 0.01 + p * 0.99; vt.sprite.scale.set(70 * s, 35 * s, 1); }, () => vt.sprite.scale.set(0.1, 0.05, 1));
+function clearView() {
+  nodeView.forEach(v => scene.remove(v.mesh));
+  edgeView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); scene.remove(e.lbl.sprite); });
+  nodeView.clear(); edgeView.clear();
 }
-
-function updateDistLabel(id, text, color) {
-  const vt = distLabels[id];
-  vt.setText(text, { color: color || PALETTE.text });
-  vt.sprite.scale.set(0.1, 0.05, 1);
-  C(250, (p) => { const s = 0.01 + p * 0.99; vt.sprite.scale.set(70 * s, 35 * s, 1); }, () => vt.sprite.scale.set(70, 35, 1));
+function buildGraph() {
+  clearView();
+  for (let i = 0; i < N; i++) adj[i].length = 0;
+  for (let i = 0; i < N; i++) {
+    const p = posOf(i);
+    const vn = new VNode(scene, { radius: 20, x: p.x, y: p.y, z: p.z, label: String(i), color: BLUE, emissive: BLUE });
+    nodeView.set(i, vn);
+    const dT = new VText(scene, { text: '∞', x: 0, y: 46, z: 0, color: '#ffffff', scale: 0.72 });
+    vn.mesh.add(dT.sprite);
+    distView.set(i, dT);
+  }
+  for (const [f, t, w] of EDGES) {
+    const a = posOf(f), b = posOf(t);
+    const m = tube(a, b);
+    scene.add(m);
+    const mid = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2 + 20, (a.z + b.z) / 2);
+    const lbl = new VText(scene, { text: String(w), x: mid.x, y: mid.y, z: mid.z, color: w < 0 ? RED : PALETTE.yellow, scale: 0.6 });
+    edgeView.set(f + '->' + t, { tube: m, lbl });
+    adj[f].push([t, w]);
+  }
 }
+function setNodeColor(i, c) { nodeView.get(i).setColor(c, c); }
+function setEdgeColor(f, t, c, op) { const e = edgeView.get(f + '->' + t); if (e) { e.tube.material.color.setHex(c); e.tube.material.opacity = op; } }
+function setDist(i) { distView.get(i).setText(dist[i] === Infinity ? '∞' : String(dist[i])); }
+function resetEdgeColors() { edgeView.forEach(e => { e.tube.material.color.setHex(WHITE); e.tube.material.opacity = 0.55; }); }
 
-function run() {
-  engine.clear();
-  const start = NODES.includes(startInput.value.trim()) ? startInput.value.trim() : 's';
-  startInput.value = start;
-  for (const id of NODES) {
-    graph.dehighlightNode(id, C);
-    if (distLabels[id]) { distLabels[id].remove(); distLabels[id] = null; }
-  }
-  for (const [a, b] of EDGES) graph.lightEdge(a, b, false, C);
-
-  const { dist, rounds } = bellmanModel(EDGES, N, start);
-  for (const id of NODES) {
-    spawnDistLabel(id);
-    if (id === start) updateDistLabel(id, '0', PALETTE.textGlow);
-  }
-  graph.highlightNode(start, C, PALETTE.green);
-  C(1, () => hint.setText('初始化：d[' + start + ']=0，其余 ∞；共 ' + (N - 1) + ' 轮全边松弛'), () => {});
-
-  let negCycle = false;
-  for (const round of rounds) {
-    C(1, () => hint.setText(round.verify ? '验证轮：再松弛一次所有边，检查是否仍有更新' : '第 ' + round.k + ' 轮：依次松弛所有 ' + round.edges.length + ' 条边'), () => {});
-    for (const e of round.edges) {
-      graph.lightEdge(e.u, e.v, true, C);
-      if (e.updated) {
-        if (round.verify) negCycle = true;
-        updateDistLabel(e.v, String(dist[e.v]), PALETTE.green);
-        C(1, () => hint.setText('松弛 ' + e.u + '→' + e.v + '：d[' + e.v + '] ' + fmt(e.old) + ' → ' + dist[e.v] + '（更新）'), () => {});
+function* bellmanFordGen() {
+  dist = Array(N).fill(Infinity);
+  prev = Array(N).fill(-1);
+  dist[0] = 0;
+  setDist(0);
+  yield S(() => outT.setText('初始化：dist[0]=0。执行 V-1 = 4 轮，每轮松弛全部 ' + EDGES.length + ' 条边'));
+  yield W(550);
+  let converged = false;
+  for (let round = 1; round <= N - 1; round++) {
+    yield S(() => outT.setText('——— 第 ' + round + ' 轮：依次松弛每条边 ———'));
+    yield W(450);
+    let changed = false;
+    for (const [u, v, w] of EDGES) {
+      if (dist[u] === Infinity) continue;
+      const cand = dist[u] + w;
+      if (cand < dist[v]) {
+        setEdgeColor(u, v, GREEN, 1);
+        setNodeColor(v, ORANGE);
+        yield S(() => outT.setText('松弛 ' + u + '→' + v + '（' + w + '）：dist[' + v + '] ' + (dist[v] === Infinity ? '∞' : dist[v]) + ' → ' + cand));
+        dist[v] = cand;
+        prev[v] = u;
+        setDist(v);
+        changed = true;
+        yield W(430);
       } else {
-        C(1, () => hint.setText('检查 ' + e.u + '→' + e.v + '（w=' + e.w + '）：' + (fmt(dist[e.u]) === '∞' ? 'd[' + e.u + ']=∞ 尚未可达' : 'd[' + e.u + ']+w=' + dist[e.u] + '+' + e.w + ' ≥ d[' + e.v + ']=' + fmt(dist[e.v]) + '，不更新')), () => {});
+        setEdgeColor(u, v, CYAN, 0.75);
+        yield S(() => outT.setText('边 ' + u + '→' + v + '（' + dist[u] + '+' + w + ' ≥ dist[' + v + ']=' + dist[v] + '）：无更新'));
+        yield W(240);
       }
-      graph.lightEdge(e.u, e.v, false, C);
+      resetEdgeColors();
+    }
+    if (!changed) {
+      converged = true;
+      yield S(() => outT.setText('第 ' + round + ' 轮无任何更新 → 提前收敛，无需 V-1 轮'));
+      yield W(550);
+      break;
     }
   }
-  if (negCycle) {
-    for (const id of NODES) graph.highlightNode(id, C, PALETTE.red);
-    C(1, () => {
-      status.textContent = '存在负权环！Bellman-Ford 无解';
-      hint.setText('⚠ 验证轮仍有更新：图中存在负权环，最短路径无定义');
-    }, () => {});
-  } else {
-    const distStr = NODES.map((id) => id + ':' + dist[id]).join(' ');
-    C(1, () => {
-      status.textContent = '从 ' + start + ' 出发的最短距离: ' + distStr;
-      hint.setText('Bellman-Ford 完成（' + (N - 1) + ' 轮 + 验证轮），无负权环');
-    }, () => {});
+  if (!converged) {
+    yield S(() => outT.setText('跑满 4 轮后第 V 轮验证：所有边均无法再松弛 → 图中无负权环'));
+    yield W(500);
   }
+  const path = [4];
+  let x = 4;
+  while (x !== 0 && prev[x] !== -1) { x = prev[x]; path.unshift(x); }
+  for (let k = 0; k < path.length - 1; k++) setEdgeColor(path[k], path[k + 1], GOLD, 1);
+  setNodeColor(4, GOLD);
+  yield S(() => outT.setText('最短路径 0→4：' + path.join(' → ') + '，总长 ' + dist[4] + '（负权边参与）'));
+  yield W(800);
+  yield S(() => {
+    outT.setText('dist 表：' + dist.map((d, i) => i + ':' + d).join('  '));
+    status.textContent = 'Bellman-Ford 完成：0→4 = ' + dist[4] + '，' + (converged ? '提前收敛' : '4 轮') + '，无负环';
+  });
+  yield W(500);
+  resetEdgeColors();
+  nodeView.forEach(v => v.setColor(BLUE, BLUE));
 }
 
-function clearAll() {
-  engine.clear();
-  for (const id of NODES) {
-    if (distLabels[id]) { distLabels[id].remove(); distLabels[id] = null; }
-  }
-  for (const [, e] of graph.nodes) e.node.remove();
-  graph.nodes.clear();
-  for (const [, e] of graph.edges) {
-    scene.remove(e.mesh);
-    if (e.weightLabel) e.weightLabel.remove();
-  }
-  graph.edges.clear();
-  status.textContent = '';
-  hint.setText('已清空画布');
+function* runBF() {
+  buildGraph();
+  hint.setText('Bellman-Ford：支持负权边，V-1 轮全边松弛');
+  yield W(400);
+  yield* bellmanFordGen();
+  yield S(() => { outT.setText(''); hint.setText('Bellman-Ford 完成：O(VE)；第 V 轮仍更新则存在负环'); });
 }
 
-const startInput = panel.addInput('起点', run, 2);
-startInput.value = 's';
-panel.addButton('运行 Bellman-Ford', run);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+panel.addButton('运行演示', () => engine.start(runBF()));
+panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；绿 = 松弛成功，青 = 无更新，金 = 最短路径，红字 = 负权边）');
 
 scene.start(engine);

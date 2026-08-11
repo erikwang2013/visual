@@ -1,165 +1,137 @@
-// AlgorithmLibrary/Dijkstra3D.js
-// Dijkstra 最短路径：加权无向图（圆形布局，边长标注），每次选出距离最小的节点
-// 收点高亮+脉冲，松弛边点亮为青色，节点标签实时更新为 "id:dist"，最终给出距离汇总。
+// AlgorithmLibrary/Dijkstra3D.js — Dijkstra 最短路径：距离标签实时更新 + 松弛边高亮 + 最小距离收点 + 路径回溯（function* 生成器驱动）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Graph3D } from '../3D/modes/Graph3D.js';
-import { VText } from '../3D/VisualObject3D.js';
+import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Dijkstra3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 620], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 260, 720], fov: 55 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
-function easeInOut(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
 
-const N = 6, R = 210;
-const RELAX_COLOR = 0x22d3ee; // 松弛边青色
-const graph = new Graph3D(scene, { radius: 17 });
-const POS = [];
-for (let i = 0; i < N; i++) {
-  const a = (i / N) * Math.PI * 2 - Math.PI / 2;
-  POS[i] = [Math.cos(a) * R, 0, Math.sin(a) * R];
-  graph.addNode(String(i), String(i), POS[i][0], POS[i][1], POS[i][2]);
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x22d3ee, RED = 0xfb7185, ORANGE = 0xfb923c, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「运行演示」开始：Dijkstra 从 0 出发', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+
+// 顶点 0..5，有向边 [from, to, w]
+const N = 6, R = 200;
+const EDGES = [[0, 1, 4], [0, 2, 2], [1, 2, 1], [1, 3, 5], [2, 3, 8], [2, 4, 10], [3, 4, 2], [3, 5, 6], [4, 5, 5]];
+const adj = Array.from({ length: N }, () => []);
+const nodeView = new Map();  // i -> VNode
+const edgeView = new Map();  // 'f-t' -> { tube, lbl }
+const distView = new Map();  // i -> VText (跟随节点上方)
+let dist = [], prev = [];
+
+function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R, 0, Math.sin(a) * R); }
+function tube(a, b) {
+  const curve = new THREE.CatmullRomCurve3([a, b]);
+  return new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
 }
-// 样例图（模型已验证：从 0 出发 dist=[0,3,2,8,10,13]）
-const adjW = [[1, 2], [0, 2, 3], [0, 1, 3, 4], [1, 2, 4, 5], [2, 3, 5], [3, 4]];
-const w6 = { '0->1': 4, '1->0': 4, '0->2': 2, '2->0': 2, '1->2': 1, '2->1': 1, '1->3': 5, '3->1': 5, '2->3': 8, '3->2': 8, '2->4': 10, '4->2': 10, '3->4': 2, '4->3': 2, '3->5': 6, '5->3': 6, '4->5': 3, '5->4': 3 };
-for (const [a, b] of [[0, 1], [0, 2], [1, 2], [1, 3], [2, 3], [2, 4], [3, 4], [3, 5], [4, 5]]) {
-  graph.addEdge(String(a), String(b), { weight: w6[`${a}->${b}`] });
+function clearView() {
+  nodeView.forEach(v => scene.remove(v.mesh));
+  edgeView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); scene.remove(e.lbl.sprite); });
+  nodeView.clear(); edgeView.clear();
+}
+function buildGraph() {
+  clearView();
+  for (let i = 0; i < N; i++) adj[i].length = 0;
+  for (let i = 0; i < N; i++) {
+    const p = posOf(i);
+    const vn = new VNode(scene, { radius: 20, x: p.x, y: p.y, z: p.z, label: String(i), color: BLUE, emissive: BLUE });
+    nodeView.set(i, vn);
+    const dT = new VText(scene, { text: '∞', x: 0, y: 46, z: 0, color: '#ffffff', scale: 0.72 });
+    vn.mesh.add(dT.sprite);
+    distView.set(i, dT);
+  }
+  for (const [f, t, w] of EDGES) {
+    const a = posOf(f), b = posOf(t);
+    const m = tube(a, b);
+    scene.add(m);
+    const mid = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2 + 20, (a.z + b.z) / 2);
+    const lbl = new VText(scene, { text: String(w), x: mid.x, y: mid.y, z: mid.z, color: PALETTE.yellow, scale: 0.6 });
+    edgeView.set(f + '->' + t, { tube: m, lbl });
+    adj[f].push([t, w]);
+  }
+}
+function setNodeColor(i, c) { nodeView.get(i).setColor(c, c); }
+function setEdgeColor(f, t, c, op) { const e = edgeView.get(f + '->' + t); if (e) { e.tube.material.color.setHex(c); e.tube.material.opacity = op; } }
+function setDist(i) { distView.get(i).setText(dist[i] === Infinity ? '∞' : String(dist[i])); }
+function resetNodeColors() { nodeView.forEach(v => v.setColor(BLUE, BLUE)); }
+function resetEdgeColors() { edgeView.forEach(e => { e.tube.material.color.setHex(WHITE); e.tube.material.opacity = 0.55; }); }
+function* pulseNode(i, c) {
+  const vn = nodeView.get(i);
+  setNodeColor(i, c);
+  yield A(420, p => { vn.mesh.scale.setScalar(1 + 0.28 * Math.sin(p * Math.PI)); });
+  vn.mesh.scale.setScalar(1);
 }
 
-// ---- 模型（与 /tmp/3dtest/graphmodel.mjs 一致）----
-function dijkstraModel(adj, w, n, start) {
-  const dist = Array(n).fill(Infinity);
-  dist[start] = 0;
-  const prev = Array(n).fill(-1);
-  const done = Array(n).fill(false);
-  const order = [];
-  const relax = [];
-  for (let iter = 0; iter < n; iter++) {
-    let u = -1;
-    for (let i = 0; i < n; i++) if (!done[i] && (u === -1 || dist[i] < dist[u])) u = i;
+function* dijkstraGen() {
+  dist = Array(N).fill(Infinity);
+  prev = Array(N).fill(-1);
+  const done = new Set();
+  dist[0] = 0;
+  setDist(0);
+  yield S(() => outT.setText('初始化：dist[0] = 0，其余 ∞。每轮取未访问中距离最小者'));
+  yield W(500);
+  while (done.size < N) {
+    let u = -1, best = Infinity;
+    for (let i = 0; i < N; i++) if (!done.has(i) && dist[i] < best) { best = dist[i]; u = i; }
     if (u === -1) break;
-    done[u] = true;
-    order.push(u);
-    for (const v of adj[u]) {
-      if (done[v]) continue;
-      const nd = dist[u] + w[`${u}->${v}`];
-      if (nd < dist[v]) { relax.push([u, v, dist[v], nd]); dist[v] = nd; prev[v] = u; }
-    }
-  }
-  return { dist, order, relax, prev };
-}
-
-const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「运行 Dijkstra」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const distLabels = [];
-
-// 节点上方的距离标注（独立 VText，避免与 id 标签混淆）
-function spawnDistLabel(u) {
-  const [x, , z] = POS[u];
-  const vt = new VText(scene, { text: '∞', x, y: 82, z, color: PALETTE.textDim, scale: 0.7 });
-  vt.sprite.scale.set(0.1, 0.05, 1);
-  C(250, (p) => { const s = 0.01 + p * 0.99; vt.sprite.scale.set(70 * s, 35 * s, 1); }, () => vt.sprite.scale.set(0.1, 0.05, 1));
-  distLabels[u] = vt;
-  return vt;
-}
-
-function updateDistLabel(u, text, color) {
-  if (!distLabels[u]) spawnDistLabel(u);
-  const vt = distLabels[u];
-  vt.setText(text, { color: color || PALETTE.text });
-  const [x, , z] = POS[u];
-  vt.sprite.scale.set(0.1, 0.05, 1);
-  C(250, (p) => { const s = 0.01 + p * 0.99; vt.sprite.scale.set(70 * s, 35 * s, 1); }, () => vt.sprite.scale.set(70, 35, 1));
-}
-
-function relaxEdge(u, v) {
-  const e = graph.edges.get(`${u}->${v}`);
-  if (!e) return;
-  graph.lightEdge(String(u), String(v), true, C);
-}
-
-function runDijkstra() {
-  engine.clear();
-  for (let i = 0; i < N; i++) graph.dehighlightNode(String(i), C);
-  for (const key of graph.edges.keys()) {
-    const [a, b] = key.split('->');
-    graph.lightEdge(a, b, false, C);
-  }
-  for (let i = 0; i < N; i++) if (distLabels[i]) { distLabels[i].remove(); distLabels[i] = null; }
-
-  const start = Math.min(Math.max((startId | 0), 0), N - 1);
-  const { dist, order, relax } = dijkstraModel(adjW, w6, N, start);
-  spawnDistLabel(start);
-  updateDistLabel(start, '0', PALETTE.textGlow);
-  hint.setText('初始化：d[' + start + '] = 0，其余 ∞');
-
-  // 按松弛起点 u 分组，便于按顺序回放
-  const relaxByU = new Map();
-  for (const [u, v, old, nd] of relax) {
-    if (!relaxByU.has(u)) relaxByU.set(u, []);
-    relaxByU.get(u).push([v, old, nd]);
-  }
-
-  let ri = 0;
-  function step() {
-    if (ri >= order.length) {
-      const distStr = order.map((u) => u + ':' + dist[u]).join(' ');
-      status.textContent = '从 ' + start + ' 出发的最短距离: ' + distStr;
-      hint.setText('Dijkstra 完成，最短距离: ' + distStr);
-      return;
-    }
-    const u = order[ri];
-    graph.highlightNode(String(u), C);
-    const m = graph.nodes.get(String(u)).node.mesh;
-    C(380, (p) => { m.scale.setScalar(1.15 + 0.2 * Math.sin(p * Math.PI)); }, () => m.scale.setScalar(1));
-    hint.setText('选出距离最小的节点 ' + u + '（d[' + u + ']=' + dist[u] + '）');
-    ri++;
-    if (relaxByU.has(u)) {
-      let j = 0;
-      const rls = relaxByU.get(u);
-      function relaxNext() {
-        if (j >= rls.length) { C(200, step); return; }
-        const [v, old, nd] = rls[j];
-        relaxEdge(u, v);
-        updateDistLabel(v, String(nd), PALETTE.textGlow);
-        hint.setText('松弛 ' + u + '→' + v + '：' + (old === Infinity ? '∞' : old) + ' → ' + nd);
-        j++;
-        C(500, relaxNext);
+    done.add(u);
+    yield S(() => outT.setText('选出最小距离节点 ' + u + '（dist=' + dist[u] + '）→ 标记已确定'));
+    yield* pulseNode(u, GOLD);
+    yield W(450);
+    for (const [v, w] of adj[u]) {
+      const cand = dist[u] + w;
+      if (cand < dist[v]) {
+        setEdgeColor(u, v, CYAN, 1);
+        setNodeColor(v, ORANGE);
+        yield S(() => outT.setText('松弛边 ' + u + '→' + v + '（权重 ' + w + '）：dist[' + v + '] ' + (dist[v] === Infinity ? '∞' : dist[v]) + ' → ' + cand + '（经由 ' + u + '）'));
+        dist[v] = cand;
+        prev[v] = u;
+        setDist(v);
+        yield* pulseNode(v, ORANGE);
+        yield W(420);
+      } else {
+        setEdgeColor(u, v, RED, 0.8);
+        yield S(() => outT.setText('边 ' + u + '→' + v + '（' + dist[u] + '+' + w + '=' + cand + ' ≥ dist[' + v + ']=' + dist[v] + '）：不更新'));
+        yield W(330);
       }
-      relaxNext();
-    } else {
-      C(200, step);
+      resetEdgeColors();
     }
+    setNodeColor(u, GREEN);
+    yield S(() => outT.setText('节点 ' + u + ' 收点完成（dist=' + dist[u] + '）'));
+    yield W(350);
   }
-  step();
+  // 回溯 0 -> 5
+  const path = [5];
+  let x = 5;
+  while (x !== 0 && prev[x] !== -1) { x = prev[x]; path.unshift(x); }
+  for (let k = 0; k < path.length - 1; k++) setEdgeColor(path[k], path[k + 1], GOLD, 1);
+  setNodeColor(5, GOLD);
+  yield S(() => outT.setText('最短路径 0→5 = ' + path.join(' → ') + '，总长 ' + dist[5]));
+  yield W(800);
+  yield S(() => {
+    outT.setText('dist 表：' + dist.map((d, i) => i + ':' + d).join('  '));
+    status.textContent = 'Dijkstra 完成：0→5 最短 ' + dist[5] + '，路径 ' + path.join('→');
+  });
+  yield W(500);
+  resetNodeColors();
 }
 
-function clearAll() {
-  engine.clear();
-  for (let i = 0; i < N; i++) if (distLabels[i]) { distLabels[i].remove(); distLabels[i] = null; }
-  for (const [, e] of graph.nodes) e.node.remove();
-  graph.nodes.clear();
-  for (const [, e] of graph.edges) {
-    scene.remove(e.mesh);
-    if (e.weightLabel) e.weightLabel.remove();
-  }
-  graph.edges.clear();
-  startId = 0;
-  status.textContent = '';
-  hint.setText('已清空画布');
+function* runDijkstra() {
+  buildGraph();
+  hint.setText('Dijkstra：贪心选取最小距离节点，边松弛更新；本页为有向加权图');
+  yield W(400);
+  yield* dijkstraGen();
+  yield S(() => { outT.setText(''); hint.setText('Dijkstra 完成：O((V+E)log V)（二叉堆），要求边权非负'); });
 }
 
-let startId = 0;
-panel.addLabel('起始节点: ');
-panel.addInput('0', (v) => { startId = parseInt(v, 10) || 0; runDijkstra(); }, 1);
-panel.addButton('运行 Dijkstra', runDijkstra);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+panel.addButton('运行演示', () => engine.start(runDijkstra()));
+panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；金 = 收点/最短路径，青 = 松弛成功，红 = 不更新，橙 = 距离更新）');
 
 scene.start(engine);

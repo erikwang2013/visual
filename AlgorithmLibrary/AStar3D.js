@@ -1,216 +1,131 @@
-// AlgorithmLibrary/AStar3D.js
-// A* 寻路：8×6 网格，绿色起点 S / 红色终点 E 固定，灰色随机障碍。
-// open 表黄色、closed 表灰色逐格扩展，每格更新 f=g+h 标注，最终路径绿色高亮。
+// AlgorithmLibrary/AStar3D.js — A* 寻路：网格 f=g+h 标签 + open/closed 双色扩展 + 启发式说明 + 路径回溯（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('AStar3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 400, 580], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 420, 640], fov: 55 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const COLS = 8, ROWS = 6, GAP = 66, SIZE = 46;
-const START = [0, 0], END = [7, 5];
-const C_BASE = PALETTE.node, C_BASE_EM = PALETTE.nodeEmissive;
-const C_OBS = 0x475569, C_OBS_EM = 0x1e293b;
-const C_OPEN = 0xfacc15, C_OPEN_EM = 0x713f12;
-const C_CLOSED = 0x64748b, C_CLOSED_EM = 0x334155;
-const C_PATH = 0x34d399, C_PATH_EM = 0x064e3b;
-const C_START = 0x22c55e, C_START_EM = 0x166534;
-const C_END = 0xef4444, C_END_EM = 0x7f1d1d;
+const COLS = 6, ROWS = 5, GAP = 92, SIZE = 74;
+const START = [0, 0], END = [5, 4];
+const OBS = [[1, 1], [2, 1], [3, 1], [1, 3], [2, 3], [3, 3]];
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, SLATE = 0x475569, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「运行演示」开始：A* 从 S(0,0) 到 E(5,4)', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: -230, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
-const cells = [];       // [r][c] -> {box, label}
-const obstacles = [];   // [r][c] -> bool
+const cells = new Map();  // 'r,c' -> { mesh, fT, ghT }
+const g = {}, h = {}, f = {}, par = {};
+const obsSet = new Set(OBS.map(([r, c]) => r + ',' + c));
 
-function cellPos(c, r) { return [(c - (COLS - 1) / 2) * GAP, 0, (r - (ROWS - 1) / 2) * GAP]; }
-function isStart(c, r) { return c === START[0] && r === START[1]; }
-function isEnd(c, r) { return c === END[0] && r === END[1]; }
-
+function cellPos(r, c) {
+  return new THREE.Vector3((c - (COLS - 1) / 2) * GAP, (ROWS - 1) / 2 * GAP - r * GAP, 0);
+}
+function clearView() {
+  cells.forEach(o => { scene.remove(o.mesh); scene.remove(o.fT.sprite); scene.remove(o.ghT.sprite); });
+  cells.clear();
+}
 function buildGrid() {
-  for (const row of cells) for (const cell of row) { if (!cell) continue; cell.box.remove(); if (cell.label) cell.label.remove(); }
-  cells.length = 0;
-  for (let r = 0; r < ROWS; r++) {
-    cells[r] = [];
-    for (let c = 0; c < COLS; c++) {
-      const [x, , z] = cellPos(c, r);
-      const obs = obstacles[r][c];
-      let color = C_BASE, em = C_BASE_EM, label = '';
-      if (obs) { color = C_OBS; em = C_OBS_EM; }
-      else if (isStart(c, r)) { color = C_START; em = C_START_EM; label = 'S'; }
-      else if (isEnd(c, r)) { color = C_END; em = C_END_EM; label = 'E'; }
-      const box = new VBox(scene, { w: SIZE, h: SIZE, d: SIZE, x, y: 0, z, label, color, emissive: em });
-      cells[r][c] = { box, label: null };
-    }
-  }
-}
-
-function setCellColor(c, r, color, em) { cells[r][c].box.setColor(color, em); }
-
-function spawnFLabel(c, r, f) {
-  const [x, , z] = cellPos(c, r);
-  let vt = cells[r][c].label;
-  if (!vt) { vt = new VText(scene, { text: 'f=' + f, x, y: 58, z, color: '#fde68a', scale: 0.55 }); cells[r][c].label = vt; }
-  else vt.setText('f=' + f, { color: '#fde68a', scale: 0.55 });
-}
-
-function clearLabels() {
-  for (const row of cells) for (const cell of row) { if (cell && cell.label) { cell.label.remove(); cell.label = null; } }
-}
-
-function resetCells() {
+  clearView();
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
-    const obs = obstacles[r][c];
-    if (obs) setCellColor(c, r, C_OBS, C_OBS_EM);
-    else if (isStart(c, r)) setCellColor(c, r, C_START, C_START_EM);
-    else if (isEnd(c, r)) setCellColor(c, r, C_END, C_END_EM);
-    else setCellColor(c, r, C_BASE, C_BASE_EM);
+    const key = r + ',' + c;
+    const obs = obsSet.has(key);
+    const p = cellPos(r, c);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(SIZE, SIZE, 24), new THREE.MeshBasicMaterial({ color: obs ? SLATE : BLUE }));
+    mesh.position.copy(p);
+    mesh.scale.setScalar(0.01);
+    scene.add(mesh);
+    const fT = new VText(scene, { text: '', x: p.x, y: p.y + 52, z: 0, color: GOLD, scale: 0.55 });
+    const ghT = new VText(scene, { text: '', x: p.x, y: p.y + 28, z: 0, color: '#94a3b8', scale: 0.45 });
+    cells.set(key, { mesh, fT, ghT });
   }
 }
+function setCell(key, c) { cells.get(key).mesh.material.color.setHex(c); }
+function setLabel(key, fv, gh) { cells.get(key).fT.setText(fv); cells.get(key).ghT.setText(gh); }
+function* pulseCell(key) {
+  const o = cells.get(key);
+  yield A(300, p => { o.mesh.scale.setScalar(0.9 + 0.25 * Math.sin(p * Math.PI)); });
+  o.mesh.scale.setScalar(1);
+}
 
-// A* 模型：返回 open/pop 步骤序列与最终路径（与渲染动画一一对应）
-function aStarModel(obs) {
-  const key = (c, r) => r * COLS + c;
-  const h = (c, r) => Math.abs(c - END[0]) + Math.abs(r - END[1]);
-  const g = new Map();
-  const came = new Map();
-  const inOpen = new Set();
+function* astarGen() {
+  const open = new Map();  // key -> f 值
   const closed = new Set();
-  const open = [];
-  const steps = [];
-  g.set(key(START[0], START[1]), 0);
-  open.push(START);
-  inOpen.add(key(START[0], START[1]));
-  steps.push({ t: 'open', c: START[0], r: START[1], f: h(START[0], START[1]), g: 0 });
-  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-  let found = false;
-  while (open.length) {
-    let bi = 0;
-    for (let i = 1; i < open.length; i++) {
-      const a = open[bi], b = open[i];
-      if (g.get(key(b[0], b[1])) + h(b[0], b[1]) < g.get(key(a[0], a[1])) + h(a[0], a[1])) bi = i;
+  const heu = (r, c) => Math.abs(r - END[0]) + Math.abs(c - END[1]);
+  const skey = START[0] + ',' + START[1], ekey = END[0] + ',' + END[1];
+  open.set(skey, heu(START[0], START[1]));
+  g[skey] = 0; h[skey] = heu(START[0], START[1]); f[skey] = h[skey];
+  setCell(skey, GREEN);
+  setLabel(skey, 'f=' + f[skey], 'g=0 h=' + h[skey]);
+  yield S(() => outT.setText('启发式 h = 曼哈顿距离 |Δr|+|Δc|（到终点）。S 入 open 表'));
+  yield W(600);
+  let steps = 0;
+  while (open.size && steps++ < 100) {
+    let cur = null, best = Infinity;
+    for (const [k, v] of open) if (v < best) { best = v; cur = k; }
+    open.delete(cur);
+    const [r, c] = cur.split(',').map(Number);
+    setCell(cur, GOLD);
+    yield S(() => outT.setText('从 open 取 f 最小格 (' + r + ',' + c + ')：f=' + f[cur] + ' = g' + g[cur] + ' + h' + h[cur]));
+    yield* pulseCell(cur);
+    yield W(420);
+    if (cur === ekey) {
+      setCell(cur, GREEN);
+      yield S(() => outT.setText('到达终点！开始回溯路径'));
+      yield W(450);
+      break;
     }
-    const cur = open.splice(bi, 1)[0];
-    const k = key(cur[0], cur[1]);
-    inOpen.delete(k);
-    closed.add(k);
-    const gv = g.get(k);
-    steps.push({ t: 'pop', c: cur[0], r: cur[1], f: gv + h(cur[0], cur[1]), g: gv });
-    if (isEnd(cur[0], cur[1])) { found = true; break; }
-    for (const [dc, dr] of dirs) {
-      const nc = cur[0] + dc, nr = cur[1] + dr;
-      if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) continue;
-      if (obs[nr][nc]) continue;
-      const k2 = key(nc, nr);
-      if (closed.has(k2)) continue;
-      const ng = gv + 1;
-      if (!g.has(k2) || ng < g.get(k2)) {
-        g.set(k2, ng);
-        came.set(k2, [cur[0], cur[1]]);
-        if (!inOpen.has(k2)) {
-          inOpen.add(k2);
-          open.push([nc, nr]);
-          steps.push({ t: 'open', c: nc, r: nr, f: ng + h(nc, nr), g: ng });
-        }
+    closed.add(cur);
+    setCell(cur, BLUE);
+    for (const [dr, dc] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+      const nr = r + dr, nc = c + dc;
+      const nk = nr + ',' + nc;
+      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || obsSet.has(nk) || closed.has(nk)) continue;
+      const ng = g[cur] + 1;
+      const better = !(nk in g) || ng < g[nk];
+      if (better) {
+        g[nk] = ng; h[nk] = heu(nr, nc); f[nk] = ng + h[nk]; par[nk] = cur;
+        setLabel(nk, 'f=' + f[nk], 'g=' + ng + ' h=' + h[nk]);
+        if (!open.has(nk)) { open.set(nk, f[nk]); setCell(nk, ORANGE); }
+        yield S(() => outT.setText('扩展邻居 (' + nr + ',' + nc + ')：g=' + ng + '，f=' + f[nk] + '（f = g + h，启发式引导优先向右下）'));
+        yield* pulseCell(nk);
+        yield W(300);
       }
     }
   }
+  // 回溯
   const path = [];
-  if (found) { let p = END; while (p) { path.push(p); p = came.get(key(p[0], p[1])); } path.reverse(); }
-  return { steps, path, found };
+  let k = ekey;
+  while (k !== undefined) { path.unshift(k); k = par[k]; }
+  if (path[0] !== skey) { yield S(() => outT.setText('无路径可达终点')); yield W(400); }
+  else {
+    for (const kk of path) { setCell(kk, GREEN); yield W(160); }
+    yield S(() => outT.setText('最短路径（步数 ' + (path.length - 1) + '）：' + path.map(p => '(' + p.split(',')[0] + ',' + p.split(',')[1] + ')').join(' → ')));
+    yield W(600);
+  }
+  yield S(() => {
+    outT.setText('A* 完成：open 表按 f 排序取最小，h 可采纳（≤ 真实代价）则最优');
+    status.textContent = 'A* 完成：S(0,0) → E(5,4) 步数 ' + (path[0] === skey ? path.length - 1 : '—');
+  });
+  yield W(400);
 }
 
-const status = panel.addStatus('');
-const hint = new VText(scene, { text: '绿色 S 为起点，红色 E 为终点，灰色为障碍', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-
-function runAStar() {
-  engine.clear();
-  clearLabels();
-  resetCells();
-  const model = aStarModel(obstacles);
-  const steps = model.steps;
-  let i = 0;
-  function stepNext() {
-    if (i >= steps.length) { showPath(); return; }
-    const s = steps[i];
-    i++;
-    if (s.t === 'open') {
-      if (!isStart(s.c, s.r)) setCellColor(s.c, s.r, C_OPEN, C_OPEN_EM);
-      spawnFLabel(s.c, s.r, s.f);
-      hint.setText('扩展 (' + s.c + ',' + s.r + ')：g=' + s.g + '，h=' + (s.f - s.g) + '，f=' + s.f);
-      C(140, stepNext);
-    } else {
-      if (!isStart(s.c, s.r) && !isEnd(s.c, s.r)) setCellColor(s.c, s.r, C_CLOSED, C_CLOSED_EM);
-      const vt = cells[s.r][s.c].label;
-      if (vt && !isEnd(s.c, s.r)) vt.setText('f=' + s.f, { color: PALETTE.textDim, scale: 0.55 });
-      hint.setText('取出 f 最小节点 (' + s.c + ',' + s.r + ')：f=' + s.f + '，加入 closed');
-      C(160, stepNext);
-    }
-  }
-  function showPath() {
-    if (!model.found) { hint.setText('A* 结束：未找到路径（点击「新图」再试）'); status.textContent = '未找到路径'; return; }
-    let j = 0;
-    function pathStep() {
-      if (j >= model.path.length) {
-        status.textContent = '路径长度 ' + (model.path.length - 1) + ' 步: ' + model.path.map((p) => '(' + p[0] + ',' + p[1] + ')').join(' → ');
-        hint.setText('A* 完成：绿色为最短路径');
-        return;
-      }
-      const [c, r] = model.path[j];
-      if (!isStart(c, r) && !isEnd(c, r)) setCellColor(c, r, C_PATH, C_PATH_EM);
-      j++;
-      C(150, pathStep);
-    }
-    pathStep();
-  }
-  stepNext();
-}
-
-function randomObstacles() {
-  const mask = [];
-  for (let r = 0; r < ROWS; r++) {
-    mask[r] = [];
-    for (let c = 0; c < COLS; c++) mask[r][c] = !isStart(c, r) && !isEnd(c, r) && Math.random() < 0.22;
-  }
-  return mask;
-}
-
-function newGraph() {
-  engine.clear();
-  clearLabels();
-  for (let tries = 0; tries < 50; tries++) {
-    const mask = randomObstacles();
-    if (aStarModel(mask).found) {
-      obstacles.length = 0;
-      for (const row of mask) obstacles.push([...row]);
-      buildGrid();
-      status.textContent = '';
-      hint.setText('新图已生成，点击「运行 A*」开始寻路');
-      return;
-    }
-  }
-  obstacles.length = 0;
-  for (const row of randomObstacles()) obstacles.push([...row]);
+function* runAStar() {
   buildGrid();
-  hint.setText('新图已生成，点击「运行 A*」开始寻路');
+  hint.setText('A*：f = g + h，open 橙 / closed 蓝 / 终点红 / 障碍灰');
+  setCell(ekey, RED);
+  yield W(400);
+  yield* astarGen();
+  yield S(() => { outT.setText(''); hint.setText('A* 完成：结合 Dijkstra 精确性与贪心方向性'); });
 }
 
-function clearAll() {
-  engine.clear();
-  clearLabels();
-  resetCells();
-  status.textContent = '已清空';
-  hint.setText('已清空，点击「运行 A*」开始寻路');
-}
-
-newGraph();
-
-panel.addButton('运行 A*', runAStar);
-panel.addButton('新图', newGraph);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+panel.addButton('运行演示', () => engine.start(runAStar()));
+panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；金 = 当前最小 f，橙 = open 表，蓝 = closed 表，绿 = 路径，灰 = 障碍）');
 
 scene.start(engine);

@@ -1,185 +1,143 @@
-// AlgorithmLibrary/TopoSortDFS3D.js
-// 拓扑排序（DFS 后序法）：有向无环图（六边形布局+箭头），DFS 访问时节点高亮+脉冲，
-// 树边点亮为青绿，指向已访问节点的边闪红，节点完成时变暗并把标签飞入顶部序列行，
-// 最终序列为完成顺序的逆序。
+// AlgorithmLibrary/TopoSortDFS3D.js — 拓扑排序（DFS 后序）：有向无环图 + 灰/黑着色 + 回边检测 + 逆后序序列（function* 生成器驱动）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Graph3D } from '../3D/modes/Graph3D.js';
-import { VText } from '../3D/VisualObject3D.js';
+import { VText, VNode, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('TopoSortDFS3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 620], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 260, 720], fov: 55 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
-function easeInOut(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
 
-const N = 6, R = 170;
-const TREE_COLOR = 0x34d399; // 树边青绿
-const RED_COLOR = 0xef4444;  // 回边红
-const DONE_COLOR = 0x94a3b8; // 完成节点灰
-const graph = new Graph3D(scene, { radius: 17 });
-const POS = [];
-for (let i = 0; i < N; i++) {
-  const a = (i / N) * Math.PI * 2 - Math.PI / 2;
-  POS[i] = [Math.cos(a) * R, 0, Math.sin(a) * R];
-  graph.addNode(String(i), String(i), POS[i][0], POS[i][1], POS[i][2]);
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「运行演示」开始：拓扑排序（DFS 后序，节点 0 出发）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const orderT = new VText(scene, { text: '', x: 0, y: 258, z: 0, color: PALETTE.yellow, scale: 0.75 });
+
+const N = 6, R = 185;
+const EDGES = [[0, 1], [0, 2], [1, 3], [2, 3], [2, 5], [3, 4]];
+const adj = Array.from({ length: N }, () => []);
+const nodeView = new Map();
+const edgeView = new Map();  // 'f->t' -> { tube, arrow, lbl }
+const stackBoxes = [];
+const order = [];
+let state = [];
+
+function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R, 0, Math.sin(a) * R); }
+function tube(a, b) {
+  const curve = new THREE.CatmullRomCurve3([a, b]);
+  return new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
 }
-const dag = [[1, 2], [3], [3, 5], [4], [], [4]];
-for (let u = 0; u < N; u++) for (const v of dag[u]) graph.addEdge(String(u), String(v), { directed: true });
-
-const cones = [];
-function addArrow(a, b) {
-  const A = graph.nodes.get(String(a)).node.mesh;
-  const B = graph.nodes.get(String(b)).node.mesh;
-  const dir = B.position.clone().sub(A.position).normalize();
-  const tip = B.position.clone().addScaledVector(dir, -(graph.radius + 6));
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(9, 20, 10), new THREE.MeshBasicMaterial({ color: PALETTE.edge }));
-  cone.position.copy(tip);
-  cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-  scene.add(cone);
-  cones.push(cone);
+function arrow(a, b) {
+  const d = new THREE.Vector3().subVectors(b, a).normalize();
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(7, 16, 8), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
+  cone.position.copy(b).addScaledVector(d, -24);
+  cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
+  return cone;
 }
-for (let u = 0; u < N; u++) for (const v of dag[u]) addArrow(u, v);
-
-// ---- 模型（与 /tmp/3dtest/graphmodel.mjs 一致）----
-function topoDFSModel(adj, n) {
-  const color = Array(n).fill(0);
-  const finish = [];
-  const treeEdges = [];
-  const redEdges = [];
-  const events = [];
-  let cyclic = false;
-  function dfs(u) {
-    color[u] = 1;
-    events.push({ t: 'visit', u });
-    for (const v of adj[u]) {
-      if (color[v] === 0) { treeEdges.push([u, v]); events.push({ t: 'tree', u, v }); dfs(v); }
-      else { redEdges.push([u, v]); events.push({ t: 'red', u, v }); if (color[v] === 1) cyclic = true; }
-    }
-    color[u] = 2;
-    finish.push(u);
-    events.push({ t: 'finish', u });
+function clearView() {
+  nodeView.forEach(v => scene.remove(v.mesh));
+  edgeView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); scene.remove(e.arrow); e.arrow.geometry.dispose(); e.arrow.material.dispose(); });
+  stackBoxes.forEach(e => scene.remove(e.box.mesh));
+  nodeView.clear(); edgeView.clear(); stackBoxes.length = 0; order.length = 0;
+}
+function buildGraph() {
+  clearView();
+  for (let i = 0; i < N; i++) adj[i].length = 0;
+  for (let i = 0; i < N; i++) {
+    const p = posOf(i);
+    const vn = new VNode(scene, { radius: 20, x: p.x, y: p.y, z: p.z, label: String(i), color: BLUE, emissive: BLUE });
+    nodeView.set(i, vn);
   }
-  for (let s = 0; s < n; s++) if (color[s] === 0) dfs(s);
-  return { order: [...finish].reverse(), treeEdges, redEdges, events, cyclic };
-}
-
-const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「做拓扑排序」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const orderTexts = [];
-
-function colorEdge(a, b, color) {
-  const e = graph.edges.get(`${a}->${b}`);
-  if (!e) return;
-  const from = new THREE.Color(e.baseColor);
-  const to = new THREE.Color(color);
-  C(280, (p) => {
-    e.mesh.material.color.copy(from).lerp(to, p);
-    e.mesh.material.opacity = e.baseOpacity + p * 0.35;
-  }, () => { e.mesh.material.color.setHex(e.baseColor); e.mesh.material.opacity = e.baseOpacity; });
-}
-
-// 回边闪红后熄灭：直接改材质颜色，不经过 colorEdge（避免在命令 fn 内再入队）
-function fadeRedEdge(a, b) {
-  const e = graph.edges.get(`${a}->${b}`);
-  if (!e) return;
-  const from = new THREE.Color(RED_COLOR);
-  const to = new THREE.Color(e.baseColor);
-  C(450, (p) => {
-    e.mesh.material.color.copy(from).lerp(to, p);
-    e.mesh.material.opacity = e.baseOpacity;
-    e.mesh.material.emissiveIntensity = 0;
-  }, () => { e.mesh.material.color.setHex(e.baseColor); e.mesh.material.opacity = e.baseOpacity; });
-}
-
-function colorNode(u, color) {
-  const m = graph.nodes.get(String(u)).node.mesh;
-  const from = new THREE.Color(PALETTE.node);
-  const to = new THREE.Color(color);
-  C(300, (p) => {
-    m.material.color.copy(from).lerp(to, p);
-    m.material.emissive.copy(to).multiplyScalar(0.4);
-  }, () => { m.material.color.setHex(PALETTE.node); m.material.emissive.setHex(PALETTE.nodeEmissive); });
-}
-
-function flyToRow(u, idx) {
-  const [x, , z] = POS[u];
-  const to = { x: -250 + idx * 62, y: 185, z: 0 };
-  const vt = new VText(scene, { text: String(u), x, y: 70, z, color: PALETTE.text, scale: 0.9 });
-  vt.sprite.scale.set(0.1, 0.05, 1);
-  C(300, (p) => { const s = 0.01 + p * 0.99; vt.sprite.scale.set(90 * s, 45 * s, 1); }, () => vt.sprite.scale.set(0.1, 0.05, 1));
-  C(500, (p) => {
-    const t = easeInOut(p);
-    vt.sprite.position.set(x + (to.x - x) * t, 70 + (to.y - 70) * t, z + (0 - z) * t);
-  }, () => vt.sprite.position.set(x, 70, z));
-  orderTexts.push(vt);
-}
-
-function runTopo() {
-  engine.clear();
-  for (let i = 0; i < N; i++) graph.dehighlightNode(String(i), C);
-  for (const key of graph.edges.keys()) {
-    const [a, b] = key.split('->');
-    graph.lightEdge(a, b, false, C);
+  for (const [f, t] of EDGES) {
+    const a = posOf(f), b = posOf(t);
+    const m = tube(a, b);
+    const ar = arrow(a, b);
+    scene.add(m); scene.add(ar);
+    const mid = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2 + 20, (a.z + b.z) / 2);
+    const lbl = new VText(scene, { text: '', x: mid.x, y: mid.y, z: mid.z, color: WHITE, scale: 0.6 });
+    edgeView.set(f + '->' + t, { tube: m, arrow: ar, lbl });
+    adj[f].push(t);
   }
-  orderTexts.forEach((vt) => vt.remove());
-  orderTexts.length = 0;
+}
+function setNodeColor(i, c) { nodeView.get(i).setColor(c, c); }
+function setEdgeColor(f, t, c, op) { const e = edgeView.get(f + '->' + t); if (e) { e.tube.material.color.setHex(c); e.tube.material.opacity = op; e.arrow.material.color.setHex(c); e.arrow.material.opacity = op; } }
+function resetEdgeColors() { edgeView.forEach(e => { e.tube.material.color.setHex(WHITE); e.tube.material.opacity = 0.55; e.arrow.material.color.setHex(WHITE); e.arrow.material.opacity = 0.55; }); }
+function* pushBox(id) {
+  const x = 165 - stackBoxes.length * 55;
+  const box = new VBox(scene, { w: 42, h: 42, d: 20, x, y: 175, z: 0, label: id, color: ORANGE, emissive: ORANGE });
+  box.mesh.scale.setScalar(0.01);
+  yield A(280, p => { box.mesh.scale.setScalar(0.01 + 0.99 * p); });
+  stackBoxes.push({ id, box });
+}
+function* popBox() {
+  const e = stackBoxes.pop();
+  if (!e) return;
+  yield A(240, p => { e.box.mesh.scale.setScalar(1 - p); });
+  scene.remove(e.box.mesh);
+}
 
-  const { order, events } = topoDFSModel(dag, N);
-  const posInOrder = {};
-  order.forEach((u, i) => { posInOrder[u] = i; });
-
-  // 预展开为扁平命令序列：命令 fn 会在动画期间每帧被调用，
-  // 若在 fn 内再入队命令会指数膨胀，必须一次性入队。
-  for (const e of events) {
-    if (e.t === 'visit') {
-      graph.highlightNode(String(e.u), C);
-      const m = graph.nodes.get(String(e.u)).node.mesh;
-      C(380, (p) => { m.scale.setScalar(1.15 + 0.2 * Math.sin(p * Math.PI)); }, () => m.scale.setScalar(1));
-      C(1, () => hint.setText('访问节点 ' + e.u + '（标为灰色）'), () => {});
-    } else if (e.t === 'tree') {
-      colorEdge(e.u, e.v, TREE_COLOR);
-      C(1, () => hint.setText('沿树边 ' + e.u + ' → ' + e.v + ' 深入'), () => {});
-    } else if (e.t === 'red') {
-      colorEdge(e.u, e.v, RED_COLOR);
-      C(1, () => hint.setText('边 ' + e.u + ' → ' + e.v + ' 指向已访问节点，跳过'), () => {});
-      fadeRedEdge(e.u, e.v);
+function* dfs(u) {
+  state[u] = 1;
+  setNodeColor(u, GOLD);
+  yield* pushBox(String(u));
+  yield S(() => outT.setText('访问 ' + u + '（置灰，压栈），探索出边'));
+  yield W(420);
+  for (const v of adj[u]) {
+    if (state[v] === 0) {
+      setEdgeColor(u, v, CYAN, 1);
+      yield S(() => outT.setText('树边 ' + u + '→' + v + '：递归访问 ' + v));
+      yield W(350);
+      yield* dfs(v);
+      resetEdgeColors();
+    } else if (state[v] === 1) {
+      setEdgeColor(u, v, RED, 1);
+      yield S(() => outT.setText('回边 ' + u + '→' + v + '（' + v + ' 仍在栈中灰）→ 存在环，无法拓扑排序！'));
+      yield W(500);
+      resetEdgeColors();
     } else {
-      colorNode(e.u, DONE_COLOR);
-      flyToRow(e.u, posInOrder[e.u]);
-      C(1, () => hint.setText('节点 ' + e.u + ' 完成（标为黑色）'), () => {});
+      setEdgeColor(u, v, ORANGE, 0.8);
+      yield S(() => outT.setText('跨边 ' + u + '→' + v + '（' + v + ' 已完成），跳过'));
+      yield W(280);
+      resetEdgeColors();
     }
-    C(240, () => {}, () => {});
   }
-  C(1, () => {
-    status.textContent = '拓扑排序: ' + order.join(' → ');
-    hint.setText('拓扑排序（DFS 后序逆序）完成: ' + order.join(' → '));
-  }, () => {});
+  state[u] = 2;
+  setNodeColor(u, GREEN);
+  yield* popBox();
+  order.unshift(u);
+  yield S(() => outT.setText(u + ' 完成（后序）→ 压入序列头部。当前拓扑序：' + order.join(' → ')));
+  orderT.setText('拓扑序列：' + order.join(' → '));
+  yield W(450);
 }
 
-function clearAll() {
-  engine.clear();
-  orderTexts.forEach((vt) => vt.remove());
-  orderTexts.length = 0;
-  cones.forEach((c) => scene.remove(c));
-  cones.length = 0;
-  for (const [, e] of graph.nodes) e.node.remove();
-  graph.nodes.clear();
-  for (const [, e] of graph.edges) {
-    scene.remove(e.mesh);
-    if (e.weightLabel) e.weightLabel.remove();
-  }
-  graph.edges.clear();
-  status.textContent = '';
-  hint.setText('已清空画布');
+function* topoGen() {
+  state = Array(N).fill(0);
+  yield S(() => outT.setText('DFS 后序：节点完成顺序的逆序 = 拓扑序。0=白未访 1=灰在栈 2=黑完成'));
+  yield W(550);
+  yield* dfs(0);
+  yield S(() => outT.setText('从 0 可达的全部节点已完成'));
+  yield W(400);
+  yield S(() => {
+    outT.setText('拓扑序列：' + order.join(' → ') + '。每条边均从左指向右 ✓');
+    status.textContent = 'TopoSort(DFS) 完成：序列 ' + order.join(',') + '，无环，O(V+E)';
+  });
+  yield W(600);
 }
 
-panel.addButton('做拓扑排序', runTopo);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+function* runTopo() {
+  buildGraph();
+  hint.setText('TopoSort(DFS)：后序逆序 + 灰/黑着色判环');
+  yield W(400);
+  yield* topoGen();
+  yield S(() => { outT.setText(''); hint.setText('拓扑排序完成：' + order.join(' → ')); });
+}
+
+panel.addButton('运行演示', () => engine.start(runTopo()));
+panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); orderT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；箭头 = 有向边，灰 = 访问中，绿 = 完成，红 = 回边，顶行 = 拓扑序列）');
 
 scene.start(engine);

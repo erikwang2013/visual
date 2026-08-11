@@ -1,186 +1,150 @@
-// AlgorithmLibrary/TopoSortIndegree3D.js
-// 拓扑排序（Kahn 入度法）：有向无环图（六边形布局+箭头），每个节点上方标注入度，
-// 每轮高亮入度为 0 的节点并移出，递减邻居入度，输出顺序文字飞入顶部序列行。
+// AlgorithmLibrary/TopoSortIndegree3D.js — 拓扑排序（Kahn 入度法）：入度标签 + 入度 0 节点入队移出 + 递减邻居入度 + 序列行（function* 生成器驱动）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Graph3D } from '../3D/modes/Graph3D.js';
-import { VText } from '../3D/VisualObject3D.js';
+import { VText, VNode, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('TopoSortIndegree3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 620], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 260, 720], fov: 55 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
-function easeInOut(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
 
-const N = 6, R = 170;
-const graph = new Graph3D(scene, { radius: 17 });
-const POS = [];
-for (let i = 0; i < N; i++) {
-  const a = (i / N) * Math.PI * 2 - Math.PI / 2;
-  POS[i] = [Math.cos(a) * R, 0, Math.sin(a) * R];
-  graph.addNode(String(i), String(i), POS[i][0], POS[i][1], POS[i][2]);
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「运行演示」开始：拓扑排序（Kahn 入度法）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const orderT = new VText(scene, { text: '', x: 0, y: 258, z: 0, color: PALETTE.yellow, scale: 0.75 });
+
+const N = 6, R = 185;
+const EDGES = [[0, 1], [0, 2], [1, 3], [2, 3], [2, 5], [3, 4]];
+const adj = Array.from({ length: N }, () => []);
+const nodeView = new Map();
+const edgeView = new Map();  // 'f->t' -> { tube, arrow, lbl }
+const inView = new Map();    // i -> 入度标签
+const queueBoxes = [];
+const order = [];
+let indeg = [];
+
+function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R, 0, Math.sin(a) * R); }
+function tube(a, b) {
+  const curve = new THREE.CatmullRomCurve3([a, b]);
+  return new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
 }
-// 样例 DAG（模型已验证：Kahn 顺序 [0,1,2,3,5,4]）
-const dag = [[1, 2], [3], [3, 5], [4], [], [4]];
-for (let u = 0; u < N; u++) for (const v of dag[u]) graph.addEdge(String(u), String(v), { directed: true });
-
-// 有向箭头：圆锥置于边末端
-const cones = [];
-function addArrow(a, b) {
-  const A = graph.nodes.get(String(a)).node.mesh;
-  const B = graph.nodes.get(String(b)).node.mesh;
-  const dir = B.position.clone().sub(A.position).normalize();
-  const tip = B.position.clone().addScaledVector(dir, -(graph.radius + 6));
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(9, 20, 10), new THREE.MeshBasicMaterial({ color: PALETTE.edge }));
-  cone.position.copy(tip);
-  cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-  scene.add(cone);
-  cones.push(cone);
+function arrow(a, b) {
+  const d = new THREE.Vector3().subVectors(b, a).normalize();
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(7, 16, 8), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
+  cone.position.copy(b).addScaledVector(d, -24);
+  cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
+  return cone;
 }
-for (let u = 0; u < N; u++) for (const v of dag[u]) addArrow(u, v);
-
-// ---- 模型（与 /tmp/3dtest/graphmodel.mjs 一致）----
-function topoIndegreeModel(adj, n) {
-  const indeg = Array(n).fill(0);
-  for (const ns of adj) for (const v of ns) indeg[v]++;
-  const q = [];
-  for (let i = 0; i < n; i++) if (indeg[i] === 0) q.push(i);
-  const order = [];
-  const steps = [];
-  const initIndeg = [...indeg];
-  while (q.length) {
-    const u = q.shift();
-    order.push(u);
-    const dec = [];
-    for (const v of adj[u]) { --indeg[v]; dec.push(v); if (indeg[v] === 0) q.push(v); }
-    steps.push({ u, dec });
-  }
-  return order.length === n ? { order, steps, initIndeg } : null;
+function clearView() {
+  nodeView.forEach(v => scene.remove(v.mesh));
+  edgeView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); scene.remove(e.arrow); e.arrow.geometry.dispose(); e.arrow.material.dispose(); });
+  queueBoxes.forEach(e => scene.remove(e.box.mesh));
+  nodeView.clear(); edgeView.clear(); queueBoxes.length = 0; order.length = 0;
 }
-
-const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「做拓扑排序」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const indegTexts = [];
-const orderTexts = [];
-
-function spawnIndegText(u, val) {
-  const [x, , z] = POS[u];
-  const vt = new VText(scene, { text: '入度 ' + val, x, y: 85, z, color: PALETTE.textDim, scale: 0.7 });
-  vt.sprite.scale.set(0.1, 0.05, 1);
-  C(250, (p) => { const s = 0.01 + p * 0.99; vt.sprite.scale.set(70 * s, 35 * s, 1); }, () => vt.sprite.scale.set(0.1, 0.05, 1));
-  indegTexts[u] = vt;
-}
-
-function popIndegText(u, val) {
-  const vt = indegTexts[u];
-  vt.setText('入度 ' + val, { color: PALETTE.text }); // setText 会把 scale 重置为 (100,50,1)
-  vt.sprite.scale.set(105, 52.5, 1);
-  C(300, (p) => { const s = 1.05 - 0.35 * p; vt.sprite.scale.set(100 * s, 50 * s, 1); }, () => vt.sprite.scale.set(70, 35, 1));
-}
-
-// 候选边熄灭：直接改材质颜色，不经过 lightEdge（避免在命令 fn 内再入队）
-function fadeEdgeBack(a, b, delay) {
-  const e = graph.edges.get(`${a}->${b}`);
-  if (!e) return;
-  const from = new THREE.Color(PALETTE.highlight);
-  const to = new THREE.Color(e.baseColor);
-  C(delay, (p) => {
-    e.mesh.material.color.copy(from).lerp(to, p);
-    e.mesh.material.emissiveIntensity = 0;
-  }, () => { e.mesh.material.color.setHex(e.baseColor); e.mesh.material.emissiveIntensity = 0; });
-}
-
-function hideNode(u) {
-  const m = graph.nodes.get(String(u)).node.mesh;
-  m.material.transparent = true;
-  C(420, (p) => { m.scale.setScalar(1 - p * 0.99); m.material.opacity = 1 - p; }, () => { m.scale.setScalar(1); m.material.opacity = 1; m.material.transparent = false; });
-}
-
-function spawnOrderText(u, idx) {
-  const [x, , z] = POS[u];
-  const to = { x: -250 + idx * 62, y: 185, z: 0 };
-  const vt = new VText(scene, { text: String(u), x, y: 70, z, color: PALETTE.text, scale: 0.9 });
-  vt.sprite.scale.set(0.1, 0.05, 1);
-  C(300, (p) => { const s = 0.01 + p * 0.99; vt.sprite.scale.set(90 * s, 45 * s, 1); }, () => vt.sprite.scale.set(0.1, 0.05, 1));
-  C(500, (p) => {
-    const t = easeInOut(p);
-    vt.sprite.position.set(x + (to.x - x) * t, 70 + (to.y - 70) * t, z + (0 - z) * t);
-  }, () => vt.sprite.position.set(x, 70, z));
-  orderTexts.push(vt);
-}
-
-function runTopo() {
-  engine.clear();
-  for (let i = 0; i < N; i++) graph.dehighlightNode(String(i), C);
-  for (const key of graph.edges.keys()) {
-    const [a, b] = key.split('->');
-    graph.lightEdge(a, b, false, C);
-  }
-  orderTexts.forEach((vt) => vt.remove());
-  orderTexts.length = 0;
-  // 恢复被隐藏的节点
+function buildGraph() {
+  clearView();
+  for (let i = 0; i < N; i++) adj[i].length = 0;
   for (let i = 0; i < N; i++) {
-    const m = graph.nodes.get(String(i)).node.mesh;
-    m.scale.setScalar(1); m.material.opacity = 1; m.material.transparent = false;
+    const p = posOf(i);
+    const vn = new VNode(scene, { radius: 20, x: p.x, y: p.y, z: p.z, label: String(i), color: BLUE, emissive: BLUE });
+    nodeView.set(i, vn);
+    const iT = new VText(scene, { text: '', x: 0, y: 46, z: 0, color: CYAN, scale: 0.62 });
+    vn.mesh.add(iT.sprite);
+    inView.set(i, iT);
   }
-  indegTexts.forEach((vt) => vt.remove());
-  indegTexts.length = 0;
+  for (const [f, t] of EDGES) {
+    const a = posOf(f), b = posOf(t);
+    const m = tube(a, b);
+    const ar = arrow(a, b);
+    scene.add(m); scene.add(ar);
+    const lbl = new VText(scene, { text: '', x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 + 20, z: (a.z + b.z) / 2, color: WHITE, scale: 0.6 });
+    edgeView.set(f + '->' + t, { tube: m, arrow: ar, lbl });
+    adj[f].push(t);
+  }
+}
+function setNodeColor(i, c) { nodeView.get(i).setColor(c, c); }
+function setEdgeColor(f, t, c, op) { const e = edgeView.get(f + '->' + t); if (e) { e.tube.material.color.setHex(c); e.tube.material.opacity = op; e.arrow.material.color.setHex(c); e.arrow.material.opacity = op; } }
+function resetEdgeColors() { edgeView.forEach(e => { e.tube.material.color.setHex(WHITE); e.tube.material.opacity = 0.55; e.arrow.material.color.setHex(WHITE); e.arrow.material.opacity = 0.55; }); }
+function* pushBox(id) {
+  const x = -165 + queueBoxes.length * 55;
+  const box = new VBox(scene, { w: 42, h: 42, d: 20, x, y: 175, z: 0, label: id, color: ORANGE, emissive: ORANGE });
+  box.mesh.scale.setScalar(0.01);
+  yield A(280, p => { box.mesh.scale.setScalar(0.01 + 0.99 * p); });
+  queueBoxes.push({ id, box });
+}
+function* popBox() {
+  const e = queueBoxes.shift();
+  if (!e) return;
+  yield A(240, p => { e.box.mesh.scale.setScalar(1 - p); });
+  scene.remove(e.box.mesh);
+  const tasks = queueBoxes.map(b => ({ box: b.box, from: b.box.mesh.position.x }));
+  if (tasks.length) yield A(300, p => tasks.forEach(t => t.box.mesh.position.x = t.from - 55 * p));
+}
+function showIndeg() { indeg.forEach((d, i) => inView.get(i).setText('in=' + d)); }
 
-  const res = topoIndegreeModel(dag, N);
-  if (!res) { hint.setText('图中存在环，无法拓扑排序'); return; }
-  const { order, steps, initIndeg } = res;
-  for (let i = 0; i < N; i++) spawnIndegText(i, initIndeg[i]);
-  hint.setText('初始入度：' + initIndeg.join(', '));
-
-  // 预展开为扁平命令序列：命令 fn 会在动画期间每帧被调用，
-  // 若在 fn 内再入队命令会指数膨胀，必须一次性入队。
-  for (let si = 0; si < steps.length; si++) {
-    const { u, dec } = steps[si];
-    graph.highlightNode(String(u), C);
-    C(1, () => hint.setText('入度为 0，选取节点 ' + u), () => {});
-    spawnOrderText(u, si);
-    hideNode(u);
-    for (let j = 0; j < dec.length; j++) {
-      const v = dec[j];
-      C(1, () => hint.setText('节点 ' + u + ' 的出边 ' + v + '：入度减 1'), () => {});
-      graph.lightEdge(String(u), String(v), true, C);
-      popIndegText(v, initIndeg[v] - dec.slice(0, j + 1).length);
-      fadeEdgeBack(u, v, 500);
-      C(200, () => {}, () => {});
+function* kahnGen() {
+  indeg = Array(N).fill(0);
+  for (const [, t] of EDGES) indeg[t]++;
+  showIndeg();
+  const q = [];
+  for (let i = 0; i < N; i++) if (indeg[i] === 0) { q.push(i); yield* pushBox(String(i)); }
+  yield S(() => outT.setText('统计入度：' + indeg.join(',') + '。入度 0 节点 ' + q.join(',') + ' 入队'));
+  yield W(600);
+  let head = 0;
+  while (head < q.length) {
+    const u = q[head++];
+    setNodeColor(u, GOLD);
+    yield S(() => outT.setText('出队 ' + u + '：加入拓扑序列，递减其邻居入度'));
+    yield* popBox();
+    order.push(u);
+    orderT.setText('拓扑序列：' + order.join(' → '));
+    yield W(420);
+    for (const v of adj[u]) {
+      indeg[v]--;
+      setEdgeColor(u, v, CYAN, 1);
+      showIndeg();
+      setNodeColor(v, ORANGE);
+      yield S(() => outT.setText('边 ' + u + '→' + v + '：in[' + v + '] → ' + indeg[v]));
+      yield W(350);
+      if (indeg[v] === 0) {
+        q.push(v);
+        yield* pushBox(String(v));
+        yield S(() => outT.setText(v + ' 入度归 0 → 入队'));
+        yield W(320);
+      }
+      resetEdgeColors();
     }
-    C(250, () => {}, () => {});
+    setNodeColor(u, GREEN);
   }
-  C(1, () => {
-    status.textContent = '拓扑排序: ' + order.join(' → ');
-    hint.setText('拓扑排序完成: ' + order.join(' → '));
-  }, () => {});
+  if (order.length < N) {
+    yield S(() => outT.setText('剩余 ' + (N - order.length) + ' 个节点入度恒 > 0 → 图中存在环！'));
+    status.textContent = 'TopoSort(Kahn)：检测到环，无法拓扑排序';
+    yield W(500);
+  } else {
+    yield S(() => outT.setText('全部节点移出（' + N + '/' + N + '）→ 无环'));
+    yield W(400);
+    yield S(() => {
+      outT.setText('拓扑序列：' + order.join(' → '));
+      status.textContent = 'TopoSort(Kahn) 完成：序列 ' + order.join(',') + '，O(V+E)';
+    });
+  }
+  yield W(500);
 }
 
-function clearAll() {
-  engine.clear();
-  indegTexts.forEach((vt) => vt.remove());
-  indegTexts.length = 0;
-  orderTexts.forEach((vt) => vt.remove());
-  orderTexts.length = 0;
-  cones.forEach((c) => scene.remove(c));
-  cones.length = 0;
-  for (const [, e] of graph.nodes) e.node.remove();
-  graph.nodes.clear();
-  for (const [, e] of graph.edges) {
-    scene.remove(e.mesh);
-    if (e.weightLabel) e.weightLabel.remove();
-  }
-  graph.edges.clear();
-  status.textContent = '';
-  hint.setText('已清空画布');
+function* runKahn() {
+  buildGraph();
+  hint.setText('Kahn 入度法：不断移出入度为 0 的节点');
+  yield W(400);
+  yield* kahnGen();
+  yield S(() => { outT.setText(''); hint.setText('Kahn 完成：序列 ' + order.join(' → ')); });
 }
 
-panel.addButton('做拓扑排序', runTopo);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+panel.addButton('运行演示', () => engine.start(runKahn()));
+panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); orderT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；箭头 = 有向边，节点上方 = 入度，橙 = 入队，金 = 出队，绿 = 完成；顶行 = 序列）');
 
 scene.start(engine);

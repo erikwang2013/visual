@@ -1,154 +1,116 @@
-// AlgorithmLibrary/Kruskal3D.js
-// Kruskal 最小生成树：加权无向图（左侧圆形布局），边按权重升序检查，
-// 选中边染绿并记录，成环的边闪红，右侧 9x3 表格 [边,权重,状态] 同步标记 ✓/✗，
-// 顶部显示并查集 parent 数组变化。
+// AlgorithmLibrary/Kruskal3D.js — Kruskal 最小生成树：边按权升序 + 并查集判环 + 选入绿/成环红 + parent 数组实时显示（function* 生成器驱动）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Graph3D } from '../3D/modes/Graph3D.js';
-import { Table3D } from '../3D/modes/Table3D.js';
-import { VText } from '../3D/VisualObject3D.js';
+import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Kruskal3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 620], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 260, 720], fov: 55 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
-function easeInOut(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
 
-const N = 6, R = 150, CX = -190;
-const SELECT_COLOR = 0x34d399; // 选中边绿
-const RED_COLOR = 0xef4444;    // 成环边红
-const graph = new Graph3D(scene, { radius: 15 });
-const POS = [];
-for (let i = 0; i < N; i++) {
-  const a = (i / N) * Math.PI * 2 - Math.PI / 2;
-  POS[i] = [CX + Math.cos(a) * R, 0, Math.sin(a) * R];
-  graph.addNode(String(i), String(i), POS[i][0], POS[i][1], POS[i][2]);
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「运行演示」开始：Kruskal 最小生成树（并查集判环）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const parT = new VText(scene, { text: '', x: 0, y: -252, z: 0, color: PALETTE.textDim, scale: 0.6 });
+
+const N = 6, R = 185;
+// 无向加权图（同 Prim）：MST 总权 12
+const EDGES = [[0, 1, 2], [0, 2, 5], [1, 2, 6], [1, 3, 3], [2, 3, 1], [2, 4, 8], [3, 4, 4], [3, 5, 7], [4, 5, 2]];
+const adj = Array.from({ length: N }, () => []);
+const nodeView = new Map();
+const edgeView = new Map();  // 'a-b'(a<b) -> { tube, lbl }
+const mstEdges = [];
+let parent = [];
+
+function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R, 0, Math.sin(a) * R); }
+function tube(a, b) {
+  const curve = new THREE.CatmullRomCurve3([a, b]);
+  return new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
 }
-const w6 = { '0->1': 4, '1->0': 4, '0->2': 2, '2->0': 2, '1->2': 1, '2->1': 1, '1->3': 5, '3->1': 5, '2->3': 8, '3->2': 8, '2->4': 10, '4->2': 10, '3->4': 2, '4->3': 2, '3->5': 6, '5->3': 6, '4->5': 3, '5->4': 3 };
-const EDGES = [[0, 1], [0, 2], [1, 2], [1, 3], [2, 3], [2, 4], [3, 4], [3, 5], [4, 5]];
-for (const [a, b] of EDGES) graph.addEdge(String(a), String(b), { weight: w6[`${a}->${b}`] });
-
-// 右侧表格：9 行 [边, 权重, 状态]
-const M = EDGES.length;
-const table = new Table3D(scene, { rows: M, cols: 3, cellW: 66, cellH: 34, startX: 150, startY: 130 });
-table.create();
-table.colLabels[0].setText('边');
-table.colLabels[1].setText('权重');
-table.colLabels[2].setText('状态');
-for (let r = 0; r < M; r++) table.setRowLabel(r, String(r));
-
-// ---- 模型（与 /tmp/3dtest/graphmodel.mjs 一致）----
-function kruskalModel(edges, n) {
-  const sorted = [...edges].sort((x, y) => x.w - y.w);
-  const parent = Array.from({ length: n }, (_, i) => i);
-  const find = (x) => { while (parent[x] !== x) x = parent[x]; return x; };
-  const selected = [];
-  const rejected = [];
-  const steps = [];
-  for (const e of sorted) {
-    const ra = find(e.a), rb = find(e.b);
-    if (ra !== rb) { parent[ra] = rb; selected.push(e); steps.push({ e, action: 'select', parent: [...parent] }); }
-    else { rejected.push(e); steps.push({ e, action: 'reject', parent: [...parent] }); }
+function clearView() {
+  nodeView.forEach(v => scene.remove(v.mesh));
+  edgeView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); scene.remove(e.lbl.sprite); });
+  nodeView.clear(); edgeView.clear(); mstEdges.length = 0;
+}
+function buildGraph() {
+  clearView();
+  for (let i = 0; i < N; i++) adj[i].length = 0;
+  for (let i = 0; i < N; i++) {
+    const p = posOf(i);
+    const vn = new VNode(scene, { radius: 20, x: p.x, y: p.y, z: p.z, label: String(i), color: BLUE, emissive: BLUE });
+    nodeView.set(i, vn);
   }
-  return { selected, rejected, sorted, steps };
-}
-
-const edges = EDGES.map(([a, b]) => ({ a, b, w: w6[`${a}->${b}`] }));
-const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「运行 Kruskal」开始', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const parentText = new VText(scene, { text: '', x: 0, y: 215, z: 0, color: PALETTE.textDim, scale: 0.7 });
-
-function colorEdge(a, b, color) {
-  const e = graph.edges.get(`${a}->${b}`);
-  if (!e) return;
-  const from = new THREE.Color(e.baseColor);
-  const to = new THREE.Color(color);
-  C(300, (p) => {
-    e.mesh.material.color.copy(from).lerp(to, p);
-    e.mesh.material.opacity = e.baseOpacity + p * 0.35;
-  }, () => { e.mesh.material.color.setHex(e.baseColor); e.mesh.material.opacity = e.baseOpacity; });
-}
-
-function flashRed(a, b) {
-  const e = graph.edges.get(`${a}->${b}`);
-  if (!e) return;
-  C(280, (p) => { e.mesh.material.color.copy(new THREE.Color(e.baseColor)).lerp(new THREE.Color(RED_COLOR), p); e.mesh.material.opacity = e.baseOpacity + p * 0.4; }, () => { e.mesh.material.color.setHex(e.baseColor); e.mesh.material.opacity = e.baseOpacity; });
-  C(620, (p) => { e.mesh.material.color.copy(new THREE.Color(RED_COLOR)).lerp(new THREE.Color(e.baseColor), p); }, () => {});
-}
-
-function flashEndpoints(u) {
-  const m = graph.nodes.get(String(u)).node.mesh;
-  C(420, (p) => { m.scale.setScalar(1 + 0.25 * Math.sin(p * Math.PI)); }, () => m.scale.setScalar(1));
-}
-
-function runKruskal() {
-  engine.clear();
-  for (let i = 0; i < N; i++) graph.dehighlightNode(String(i), C);
-  for (const key of graph.edges.keys()) {
-    const [a, b] = key.split('->');
-    graph.lightEdge(a, b, false, C);
+  for (const [f, t, w] of EDGES) {
+    const a = posOf(f), b = posOf(t);
+    const m = tube(a, b);
+    scene.add(m);
+    const mid = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2 + 20, (a.z + b.z) / 2);
+    const lbl = new VText(scene, { text: String(w), x: mid.x, y: mid.y, z: mid.z, color: PALETTE.yellow, scale: 0.6 });
+    const key = f < t ? f + '-' + t : t + '-' + f;
+    edgeView.set(key, { tube: m, lbl });
+    adj[f].push([t, w]); adj[t].push([f, w]);
   }
-  parentText.setText('');
-  for (let r = 0; r < M; r++) { table.unhighlightCell(r, 0, C); table.unhighlightCell(r, 2, C); table.setCell(r, 0, '-', C); table.setCell(r, 1, '-', C); table.setCell(r, 2, '', C); }
-  hint.setText('边按权重升序排列，依次检查是否成环');
+}
+function setNodeColor(i, c) { nodeView.get(i).setColor(c, c); }
+function setEdgeColor(f, t, c, op) { const e = edgeView.get(f < t ? f + '-' + t : t + '-' + f); if (e) { e.tube.material.color.setHex(c); e.tube.material.opacity = op; } }
+function resetEdgeColors() { edgeView.forEach(e => { e.tube.material.color.setHex(WHITE); e.tube.material.opacity = 0.55; }); }
+function find(x) { while (parent[x] !== x) x = parent[x]; return x; }
+function showParent() { parT.setText('并查集 parent: [' + parent.join(', ') + ']'); }
 
-  const { steps } = kruskalModel(edges, N);
+function* kruskalGen() {
+  const sorted = EDGES.slice().sort((a, b) => a[2] - b[2]);
+  parent = Array.from({ length: N }, (_, i) => i);
+  showParent();
+  yield S(() => outT.setText('并查集初始化：parent[i]=i。边按权重升序：' + sorted.map(e => e[0] + '-' + e[1] + '(' + e[2] + ')').join(' ')));
+  yield W(900);
   let total = 0;
-  for (const e of steps) if (e.action === 'select') total += e.e.w;
-
-  let si = 0;
-  function step() {
-    if (si >= steps.length) {
-      status.textContent = 'MST 总权重 = ' + total;
-      hint.setText('Kruskal 完成，MST 总权重 = ' + total);
-      return;
-    }
-    const { e, action, parent } = steps[si];
-    table.setCell(si, 0, e.a + '-' + e.b, C);
-    table.setCell(si, 1, String(e.w), C);
-    flashEndpoints(e.a); flashEndpoints(e.b);
-    parentText.setText('parent: [' + parent.join(', ') + ']');
-    if (action === 'select') {
-      colorEdge(e.a, e.b, SELECT_COLOR);
-      table.setCell(si, 2, '✓', C);
-      table.highlightCell(si, 2, C);
-      hint.setText('边 ' + e.a + '-' + e.b + '（权重 ' + e.w + '）不成环，选中');
+  for (const [u, v, w] of sorted) {
+    setEdgeColor(u, v, CYAN, 1);
+    yield S(() => outT.setText('检查边 ' + u + '-' + v + '（权 ' + w + '）：find(' + u + ')=' + find(u) + '，find(' + v + ')=' + find(v)));
+    yield W(420);
+    const ru = find(u), rv = find(v);
+    if (ru !== rv) {
+      parent[ru] = rv;
+      showParent();
+      mstEdges.push([u, v]);
+      total += w;
+      setEdgeColor(u, v, GREEN, 1);
+      setNodeColor(u, GREEN); setNodeColor(v, GREEN);
+      yield S(() => outT.setText('不成环 → 选入 MST（union ' + ru + ' ← ' + rv + '），当前总权 ' + total));
+      yield W(450);
     } else {
-      flashRed(e.a, e.b);
-      table.setCell(si, 2, '✗', C);
-      table.highlightCell(si, 2, C);
-      hint.setText('边 ' + e.a + '-' + e.b + '（权重 ' + e.w + '）与已选边成环，跳过');
+      setEdgeColor(u, v, RED, 1);
+      yield S(() => outT.setText('同属集合 ' + ru + ' → 成环！拒绝该边'));
+      yield W(450);
     }
-    si++;
-    C(350, () => table.unhighlightCell(si - 1, 2, C));
-    C(650, step);
+    resetEdgeColors();
   }
-  step();
+  yield S(() => outT.setText('MST 边集：' + mstEdges.map(e => e[0] + '-' + e[1]).join('  ')));
+  yield W(400);
+  for (const [u, v] of mstEdges) { setEdgeColor(u, v, GOLD, 1); yield W(200); }
+  yield S(() => {
+    outT.setText('最小生成树完成：' + mstEdges.length + ' 条边，总权 ' + total);
+    status.textContent = 'Kruskal 完成：MST 总权 ' + total + '，O(E·logE)';
+  });
+  yield W(600);
+  resetEdgeColors();
+  nodeView.forEach(v => v.setColor(BLUE, BLUE));
 }
 
-function clearAll() {
-  engine.clear();
-  parentText.remove();
-  for (let r = 0; r < M; r++) for (let c = 0; c < 3; c++) if (table.cells[r] && table.cells[r][c]) table.cells[r][c].remove();
-  table.rowLabels.forEach((l) => l.remove());
-  table.colLabels.forEach((l) => l.remove());
-  for (const [, e] of graph.nodes) e.node.remove();
-  graph.nodes.clear();
-  for (const [, e] of graph.edges) {
-    scene.remove(e.mesh);
-    if (e.weightLabel) e.weightLabel.remove();
-  }
-  graph.edges.clear();
-  status.textContent = '';
-  hint.setText('已清空画布');
+function* runKruskal() {
+  buildGraph();
+  hint.setText('Kruskal：按权升序选边 + 并查集判环');
+  yield W(400);
+  yield* kruskalGen();
+  yield S(() => { outT.setText(''); hint.setText('Kruskal 完成：边数 ≤ V-1 且无环即最优，适用于稀疏图'); });
 }
 
-panel.addButton('运行 Kruskal', runKruskal);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+panel.addButton('运行演示', () => engine.start(runKruskal()));
+panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); parT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 检查，绿 = 选入，红 = 成环拒绝，金 = MST 最终边）');
 
 scene.start(engine);

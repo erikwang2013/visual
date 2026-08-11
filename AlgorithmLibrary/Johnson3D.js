@@ -1,163 +1,154 @@
-// AlgorithmLibrary/Johnson3D.js — Johnson：负权图全源最短路 = Bellman-Ford 重加权 + 每点 Dijkstra
+// AlgorithmLibrary/Johnson3D.js — Johnson 全源最短路：超源求 h 势 → 重定权（全非负）→ 各源 Dijkstra + 换算回真实距离（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
+import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Johnson3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const scene = new Scene3D('scene', { cameraPos: [0, 260, 720], fov: 55 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, PUR = 0xc4b5fd, WHITE = 0xe2e8f0;
-const hint = new VText(scene, { text: '点击「运行 Johnson」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「运行演示」开始：Johnson 全源最短路（含负权）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
-const POS = { S: [0, 180, 0], 0: [-130, 40, 0], 1: [130, 40, 0], 2: [-130, -75, 0], 3: [130, -75, 0], 4: [0, -135, 0] };
-const EDGES = [
-  { u: 0, v: 1, w: 4 }, { u: 0, v: 2, w: 2 }, { u: 1, v: 2, w: 3 },
-  { u: 2, v: 1, w: -1 }, { u: 2, v: 3, w: 2 }, { u: 3, v: 4, w: 5 },
-  { u: 4, v: 0, w: 8 }, { u: 4, v: 2, w: 1 },
-];
-const N = 5;
+const N = 5, R = 185;
+const EDGES = [[0, 1, 3], [0, 2, 8], [0, 4, -4], [1, 3, 1], [1, 4, 7], [2, 1, 4], [3, 0, 2], [3, 2, -5], [4, 3, 6]];
+const adj = Array.from({ length: N }, () => []);
+const nodeView = new Map();
+const edgeView = new Map();  // 'f-t' -> { tube, lbl }
+const hView = new Map();     // i -> h 值标签
 
-function bellmanFord() {
-  const d = [0, Infinity, Infinity, Infinity, Infinity];
-  const steps = [];
-  for (let r = 0; r < N; r++) {
+function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R, 0, Math.sin(a) * R); }
+function tube(a, b) {
+  const curve = new THREE.CatmullRomCurve3([a, b]);
+  return new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
+}
+function clearView() {
+  nodeView.forEach(v => scene.remove(v.mesh));
+  edgeView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); scene.remove(e.lbl.sprite); });
+  nodeView.clear(); edgeView.clear();
+}
+function buildGraph() {
+  clearView();
+  for (let i = 0; i < N; i++) adj[i].length = 0;
+  for (let i = 0; i < N; i++) {
+    const p = posOf(i);
+    const vn = new VNode(scene, { radius: 20, x: p.x, y: p.y, z: p.z, label: String(i), color: BLUE, emissive: BLUE });
+    nodeView.set(i, vn);
+    const hT = new VText(scene, { text: '', x: 0, y: 46, z: 0, color: PUR, scale: 0.6 });
+    vn.mesh.add(hT.sprite);
+    hView.set(i, hT);
+  }
+  for (const [f, t, w] of EDGES) {
+    const a = posOf(f), b = posOf(t);
+    const m = tube(a, b);
+    scene.add(m);
+    const mid = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2 + 20, (a.z + b.z) / 2);
+    const lbl = new VText(scene, { text: String(w), x: mid.x, y: mid.y, z: mid.z, color: w < 0 ? RED : PALETTE.yellow, scale: 0.6 });
+    edgeView.set(f + '->' + t, { tube: m, lbl });
+    adj[f].push([t, w]);
+  }
+}
+function setNodeColor(i, c) { nodeView.get(i).setColor(c, c); }
+function setEdgeColor(f, t, c, op) { const e = edgeView.get(f + '->' + t); if (e) { e.tube.material.color.setHex(c); e.tube.material.opacity = op; } }
+function setEdgeLbl(f, t, txt, col) { const e = edgeView.get(f + '->' + t); e.lbl.setText(txt); e.lbl.sprite.material.color.setHex(col || WHITE); }
+function resetEdgeColors() { edgeView.forEach(e => { e.tube.material.color.setHex(WHITE); e.tube.material.opacity = 0.55; }); }
+
+function* johnsonGen() {
+  // 阶段 1：超源 0 权边 → Bellman-Ford 求 h
+  const h = Array(N).fill(0);
+  yield S(() => outT.setText('阶段1：加超源 S（0 权边到所有点），Bellman-Ford 求 h(v) = dist(S→v)'));
+  yield W(500);
+  for (let round = 0; round < N - 1; round++) {
     let changed = false;
-    for (const e of EDGES) {
-      if (d[e.u] + e.w < d[e.v]) {
-        d[e.v] = d[e.u] + e.w;
+    for (const [u, v, w] of EDGES) {
+      const cand = h[u] + w;
+      if (cand < h[v]) {
+        setEdgeColor(u, v, CYAN, 1);
+        setNodeColor(v, ORANGE);
+        yield S(() => outT.setText('松弛 ' + u + '→' + v + '：h[' + v + '] ' + h[v] + ' → ' + cand));
+        h[v] = cand;
+        hView.get(v).setText('h=' + h[v]);
         changed = true;
-        steps.push({ r, e, d: [...d] });
+        yield W(400);
+        resetEdgeColors();
       }
     }
     if (!changed) break;
   }
-  return { h: d, steps };
-}
-const bf = bellmanFord();
-const H = bf.h;
-const WP = EDGES.map(e => ({ ...e, w2: e.w + H[e.u] - H[e.v] }));
-
-function dijkstra(src) {
-  const dist = new Array(N).fill(Infinity); dist[src] = 0;
-  const done = new Array(N).fill(false);
-  const steps = [];
-  for (let it = 0; it < N; it++) {
-    let u = -1;
-    for (let i = 0; i < N; i++) if (!done[i] && (u === -1 || dist[i] < dist[u])) u = i;
-    done[u] = true;
-    steps.push({ type: 'pick', u, dist: [...dist] });
-    for (const e of WP) if (e.u === u && !done[e.v] && dist[u] + e.w2 < dist[e.v]) {
-      dist[e.v] = dist[u] + e.w2;
-      steps.push({ type: 'relax', u, e, dist: [...dist] });
-    }
+  yield S(() => outT.setText('h 势函数：' + h.map((v, i) => 'h[' + i + ']=' + v).join('  ')));
+  yield W(600);
+  // 阶段 2：重定权 w' = w + h(u) - h(v)
+  yield S(() => outT.setText('阶段2：重定权 w′(u,v) = w + h(u) − h(v) → 全部非负'));
+  for (const [u, v, w] of EDGES) {
+    const wp = w + h[u] - h[v];
+    setEdgeColor(u, v, GREEN, 1);
+    yield S(() => outT.setText('边 ' + u + '→' + v + '：' + w + ' + ' + h[u] + ' − ' + h[v] + ' = ' + wp));
+    setEdgeLbl(u, v, String(wp), wp === 0 ? '#86efac' : '#ffffff');
+    yield W(350);
+    resetEdgeColors();
   }
-  return { dist, steps };
-}
-const dj = dijkstra(2);
-const real = dj.dist.map((d, v) => d + H[v] - H[2]);
-
-const nodes = [0, 1, 2, 3, 4].map(i =>
-  new VNode(scene, { radius: 26, x: POS[i][0], y: POS[i][1], z: 0, label: String(i), color: CYAN, emissive: CYAN }));
-const sNode = new VNode(scene, { radius: 20, x: POS.S[0], y: POS.S[1], z: 0, label: 'S', color: WHITE, emissive: WHITE });
-const sTubes = [0, 1, 2, 3, 4].map(i =>
-  tubeBetween(scene, POS.S, POS[i], { color: 0x64748b, opacity: 0.25, radius: 1.4 }));
-const valT = [0, 1, 2, 3, 4].map(i =>
-  new VText(scene, { text: 'h = ∞', x: POS[i][0], y: POS[i][1] - 46, z: 0, color: PUR, scale: 0.58 }));
-const edges = EDGES.map(e => {
-  const a = POS[e.u], b = POS[e.v];
-  const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
-  const tube = tubeBetween(scene, a, b, { color: e.w < 0 ? ROSE : PALETTE.edge, opacity: 0.5, radius: 2.4 });
-  const wt = new VText(scene, { text: String(e.w), x: mx, y: my, z: 8, color: e.w < 0 ? ROSE : PALETTE.textDim, scale: 0.55 });
-  return { e, tube, wt };
-});
-new VText(scene, { text: '负权边 2→1 = −1（红色）：Dijkstra 遇到它就失效，Bellman-Ford 又太慢', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: 'Johnson 思路：加超级源点 S → Bellman-Ford 求 h(v) → 重加权 w′ = w + h(u) − h(v)（全非负）→ 再跑 Dijkstra', x: 0, y: -170, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: -205, z: 0, color: PALETTE.textGlow, scale: 0.62 });
-
-function resetAll() {
-  engine.clear();
-  nodes.forEach((n, i) => { n.setColor(CYAN, CYAN); n.setText(String(i)); });
-  valT.forEach(t => t.setText('h = ∞', { color: PUR }));
-  edges.forEach(({ e, tube, wt }) => {
-    tube.material.color.setHex(e.w < 0 ? ROSE : PALETTE.edge); tube.material.opacity = 0.5;
-    wt.setText(String(e.w), { color: e.w < 0 ? ROSE : PALETTE.textDim });
-  });
-  stageT.setText(''); outT.setText('');
-}
-
-function runJohnson() {
-  resetAll();
-  hint.setText('Johnson 解决「负权图的全源最短路」：Dijkstra 快但怕负权，Bellman-Ford 抗负权但慢 —— 两者合体');
-  C(900, () => {
-    stageT.setText('步骤 1：加超级源点 S，S 到所有节点连 0 权边（浅色细管）');
-    sTubes.forEach(t => { t.material.opacity = 0.5; });
-  });
-  for (const s of bf.steps) {
-    C(620, () => {
-      const { e } = s;
-      edges.forEach(({ tube }, i) => tube.material.color.setHex(i === EDGES.indexOf(e) ? GOLD : (EDGES[i].w < 0 ? ROSE : PALETTE.edge)));
-      [0, 1, 2, 3, 4].forEach(i => {
-        const v = s.d[i];
-        valT[i].setText('h = ' + (v === Infinity ? '∞' : v), { color: v === Infinity ? PUR : GOLD });
-      });
-      stageT.setText(`步骤 1：Bellman-Ford 松弛 ${e.u}→${e.v}：h(${e.v}) = h(${e.u}) + ${e.w} = ${s.d[e.v]}`);
-      hint.setText('每轮对所有边「松弛」：若 h(u)+w < h(v) 则更新 h(v)；N−1 轮后 h 收敛');
-    });
-  }
-  C(900, () => {
-    edges.forEach(({ tube }) => tube.material.color.setHex(PALETTE.edge));
-    stageT.setText('步骤 2：重加权 w′ = w + h(u) − h(v) —— 所有边变为非负，最短路径结构不变！');
-    hint.setText('重加权后 w′ ≥ 0（h 满足三角不等式），负权边 2→1 消失，Dijkstra 可以安全运行');
-  });
-  edges.forEach(({ e, wt }) => {
-    C(480, () => {
-      wt.setText(String(e.w2) + '（原 ' + e.w + '）', { color: e.w2 >= 0 ? GREEN : ROSE });
-      stageT.setText(`重加权：w′(${e.u}→${e.v}) = ${e.w} + h(${e.u}) − h(${e.v}) = ${e.w} + ${H[e.u]} − ${H[e.v]} = ${e.w2}`);
-    });
-  });
-  C(800, () => {
-    stageT.setText('步骤 3：以重加权后的图运行 Dijkstra（从节点 2 出发）');
-    valT.forEach(t => t.setText('d = ∞', { color: PUR }));
-    hint.setText('h 值已固定，现在每个节点的标签切换为「到源点 2 的 w′ 距离」');
-  });
-  for (const s of dj.steps) {
-    C(560, () => {
-      if (s.type === 'pick') {
-        nodes[s.u].setColor(GOLD, GOLD); nodes[s.u].pulse();
-        stageT.setText(`Dijkstra 取出最小距离节点 ${s.u}（已确定），松弛其出边`);
-      } else {
-        const { e } = s;
-        edges.forEach(({ tube }, i) => tube.material.color.setHex(i === EDGES.indexOf(e) ? GOLD : PALETTE.edge));
-        stageT.setText(`Dijkstra 松弛 ${e.u}→${e.v}：d(${e.v}) = d(${e.u}) + w′ = ${s.d[e.v]}`);
+  yield S(() => outT.setText('重定权完成：所有边权 ≥ 0，最短路径结构不变'));
+  yield W(500);
+  // 阶段 3：对源 0 跑 Dijkstra（重定权图）
+  yield S(() => outT.setText('阶段3：每个源点跑 Dijkstra（演示源 0）。真实距离 d = dist′ − h(0) + h(v)'));
+  yield W(500);
+  const dist2 = Array(N).fill(Infinity);
+  dist2[0] = 0;
+  const done = new Set();
+  while (done.size < N) {
+    let u = -1, best = Infinity;
+    for (let i = 0; i < N; i++) if (!done.has(i) && dist2[i] < best) { best = dist2[i]; u = i; }
+    if (u === -1) break;
+    done.add(u);
+    setNodeColor(u, GOLD);
+    yield S(() => outT.setText('取最小 dist′=' + dist2[u] + ' 的节点 ' + u + ''));
+    yield W(350);
+    for (const [v, w] of adj[u]) {
+      const wp = w + h[u] - h[v];
+      if (dist2[u] + wp < dist2[v]) {
+        setEdgeColor(u, v, CYAN, 1);
+        setNodeColor(v, ORANGE);
+        yield S(() => outT.setText('Dijkstra 松弛 ' + u + '→' + v + '（w′=' + wp + '）：dist′[' + v + '] → ' + (dist2[u] + wp)));
+        dist2[v] = dist2[u] + wp;
+        yield W(380);
+        resetEdgeColors();
       }
-      [0, 1, 2, 3, 4].forEach(i => {
-        valT[i].setText('d = ' + (s.d[i] === Infinity ? '∞' : s.d[i]), { color: s.d[i] === Infinity ? PUR : (s.d[i] === 0 ? WHITE : GOLD) });
-      });
-    });
+    }
+    setNodeColor(u, GREEN);
   }
-  C(1000, () => {
-    edges.forEach(({ tube }) => tube.material.color.setHex(PALETTE.edge));
-    nodes.forEach((n, i) => { n.setColor(CYAN, CYAN); n.setText(i + '\n' + real[i]); });
-    stageT.setText('步骤 4：还原真实距离 d(u,v) = d′(u,v) + h(v) − h(u)');
-    outT.setText('从节点 2 出发的真实最短路：d(2,·) = [' + real.join(', ') + ']（可为负，如 d(2,1) = −1）');
-    status.textContent = 'Johnson 全源最短路：从 2 出发真实距离 [' + real.join(', ') + ']';
-    hint.setText('最短路径不变性：重加权只是给所有路径「加同一个常数偏移」，最短路径选择不受影响');
+  const real = dist2.map((d, i) => d - h[0] + h[i]);
+  yield S(() => outT.setText('换算真实距离：d(0→v) = dist′ − h[0] + h[v]'));
+  yield W(450);
+  for (let v = 1; v < N; v++) {
+    setNodeColor(v, GOLD);
+    yield S(() => outT.setText('0→' + v + ' 真实距离 = ' + dist2[v] + ' − 0 + (' + h[v] + ') = ' + real[v]));
+    yield W(450);
+  }
+  yield S(() => {
+    outT.setText('结果：' + real.map((d, i) => '0→' + i + '=' + d).join('  '));
+    status.textContent = 'Johnson 完成：0→2=' + real[2] + '，0→4=' + real[4] + '，O(VE + V²logV)';
   });
-  C(1200, () => {
-    outT.setText('复杂度：Bellman-Ford O(VE) 一次 + Dijkstra O(E·logV) 每点 → 稠密图优于 N 次 Bellman-Ford');
-    hint.setText('Johnson 常用于「带负权边的大规模图」，如 Google Maps 多源查询前的预处理');
-  });
+  yield W(500);
+  resetEdgeColors();
+  nodeView.forEach(v => v.setColor(BLUE, BLUE));
 }
 
-panel.addButton('运行 Johnson', runJohnson);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；含负权边 2→1 = −1，注意重加权前后变化）');
+function* runJohnson() {
+  buildGraph();
+  hint.setText('Johnson：负权图全源最短路 = 重定权 + N 次 Dijkstra');
+  yield W(400);
+  yield* johnsonGen();
+  yield S(() => { outT.setText(''); hint.setText('Johnson 完成：稀疏图下优于 Floyd 的 O(V³)'); });
+}
+
+panel.addButton('运行演示', () => engine.start(runJohnson()));
+panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 松弛/重定权，绿 = 完成，金 = 当前节点；紫 = h 值）');
 
 scene.start(engine);

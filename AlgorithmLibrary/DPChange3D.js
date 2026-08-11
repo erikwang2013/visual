@@ -234,10 +234,10 @@ const amountInput = panel.addInput('金额', () => runTable('table'), 4);
 amountInput.value = '26';
 const coinInput = panel.addInput('币种(逗号分隔)', () => runTable('table'), 20);
 coinInput.value = '1,5,10,25';
-panel.addButton('更改表', () => runTable('table'));
-panel.addButton('更改贪婪', runGreedy);
-panel.addButton('更改递归', runRec);
-panel.addButton('更改记忆', () => runTable('memo'));
+panel.addButton('运行表法', () => runTable('table'));
+panel.addButton('运行贪心', runGreedy);
+panel.addButton('运行递归', runRec);
+panel.addButton('运行记忆', () => runTable('memo'));
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

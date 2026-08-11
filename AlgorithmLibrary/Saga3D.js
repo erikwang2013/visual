@@ -1,9 +1,11 @@
 // AlgorithmLibrary/Saga3D.js — Saga 长事务：分步提交，任一步失败就反向补偿（支付失败 → 回补库存+取消订单）
+// draw.io 风格实体图标：服务器机架（正面 2 槽）= 业务步骤，步骤名标签浮在机架前方
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { AnimationEngine } from '../3D/AnimationEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VBox, VText } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Saga3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
@@ -15,6 +17,32 @@ const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM
 const hint = new VText(scene, { text: '点击「Saga 事务」开始', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('');
 
+// draw.io 风格节点：机架 + 正面 2 槽
+function makeNode(x, y) {
+  const g = new THREE.Group();
+  const rack = new THREE.Mesh(new THREE.BoxGeometry(130, 72, 26),
+    glowMaterial(0x60a5fa, { emissive: 0x1e40af, emissiveIntensity: 0.3 }));
+  const slots = [];
+  for (let k = 0; k < 2; k++) {
+    const s = new THREE.Mesh(new THREE.BoxGeometry(110, 9, 3),
+      glowMaterial(DIM, { emissive: DIM, emissiveIntensity: 0.15 }));
+    s.position.set(0, k ? 19 : -19, 14.5);
+    g.add(s);
+    slots.push(s);
+  }
+  g.add(rack);
+  g.position.set(x, y, 0);
+  scene.add(g);
+  return {
+    setColor: (c, on) => {
+      rack.material.color.setHex(c);
+      rack.material.emissive.setHex(c);
+      rack.material.emissiveIntensity = on ? 0.6 : 0.3;
+      slots.forEach(s => { s.material.color.setHex(c); s.material.emissive.setHex(c); s.material.emissiveIntensity = on ? 0.45 : 0.15; });
+    },
+  };
+}
+
 // 4 个业务步骤
 const STEP = [
   { name: '下单', x: -270 },
@@ -22,7 +50,8 @@ const STEP = [
   { name: '支付', x: 90 },
   { name: '发货', x: 270 },
 ];
-const stepBoxes = STEP.map((s, i) => new VBox(scene, { w: 130, h: 72, d: 72, x: s.x, y: 55, z: 0, label: (i + 1) + ' ' + s.name, color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+const stepBoxes = STEP.map(s => makeNode(s.x, 55));
+const stepLabel = STEP.map((s, i) => new VText(scene, { text: (i + 1) + ' ' + s.name, x: s.x, y: 55, z: 22, color: PALETTE.textGlow, scale: 0.6 }));
 
 // 正向箭头（步骤间）与反向补偿箭头
 const fwdArrows = [];
@@ -42,7 +71,8 @@ const eqT = new VText(scene, { text: '', x: 0, y: -150, z: 0, color: PALETTE.tex
 
 function resetAll() {
   engine.clear();
-  stepBoxes.forEach(b => b.setColor(PALETTE.node, PALETTE.nodeEmissive));
+  stepBoxes.forEach(b => b.setColor(PALETTE.node, false));
+  stepLabel.forEach((t, i) => t.setText((i + 1) + ' ' + STEP[i].name));
   fwdArrows.forEach(a => (a.mesh.visible = false));
   revArrows.forEach(a => (a.mesh.visible = false));
   stepT.setText(''); eqT.setText('');
@@ -53,17 +83,17 @@ function runSaga() {
   hint.setText('Saga：长事务拆成小步各自提交，失败就逆着补偿 — 微服务跨库事务的答案');
   C(400, () => { stepT.setText('电商下单 = 4 个独立本地事务串成一条链：下单 → 扣库存 → 支付 → 发货'); });
   C(700, () => {
-    stepBoxes[0].setColor(GREEN, GREEN);
+    stepBoxes[0].setColor(GREEN, true);
     stepT.setText('第 1 步：下单 ✓ — 订单创建成功（本地事务立即提交，不持有全局锁）');
   });
   C(700, () => {
     fwdArrows[0].mesh.visible = true;
-    stepBoxes[1].setColor(GREEN, GREEN);
+    stepBoxes[1].setColor(GREEN, true);
     stepT.setText('第 2 步：扣库存 ✓ — 仓库系统减库存，同样立即生效');
   });
   C(700, () => {
     fwdArrows[1].mesh.visible = true;
-    stepBoxes[2].setColor(ROSE, ROSE); stepBoxes[2].setText('3 支付 ✗');
+    stepBoxes[2].setColor(ROSE, true); stepLabel[2].setText('3 支付 ✗');
     stepT.setText('第 3 步：支付失败！— 余额不足/渠道拒付，Saga 链中断');
   });
   C(900, () => {
@@ -72,12 +102,12 @@ function runSaga() {
   });
   C(800, () => {
     revArrows[1].mesh.visible = true;
-    stepBoxes[1].setColor(ROSE, ROSE); stepBoxes[1].setText('2 回补库存');
+    stepBoxes[1].setColor(ROSE, true); stepLabel[1].setText('2 回补库存');
     stepT.setText('补偿第 1 步：回补库存 — 把扣掉的库存加回去（库存系统收到反向操作）');
   });
   C(800, () => {
     revArrows[0].mesh.visible = true;
-    stepBoxes[0].setColor(ROSE, ROSE); stepBoxes[0].setText('1 取消订单');
+    stepBoxes[0].setColor(ROSE, true); stepLabel[0].setText('1 取消订单');
     stepT.setText('补偿第 2 步：取消订单 — 订单状态改回「已取消」');
   });
   C(900, () => {

@@ -134,7 +134,7 @@ function solve() {
 
 let qInput = panel.addInput('皇后数 (4-8)', (v) => { if (v) solve(); }, 2);
 qInput.value = '4';
-panel.addButton('皇后区', () => { if (qInput.value) solve(); });
+panel.addButton('皇后求解', () => { if (qInput.value) solve(); });
 panel.addButton('清空', clearAll);
 panel.addLabel('（拖拽旋转视角，滚轮缩放）');
 

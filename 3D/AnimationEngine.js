@@ -63,7 +63,7 @@ export class AnimationEngine {
     const d = Math.max(cmd.duration, 1);
     const p = Math.min(next / d, 1);
     if (p < 1) cmd.fn(p);
-    this.current.elapsed = next;
-    if (p >= 1) this.finishCurrent();
+    if (this.current) this.current.elapsed = next;
+    if (p >= 1 && this.current) this.finishCurrent();
   }
 }

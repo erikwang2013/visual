@@ -1,9 +1,11 @@
 // AlgorithmLibrary/Gossip3D.js — Gossip：感染式传播，每轮随机聊几人，全网快速知情
+// draw.io 风格实体图标：服务器机架（正面 2 槽）= 节点，名称标签浮在机架前方
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { AnimationEngine } from '../3D/AnimationEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VBox, VText } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Gossip3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
@@ -15,6 +17,32 @@ const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM
 const hint = new VText(scene, { text: '点击「Gossip 传播」开始', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('');
 
+// draw.io 风格节点：机架 + 正面 2 槽
+function makeNode(x, y) {
+  const g = new THREE.Group();
+  const rack = new THREE.Mesh(new THREE.BoxGeometry(72, 72, 24),
+    glowMaterial(0x60a5fa, { emissive: 0x1e40af, emissiveIntensity: 0.3 }));
+  const slots = [];
+  for (let k = 0; k < 2; k++) {
+    const s = new THREE.Mesh(new THREE.BoxGeometry(52, 8, 3),
+      glowMaterial(DIM, { emissive: DIM, emissiveIntensity: 0.15 }));
+    s.position.set(0, k ? 19 : -19, 13.5);
+    g.add(s);
+    slots.push(s);
+  }
+  g.add(rack);
+  g.position.set(x, y, 0);
+  scene.add(g);
+  return {
+    setColor: (c, on) => {
+      rack.material.color.setHex(c);
+      rack.material.emissive.setHex(c);
+      rack.material.emissiveIntensity = on ? 0.6 : 0.3;
+      slots.forEach(s => { s.material.color.setHex(c); s.material.emissive.setHex(c); s.material.emissiveIntensity = on ? 0.45 : 0.15; });
+    },
+  };
+}
+
 // 6 节点环形排列
 const R = 175;
 const pos = (i) => {
@@ -23,7 +51,11 @@ const pos = (i) => {
 };
 const nodes = [0, 1, 2, 3, 4, 5].map((i) => {
   const p = pos(i);
-  return new VBox(scene, { w: 72, h: 72, d: 72, x: p.x, y: p.y, z: 0, label: 'N' + i, color: DIM, emissive: 0 });
+  return makeNode(p.x, p.y);
+});
+const nodeLabel = [0, 1, 2, 3, 4, 5].map((i) => {
+  const p = pos(i);
+  return new VText(scene, { text: 'N' + i, x: p.x, y: p.y, z: 20, color: PALETTE.textGlow, scale: 0.55 });
 });
 new VText(scene, { text: '6 个节点，每个已知情节点每轮随机「闲聊」2 人（fanout=2）', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
 
@@ -49,7 +81,7 @@ const lineTo = (a, b) => {
 
 function resetAll() {
   engine.clear();
-  nodes.forEach(b => b.setColor(DIM, 0));
+  nodes.forEach(b => b.setColor(DIM, false));
   line.mesh.visible = false;
   roundT.setText(''); stepT.setText('');
 }
@@ -59,20 +91,20 @@ function runGossip() {
   hint.setText('Gossip：消息像流言一样扩散 — 每轮与随机几人分享，对数轮全群皆知');
   C(300, () => { stepT.setText('起始：N0 得知新消息（集群变更/新路由），其余节点不知情'); });
   C(800, () => {
-    nodes[0].setColor(YELLOW, YELLOW);
+    nodes[0].setColor(YELLOW, true);
     roundT.setText('t = 0：知情数 1');
     stepT.setText('N0 持有消息，准备开始「闲聊」');
   });
   C(900, () => {
     ROUNDS[0].pairs.forEach(([a, b]) => lineTo(a, b));
-    nodes[1].setColor(GREEN, GREEN); nodes[2].setColor(GREEN, GREEN);
+    nodes[1].setColor(GREEN, true); nodes[2].setColor(GREEN, true);
     roundT.setText('t = 1：知情数 3');
     stepT.setText('第 1 轮：N0 与 N1、N2 闲聊，把消息带过去 — 知情者翻三倍');
   });
   C(900, () => {
     line.mesh.visible = false;
     ROUNDS[1].pairs.forEach(([a, b]) => lineTo(a, b));
-    nodes[3].setColor(GREEN, GREEN); nodes[4].setColor(GREEN, GREEN); nodes[5].setColor(GREEN, GREEN);
+    nodes[3].setColor(GREEN, true); nodes[4].setColor(GREEN, true); nodes[5].setColor(GREEN, true);
     roundT.setText('t = 2：知情数 6（全群知情）');
     stepT.setText('第 2 轮：N0、N1、N2 三人各自再聊 2 人 → N3、N4、N5 全部知情');
   });

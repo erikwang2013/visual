@@ -1,21 +1,20 @@
-// AlgorithmLibrary/TCC3D.js — TCC 分布式事务：Try 锁定 → Confirm 提交 / Cancel 回滚（转账 100）
-// draw.io 风格实体图标：服务器机架（正面 3 槽）= 协调者/账户，余额标签浮在机架前方
+// AlgorithmLibrary/TCC3D.js — TCC 分布式事务：Try 冻结 → Confirm 扣款 / Cancel 解冻（function* 生成器驱动）
+// draw.io 风格实体图标：协调者服务器（大机架）+ 两个账户服务器（小机架），金色方块 = 资金
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('TCC3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「TCC 事务」开始', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155, GOLD = 0xfcd34d;
+const hint = new VText(scene, { text: '点击「运行演示」开始：TCC 事务', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
 
 // draw.io 风格节点：机架 + 正面 3 槽
 function makeNode(x, y, w, h) {
@@ -24,9 +23,9 @@ function makeNode(x, y, w, h) {
     glowMaterial(0x60a5fa, { emissive: 0x1e40af, emissiveIntensity: 0.3 }));
   const slots = [];
   for (let k = 0; k < 3; k++) {
-    const s = new THREE.Mesh(new THREE.BoxGeometry(w - 20, 8, 3),
+    const s = new THREE.Mesh(new THREE.BoxGeometry(w - 24, 9, 3),
       glowMaterial(DIM, { emissive: DIM, emissiveIntensity: 0.15 }));
-    s.position.set(0, (k - 1) * h * 0.3, 14.5);
+    s.position.set(0, (k - 1) * 19, 14.5);
     g.add(s);
     slots.push(s);
   }
@@ -43,104 +42,113 @@ function makeNode(x, y, w, h) {
   };
 }
 
-// 协调者 + 账户 A、B
-const coord = makeNode(0, 195, 130, 66);
-const coordLabel = new VText(scene, { text: 'TCC 协调者', x: 0, y: 195, z: 22, color: PALETTE.textGlow, scale: 0.62 });
+// 协调者（上） + 账户 A/B（下）
+const coord = makeNode(0, 195, 150, 74);
+const coordLabel = new VText(scene, { text: '协调者', x: 0, y: 195, z: 22, color: PALETTE.textGlow, scale: 0.62 });
 const AX = [-210, 210];
-const accs = AX.map((x, i) => ({
-  box: makeNode(x, -55, 170, 90),
-  bal: new VText(scene, { text: '', x, y: -55, z: 26, color: PALETTE.textGlow, scale: 0.6 }),
-}));
-accs[0].bal.setText('余额 200'); accs[1].bal.setText('余额 0');
+const accs = AX.map(x => makeNode(x, -55, 110, 96));
+const accLabel = AX.map((x, i) => new VText(scene, { text: '账户 ' + (i ? 'B' : 'A') + '（余额 200）', x, y: -55, z: 22, color: PALETTE.textGlow, scale: 0.55 }));
 
-// 消息线（协调者 → 账户）
-const msgLine = new VBox(scene, { w: 200, h: 3.5, d: 3.5, x: 0, y: 0, z: 0, label: '', color: YELLOW, emissive: YELLOW });
+// 消息连线（协调者 ↔ 账户）
+const msgLine = new VBox(scene, { w: 210, h: 3, d: 3, x: 0, y: 70, z: 0, label: '', color: YELLOW, emissive: YELLOW });
 msgLine.mesh.visible = false;
-function lineTo(dstX) {
-  const x1 = 0, y1 = 195, x2 = dstX, y2 = -55;
-  msgLine.mesh.position.set((x1 + x2) / 2, (y1 + y2) / 2, 0);
-  msgLine.mesh.rotation.z = Math.atan2(y2 - y1, x2 - x1);
-  msgLine.mesh.scale.set(Math.hypot(x2 - x1, y2 - y1) / 200, 1, 1);
+function lineTo(aIdx, sx, ex) {
+  const x1 = sx, x2 = AX[aIdx];
+  msgLine.mesh.position.set((x1 + x2) / 2, 70, 0);
+  msgLine.mesh.rotation.z = 0;
+  msgLine.mesh.scale.set(Math.abs(x2 - x1) / 210, 1, 1);
   msgLine.mesh.visible = true;
 }
 
-// 转账金额芯片（在账户间飞行）
-const money = new VBox(scene, { w: 54, h: 38, d: 38, x: 0, y: 0, z: 0, label: '100', color: YELLOW, emissive: YELLOW });
-money.mesh.visible = false;
-
-const phaseT = new VText(scene, { text: '', x: 0, y: 95, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const stepT = new VText(scene, { text: '', x: 0, y: 45, z: 0, color: PALETTE.textGlow, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -145, z: 0, color: PALETTE.textDim, scale: 0.68 });
-
-function resetAll() {
-  engine.clear();
-  resetScene();
-}
+// 资金方块（100 元）
+const money = new VBox(scene, { w: 44, h: 30, d: 30, x: AX[0], y: -140, z: 0, label: '100', color: GOLD, emissive: GOLD });
+const stepT = new VText(scene, { text: '', x: 0, y: -160, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const eqT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textDim, scale: 0.66 });
 
 function resetScene() {
-  coord.setColor(PALETTE.node, false); coordLabel.setText('TCC 协调者');
-  accs.forEach((a, i) => {
-    a.box.setColor(PALETTE.node, false);
-    a.bal.setText(i ? '余额 0' : '余额 200');
-  });
-  msgLine.mesh.visible = false; money.mesh.visible = false;
-  phaseT.setText(''); stepT.setText(''); eqT.setText('');
+  coord.setColor(PALETTE.node, false);
+  accs.forEach(a => a.setColor(PALETTE.node, false));
+  accLabel.forEach((t, i) => t.setText('账户 ' + (i ? 'B' : 'A') + '（余额 200）'));
+  msgLine.mesh.visible = false;
+  stepT.setText(''); eqT.setText('');
 }
 
-function runTCC() {
-  resetAll();
-  hint.setText('TCC：Try 锁资源 → Confirm 提交 → Cancel 补偿 — 业务级的「两阶段提交」');
-  C(400, () => { phaseT.setText('成功路径：转账 100（A → B）'); stepT.setText('协调者发起 Try：A 冻结 100 准备扣款，B 预留 100 准备入账'); });
-  C(800, () => {
+function* tccGen() {
+  resetScene();
+  yield S(() => hint.setText('TCC：Try 预留 → Confirm 提交 / Cancel 回滚 — 把一笔转账拆成两个账户上的冻结操作'));
+  yield S(() => { stepT.setText('转账 100：协调者统筹，账户 A（转出）与账户 B（转入）两个独立服务'); });
+  yield W(500);
+  yield S(() => {
     coord.setColor(YELLOW, true);
-    lineTo(AX[0]); accs[0].box.setColor(BLUE, true);
-    accs[0].bal.setText('余额 200 · 冻结 100');
-    stepT.setText('Try(A)：-100 被锁定（余额未变，但 100 已冻结，其他事务动不了）');
+    stepT.setText('① Try：协调者发请求，A、B 各自「冻结/预留」资金 — 不实际扣款');
   });
-  C(800, () => {
-    lineTo(AX[1]); accs[1].box.setColor(BLUE, true);
-    accs[1].bal.setText('余额 0 · 预留 100');
-    stepT.setText('Try(B)：+100 预留成功 — 两边资源都锁定，事务暂未生效');
+  yield W(700);
+  yield S(() => {
+    lineTo(0, 0, -105); accs[0].setColor(BLUE, true);
+    stepT.setText('账户 A 收到 Try → 冻结 100 元：余额 200 → 冻结 100（可用 100），准备转出');
   });
-  C(800, () => {
+  yield W(700);
+  yield S(() => {
+    lineTo(1, 0, 105); accs[1].setColor(BLUE, true);
+    stepT.setText('账户 B 收到 Try → 预留 100 元额度：冻结 100（可用 100），准备转入');
+  });
+  yield W(900);
+  yield S(() => {
+    stepT.setText('两个 Try 都成功 → 协调者决定 Confirm（如果任一失败 → 全部 Cancel）');
+    eqT.setText('Try 全部成功 → Confirm；任意失败 → Cancel 解冻 — 二阶段提交的分布式改良');
+  });
+  yield W(800);
+  yield S(() => {
     coord.setColor(GREEN, true);
-    phaseT.setText('Confirm：正式提交');
-    money.mesh.visible = true; money.mesh.position.set(-210, -55, 0);
-    stepT.setText('两个 Try 都成功 → Confirm：A 真正扣 100，B 真正加 100');
+    accs.forEach(a => a.setColor(GREEN, true));
+    stepT.setText('② Confirm：A 真正扣款，B 真正入账 — 资金从 A 飞向 B');
   });
-  C(800, () => {
-    money.mesh.position.set(210, -55, 0);
-    accs[0].bal.setText('余额 100'); accs[1].bal.setText('余额 100');
-    accs.forEach(a => a.box.setColor(GREEN, true));
-    stepT.setText('结果：A 200→100，B 0→100 — 转账完成 ✓');
+  yield W(500);
+  yield A(900, (p) => {
+    money.mesh.position.set(AX[0] + (AX[1] - AX[0]) * p, -140 - 40 * Math.sin(p * Math.PI), 0);
   });
-  C(900, () => {
-    resetScene();
-    phaseT.setText('失败路径：B 入账失败');
-    stepT.setText('这次 B 的 Try 失败（如账户被冻结/风控拦截）→ 只回滚 A，不能硬提交');
+  yield S(() => {
+    accLabel[0].setText('账户 A（余额 100）');
+    accLabel[1].setText('账户 B（余额 300）');
+    stepT.setText('Confirm 完成：A 余额 200→100，B 余额 200→300 — 转账成功 ✓');
   });
-  C(800, () => {
-    coord.setColor(ROSE, true); coordLabel.setText('协调者 ✗');
-    lineTo(AX[0]); accs[0].box.setColor(BLUE, true);
-    accs[0].bal.setText('余额 200 · 冻结 100');
-    stepT.setText('Try(A) 冻结了 100 → Try(B) 失败 ✗ → 协调者走 Cancel 补偿');
+  yield W(900);
+  yield S(() => { resetScene(); hint.setText('再看失败路径：B 服务故障 → 协调者必须撤销 A 的冻结'); });
+  yield W(600);
+  yield S(() => {
+    coord.setColor(ROSE, true);
+    accs[0].setColor(BLUE, true);
+    lineTo(0, 0, -105);
+    stepT.setText('Try(A) 冻结成功 ✓（100 元被锁定）');
   });
-  C(900, () => {
-    coordLabel.setText('TCC 协调者');
-    lineTo(AX[0]); accs[0].box.setColor(ROSE, true);
-    accs[0].bal.setText('余额 200（解冻）');
-    phaseT.setText('Cancel：回滚补偿');
-    stepT.setText('Cancel(A)：释放冻结的 100 → A 余额恢复 200，B 不变 — 事务干净回滚');
-    eqT.setText('TCC 三动作：Try 锁定 → Confirm 提交 / Cancel 回滚 — 业务接口三件套，Seata 框架的实现');
+  yield W(700);
+  yield S(() => {
+    lineTo(1, 0, 105);
+    accs[1].setColor(ROSE, true); accLabel[1].setText('账户 B ✗ 服务故障');
+    stepT.setText('Try(B) 失败：B 宕机/超时 → 不能假装成功');
   });
-  C(900, () => {
+  yield W(800);
+  yield S(() => {
+    lineTo(0, 0, -105);
+    accs[0].setColor(ROSE, true); accLabel[0].setText('账户 A（余额 200 · 解冻）');
+    stepT.setText('③ Cancel：协调者通知 A 解冻 — 100 元回到可用余额，一切如初');
+  });
+  yield W(900);
+  yield S(() => {
+    msgLine.mesh.visible = false;
+    stepT.setText('Cancel 完成：A 解冻 100 → 余额恢复 200 — 部分成功被彻底撤销');
+    eqT.setText('TCC 补偿表：Try（冻结）↔ Cancel（解冻）· Try（预留）↔ Cancel（释放）— 每步可回滚');
+  });
+  yield W(700);
+  yield S(() => {
     status.textContent = 'TCC 完成：成功路径 Try(冻结)→Confirm(扣 100)；失败路径 Try(B) 失败→Cancel(A) 解冻，事务一致';
-    hint.setText('TCC 把「锁定/提交/回滚」写成业务接口 — 适合跨库转账、钱包余额等强一致场景');
+    hint.setText('TCC 比 2PC 轻量：各服务只管自己的冻结/解冻，协调者不持锁');
   });
+  yield W(600);
 }
 
-panel.addButton('TCC 事务', runTCC);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；蓝=Try 锁定，绿=Confirm 成功，红=Cancel/失败，黄=资金流动）');
+panel.addButton('运行演示', () => engine.start(tccGen()));
+panel.addButton('清空', () => { engine.clear(); resetScene(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；黄=协调者，蓝=Try 冻结，绿=Confirm 成功，红=失败/Cancel 解冻）');
 
 scene.start(engine);

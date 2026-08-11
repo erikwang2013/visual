@@ -1,19 +1,18 @@
-// AlgorithmLibrary/CNN3D.js — CNN：卷积核滑动提取特征 + 最大池化降维
+// AlgorithmLibrary/CNN3D.js — CNN：卷积核滑动提取特征 + 最大池化降维（function* 生成器驱动，4 窗口滑动动画）
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('CNN3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「卷积识别」开始', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, DIM = 0x334155;
+const hint = new VText(scene, { text: '点击「运行演示」开始：卷积神经网络', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
 
 // 输入 3×3 图像（0=暗，1=亮）：1 0 1 / 0 1 0 / 1 0 1（X 形十字）
 const IMG = [[1, 0, 1], [0, 1, 0], [1, 0, 1]];
@@ -42,7 +41,6 @@ poolBox.mesh.visible = false;
 new VText(scene, { text: '最大池化 → 1×1', x: 520, y: -165, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
 // 卷积窗口高亮（4 个 2×2 窗口）
-const WINDOWS = [[0, 1, 3, 4], [1, 2, 4, 5], [3, 4, 6, 7], [4, 5, 7, 8]];
 const winBox = new VBox(scene, { w: 196, h: 196, d: 10, x: 0, y: 0, z: 0, label: '', color: YELLOW, emissive: YELLOW });
 winBox.mesh.visible = false;
 const stepT = new VText(scene, { text: '', x: 0, y: -250, z: 0, color: PALETTE.textGlow, scale: 0.75 });
@@ -54,13 +52,10 @@ function setWindow(r0, c0) {
   winBox.mesh.visible = true;
 }
 function setConv(r, c) {
-  const b = convBoxes[r][c];
-  b.setColor(GREEN, GREEN);
-  b.setText(String(CONV_VAL[r][c]));
+  convBoxes[r][c].setColor(GREEN, GREEN);
+  convBoxes[r][c].setText(String(CONV_VAL[r][c]));
 }
-
 function resetAll() {
-  engine.clear();
   for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
     const v = IMG[r][c], i = idx(r, c);
     imgBoxes[i].setColor(v ? GREEN : DIM, v ? GREEN : 0);
@@ -73,32 +68,40 @@ function resetAll() {
   stepT.setText(''); eqT.setText('');
 }
 
-function runCNN() {
+function* cnnGen() {
   resetAll();
-  hint.setText('CNN：卷积核滑动提取局部特征（卷积），再池化浓缩 — 图像识别的基石');
-  C(300, () => { stepT.setText('把 2×2 卷积核[[1,0],[0,1]] 放到图像左上角，逐位置滑动（黄色窗口）'); });
-  C(800, () => { setWindow(0, 0); stepT.setText('位置①：元素相乘相加 1·1+0·0+0·0+1·1 = 2 → 特征图左上 = 2'); });
-  C(800, () => { setWindow(0, 1); stepT.setText('位置②：1·0+0·1+0·1+1·0 = 0 → 特征图右上 = 0'); });
-  C(800, () => { setWindow(1, 0); stepT.setText('位置③：0·1+1·0+1·0+0·1 = 0 → 特征图左下 = 0'); });
-  C(800, () => { setWindow(1, 1); stepT.setText('位置④：0·0+1·1+1·1+0·0 = 2 → 特征图右下 = 2'); });
-  C(800, () => {
+  yield S(() => hint.setText('CNN：卷积核滑动提取局部特征（卷积），再池化浓缩 — 图像识别的基石'));
+  yield S(() => { stepT.setText('把 2×2 卷积核[[1,0],[0,1]] 放到图像左上角，逐位置滑动（黄色窗口）'); });
+  yield W(800);
+  yield S(() => { setWindow(0, 0); stepT.setText('位置①：元素相乘相加 1·1+0·0+0·0+1·1 = 2 → 特征图左上 = 2'); });
+  yield W(800);
+  yield S(() => { setWindow(0, 1); stepT.setText('位置②：1·0+0·1+0·1+1·0 = 0 → 特征图右上 = 0'); });
+  yield W(800);
+  yield S(() => { setWindow(1, 0); stepT.setText('位置③：0·1+1·0+1·0+0·1 = 0 → 特征图左下 = 0'); });
+  yield W(800);
+  yield S(() => { setWindow(1, 1); stepT.setText('位置④：0·0+1·1+1·1+0·0 = 2 → 特征图右下 = 2'); });
+  yield W(800);
+  yield S(() => {
     winBox.mesh.visible = false;
     setConv(0, 0); setConv(0, 1); setConv(1, 0); setConv(1, 1);
     stepT.setText('全部滑动完：特征图 [[2,0],[0,2]] — 亮像素间的对角关系被提取出来');
   });
-  C(900, () => {
+  yield W(900);
+  yield S(() => {
     poolBox.mesh.visible = true;
     stepT.setText('最大池化 2×2：取特征图最大值 max(2,0,0,2) = 2 → 图像浓缩为 1×1');
     eqT.setText('CNN 核心：卷积提特征（局部性+共享权重）+ 池化降维（抗平移）→ 全连接层分类');
   });
-  C(900, () => {
+  yield W(900);
+  yield S(() => {
     status.textContent = 'CNN 完成：3×3 图像 × 2×2 核 → 特征图 [[2,0],[0,2]] → 最大池化 → 2';
     hint.setText('CNN 参数少（核共享）、自动提特征 — LeNet 手写数字识别就是这套');
   });
+  yield W(600);
 }
 
-panel.addButton('卷积识别', runCNN);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
+panel.addButton('运行演示', () => engine.start(cnnGen()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；黄窗=卷积窗口滑动，特征图=卷积结果，池化=降维）');
 
 scene.start(engine);

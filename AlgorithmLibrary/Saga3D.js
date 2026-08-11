@@ -1,21 +1,20 @@
-// AlgorithmLibrary/Saga3D.js — Saga 长事务：分步提交，任一步失败就反向补偿（支付失败 → 回补库存+取消订单）
+// AlgorithmLibrary/Saga3D.js — Saga 长事务：分步提交，任一步失败就反向补偿（支付失败 → 回补库存+取消订单）（function* 生成器驱动）
 // draw.io 风格实体图标：服务器机架（正面 2 槽）= 业务步骤，步骤名标签浮在机架前方
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Saga3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「Saga 事务」开始', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const hint = new VText(scene, { text: '点击「运行演示」开始：Saga 事务', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
 
 // draw.io 风格节点：机架 + 正面 2 槽
 function makeNode(x, y) {
@@ -70,7 +69,6 @@ const stepT = new VText(scene, { text: '', x: 0, y: -95, z: 0, color: PALETTE.te
 const eqT = new VText(scene, { text: '', x: 0, y: -150, z: 0, color: PALETTE.textDim, scale: 0.68 });
 
 function resetAll() {
-  engine.clear();
   stepBoxes.forEach(b => b.setColor(PALETTE.node, false));
   stepLabel.forEach((t, i) => t.setText((i + 1) + ' ' + STEP[i].name));
   fwdArrows.forEach(a => (a.mesh.visible = false));
@@ -78,49 +76,58 @@ function resetAll() {
   stepT.setText(''); eqT.setText('');
 }
 
-function runSaga() {
+function* sagaGen() {
   resetAll();
-  hint.setText('Saga：长事务拆成小步各自提交，失败就逆着补偿 — 微服务跨库事务的答案');
-  C(400, () => { stepT.setText('电商下单 = 4 个独立本地事务串成一条链：下单 → 扣库存 → 支付 → 发货'); });
-  C(700, () => {
+  yield S(() => hint.setText('Saga：长事务拆成小步各自提交，失败就逆着补偿 — 微服务跨库事务的答案'));
+  yield S(() => { stepT.setText('电商下单 = 4 个独立本地事务串成一条链：下单 → 扣库存 → 支付 → 发货'); });
+  yield W(500);
+  yield S(() => {
     stepBoxes[0].setColor(GREEN, true);
     stepT.setText('第 1 步：下单 ✓ — 订单创建成功（本地事务立即提交，不持有全局锁）');
   });
-  C(700, () => {
+  yield W(700);
+  yield S(() => {
     fwdArrows[0].mesh.visible = true;
     stepBoxes[1].setColor(GREEN, true);
     stepT.setText('第 2 步：扣库存 ✓ — 仓库系统减库存，同样立即生效');
   });
-  C(700, () => {
+  yield W(700);
+  yield S(() => {
     fwdArrows[1].mesh.visible = true;
     stepBoxes[2].setColor(ROSE, true); stepLabel[2].setText('3 支付 ✗');
     stepT.setText('第 3 步：支付失败！— 余额不足/渠道拒付，Saga 链中断');
   });
-  C(900, () => {
+  yield W(900);
+  yield S(() => {
     stepT.setText('已产生副作用（订单、扣库存）不能假装没发生 → 从失败前一步开始反向补偿');
     hint.setText('补偿 = 执行反向业务动作，把已提交的步骤「撤销」— 这就是 Saga 的核心理念');
   });
-  C(800, () => {
+  yield W(800);
+  yield S(() => {
     revArrows[1].mesh.visible = true;
     stepBoxes[1].setColor(ROSE, true); stepLabel[1].setText('2 回补库存');
     stepT.setText('补偿第 1 步：回补库存 — 把扣掉的库存加回去（库存系统收到反向操作）');
   });
-  C(800, () => {
+  yield W(800);
+  yield S(() => {
     revArrows[0].mesh.visible = true;
     stepBoxes[0].setColor(ROSE, true); stepLabel[0].setText('1 取消订单');
     stepT.setText('补偿第 2 步：取消订单 — 订单状态改回「已取消」');
   });
-  C(900, () => {
+  yield W(900);
+  yield S(() => {
     stepT.setText('补偿完成：所有副作用被撤销，系统回到一致性状态 — 没有全局锁，性能好');
     eqT.setText('Saga 补偿表：下单→取消订单 · 扣库存→回补库存 · 支付→退款 — 每步都要写补偿动作');
   });
-  C(600, () => {
+  yield W(600);
+  yield S(() => {
     status.textContent = 'Saga 完成：4 步链在第 3 步支付失败 → 逆序补偿「回补库存」「取消订单」，长事务安全回滚';
   });
+  yield W(600);
 }
 
-panel.addButton('Saga 事务', runSaga);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
+panel.addButton('运行演示', () => engine.start(sagaGen()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；绿=步骤成功，红=失败/补偿，蓝箭头=正向执行，红箭头=反向补偿）');
 
 scene.start(engine);

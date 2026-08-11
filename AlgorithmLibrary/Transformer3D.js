@@ -1,19 +1,18 @@
-// AlgorithmLibrary/Transformer3D.js — 自注意力：Q 查询 K，加权聚合 V（Attention Is All You Need）
+// AlgorithmLibrary/Transformer3D.js — 自注意力：Q 查询 K，加权聚合 V（Attention Is All You Need）（function* 生成器驱动）
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Transformer3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「自注意力」开始', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const hint = new VText(scene, { text: '点击「运行演示」开始：自注意力', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
 
 const TX = [-160, 0, 160];
 const tk = TX.map((x, i) => new VBox(scene, { w: 60, h: 60, d: 60, x, y: 205, z: 0, label: '词' + (i + 1), color: BLUE, emissive: BLUE }));
@@ -45,7 +44,6 @@ const stepT = new VText(scene, { text: '', x: 0, y: -250, z: 0, color: PALETTE.t
 const sT = [0.71, 0, 1.41], aT = [0.284, 0.14, 0.576];
 
 function resetAll() {
-  engine.clear();
   tk.forEach(b => b.setColor(BLUE, BLUE));
   qkv.forEach((row, r) => row.forEach((b, c) => {
     b.setColor(DIM, 0);
@@ -57,38 +55,45 @@ function resetAll() {
   stepT.setText('');
 }
 
-function runAttn() {
+function* attnGen() {
   resetAll();
-  hint.setText('Transformer 自注意力：每个词生成 Q/K/V，Q 问所有 K，加权聚合 V — 长依赖的答案');
-  C(300, () => { stepT.setText('只看词₁ 的计算：q₁ = (1,0)，与 3 个键 k₁ k₂ k₃ 做点积'); });
-  C(800, () => {
+  yield S(() => hint.setText('Transformer 自注意力：每个词生成 Q/K/V，Q 问所有 K，加权聚合 V — 长依赖的答案'));
+  yield S(() => { stepT.setText('只看词₁ 的计算：q₁ = (1,0)，与 3 个键 k₁ k₂ k₃ 做点积'); });
+  yield W(500);
+  yield S(() => {
     qkv[0][0].setColor(BLUE, BLUE);
     stepT.setText('q₁ = (1,0)（蓝色高亮）— 每个词生成自己的查询向量');
   });
-  C(900, () => {
+  yield W(900);
+  yield S(() => {
     qkv[1].forEach(b => b.setColor(BLUE, BLUE));
     stepT.setText('键 k = [(1,0), (0,1), (2,1)]：点积 q₁·k 衡量词₁ 与每个词的相关性');
   });
-  C(900, () => {
+  yield W(900);
+  yield S(() => {
     scoreBoxes.forEach((b, i) => { b.setColor(YELLOW, YELLOW); b.setText(String(sT[i])); });
     stepT.setText('得分 s₁ = q₁·k / √dₖ = [1, 0, 2] / 1.41 = [0.71, 0, 1.41] — 词₁ 最关注词₃！');
   });
-  C(900, () => {
+  yield W(900);
+  yield S(() => {
     attBoxes.forEach((b, i) => { b.setColor(YELLOW, YELLOW); b.setText(String(aT[i])); });
     stepT.setText('softmax 归一化 → [0.284, 0.14, 0.576] — 词₃ 分到 57.6% 的注意力');
   });
-  C(900, () => {
+  yield W(900);
+  yield S(() => {
     ctx.mesh.visible = true;
     stepT.setText('聚合：输出₁ = 0.284·v₁ + 0.14·v₂ + 0.576·v₃ = (1.436, 0.716) — 携带了词₃ 的信息');
   });
-  C(900, () => {
+  yield W(900);
+  yield S(() => {
     status.textContent = '自注意力完成：得分 [0.71,0,1.41] → softmax [0.284,0.14,0.576] → 输出 (1.436,0.716)';
     hint.setText('自注意力让每个词直接"看到"所有词 — GPT/BERT 的核心，一举解决 RNN 长序列遗忘');
   });
+  yield W(600);
 }
 
-panel.addButton('自注意力', runAttn);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
+panel.addButton('运行演示', () => engine.start(attnGen()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；蓝=Q/K/V 矩阵，黄=注意力得分与权重，绿=输出）');
 
 scene.start(engine);

@@ -1,19 +1,18 @@
-// AlgorithmLibrary/TwoPhaseCommit3D.js — 两阶段提交：Prepare 征询 → 全 YES 则 Commit，否则 Abort
+// AlgorithmLibrary/TwoPhaseCommit3D.js — 两阶段提交：Prepare 征询 → 全 YES 则 Commit，否则 Abort（function* 生成器驱动）
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('TwoPhaseCommit3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 380, 720], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
 const GREEN = 0x4ade80, BLUE = 0x60a5fa, YELLOW = 0xfacc15, RED = 0xf87171, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行事务」开始', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const hint = new VText(scene, { text: '点击「运行演示」开始：2PC 事务', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
 
 const coord = new VNode(scene, { x: 0, y: 90, z: 0, radius: 30, label: '协调者', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
 const parts = [];
@@ -29,7 +28,6 @@ const phaseT = new VText(scene, { text: '', x: 0, y: 200, z: 0, color: PALETTE.t
 const ruleT = new VText(scene, { text: '规则：任一参与者回复 NO（如余额不足）→ 协调者广播 ABORT，全体回滚', x: 0, y: -260, z: 0, color: PALETTE.textDim, scale: 0.62 });
 
 function resetAll() {
-  engine.clear();
   coord.setColor(PALETTE.node, PALETTE.nodeEmissive);
   coord.setText('协调者');
   parts.forEach((p, i) => { p.setColor(DIM, DIM); p.setText('参与者' + (i + 1)); });
@@ -38,47 +36,54 @@ function resetAll() {
   phaseT.setText('');
 }
 
-function run2PC() {
+function* tpcGen() {
   resetAll();
-  hint.setText('两阶段提交：让分布在不同节点的操作「要么全成功，要么全不生效」（原子性）');
-  C(600, () => {
+  yield S(() => hint.setText('两阶段提交：让分布在不同节点的操作「要么全成功，要么全不生效」（原子性）'));
+  yield S(() => {
     phaseT.setText('分布式转账事务：账户 A 扣 100 → 账户 B 加 100');
     hint.setText('协调者收到客户端请求，需要 3 个参与者（数据库分片）同时生效');
   });
-  C(900, () => {
+  yield W(600);
+  yield S(() => {
     phaseT.setText('阶段 1：Prepare（准备）');
     tubes.forEach(t => t.visible = true);
     parts.forEach(p => p.pulse(0.3));
     hint.setText('协调者广播 Prepare：各参与者先执行本地事务但暂不提交');
   });
-  C(800, () => {
+  yield W(800);
+  yield S(() => {
     parts.forEach((p, i) => { p.setColor(GREEN, GREEN); pStates[i].setText('已就绪 ✓'); });
     hint.setText('各参与者本地执行成功、锁定资源 → 回复 YES，等待最终指令');
   });
-  C(800, () => {
+  yield W(800);
+  yield S(() => {
     phaseT.setText('协调者收到 3/3 个 YES');
     hint.setText('只要有一个 NO 就进入中止；本例全部 YES → 进入提交阶段');
   });
-  C(900, () => {
+  yield W(900);
+  yield S(() => {
     phaseT.setText('阶段 2：Commit（提交）');
-    tubes.forEach(t => { t.mesh.material.color.setHex(GREEN); });
+    tubes.forEach(t => { t.material.color.setHex(GREEN); });
     hint.setText('协调者广播 Commit：所有参与者同时提交本地事务');
   });
-  C(800, () => {
+  yield W(800);
+  yield S(() => {
     parts.forEach((p, i) => { p.pulse(0.4); pStates[i].setText('已提交 ✓'); });
     hint.setText('3 个参与者全部提交成功，释放资源');
   });
-  C(900, () => {
+  yield W(900);
+  yield S(() => {
     coord.setColor(GREEN, GREEN);
     coord.pulse(0.4);
     phaseT.setText('事务完成：扣款与入账同时生效');
     status.textContent = '2PC 成功：Prepare → 3/3 YES → Commit → 全部提交（若任一 NO 则全体 Abort 回滚）';
     hint.setText('2PC 的代价：协调者是单点，参与者等待期间持锁阻塞；三阶段提交（3PC）缓解了阻塞问题');
   });
+  yield W(600);
 }
 
-panel.addButton('运行事务', run2PC);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
+panel.addButton('运行演示', () => engine.start(tpcGen()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；经典分布式事务协议，XA / JTA 的实现基础）');
 
 scene.start(engine);

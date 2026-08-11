@@ -1,21 +1,20 @@
-// AlgorithmLibrary/Snowflake3D.js — Snowflake：64 位 ID = 41bit 时间戳 + 10bit 机器 + 12bit 序列
+// AlgorithmLibrary/Snowflake3D.js — Snowflake：64 位 ID = 41bit 时间戳 + 10bit 机器 + 12bit 序列（function* 生成器驱动）
 // draw.io 风格实体图标：时钟（时间戳）/ 服务器（机器 ID）/ 计数柱（序列号）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Snowflake3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 290, 700], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「雪花 ID」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const status = panel.addStatus('');
+const hint = new VText(scene, { text: '点击「运行演示」开始：雪花 ID', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const status = panel.addStatus('就绪');
 
 // —— 64 位 ID 三段：41bit 时间戳 + 10bit 机器 + 12bit 序列 ——
 const segInfo = [
@@ -105,7 +104,6 @@ function show(ms, mid, seq) {
 }
 
 function resetAll() {
-  engine.clear();
   srcT.forEach(t => t.setText('')); idT.setText(''); stepT.setText('');
   clockHands.rotation.z = 0;
   slots.forEach(s => s.material.emissiveIntensity = 0.2);
@@ -113,59 +111,70 @@ function resetAll() {
   segs.forEach(s => s.setColor(s.color, s.color));
 }
 
-function runSnowflake() {
+function* sfGen() {
   resetAll();
-  hint.setText('Snowflake：不用中心发号器，时间戳+机器+序列三段拼接出全球唯一 ID — 雪花算法');
-  C(400, () => { stepT.setText('目标：分布式环境生成全局唯一、趋势递增的 64 位 ID（如订单号）'); });
-  C(800, () => {
+  yield S(() => hint.setText('Snowflake：不用中心发号器，时间戳+机器+序列三段拼接出全球唯一 ID — 雪花算法'));
+  yield S(() => { stepT.setText('目标：分布式环境生成全局唯一、趋势递增的 64 位 ID（如订单号）'); });
+  yield W(500);
+  yield S(() => {
     segs.forEach(s => { s.setColor(DIM, 0); });
     stepT.setText('41 bit 时间戳：自 2020-01-01 起的毫秒数，可用约 69 年 — 决定 ID 顺序');
   });
-  C(900, (p) => {
+  yield W(800);
+  yield A(900, (p) => {
     segs[0].setColor(GREEN, GREEN);
     clockHands.rotation.z = p * Math.PI * 2;
-    stepT.setText('时钟滴答 — 时间戳每秒都在增长，ID 的顺序由它保证');
   });
-  C(900, (p) => {
+  yield S(() => { stepT.setText('时钟滴答 — 时间戳每秒都在增长，ID 的顺序由它保证'); });
+  yield W(600);
+  yield A(900, (p) => {
     segs[1].setColor(BLUE, BLUE);
     slots.forEach(s => { s.material.emissiveIntensity = 0.3 + 0.7 * Math.sin(p * Math.PI * 4); });
-    stepT.setText('10 bit 机器 ID：每个服务实例一个编号（0~1023）— 保证跨机器不撞');
   });
-  C(900, (p) => {
+  yield S(() => { stepT.setText('10 bit 机器 ID：每个服务实例一个编号（0~1023）— 保证跨机器不撞'); });
+  yield W(600);
+  yield A(900, (p) => {
     segs[2].setColor(YELLOW, YELLOW);
     setBars(p);
-    stepT.setText('12 bit 序列号：同一毫秒内递增（0~4095）— 保证同机同毫秒不撞');
   });
-  C(800, () => {
+  yield S(() => { stepT.setText('12 bit 序列号：同一毫秒内递增（0~4095）— 保证同机同毫秒不撞'); });
+  yield W(600);
+  yield S(() => {
     show(1746000000000, 1, 0);
     stepT.setText('生成第 1 个 ID：ms=1,746,000,000,000 · 机器 1 · 序列 0 → 左移拼接');
   });
-  C(800, () => {
+  yield W(800);
+  yield S(() => {
     clockHands.rotation.z += Math.PI * 2;
     show(1746000000001, 1, 0);
     stepT.setText('1 毫秒后：时间戳 +1 → ID 变大 — 趋势递增，数据库索引友好');
   });
-  C(800, () => {
+  yield W(800);
+  yield S(() => {
     show(1746000000002, 1, 0);
     stepT.setText('同一毫秒：序列号还没动，时间戳已经不同 — 依然唯一');
   });
-  C(900, (p) => {
+  yield W(800);
+  yield A(900, (p) => {
     show(1746000000002, 1, 1);
     setBars(0.5 + p * 0.5);
-    stepT.setText('同毫秒第 2 个请求：序列 0→1 → ID 依然唯一 — 三段各司其职');
   });
-  C(900, () => {
+  yield S(() => { stepT.setText('同毫秒第 2 个请求：序列 0→1 → ID 依然唯一 — 三段各司其职'); });
+  yield W(600);
+  yield S(() => {
     setBars(1);
     stepT.setText('41+10+12=63 bit → 拼接成 64 位：不用查表、不用锁，各机器各自飞');
     hint.setText('Snowflake 是分布式 ID 之王 — 微信/美团/百度各有变种，也可用 Redis INCR 或 UUID v7 替代');
   });
-  C(600, () => {
+  yield W(900);
+  yield S(() => {
     status.textContent = 'Snowflake 完成：41bit 时间戳 + 10bit 机器 + 12bit 序列 = 64 位全局唯一递增 ID';
   });
+  yield W(600);
 }
 
-panel.addButton('雪花 ID', runSnowflake);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
+panel.addButton('运行演示', () => engine.start(sfGen()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；钟=时间戳段，服务器=机器段，计数柱=序列段，底部=拼出的完整 ID）');
 
 scene.start(engine);

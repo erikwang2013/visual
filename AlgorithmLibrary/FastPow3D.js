@@ -1,73 +1,87 @@
-// AlgorithmLibrary/FastPow3D.js — 快速幂：按二进制位平方底数、按位乘入结果
+// AlgorithmLibrary/FastPow3D.js — 快速幂：13=1101₂ 按位处理，位=1 时结果×底数、底数每步平方，最终 2^13=8192 仅 4 轮（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('FastPow3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 260, 640], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
+
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, YELLOW = 0xfacc15, DIM = 0x334155;
+const status = panel.addStatus('就绪');
+const hint = new VText(scene, { text: '点击「运行演示」开始：计算 2^13（二进制 1101₂）', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const stageT = new VText(scene, { text: '', x: 0, y: 200, z: 0, color: GOLD, scale: 0.72 });
+const eqLabel = new VText(scene, { text: '', x: 30, y: -185, z: 0, color: PALETTE.textGlow, scale: 0.95 });
 
 const BASE = 2, EXP = 13;
 const bits = [];
 { let e = EXP; while (e) { bits.push(e & 1); e >>= 1; } }
-const GREEN = 0x4ade80, YELLOW = 0xfacc15;
-const status = panel.addStatus('');
-const hint = new VText(scene, { text: '点击「运行快速幂」开始：计算 2^13', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const bitBoxes = [];
 bits.forEach((b, i) => {
-  bitBoxes.push(new VBox(scene, { w: 56, h: 42, d: 42, x: -430, y: 135 - i * 70, z: 0, label: String(b), color: b ? YELLOW : PALETTE.node, emissive: b ? YELLOW : PALETTE.nodeEmissive }));
-  new VText(scene, { text: '2^' + i, x: -430, y: 160 - i * 70, z: 0, color: PALETTE.textDim, scale: 0.6 });
+  bitBoxes.push(new VBox(scene, { w: 56, h: 42, d: 42, x: -430, y: 135 - i * 70, z: 0, label: String(b), color: b ? YELLOW : DIM, emissive: b ? YELLOW : DIM }));
+  new VText(scene, { text: '2^' + i + ' 位', x: -430, y: 160 - i * 70, z: 0, color: PALETTE.textDim, scale: 0.6 });
 });
-const baseBox = new VBox(scene, { w: 100, h: 64, d: 64, x: -150, y: 40, z: 0, label: '2', color: PALETTE.blue, emissive: PALETTE.blue });
-const resBox = new VBox(scene, { w: 100, h: 64, d: 64, x: 210, y: 40, z: 0, label: '1', color: PALETTE.purple, emissive: PALETTE.purple });
+const baseBox = new VBox(scene, { w: 100, h: 64, d: 64, x: -150, y: 40, z: 0, label: '2', color: BLUE, emissive: BLUE });
+const resBox = new VBox(scene, { w: 100, h: 64, d: 64, x: 210, y: 40, z: 0, label: '1', color: PUR, emissive: PUR });
 new VText(scene, { text: '底数（每步平方）', x: -150, y: 115, z: 0, color: PALETTE.textDim, scale: 0.7 });
 new VText(scene, { text: '结果（位=1 时乘入）', x: 210, y: 115, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const eqLabel = new VText(scene, { text: '', x: 30, y: -185, z: 0, color: PALETTE.textGlow, scale: 0.95 });
+new VText(scene, { text: '2^13 = 2^8 × 2^4 × 2^1 —— 把指数拆成二进制位：13 = 8+4+1 = 1101₂，只处理 log₂13 ≈ 4 轮而不是乘 13 次', x: 0, y: -235, z: 0, color: WHITE, scale: 0.62 });
 
-function runFastPow() {
-  engine.clear();
-  bitBoxes.forEach((bx, i) => bx.setColor(bits[i] ? YELLOW : PALETTE.node, bits[i] ? YELLOW : PALETTE.nodeEmissive));
-  baseBox.setText('2'); baseBox.setColor(PALETTE.blue, PALETTE.blue);
-  resBox.setText('1'); resBox.setColor(PALETTE.purple, PALETTE.purple);
-  eqLabel.setText('');
-  hint.setText('13 = ' + bits.map((b, i) => b * Math.pow(2, i)).filter(v => v).join(' + ') + '，按二进制位从低位处理');
-
-  let base = BASE, res = 1, i = 0;
-  const step = () => {
-    if (i >= bits.length) {
-      status.textContent = '快速幂完成：2^13 = ' + res + '（仅 ' + bits.length + ' 次平方与按位乘法）';
-      hint.setText('2^13 = ' + res);
-      eqLabel.setText('2^13 = ' + res);
-      resBox.setColor(GREEN, GREEN);
-      return;
-    }
-    if (i > 0) bitBoxes[i - 1].setColor(bits[i - 1] ? YELLOW : PALETTE.node, bits[i - 1] ? YELLOW : PALETTE.nodeEmissive);
-    const b = bits[i];
-    bitBoxes[i].setColor(PALETTE.highlight, PALETTE.highlightEmissive);
-    if (b) {
-      res *= base;
-      hint.setText('第 ' + (i + 1) + ' 位 = 1：结果 × 底数 → ' + res);
-      C(420, () => { resBox.setText(String(res)); resBox.setColor(PALETTE.highlight, PALETTE.highlightEmissive); }, () => {});
-      C(200, () => resBox.setColor(PALETTE.purple, PALETTE.purple));
-    } else {
-      hint.setText('第 ' + (i + 1) + ' 位 = 0：结果不变 = ' + res);
-      C(420, () => {});
-    }
-    base *= base;
-    C(420, () => { baseBox.setText(String(base)); baseBox.setColor(PALETTE.highlight, PALETTE.highlightEmissive); }, () => {});
-    C(200, () => baseBox.setColor(PALETTE.blue, PALETTE.blue));
-    i++;
-    C(250, step);
-  };
-  step();
+function clearView() {
+  bitBoxes.forEach((bx, i) => bx.setColor(bits[i] ? YELLOW : DIM, bits[i] ? YELLOW : DIM));
+  baseBox.setText('2'); baseBox.setColor(BLUE, BLUE);
+  resBox.setText('1'); resBox.setColor(PUR, PUR);
+  eqLabel.setText(''); stageT.setText('');
 }
 
-panel.addButton('运行快速幂', runFastPow);
-panel.addButton('清空', () => { engine.clear(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+function* fpGen() {
+  let base = BASE, res = 1;
+  yield S(() => { hint.setText('13 = ' + bits.map((b, i) => b * Math.pow(2, i)).filter(v => v).join(' + ') + '，按二进制位从低位处理'); stageT.setText('核心：x^13 = x^(8+4+1) = x^8·x^4·x —— 预先算出 x, x², x⁴, x⁸（每一步平方），按需乘入'); });
+  yield W(700);
+  for (let i = 0; i < bits.length; i++) {
+    const b = bits[i];
+    bitBoxes[i].setColor(ORANGE, ORANGE);
+    if (b) {
+      res *= base;
+      resBox.setText(String(res));
+      resBox.setColor(ORANGE, ORANGE);
+      yield S(() => { stageT.setText('第 ' + (i + 1) + ' 位（2^' + i + '）= 1 → 结果 × 底数 ' + base + ' = ' + res); eqLabel.setText('2^' + (Math.pow(2, i)) + ' × ' + (res / base) + ' → ' + res); });
+      yield W(500);
+      resBox.setColor(PUR, PUR);
+    } else {
+      yield S(() => stageT.setText('第 ' + (i + 1) + ' 位（2^' + i + '）= 0 → 结果不变，仍是 ' + res + '（2^' + Math.pow(2, i) + ' 这项跳过）'));
+      yield W(420);
+    }
+    base *= base;
+    baseBox.setText(String(base));
+    baseBox.setColor(ORANGE, ORANGE);
+    yield S(() => stageT.setText('底数平方：' + Math.sqrt(base) + '² = ' + base + '（为下一位准备 2^' + (2 * Math.pow(2, i)) + '）'));
+    yield W(420);
+    baseBox.setColor(BLUE, BLUE);
+    bitBoxes[i].setColor(b ? YELLOW : DIM, b ? YELLOW : DIM);
+  }
+  resBox.setColor(GREEN, GREEN);
+  eqLabel.setText('2^13 = ' + res);
+  yield S(() => { status.textContent = '快速幂完成：2^13 = ' + res + '（仅 ' + bits.length + ' 次平方与按位乘法）'; stageT.setText('对比朴素算法乘 13 次：快速幂只做 4 轮平方 + 按位乘 —— O(log n) vs O(n)'); });
+  yield W(1000);
+  yield S(() => { hint.setText('2^13 = ' + res + ' ✓（快速幂，4 轮）'); stageT.setText('进阶：矩阵快速幂用同样的二进制拆解，把「乘」换成矩阵乘法 —— 斐波那契可 O(log n) 求解'); });
+  yield W(800);
+}
+
+function* runFP() {
+  clearView();
+  hint.setText('快速幂：按二进制位平方底数、按位乘入结果');
+  yield W(400);
+  yield* fpGen();
+  yield S(() => hint.setText('快速幂完成：2^13 = 8192，O(log 13) = 4 轮'));
+}
+
+panel.addButton('运行演示', () => engine.start(runFP()));
+panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；黄 = 位=1，灰 = 位=0，橙 = 正在处理，蓝 = 底数，紫 = 结果，绿 = 最终答案）');
 
 scene.start(engine);

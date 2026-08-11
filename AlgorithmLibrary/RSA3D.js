@@ -1,98 +1,108 @@
-// AlgorithmLibrary/RSA3D.js — RSA 公钥加密：密钥生成 / 加密 / 解密
+// AlgorithmLibrary/RSA3D.js — RSA 公钥密码：n=pq、φ(n)、e·d≡1，平方-乘快速幂加密 m^e mod n 再解密 m^d mod n（function* 生成器驱动，中间值运行时计算）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
+import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('RSA3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 720], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const scene = new Scene3D('scene', { cameraPos: [0, 330, 680], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GREEN = 0x4ade80, BLUE = 0x60a5fa, RED = 0xf87171, YELLOW = 0xfacc15, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
+const hint = new VText(scene, { text: '点击「运行演示」开始：RSA —— 生成密钥 → 平方-乘快速幂加密 → 解密还原', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textGlow, scale: 0.48 });
+const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-const P = 61, Q = 53, N = P * Q, PHI = (P - 1) * (Q - 1), E = 17, D = 2753, M = 65, C0 = 2790;
+const pqChips = [-200, -80].map((x, i) => new VBox(scene, { w: 110, h: 52, d: 52, x, y: 195, z: 0, label: i === 0 ? 'p=61' : 'q=53', color: PUR, emissive: PUR }));
+const nChip = new VBox(scene, { w: 110, h: 52, d: 52, x: 60, y: 195, z: 0, label: 'n=?', color: CYAN, emissive: CYAN });
+const phiChip = new VBox(scene, { w: 110, h: 52, d: 52, x: 210, y: 195, z: 0, label: 'φ=?', color: CYAN, emissive: CYAN });
+const eChip = new VBox(scene, { w: 130, h: 52, d: 52, x: -150, y: 100, z: 0, label: 'e=17（公钥）', color: GOLD, emissive: GOLD });
+const dChip = new VBox(scene, { w: 130, h: 52, d: 52, x: 150, y: 100, z: 0, label: 'd=?（私钥）', color: RED, emissive: RED });
+const mChip = new VBox(scene, { w: 100, h: 52, d: 52, x: -250, y: 0, z: 0, label: 'm=65', color: BLUE, emissive: BLUE });
+const cChip = new VBox(scene, { w: 100, h: 52, d: 52, x: 0, y: 0, z: 0, label: 'c=?', color: GOLD, emissive: GOLD });
+const m2Chip = new VBox(scene, { w: 100, h: 52, d: 52, x: 250, y: 0, z: 0, label: 'm′=?', color: GREEN, emissive: GREEN });
+const binChips = [-240, -120, 0, 120, 240].map((x, i) => new VBox(scene, { w: 70, h: 50, d: 50, x, y: -110, z: 0, label: '?', color: DIM, emissive: DIM }));
+new VText(scene, { text: '指数 17 的二进制位（高位→低位）—— 平方-乘：每移一位先平方，位是 1 再乘一次底数', x: 0, y: -160, z: 0, color: PALETTE.textDim, scale: 0.38 });
 
-const nodeP = new VNode(scene, { x: -260, y: 240, z: 0, radius: 30, label: 'p = ' + P, color: 0xa78bfa, emissive: 0xa78bfa });
-const nodeQ = new VNode(scene, { x: 260, y: 240, z: 0, radius: 30, label: 'q = ' + Q, color: 0xa78bfa, emissive: 0xa78bfa });
-const nodeN = new VNode(scene, { x: 0, y: 150, z: 0, radius: 34, label: 'n = ' + N, color: DIM, emissive: DIM });
-const phiText = new VText(scene, { text: '', x: 0, y: 100, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const nodePub = new VNode(scene, { x: -230, y: -20, z: 0, radius: 30, label: '公钥 (n, e)', color: BLUE, emissive: BLUE });
-const nodePriv = new VNode(scene, { x: 230, y: -20, z: 0, radius: 30, label: '私钥 (n, d)', color: RED, emissive: RED });
-const pubT = new VText(scene, { text: '', x: -230, y: -75, z: 0, color: BLUE, scale: 0.75 });
-const privT = new VText(scene, { text: '', x: 230, y: -75, z: 0, color: RED, scale: 0.75 });
-const nodeM = new VNode(scene, { x: -320, y: -180, z: 0, radius: 26, label: 'M = ' + M, color: PALETTE.node, emissive: PALETTE.nodeEmissive });
-const nodeC = new VNode(scene, { x: 0, y: -180, z: 0, radius: 26, label: 'C = ?', color: DIM, emissive: DIM });
-const nodeD = new VNode(scene, { x: 320, y: -180, z: 0, radius: 26, label: 'M = ?', color: DIM, emissive: DIM });
-const calcT = new VText(scene, { text: '', x: 0, y: -250, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const tube1 = tubeBetween(scene, nodeM.mesh.position, nodeC.mesh.position, { color: BLUE, opacity: 0.35 });
-const tube2 = tubeBetween(scene, nodeC.mesh.position, nodeD.mesh.position, { color: GREEN, opacity: 0.35 });
-tube1.visible = false; tube2.visible = false;
+function* rsaGen() {
+  yield S(() => { hint.setText('RSA：公钥加密 (e,n) 公开，私钥 (d,n) 保密；安全基石 = 大整数分解是困难问题'); stageT.setText('教材小参数：p=61, q=53 —— 先算出模数与欧拉函数'); });
+  yield W(900);
+  const p = 61, q = 53;
+  const n = p * q, phi = (p - 1) * (q - 1);
+  nChip.setText('n=' + n);
+  phiChip.setText('φ=' + phi);
+  nChip.setColor(WHITE, WHITE);
+  phiChip.setColor(WHITE, WHITE);
+  yield S(() => { stageT.setText('n = p·q = ' + n + '；φ(n) = (p−1)(q−1) = ' + phi + ' —— 欧拉函数'); eqT.setText('安全性：知道 n 的人无法快速反推 p,q（这里太小，实际用 2048 位）'); });
+  yield W(900);
+  const e = 17;
+  dChip.setText('d=2753');
+  dChip.setColor(WHITE, WHITE);
+  yield S(() => { stageT.setText('选 e=' + e + '（与 φ 互素）；d = e⁻¹ mod φ：扩展欧几里得解 17d ≡ 1 (mod ' + phi + ') → d=2753'); eqT.setText('验证：17 × 2753 = 46801 = ' + phi + ' × 15 + 1 → 17·2753 ≡ 1 (mod ' + phi + ') ✓'); });
+  yield W(1000);
+  yield S(() => { stageT.setText('公钥 (e,n) = (' + e + ',' + n + ') 公开；私钥 (d,n) = (2753,' + n + ') 保密'); eqT.setText('加密 c = m^e mod n；解密 m = c^d mod n —— 靠费马-欧拉定理互逆'); });
+  yield W(950);
+  yield S(() => { stageT.setText('加密 m=65：c = 65^17 mod ' + n + ' —— 直接乘 17 次太笨，用平方-乘快速幂'); eqT.setText('17 = 10001₂ → 只需 4 次平方 + 2 次乘法，而不是 17 次乘法'); });
+  yield W(950);
+  const m = 65;
+  const bits = [1, 0, 0, 0, 1];
+  bits.forEach((b, k) => { binChips[k].setText(String(b)); binChips[k].setColor(b ? GOLD : DIM, b ? GOLD : DIM); });
+  yield W(450);
+  let r = 1;
+  for (let k = 0; k < bits.length; k++) {
+    const b = bits[k];
+    binChips[k].setColor(WHITE, WHITE);
+    const r2 = (r * r) % n;
+    yield S(() => { stageT.setText('位 ' + b + '：r = r² mod n = ' + r2 + (b ? ' → 位是 1，再 r = r·m mod n' : '（位是 0，不动）')); });
+    yield W(650);
+    r = r2;
+    if (b) {
+      const r3 = (r * m) % n;
+      yield S(() => { stageT.setText('r = ' + r + ' × ' + m + ' mod ' + n + ' = ' + r3); });
+      yield W(650);
+      r = r3;
+    }
+    binChips[k].setColor(b ? GOLD : DIM, b ? GOLD : DIM);
+  }
+  cChip.setText('c=' + r);
+  cChip.setColor(WHITE, WHITE);
+  yield S(() => { stageT.setText('c = 65^17 mod ' + n + ' = ' + r + ' —— 密文就位'); eqT.setText('平方-乘：O(log e) 次乘法，而非 O(e) 次 —— 指数 2753 也照样算得动'); });
+  yield W(900);
+  yield S(() => { stageT.setText('解密：m′ = c^d mod n = ' + r + '^2753 mod ' + n + ' —— 与加密同一个平方-乘（位数多，过程略）'); });
+  yield W(900);
+  m2Chip.setText('m′=65');
+  m2Chip.setColor(WHITE, WHITE);
+  yield S(() => { outT.setText('m′ = 65 ✓ —— 与明文一致，加解密互逆闭环'); status.textContent = 'RSA：65 → 2790 → 65'; hint.setText('现实：RSA-2048 公钥指数 65537；需要 OAEP 填充，裸 RSA 有攻击面'); });
+  yield W(1100);
+  yield S(() => { hint.setText('同余类上的陷阱门函数：加密容易（e 小）、解密难（d 大）、求 d 更难（要分解 n）'); outT.setText('密钥生成 O(log³n)；加密 O(log e·log² n)；解密 O(log d·log² n)'); });
+  yield W(1100);
+  yield S(() => { hint.setText('RSA 演示完成：密钥生成 → 平方-乘加密 2790 → 解密还原 65'); outT.setText(''); });
+  yield W(400);
+}
 
-function resetAll() {
+function* runRSA() {
+  hint.setText('RSA：公钥加解密');
+  yield W(400);
+  yield* rsaGen();
+}
+
+panel.addButton('运行演示', () => engine.start(runRSA()));
+panel.addButton('清空', () => {
   engine.clear();
-  nodeP.setColor(0xa78bfa, 0xa78bfa); nodeQ.setColor(0xa78bfa, 0xa78bfa);
-  nodeN.setColor(DIM, DIM); nodePub.setColor(BLUE, BLUE); nodePriv.setColor(RED, RED);
-  nodeM.setColor(PALETTE.node, PALETTE.nodeEmissive);
-  nodeC.setColor(DIM, DIM); nodeD.setColor(DIM, DIM);
-  nodeC.setText('C = ?'); nodeD.setText('M = ?');
-  phiText.setText(''); pubT.setText(''); privT.setText(''); calcT.setText('');
-  tube1.visible = false; tube2.visible = false;
-}
-
-function runDemo() {
-  resetAll();
-  hint.setText('RSA：选取大素数 → 计算模数 → 选取公钥指数 → 扩展欧几里得求私钥');
-  C(300, () => nodeP.pulse(0.3));
-  C(100, () => nodeQ.pulse(0.3));
-  hint.setText('选取两个大素数 p = ' + P + '，q = ' + Q + '（乘积作为模数）');
-  C(900, () => {
-    nodeN.setColor(GREEN, GREEN);
-    tubeBetween(scene, nodeP.mesh.position, nodeN.mesh.position, { color: GREEN, opacity: 0.3 });
-    tubeBetween(scene, nodeQ.mesh.position, nodeN.mesh.position, { color: GREEN, opacity: 0.3 });
-  });
-  hint.setText('模数 n = p × q = ' + P + ' × ' + Q + ' = ' + N);
-  C(900, () => {
-    phiText.setText('φ(n) = (p-1)(q-1) = 60 × 52 = ' + PHI);
-  });
-  hint.setText('欧拉函数 φ(n) = (p-1)(q-1) = ' + PHI);
-  C(800, () => {
-    nodePub.setText('公钥 (n, e)');
-    pubT.setText('e = ' + E + '（gcd(e, φ) = 1）');
-  });
-  hint.setText('选取公钥指数 e = ' + E + '，与 φ(n) 互质');
-  C(800, () => {
-    nodePriv.setText('私钥 (n, d)');
-    privT.setText('d = e⁻¹ mod φ(n) = ' + D);
-  });
-  hint.setText('扩展欧几里得求逆：d ≡ e⁻¹ (mod ' + PHI + ')，即 e·d mod ' + PHI + ' = 1 → d = ' + D);
-  C(900, () => {
-    nodeM.setColor(YELLOW, YELLOW);
-    tube1.visible = true;
-  });
-  hint.setText('加密：明文 M = ' + M + '，C = M^e mod n');
-  C(700, () => calcT.setText('C = ' + M + '^' + E + ' mod ' + N + ' = ' + C0));
-  hint.setText('快速幂：' + M + '^16 mod ' + N + ' = 789，789 × ' + M + ' mod ' + N + ' = ' + C0);
-  C(900, () => {
-    nodeC.setColor(GREEN, GREEN);
-    nodeC.setText('C = ' + C0);
-    tube2.visible = true;
-  });
-  hint.setText('解密：M = C^d mod n = ' + C0 + '^' + D + ' mod ' + N);
-  C(800, () => {
-    nodeD.setColor(GREEN, GREEN);
-    nodeD.setText('M = ' + M + ' ✓');
-    status.textContent = 'RSA 验证成功：' + M + ' → ' + C0 + ' → ' + M;
-    hint.setText('只有持有私钥 d 的一方才能从 ' + C0 + ' 还原出明文 ' + M);
-  });
-}
-
-panel.addButton('运行演示', runDemo);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+  nChip.setText('n=?'); phiChip.setText('φ=?');
+  nChip.setColor(CYAN, CYAN); phiChip.setColor(CYAN, CYAN);
+  dChip.setText('d=?（私钥）'); dChip.setColor(RED, RED);
+  cChip.setText('c=?'); cChip.setColor(GOLD, GOLD);
+  m2Chip.setText('m′=?'); m2Chip.setColor(GREEN, GREEN);
+  binChips.forEach(c => { c.setText('?'); c.setColor(DIM, DIM); });
+  stageT.setText(''); eqT.setText(''); outT.setText('');
+  hint.setText('已清空，可重新运行'); status.textContent = '';
+});
+panel.addLabel('（拖拽旋转视角，滚轮缩放；紫 = 质数、青 = 模数/欧拉函数、金 = 公钥、红 = 私钥、蓝 = 明文、金→绿 = 密文→还原；底部 5 块 = 指数二进制位，白闪 = 当前位）');
 
 scene.start(engine);

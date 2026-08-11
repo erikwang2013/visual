@@ -1,108 +1,73 @@
-// AlgorithmLibrary/MD53D.js — MD5：4 轮×16 步压缩函数，A/B/C/D 寄存器流动，雪崩效应
+// AlgorithmLibrary/MD53D.js — MD5 消息摘要：填充 → 4 轮×16 步压缩（F/G/H/I 非线性函数），A/B/C/D 寄存器流动，64 轮后输出 128 位摘要（function* 生成器驱动，结构式演示 + 标准测试向量）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('MD53D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const scene = new Scene3D('scene', { cameraPos: [0, 330, 660], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, AMBER = 0xfbbf24, ROSE = 0xfb7185, BLUE = 0x38bdf8;
-const hint = new VText(scene, { text: '点击「运行 MD5」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
+const hint = new VText(scene, { text: '点击「运行演示」开始：MD5 —— 填充 + 4 轮 64 步压缩，输出 128 位摘要', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 140, z: 0, color: PALETTE.textGlow, scale: 0.48 });
+const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-const MSG = 'Hello';
-const K = [0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee, 0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501, 0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be, 0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821, 0xf61e2562, 0xc040b340, 0x265e5a51, 0xe9b6c7aa, 0xd62f105d, 0x2441453, 0xd8a1e681, 0xe7d3fbc8, 0x21e1cde6, 0xc33707d6, 0xf4d50d87, 0x455a14ed, 0xa9e3e905, 0xfcefa3f8, 0x676f02d9, 0x8d2a4c8a, 0xfffa3942, 0x8771f681, 0x6d9d6122, 0xfde5380c, 0xa4beea44, 0x4bdecfa9, 0xf6bb4b60, 0xbebfbc70, 0x289b7ec6, 0xeaa127fa, 0xd4ef3085, 0x4881d05, 0xd9d4d039, 0xe6db99e5, 0x1fa27cf8, 0xc4ac5665, 0xf4292244, 0x432aff97, 0xab9423a7, 0xfc93a039, 0x655b59c3, 0x8f0ccc92, 0xffeff47d, 0x85845dd1, 0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1, 0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391];
-const S = [7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21];
-const rol = (v, n) => ((v << n) | (v >>> (32 - n))) >>> 0;
-const Fn = (x, y, z) => (x & y) | (~x & z), Gn = (x, y, z) => (x & z) | (y & ~z), Hn = (x, y, z) => x ^ y ^ z, In = (x, y, z) => y ^ (x | ~z);
-function md5Run(str) {
-  const bytes = new TextEncoder().encode(str);
-  const len = bytes.length;
-  const padded = [...bytes, 0x80];
-  while (padded.length % 64 !== 56) padded.push(0);
-  const bitLen = (len * 8) >>> 0;
-  for (let i = 0; i < 8; i++) padded.push((bitLen >>> (8 * i)) & 0xff);
-  const W = [];
-  for (let i = 0; i < 64; i += 4) W.push((padded[i] | padded[i + 1] << 8 | padded[i + 2] << 16 | padded[i + 3] << 24) >>> 0);
-  let a = 0x67452301, b = 0xefcdab89, c = 0x98badcfe, d = 0x10325476;
-  const snaps = [];
-  for (let t = 0; t < 64; t++) {
-    let f, g;
-    if (t < 16) { f = Fn(b, c, d); g = t; }
-    else if (t < 32) { f = Gn(b, c, d); g = (5 * t + 1) % 16; }
-    else if (t < 48) { f = Hn(b, c, d); g = (3 * t + 5) % 16; }
-    else { f = In(b, c, d); g = (7 * t) % 16; }
-    const tmp = d; d = c; c = b;
-    b = (b + rol((a + f + K[t] + W[g]) >>> 0, S[t])) >>> 0;
-    a = tmp;
-    snaps.push({ A: a, B: b, C: c, D: d, w: g, t, round: Math.floor(t / 16) });
-  }
-  return { snap: snaps, hex: [a, b, c, d].map(v => (v >>> 0).toString(16).padStart(8, '0')).join('') };
-}
-const run1 = md5Run(MSG);
-const run2 = md5Run('Hellp');
+const padChips = [-330, -110, 110].map((x, i) => new VBox(scene, { w: 200, h: 52, d: 52, x, y: 190, z: 0, label: ['消息 "abc"', '填充：补 1 + 补 0 + 64 位长度', '512 位分组'], color: [BLUE, CYAN, PUR][i], emissive: [BLUE, CYAN, PUR][i] }));
+const roundBoxes = [-270, -90, 90, 270].map((x, i) => new VBox(scene, { w: 160, h: 58, d: 58, x, y: 105, z: 0, label: ['F：轮 1~16', 'G：轮 17~32', 'H：轮 33~48', 'I：轮 49~64'][i], color: DIM, emissive: DIM }));
+const regChips = [-270, -90, 90, 270].map((x, i) => new VBox(scene, { w: 110, h: 56, d: 56, x, y: 20, z: 0, label: ['A','B','C','D'][i], color: GOLD, emissive: GOLD }));
+new VText(scene, { text: 'A/B/C/D = 4 个 32 位寄存器（初值 IV：67452301 efcdab89 98badcfe 10325476）—— 每轮轮流被更新', x: 0, y: -28, z: 0, color: PALETTE.textDim, scale: 0.38 });
 
-const WX = [];
-for (let i = 0; i < 16; i++) {
-  WX.push(new VBox(scene, { w: 26, h: 22, d: 22, x: (i - 7.5) * 32, y: 90, z: 0, label: 'W' + i, color: DIM, emissive: DIM }));
-}
-const regs = [
-  new VBox(scene, { w: 120, h: 60, d: 60, x: -165, y: -95, z: 0, label: 'A 67452301', color: ROSE, emissive: ROSE }),
-  new VBox(scene, { w: 120, h: 60, d: 60, x: -55, y: -95, z: 0, label: 'B efcdab89', color: AMBER, emissive: AMBER }),
-  new VBox(scene, { w: 120, h: 60, d: 60, x: 55, y: -95, z: 0, label: 'C 98badcfe', color: BLUE, emissive: BLUE }),
-  new VBox(scene, { w: 120, h: 60, d: 60, x: 165, y: -95, z: 0, label: 'D 10325476', color: GREEN, emissive: GREEN }),
+const FN = [
+  'F(x,y,z) = (x∧y)∨(¬x∧z)',
+  'G(x,y,z) = (x∧z)∨(y∧¬z)',
+  'H(x,y,z) = x⊕y⊕z',
+  'I(x,y,z) = y⊕(x∨¬z)'
 ];
-new VText(scene, { text: '消息 "Hello" → 填充到 512bit → 16 个字 W[0..15]', x: 0, y: 145, z: 0, color: PALETTE.textDim, scale: 0.7 });
-new VText(scene, { text: 'F/G/H/I 非线性函数 · 循环左移 · 模加 K 常量', x: 0, y: -168, z: 0, color: PALETTE.textDim, scale: 0.6 });
-const roundT = new VText(scene, { text: '', x: 0, y: 190, z: 0, color: GOLD, scale: 0.75 });
-const outT = new VText(scene, { text: '', x: 0, y: -220, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const SHIFTS = [7,12,17,22, 7,12,17,22, 7,12,17,22, 7,12,17,22, 5,9,14,20, 5,9,14,20, 5,9,14,20, 5,9,14,20, 4,11,16,23, 4,11,16,23, 4,11,16,23, 4,11,16,23, 6,10,15,21, 6,10,15,21, 6,10,15,21, 6,10,15,21];
 
-function resetAll() {
-  engine.clear();
-  WX.forEach(b => b.setColor(DIM, DIM));
-  regs.forEach((r, i) => r.setText(['A 67452301', 'B efcdab89', 'C 98badcfe', 'D 10325476'][i]));
-  roundT.setText(''); outT.setText('');
-}
-
-function runMD5() {
-  resetAll();
-  hint.setText('MD5 将消息压缩为 128bit 摘要；流程：补位 → 分块 → 4 轮×16 步压缩 → 拼接输出');
-  C(800, () => {
-    roundT.setText('消息填充完成：Hello(5B) + 0x80 + 零填充 + 长度 → 一个 512bit 块 = 16 个字');
-  });
-  for (let t = 0; t < 64; t += 2) {
-    const s = run1.snap[t], s2 = run1.snap[Math.min(t + 1, 63)];
-    C(300, () => {
-      WX.forEach((b, i) => b.setColor(i === s.w || i === s2.w ? GOLD : DIM, i === s.w || i === s2.w ? GOLD : DIM));
-      regs[0].setText('A ' + s.A.toString(16).padStart(8, '0'));
-      regs[1].setText('B ' + s.B.toString(16).padStart(8, '0'));
-      regs[2].setText('C ' + s.C.toString(16).padStart(8, '0'));
-      regs[3].setText('D ' + s.D.toString(16).padStart(8, '0'));
-      roundT.setText(`第 ${s.round + 1} 轮 · 步 ${s.t + 1}：a = b + rol(a + f(b,c,d) + K[${s.t}] + W[${s.w}], ${S[s.t]})`);
-      hint.setText(`F/G/H/I 函数混合 b,c,d，叠加 K 常量与 W 字，循环左移 ${S[s.t]} 位`);
-    });
+function* md5Gen() {
+  yield S(() => { hint.setText('MD5：把任意长度消息压缩成固定 128 位 —— 哈希函数鼻祖之一，如今仅用于校验不用于安全'); stageT.setText('消息 "abc"：补 1、补 0、最后 64 位写原始长度 → 整成 512 位整数倍分组'); });
+  yield W(900);
+  yield S(() => { stageT.setText('填充完成：1 个 512 位分组 → 切成 16 个 32 位字 M[0..15]'); });
+  yield W(700);
+  yield S(() => { stageT.setText('压缩主循环：4 轮 × 16 步 = 64 步。第 r 步用 M[r mod 16]、常数 K[r]、循环左移 s[r] 更新一个寄存器'); eqT.setText('a = b + ((a + 轮函数(b,c,d) + M[k] + K[r]) <<< s[r])，然后 (a,b,c,d) ← (d,a,b,c)'); });
+  yield W(900);
+  for (let r = 1; r <= 64; r++) {
+    const round = Math.floor((r - 1) / 16);
+    roundBoxes[round].setColor(WHITE, WHITE);
+    yield S(() => { stageT.setText('第 ' + r + '/64 步（' + ['F','G','H','I'][round] + ' 轮）：' + FN[round].replace('x','b').replace('y','c').replace('z','d')); eqT.setText('a = b + ((a + ' + ['F','G','H','I'][round] + '(b,c,d) + M[' + ((r - 1) % 16) + '] + K[' + r + ']) <<< ' + SHIFTS[r - 1] + ')'); });
+    yield W(44);
+    roundBoxes[round].setColor(DIM, DIM);
   }
-  C(900, () => {
-    WX.forEach(b => b.setColor(DIM, DIM));
-    roundT.setText('4 轮 64 步完成 → 拼接 A|B|C|D');
-    outT.setText('MD5("Hello") = ' + run1.hex);
-    status.textContent = 'MD5("Hello") = ' + run1.hex + ' —— 128bit 摘要';
-    hint.setText('MD5 已可碰撞（工程改用 SHA-256/SM3），但仍是理解压缩函数的经典教材');
-  });
-  C(1100, () => {
-    outT.setText('雪崩效应：MD5("Hellp") = ' + run2.hex + ' —— 仅改 1 个字符，摘要几乎全变');
-    status.textContent = '雪崩：输入改 1 字符，输出从 ' + run1.hex + ' 变为 ' + run2.hex;
-    hint.setText('密码学哈希必须满足雪崩性：任何 1 bit 输入变化 → 约一半输出 bit 翻转');
-  });
+  yield S(() => { stageT.setText('64 步完成：A/B/C/D 与 IV 相加 → 拼接成 128 位摘要'); eqT.setText('雪崩效应：改 1 个比特，摘要约一半比特翻转'); });
+  yield W(900);
+  yield S(() => { outT.setText('MD5("abc") = 900150983cd24fb0d6963f7d28e17f72'); status.textContent = 'MD5("abc") = 900150983cd24fb0d6963f7d28e17f72'; hint.setText('为什么过时：2004 年王小云给出快速碰撞攻击 —— 生日攻击下 2^64 就能撞出同摘要，已不抗碰撞'); });
+  yield W(1100);
+  yield S(() => { hint.setText('现状：MD5 仍常见于文件完整性校验、CDN ETag（低对抗场景）；安全哈希请用 SHA-256/3'); outT.setText('复杂度：O(n) 每 64 字节分组 64 步；输出 128 位 —— 短但太短'); });
+  yield W(1100);
+  yield S(() => { hint.setText('MD5 演示完成：填充 → 64 步压缩 → 128 位摘要'); outT.setText(''); });
+  yield W(400);
 }
 
-panel.addButton('运行 MD5', runMD5);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；消息 "Hello"，对照 "Hellp" 观察雪崩）');
+function* runMD5() {
+  hint.setText('MD5：128 位摘要');
+  yield W(400);
+  yield* md5Gen();
+}
+
+panel.addButton('运行演示', () => engine.start(runMD5()));
+panel.addButton('清空', () => {
+  engine.clear();
+  roundBoxes.forEach(c => c.setColor(DIM, DIM));
+  stageT.setText(''); eqT.setText(''); outT.setText('');
+  hint.setText('已清空，可重新运行'); status.textContent = '';
+});
+panel.addLabel('（拖拽旋转视角，滚轮缩放；顶排 = 填充流水线，中排 4 块 = F/G/H/I 四轮、白闪 = 当前轮，金块 = A/B/C/D 寄存器；末尾输出标准测试向量）');
 
 scene.start(engine);

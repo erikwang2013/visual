@@ -1,137 +1,109 @@
-// AlgorithmLibrary/LDPC3D.js — LDPC (7,4)：校验矩阵 + 置信传播（简化）
+// AlgorithmLibrary/LDPC3D.js — LDPC 低密度奇偶校验：稀疏校验矩阵 H 定义码字 H·c=0（模 2），Tanner 图逐边画入；单点错误使覆盖它的全部校验同时失败，翻转即修复（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VNode, VText, VBox, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('LDPC3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行编码」开始', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
+const hint = new VText(scene, { text: '点击「运行演示」开始：LDPC —— 稀疏校验矩阵 + Tanner 图纠错', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 140, z: 0, color: PALETTE.textGlow, scale: 0.48 });
+const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-const H = [[1, 1, 1, 0, 1, 0, 0], [1, 0, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 0, 1]];
-const ROW_LABEL = ['C1', 'C2', 'C3'];
-const SP = 52, X0 = -156;
-const grid = [];
-for (let r = 0; r < 3; r++) {
-  const row = [];
-  for (let j = 0; j < 7; j++) {
-    const box = new VBox(scene, { w: 44, h: 38, d: 38, x: X0 + j * SP, y: 215 - 60 * r, z: 0, label: H[r][j] ? '1' : '·', color: H[r][j] ? DIM : 0x1e293b, emissive: 0 });
-    row.push(box);
+// Tanner 图：上排 4 变量节点（码字位），下排 3 校验节点（方程）
+const VX = [-270, -90, 90, 270];
+const varNodes = VX.map((x, i) => new VNode(scene, { x, y: 90, z: 0, radius: 34, label: 'v' + i + '=?', color: BLUE, emissive: BLUE }));
+const CX = [-180, 0, 180];
+const checkBoxes = CX.map((x, i) => new VBox(scene, { w: 100, h: 56, d: 56, x, y: -100, z: 0, label: 'c' + i + '=?', color: DIM, emissive: DIM }));
+new VText(scene, { text: '校验矩阵 H（3×4，稀疏：每行只含 3 个 1）      合法码字：每行 XOR = 0', x: 0, y: -160, z: 0, color: PALETTE.textDim, scale: 0.4 });
+
+const H = [[1, 1, 1, 0], [1, 0, 1, 1], [0, 1, 1, 1]];
+const edges = new Map();
+const P = (x, y) => ({ x, y, z: 0 });
+function addEdge(key, a, b, color, radius) { edges.set(key, tubeBetween(scene, P(a[0], a[1]), P(b[0], b[1]), { color, opacity: 0.7, radius })); }
+function clearEdges() { edges.forEach(m => scene.remove(m)); edges.clear(); }
+
+function* ldpcGen() {
+  yield S(() => { hint.setText('LDPC：用稀疏校验矩阵定义码字 —— 编码时精心挑选，噪声后靠解方程把错位找回来'); stageT.setText('4 位码字 + 3 个校验方程；每个方程只覆盖 3 位 —— 「低密度」= 矩阵里 1 很稀'); });
+  yield W(900);
+  const nbrNames = ['v0 v1 v2', 'v0 v2 v3', 'v1 v2 v3'];
+  for (let i = 0; i < 3; i++) {
+    H[i].forEach((h, j) => { if (h) addEdge('e' + i + '_' + j, [VX[j], 90], [CX[i], -100], CYAN, 2.5); });
+    yield S(() => { stageT.setText('校验 c' + i + ' 覆盖 {' + nbrNames[i] + '}：覆盖位 XOR = 0（模 2）—— 边画入 Tanner 图'); });
+    yield W(850);
   }
-  grid.push(row);
-  new VText(scene, { text: ROW_LABEL[r], x: -250, y: 215 - 60 * r, z: 0, color: PALETTE.textDim, scale: 0.55 });
-}
-new VText(scene, { text: '校验矩阵 H（3×7，每行一个奇偶校验方程）', x: 0, y: 265, z: 0, color: PALETTE.textDim, scale: 0.7 });
-
-const CW = [1, 0, 1, 1, 0, 0, 1];
-const RCV = [...CW]; RCV[2] ^= 1;
-const BIT_LABEL = ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7'];
-const cwBoxes = [];
-for (let i = 0; i < 7; i++) {
-  cwBoxes.push(new VBox(scene, { w: 52, h: 52, d: 52, x: X0 + i * SP, y: -10, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-  new VText(scene, { text: BIT_LABEL[i], x: X0 + i * SP, y: -48, z: 0, color: PALETTE.textDim, scale: 0.5 });
-}
-new VText(scene, { text: '码字（4 数据 + 3 校验）', x: -300, y: 25, z: 0, color: PALETTE.textDim, scale: 0.6 });
-const stepT = new VText(scene, { text: '', x: 0, y: -95, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const synT = new VText(scene, { text: '', x: 0, y: -155, z: 0, color: PALETTE.textDim, scale: 0.7 });
-
-const synd = r => H.map(row => row.reduce((a, v, j) => a ^ (v & r[j]), 0));
-const S = synd(RCV);
-const CAND = [0, 1, 2, 4];
-
-function resetAll() {
-  engine.clear();
-  for (const row of grid) for (const b of row) { b.setColor(b.label === '1' ? DIM : 0x1e293b, 0); }
-  for (const b of cwBoxes) { b.setColor(PALETTE.node, PALETTE.nodeEmissive); b.setText(''); }
-  stepT.setText('');
-  synT.setText('');
-}
-
-function runEncode() {
-  resetAll();
-  hint.setText('LDPC：稀疏校验矩阵 H，码字满足 H·c = 0（每行一个偶校验方程）');
-  C(300, () => {
-    for (const row of grid) for (const b of row) if (b.label === '1') b.setColor(BLUE, BLUE);
-    stepT.setText('C1: b1⊕b2⊕b3⊕b5=0   C2: b1⊕b4⊕b6=0   C3: b2⊕b4⊕b7=0');
-  });
-  C(900, () => {
-    for (const row of grid) for (const b of row) if (b.label === '1') b.setColor(DIM, 0);
-    for (const [i, v] of [[0, 1], [1, 0], [2, 1], [3, 1]]) { cwBoxes[i].setColor(BLUE, BLUE); cwBoxes[i].setText(String(v)); }
-    stepT.setText('写入数据位 1 0 1 1 → 由校验方程求解校验位');
-  });
-  C(1000, () => {
-    for (const j of [4, 5]) { cwBoxes[j].setColor(YELLOW, YELLOW); cwBoxes[j].setText('0'); }
-    stepT.setText('C1: 1⊕0⊕1⊕b5=0 → b5=0    C2: 1⊕1⊕b6=0 → b6=0');
-    hint.setText('校验位由 H 各行方程解出：C1 行 1⊕0⊕1⊕0 = 0 ✓');
-  });
-  C(800, () => {
-    cwBoxes[6].setColor(YELLOW, YELLOW); cwBoxes[6].setText('1');
-    stepT.setText('C3: 0⊕1⊕b7=0 → b7=1  码字 1011001');
-  });
-  C(700, () => {
-    for (let i = 0; i < 7; i++) cwBoxes[i].setColor(GREEN, GREEN);
-    stepT.setText('码字完成：1011001（每行 1 的个数为偶数）发送到信道');
-    hint.setText('传输：信道噪声翻转了位 3（1 → 0）…');
-  });
-  C(1000, () => {
-    cwBoxes[2].setColor(ROSE, ROSE); cwBoxes[2].setText('0');
-    stepT.setText('接收码字 1001001 → 重算三行校验方程（综合征）');
-  });
-  C(900, () => {
-    const bad = [0, 1];
-    for (const j of bad) grid[0][j].setColor(ROSE, ROSE);
-    for (const j of [2, 4]) grid[0][j].setColor(BLUE, BLUE);
-    stepT.setText('C1: 1⊕0⊕0⊕0 = 1 ✗（校验失败）');
-    synT.setText('');
-  });
-  C(800, () => {
-    for (let j = 0; j < 7; j++) grid[0][j].setColor(grid[0][j].label === '1' ? DIM : 0x1e293b, 0);
-    for (const j of [0, 3, 5]) grid[1][j].setColor(BLUE, BLUE);
-    stepT.setText('C2: 1⊕1⊕0 = 0 ✓');
-  });
-  C(800, () => {
-    for (let j = 0; j < 7; j++) grid[1][j].setColor(grid[1][j].label === '1' ? DIM : 0x1e293b, 0);
-    for (const j of [1, 3, 6]) grid[2][j].setColor(BLUE, BLUE);
-    stepT.setText('C3: 0⊕1⊕1 = 0 ✓');
-  });
-  C(800, () => {
-    for (let j = 0; j < 7; j++) grid[2][j].setColor(grid[2][j].label === '1' ? DIM : 0x1e293b, 0);
-    synT.setText('综合征 = [1, 0, 0]：只有 C1 失败 → 错位必在 C1 独有行覆盖、C2/C3 不含的位');
-    hint.setText('LDPC 纠错：把出错候选位逐位翻转验证（简化展示；真实 LDPC 用置信传播迭代）');
-    tryBit(0);
-  });
-
-  function tryBit(k) {
-    if (k >= CAND.length) { C(300, () => {}); return; }
-    const j = CAND[k];
-    const trial = [...RCV]; trial[j] ^= 1;
-    const ok = synd(trial).every(v => v === 0);
-    C(150, () => { cwBoxes[j].setColor(YELLOW, YELLOW); stepT.setText('试错：翻转位 ' + (j + 1) + '（' + BIT_LABEL[j] + '）…'); });
-    C(650, () => {
-      if (ok) {
-        cwBoxes[j].setColor(GREEN, GREEN); cwBoxes[j].setText('1');
-        synT.setText('翻转位 3 后综合征全零 → 纠错成功！码字还原 1011001');
-        stepT.setText('码字还原 1011001 ✓  消息恢复 1011');
-        status.textContent = 'LDPC 完成：翻转位 3 → 综合征 [1,0,0] → 试错纠正位 3';
-        hint.setText('LDPC 可接近香农极限，5G/WiFi/卫星通信/SSD 纠错都在用（信噪比极低也能通信）');
-      } else {
-        cwBoxes[j].setColor(ROSE, ROSE);
-        synT.setText('翻转位 ' + (j + 1) + ' 后综合征仍非零 → 该位无误，继续试错…');
-        C(500, () => { cwBoxes[j].setColor(PALETTE.node, PALETTE.nodeEmissive); cwBoxes[j].setText(''); tryBit(k + 1); });
-      }
-    });
+  yield S(() => { stageT.setText('Tanner 图完成：9 条边 = H 中 9 个 1。现在装入码字 [1,1,0,1]（合法码字必须让 3 个方程都成立）'); eqT.setText('c0: v0⊕v1⊕v2 = 0    c1: v0⊕v2⊕v3 = 0    c2: v1⊕v2⊕v3 = 0'); });
+  yield W(900);
+  const bits = [null, null, null, null];
+  const DATA = [1, 1, 0, 1];
+  for (let i = 0; i < 4; i++) {
+    bits[i] = DATA[i];
+    varNodes[i].setText('v' + i + '=' + DATA[i]);
+    varNodes[i].setColor(WHITE, WHITE);
+    yield W(350);
   }
+  const check = i => { let s = 0; H[i].forEach((h, j) => { if (h) s ^= bits[j]; }); return s; };
+  for (let i = 0; i < 3; i++) {
+    const v = check(i);
+    checkBoxes[i].setText('c' + i + '=' + v);
+    checkBoxes[i].setColor(v ? RED : GREEN, v ? RED : GREEN);
+  }
+  yield S(() => { stageT.setText('校验：c0 = 1⊕1⊕0 = 0 ✓，c1 = 1⊕0⊕1 = 0 ✓，c2 = 1⊕0⊕1 = 0 ✓ —— 码字合法'); eqT.setText('H·c = (0,0,0) —— 通过'); });
+  yield W(900);
+  bits[2] = 1;
+  varNodes[2].setText('v2=1');
+  varNodes[2].setColor(RED, RED);
+  yield S(() => { stageT.setText('信道噪声：v2 的 0 翻成 1 → 收到 [1,1,1,1]（红 = 出错位，接收端不知道在哪）'); });
+  yield W(850);
+  for (let i = 0; i < 3; i++) {
+    const v = check(i);
+    checkBoxes[i].setText('c' + i + '=' + v);
+    checkBoxes[i].setColor(v ? RED : GREEN, v ? RED : GREEN);
+  }
+  yield S(() => { stageT.setText('重算校验：c0 = 1⊕1⊕1 = 1 ✗，c1 = 1⊕1⊕1 = 1 ✗，c2 = 1⊕1⊕1 = 1 ✗ —— 三个方程全被破坏！'); eqT.setText('全部失败 ⟹ 错误位出现在每个方程都覆盖的位置 → 只有 v2 在所有 3 行里'); });
+  yield W(1100);
+  bits[2] = 0;
+  varNodes[2].setText('v2=0');
+  varNodes[2].setColor(GREEN, GREEN);
+  yield S(() => { stageT.setText('翻转 v2：1 → 0，码字恢复 [1,1,0,1]'); });
+  yield W(800);
+  for (let i = 0; i < 3; i++) {
+    const v = check(i);
+    checkBoxes[i].setText('c' + i + '=' + v);
+    checkBoxes[i].setColor(GREEN, GREEN);
+  }
+  yield S(() => { stageT.setText('校验全绿：c0=c1=c2=0 —— 纠错完成，数据位 v0=1, v1=1 原样送出'); });
+  yield W(850);
+  yield S(() => { outT.setText('纠错完成：错误位被 3 个失败方程唯一确定 —— 实际解码用置信传播（消息传递），大码长下逼近香农极限'); status.textContent = 'LDPC：纠 1 位错'; hint.setText('真实 LDPC：码长上千位，每校验只覆盖 ~20 位；迭代信念传播逐轮修正，接近理论容量 —— WiFi、DVB、5G 都在用'); });
+  yield W(1100);
+  yield S(() => { hint.setText('toy 码率 1/4；实用码率 0.5~0.9。与 Turbo 码并称现代纠错双雄，都是迭代解码范式'); outT.setText('复杂度：每轮消息传递 O(E)，E = H 中 1 的个数 —— 稀疏才跑得动'); });
+  yield W(1100);
+  yield S(() => { hint.setText('LDPC 演示完成：稀疏校验矩阵 + Tanner 图 + 校验失败定位'); outT.setText(''); });
+  yield W(400);
 }
 
-panel.addButton('运行编码', runEncode);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；LDPC 校验矩阵稀疏，可迭代译码逼近香农极限）');
+function* runLDPC() {
+  hint.setText('LDPC：稀疏校验纠错');
+  yield W(400);
+  yield* ldpcGen();
+}
+
+panel.addButton('运行演示', () => engine.start(runLDPC()));
+panel.addButton('清空', () => {
+  engine.clear(); clearEdges();
+  varNodes.forEach((n, i) => { n.setText('v' + i + '=?'); n.setColor(BLUE, BLUE); });
+  checkBoxes.forEach((c, i) => { c.setText('c' + i + '=?'); c.setColor(DIM, DIM); });
+  stageT.setText(''); eqT.setText(''); outT.setText('');
+  hint.setText('已清空，可重新运行'); status.textContent = '';
+});
+panel.addLabel('（拖拽旋转视角，滚轮缩放；上排圆球 = 码字位 v0~v3，下排方框 = 校验方程 c0~c2；青边 = 方程覆盖关系，绿 = 校验通过、红 = 校验失败；错误位翻红后由全部失败方程交集定位）');
 
 scene.start(engine);

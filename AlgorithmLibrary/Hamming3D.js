@@ -1,114 +1,96 @@
-// AlgorithmLibrary/Hamming3D.js — 汉明码 (7,4)：奇偶校验位 + 综合征纠错
+// AlgorithmLibrary/Hamming3D.js — 汉明(7,4) 纠错码：校验位放 2 的幂位置，接收端算校正子 s = s1+2·s2+4·s4 定位并翻转出错位（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Hamming3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 600], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行编码」开始', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
+const hint = new VText(scene, { text: '点击「运行演示」开始：汉明(7,4) —— 4 数据位 + 3 校验位，纠 1 位错', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textGlow, scale: 0.48 });
+const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-const SP = 76, X0 = -228, RY = 130;
-const TYPE = ['', 'p1', 'p2', 'd1', 'p4', 'd2', 'd3', 'd4'];
-const bits = [];
-for (let b = 1; b <= 7; b++) {
-  bits.push(new VBox(scene, { w: 62, h: 62, d: 62, x: X0 + (b - 1) * SP, y: RY, z: 0, label: '?', color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-  new VText(scene, { text: '位' + b + ' ' + TYPE[b], x: X0 + (b - 1) * SP, y: RY - 52, z: 0, color: PALETTE.textDim, scale: 0.55 });
+// 7 位码字：位置 1,2,4 = 校验位（青），3,5,6,7 = 数据位（蓝）
+const BX = [-210, -140, -70, 0, 70, 140, 210];
+const PARITY_IDX = [0, 1, 3];
+const chips = BX.map((x, i) => new VBox(scene, { w: 54, h: 54, d: 54, x, y: 80, z: 0, label: '位' + (i + 1), color: PARITY_IDX.includes(i) ? CYAN : BLUE, emissive: PARITY_IDX.includes(i) ? CYAN : BLUE }));
+new VText(scene, { text: '位置 1,2,4 = 校验位 p1,p2,p4（青）；3,5,6,7 = 数据位 d1,d2,d3,d4（蓝）', x: 0, y: 22, z: 0, color: PALETTE.textDim, scale: 0.4 });
+const synChips = [-140, 0, 140].map((x, k) => new VBox(scene, { w: 54, h: 54, d: 54, x, y: -60, z: 0, label: 's' + [1, 2, 4][k] + '=?', color: DIM, emissive: DIM }));
+new VText(scene, { text: '校正子 s1 s2 s4：接收端重算奇偶校验 —— 全 0 无错；非 0 时 s1+2s2+4s4 = 出错位号', x: 0, y: -125, z: 0, color: PALETTE.textDim, scale: 0.4 });
+
+const bits = [null, null, null, null, null, null, null];
+
+function* hammingGen() {
+  yield S(() => { hint.setText('汉明(7,4)：4 个数据位 + 3 个校验位 = 7 位码字，能纠正 1 位错'); stageT.setText('数据 d = [1,0,1,1]（d1 d2 d3 d4）→ 填入位置 3,5,6,7'); });
+  yield W(800);
+  const d = [1, 0, 1, 1];
+  const POSD = [2, 4, 5, 6];
+  POSD.forEach((p, k) => { bits[p] = d[k]; chips[p].setText(String(d[k])); chips[p].setColor(WHITE, WHITE); });
+  yield W(650);
+  yield S(() => { stageT.setText('数据位就位：d1=1, d2=0, d3=1, d4=1 —— 现在补 3 个校验位'); eqT.setText('p1 覆盖位 {1,3,5,7}；p2 覆盖位 {2,3,6,7}；p4 覆盖位 {4,5,6,7} —— 每组 1 的个数为偶'); });
+  yield W(750);
+  const p1 = d[0] ^ d[1] ^ d[3];
+  bits[0] = p1; chips[0].setText(String(p1)); chips[0].setColor(CYAN, CYAN);
+  yield S(() => { stageT.setText('p1 = d1⊕d2⊕d4 = 1⊕0⊕1 = ' + p1 + '（看位 1,3,5,7）'); });
+  yield W(700);
+  const p2 = d[0] ^ d[2] ^ d[3];
+  bits[1] = p2; chips[1].setText(String(p2)); chips[1].setColor(CYAN, CYAN);
+  yield S(() => { stageT.setText('p2 = d1⊕d3⊕d4 = 1⊕1⊕1 = ' + p2 + '（看位 2,3,6,7）'); });
+  yield W(700);
+  const p4 = d[1] ^ d[2] ^ d[3];
+  bits[3] = p4; chips[3].setText(String(p4)); chips[3].setColor(CYAN, CYAN);
+  yield S(() => { stageT.setText('p4 = d2⊕d3⊕d4 = 0⊕1⊕1 = ' + p4 + '（看位 4,5,6,7）'); });
+  yield W(700);
+  yield S(() => { stageT.setText('码字完成：0 1 1 0 0 1 1 —— 任何 1 位翻转都会破坏 2~3 组奇偶校验'); eqT.setText('汉明距离 3：最多纠 1 位，或检 2 位错'); });
+  yield W(900);
+  bits[4] = 1; chips[4].setText('1'); chips[4].setColor(RED, RED);
+  yield S(() => { stageT.setText('信道噪声：位 5 的 0 翻成 1 → 收到 0 1 1 0 1 1 1（红 = 出错位，信道对我们未知）'); eqT.setText('接收：0 1 1 0 1 1 1'); });
+  yield W(900);
+  const s1 = bits[0] ^ bits[2] ^ bits[4] ^ bits[6];
+  const s2 = bits[1] ^ bits[2] ^ bits[5] ^ bits[6];
+  const s4 = bits[3] ^ bits[4] ^ bits[5] ^ bits[6];
+  yield S(() => {
+    [s1, s2, s4].forEach((v, k) => { synChips[k].setText('s' + [1, 2, 4][k] + '=' + v); synChips[k].setColor(v ? RED : GREEN, v ? RED : GREEN); });
+    stageT.setText('接收端重算三组校验：s1 = 1⊕1⊕1⊕1 = ' + s1 + '，s2 = 1⊕1⊕1⊕1 = ' + s2 + '，s4 = 0⊕1⊕1⊕1 = ' + s4);
+    eqT.setText('校正子 s = s1 + 2·s2 + 4·s4 = ' + (s1 + 2 * s2 + 4 * s4) + ' → 出错位就是第 ' + (s1 + 2 * s2 + 4 * s4) + ' 位');
+  });
+  yield W(1100);
+  const errPos = s1 + 2 * s2 + 4 * s4;
+  const fixed = bits[errPos - 1] ^ 1;
+  chips[errPos - 1].setText(String(fixed));
+  chips[errPos - 1].setColor(GREEN, GREEN);
+  yield S(() => { stageT.setText('翻转第 ' + errPos + ' 位：' + bits[errPos - 1] + ' → ' + fixed + ' —— 恢复 0 1 1 0 0 1 1'); });
+  yield W(900);
+  yield S(() => { outT.setText('解码数据 d = [1,0,1,1] —— 纠错完成：1 位翻转被定位并修复'); status.textContent = '汉明(7,4)：纠 1 位错'; hint.setText('原理：校验位放在 2 的幂位置，每组奇偶校验覆盖不同位置集 → 校正子二进制 = 出错位号。能纠 1 位 / 检 2 位'); });
+  yield W(1100);
+  yield S(() => { hint.setText('扩展汉明码（+1 总奇偶位）可纠 1 检 2；应用：ECC 内存 SEC-DED、老式 Modem、闪存控制器'); outT.setText('编码 O(n)：每组校验一遍；译码 O(1)：一组异或网络'); });
+  yield W(1100);
+  yield S(() => { hint.setText('汉明码演示完成：4 数据位 + 3 校验位 → 纠 1 位错'); outT.setText(''); });
+  yield W(400);
 }
-const stepT = new VText(scene, { text: '', x: 0, y: 20, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const synT = new VText(scene, { text: '', x: 0, y: -60, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
-const DATA = { 3: 1, 5: 0, 6: 1, 7: 1 };
-const PARITY = { 1: { bits: [3, 5, 7], label: 'p1 = d1⊕d2⊕d4' }, 2: { bits: [3, 6, 7], label: 'p2 = d1⊕d3⊕d4' }, 4: { bits: [5, 6, 7], label: 'p4 = d2⊕d3⊕d4' } };
+function* runHamming() {
+  hint.setText('汉明(7,4)：纠 1 位错');
+  yield W(400);
+  yield* hammingGen();
+}
 
-function resetAll() {
+panel.addButton('运行演示', () => engine.start(runHamming()));
+panel.addButton('清空', () => {
   engine.clear();
-  for (const b of bits) { b.setColor(PALETTE.node, PALETTE.nodeEmissive); b.setText('?'); }
-  stepT.setText('');
-  synT.setText('');
-}
-
-function runEncode() {
-  resetAll();
-  hint.setText('汉明 (7,4)：4 个数据位 + 3 个校验位，任意 1 位翻转可自动纠正');
-  C(200, () => {
-    for (const [b, v] of Object.entries(DATA)) { bits[b - 1].setColor(BLUE, BLUE); bits[b - 1].setText(String(v)); }
-    stepT.setText('写入数据位：d1=1 d2=0 d3=1 d4=1（数据 1011）');
-  });
-  C(900, () => {
-    const p = PARITY[1];
-    for (const b of p.bits) bits[b - 1].setColor(YELLOW, YELLOW);
-    stepT.setText(p.label + ' = 1⊕0⊕1 = 0');
-    hint.setText('校验位 p1 覆盖位 1,3,5,7：偶校验使 1 的个数为偶数');
-  });
-  C(800, () => {
-    for (const b of PARITY[1].bits) bits[b - 1].setColor(BLUE, BLUE);
-    bits[0].setColor(GREEN, GREEN); bits[0].setText('0');
-    stepT.setText('p1 = 0 → 位 1 写 0');
-    const p = PARITY[2];
-    for (const b of p.bits) bits[b - 1].setColor(YELLOW, YELLOW);
-    stepT.setText(p.label + ' = 1⊕1⊕1 = 1');
-  });
-  C(800, () => {
-    for (const b of PARITY[2].bits) bits[b - 1].setColor(BLUE, BLUE);
-    bits[1].setColor(GREEN, GREEN); bits[1].setText('1');
-    stepT.setText('p2 = 1 → 位 2 写 1');
-    const p = PARITY[4];
-    for (const b of p.bits) bits[b - 1].setColor(YELLOW, YELLOW);
-    stepT.setText(p.label + ' = 0⊕1⊕1 = 0');
-  });
-  C(800, () => {
-    for (const b of PARITY[4].bits) bits[b - 1].setColor(BLUE, BLUE);
-    bits[3].setColor(GREEN, GREEN); bits[3].setText('0');
-    stepT.setText('p4 = 0 → 位 4 写 0');
-  });
-  C(700, () => {
-    for (let b = 1; b <= 7; b++) bits[b - 1].setColor(GREEN, GREEN);
-    stepT.setText('码字完成：0 1 1 0 0 1 1（0110011）发送到信道');
-    hint.setText('传输：信道噪声可能翻转某个比特…');
-  });
-  C(1000, () => {
-    bits[4].setColor(ROSE, ROSE); bits[4].setText('1');
-    stepT.setText('信道翻转了位 5：0 → 1，接收码字 0110111');
-    hint.setText('接收端重算三个校验位（综合征）找出错误位置');
-  });
-  C(900, () => {
-    for (const b of PARITY[1].bits) bits[b - 1].setColor(YELLOW, YELLOW);
-    stepT.setText('s1 = 位1⊕3⊕5⊕7 = 0⊕1⊕1⊕1 = 1（组 1 奇偶校验失败）');
-  });
-  C(800, () => {
-    for (const b of PARITY[1].bits) bits[b - 1].setColor(ROSE, ROSE);
-    for (const b of PARITY[2].bits) bits[b - 1].setColor(YELLOW, YELLOW);
-    stepT.setText('s2 = 位2⊕3⊕6⊕7 = 1⊕1⊕1⊕1 = 0（组 2 通过）');
-  });
-  C(800, () => {
-    for (const b of PARITY[2].bits) bits[b - 1].setColor(ROSE, ROSE);
-    for (const b of PARITY[4].bits) bits[b - 1].setColor(YELLOW, YELLOW);
-    stepT.setText('s4 = 位4⊕5⊕6⊕7 = 0⊕1⊕1⊕1 = 1（组 4 失败）');
-  });
-  C(800, () => {
-    for (const b of PARITY[4].bits) bits[b - 1].setColor(ROSE, ROSE);
-    synT.setText('综合征 = s4·4 + s2·2 + s1 = 101₂ = 5 → 错误定位在位 5');
-    bits[4].setColor(ROSE, ROSE);
-  });
-  C(900, () => {
-    bits[4].setColor(GREEN, GREEN); bits[4].setText('0');
-    stepT.setText('纠正：位 5 翻回 0 → 码字还原 0110011');
-    synT.setText('数据恢复 d1d2d3d4 = 1011 ✓（汉明距离 3，可纠 1 位错）');
-    status.textContent = '汉明码完成：1011 → 0110011 → 传输翻位 5 → 综合征 5 → 自动纠正';
-    hint.setText('汉明码是 ECC 内存、通信协议中纠错的基础（SEC-DED 也源于此）');
-  });
-}
-
-panel.addButton('运行编码', runEncode);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；每个校验位覆盖一组数据位，错位由覆盖组唯一确定）');
+  for (let i = 0; i < 7; i++) { bits[i] = null; chips[i].setText('位' + (i + 1)); chips[i].setColor(PARITY_IDX.includes(i) ? CYAN : BLUE, PARITY_IDX.includes(i) ? CYAN : BLUE); }
+  synChips.forEach((c, k) => { c.setText('s' + [1, 2, 4][k] + '=?'); c.setColor(DIM, DIM); });
+  stageT.setText(''); eqT.setText(''); outT.setText('');
+  hint.setText('已清空，可重新运行'); status.textContent = '';
+});
+panel.addLabel('（拖拽旋转视角，滚轮缩放；上排 7 块 = 码字位，青 = 校验位、蓝 = 数据位；下排 = 校正子 s1,s2,s4，绿 = 通过、红 = 失败；红色位翻转后按校正子定位修复）');
 
 scene.start(engine);

@@ -1,85 +1,101 @@
-// AlgorithmLibrary/Vigenere3D.js — 维吉尼亚密码：多表替换，密钥循环
+// AlgorithmLibrary/Vigenere3D.js — 维吉尼亚密码：多表替换，C = (P+K) mod 26，密钥循环使用；逐列加密再解密验证（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, VArrow } from '../3D/VisualObject3D.js';
+import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Vigenere3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 660], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const scene = new Scene3D('scene', { cameraPos: [0, 330, 660], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x60a5fa, DIM = 0x334155;
-const P = 'ATTACKATDAWN', KEY = 'LEMON';
-const N = P.length;
-const hint = new VText(scene, { text: '点击「运行加密」开始', x: 0, y: 310, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
+const hint = new VText(scene, { text: '点击「运行演示」开始：维吉尼亚密码 —— 密钥循环的多表替换', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 140, z: 0, color: PALETTE.textGlow, scale: 0.48 });
+const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-// 三行：明文 / 密钥（循环）/ 密文
-const SP = 52, X0 = -N * SP / 2;
-const pBoxes = [], kBoxes = [], cBoxes = [];
+const PT = 'ATTACKATDAWN';
+const KEY = 'LEMON';
+const N = PT.length;
+const X0 = -385;
+const pxChips = [], keyChips = [], cxChips = [];
 for (let i = 0; i < N; i++) {
-  const x = X0 + i * SP;
-  pBoxes.push(new VBox(scene, { w: 42, h: 42, d: 42, x, y: 180, z: 0, label: P[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-  kBoxes.push(new VBox(scene, { w: 42, h: 42, d: 42, x, y: 80, z: 0, label: KEY[i % KEY.length], color: DIM, emissive: DIM }));
-  cBoxes.push(new VBox(scene, { w: 42, h: 42, d: 42, x, y: -20, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+  const x = X0 + i * 70;
+  pxChips.push(new VBox(scene, { w: 56, h: 48, d: 48, x, y: 60, z: 0, label: '?', color: BLUE, emissive: BLUE }));
+  keyChips.push(new VBox(scene, { w: 56, h: 48, d: 48, x, y: 0, z: 0, label: '?', color: PUR, emissive: PUR }));
+  cxChips.push(new VBox(scene, { w: 56, h: 48, d: 48, x, y: -60, z: 0, label: '?', color: GOLD, emissive: GOLD }));
 }
-const arrow = new VArrow(scene, { x: X0, y: 120, z: 0 });
-new VText(scene, { text: '明文 P', x: X0 - 60, y: 180, z: 0, color: PALETTE.textDim, scale: 0.7 });
-new VText(scene, { text: '密钥 K（循环）', x: X0 - 60, y: 80, z: 0, color: PALETTE.textDim, scale: 0.7 });
-new VText(scene, { text: '密文 C', x: X0 - 60, y: -20, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const result = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+new VText(scene, { text: '上排 = 明文（蓝）  中排 = 密钥循环（紫）  下排 = 密文（金）    C = (P + K) mod 26，A=0 … Z=25', x: 0, y: -110, z: 0, color: PALETTE.textDim, scale: 0.4 });
 
-function resetAll() {
+const C2I = c => c.charCodeAt(0) - 65;
+const I2C = n => String.fromCharCode(65 + n);
+
+function* vigenereGen() {
+  yield S(() => { hint.setText('维吉尼亚密码：凯撒的推广 —— 每个位置用不同的偏移（由密钥字母决定），同样的字母在不同位置会加密成不同密文'); stageT.setText('明文 ATTACKATDAWN（12 位），密钥 LEMON 循环使用 L E M O N L E M O N L E'); });
+  yield W(900);
+  for (let i = 0; i < N; i++) {
+    pxChips[i].setText(PT[i]);
+    keyChips[i].setText(KEY[i % KEY.length]);
+    yield W(180);
+  }
+  yield S(() => { stageT.setText('明文与密钥就位。加密：C = (P + K) mod 26 —— 逐列计算'); eqT.setText('A=0 B=1 … Z=25；偏移量 = 密钥字母的序号（L=11, E=4, M=12, O=14, N=13）'); });
+  yield W(850);
+  const cipher = [];
+  for (let i = 0; i < N; i++) {
+    const p = C2I(PT[i]), k = C2I(KEY[i % KEY.length]);
+    const c = (p + k) % 26;
+    cipher.push(I2C(c));
+    pxChips[i].setColor(WHITE, WHITE);
+    keyChips[i].setColor(WHITE, WHITE);
+    yield W(260);
+    cxChips[i].setText(I2C(c));
+    cxChips[i].setColor(WHITE, WHITE);
+    yield S(() => { stageT.setText('列 ' + i + '：' + PT[i] + '(' + p + ') + ' + KEY[i % KEY.length] + '(' + k + ') = ' + (p + k) + ' mod 26 = ' + c + ' → ' + I2C(c)); });
+    yield W(560);
+    pxChips[i].setColor(BLUE, BLUE);
+    keyChips[i].setColor(PUR, PUR);
+    cxChips[i].setColor(GOLD, GOLD);
+  }
+  const cipherText = cipher.join('');
+  yield S(() => { stageT.setText('密文：' + cipherText + ' —— 明文里两个 A 加密成了 L 和 E，看不出重复模式，抗频率分析'); eqT.setText('C = ' + cipherText + '    （同字母不同密文 = 维吉尼亚的核心优势）'); });
+  yield W(1000);
+  yield S(() => { stageT.setText('解密验证：P = (C − K) mod 26，倒推回明文'); });
+  yield W(700);
+  let ok = true;
+  for (let i = 0; i < N; i++) {
+    const c = C2I(cipher[i]), k = C2I(KEY[i % KEY.length]);
+    const p = ((c - k) % 26 + 26) % 26;
+    if (I2C(p) !== PT[i]) ok = false;
+    cxChips[i].setColor(GREEN, GREEN);
+    yield W(180);
+  }
+  yield S(() => { outT.setText('解密得 ATTACKATDAWN ✓' + (ok ? ' —— 与明文一致' : '（不一致！）')); status.textContent = '维吉尼亚：ATTACKATDAWN → ' + cipherText; hint.setText('破解：先猜密钥长度（Kasiski 试验 / 重合指数），再按列做频率分析 —— 一战前被称为「不可破的密码」，19 世纪被破'); });
+  yield W(1100);
+  yield S(() => { hint.setText('现代意义：密钥流思想的开山之作 —— 后人把随机密钥流 + XOR 发扬为一次性便签（绝对安全）与流密码'); outT.setText('复杂度：O(n)；安全性完全依赖密钥随机性 —— 重复使用密钥就退化成好破的多表替换'); });
+  yield W(1100);
+  yield S(() => { hint.setText('维吉尼亚演示完成：密钥循环多表替换，加密解密互逆'); outT.setText(''); });
+  yield W(400);
+}
+
+function* runVigenere() {
+  hint.setText('维吉尼亚：密钥循环替换');
+  yield W(400);
+  yield* vigenereGen();
+}
+
+panel.addButton('运行演示', () => engine.start(runVigenere()));
+panel.addButton('清空', () => {
   engine.clear();
-  for (const b of pBoxes) b.setColor(PALETTE.node, PALETTE.nodeEmissive);
-  for (const b of kBoxes) b.setColor(DIM, DIM);
-  for (const b of cBoxes) { b.setColor(PALETTE.node, PALETTE.nodeEmissive); b.setText(''); }
-  arrow.moveTo(X0, 120, 0, 1);
-  result.setText('');
-}
-
-function runEncrypt() {
-  resetAll();
-  hint.setText('维吉尼亚密码：C = (P + K) mod 26，密钥 LEMON 循环使用');
-  let done = 0;
-  const next = () => {
-    if (done >= N) {
-      const cipher = cBoxes.map(b => b.text).join('');
-      result.setText('密文：' + cipher);
-      status.textContent = '加密完成：' + P + ' → ' + cipher;
-      hint.setText('同一明文字母因密钥不同而加密为不同字母，无法用频率分析破解');
-      return;
-    }
-    const i = done; done++;
-    const k = KEY[i % KEY.length];
-    const pv = P[i].charCodeAt(0) - 65;
-    const kv = k.charCodeAt(0) - 65;
-    const cv = (pv + kv) % 26;
-    arrow.moveTo(X0 + i * SP, 120, 0, 250);
-    C(150, () => {
-      pBoxes[i].setColor(YELLOW, YELLOW);
-      kBoxes[i].setColor(BLUE, BLUE);
-    });
-    hint.setText('第 ' + (i + 1) + ' 位：' + P[i] + '(' + pv + ') + ' + k + '(' + kv + ') = ' + (pv + kv) + ' mod 26 = ' + cv);
-    C(700, () => {
-      const cc = String.fromCharCode(65 + cv);
-      cBoxes[i].setColor(GREEN, GREEN);
-      cBoxes[i].setText(cc);
-      pBoxes[i].setColor(PALETTE.node, PALETTE.nodeEmissive);
-      kBoxes[i].setColor(DIM, DIM);
-      result.setText('密文：' + cBoxes.map(b => b.text).join(''));
-    });
-    hint.setText(P[i] + ' → ' + String.fromCharCode(65 + cv));
-    C(450, next);
-  };
-  next();
-}
-
-panel.addButton('运行加密', runEncrypt);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+  pxChips.forEach(c => { c.setText('?'); c.setColor(BLUE, BLUE); });
+  keyChips.forEach(c => { c.setText('?'); c.setColor(PUR, PUR); });
+  cxChips.forEach(c => { c.setText('?'); c.setColor(GOLD, GOLD); });
+  stageT.setText(''); eqT.setText(''); outT.setText('');
+  hint.setText('已清空，可重新运行'); status.textContent = '';
+});
+panel.addLabel('（拖拽旋转视角，滚轮缩放；三排方块 = 明文 / 密钥 / 密文，逐列白闪 = 正在计算；绿 = 解密验证通过；密钥循环使用是维吉尼亚与凯撒的根本区别）');
 
 scene.start(engine);

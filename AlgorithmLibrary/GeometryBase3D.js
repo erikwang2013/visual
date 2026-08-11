@@ -1,116 +1,106 @@
-// AlgorithmLibrary/GeometryBase3D.js — 几何工具箱三件套：叉积判转向、鞋带公式算面积、点到直线距离 —— 凸包/多边形/碰撞检测的地基
+// AlgorithmLibrary/GeometryBase3D.js — 几何工具箱三件套：叉积判转向 / 鞋带公式算面积 / 点到直线距离 —— 计算几何的地基（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('GeometryBase3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const scene = new Scene3D('scene', { cameraPos: [0, 60, 720], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, VIOLET = 0xa78bfa, AMBER = 0xfbbf24;
-const hint = new VText(scene, { text: '点击「运行几何工具箱」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
+const hint = new VText(scene, { text: '点击「运行演示」开始：几何工具箱 —— 叉积 / 鞋带 / 点线距离', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: -8, z: 0, color: PALETTE.textGlow, scale: 0.52 });
+const outT = new VText(scene, { text: '', x: 0, y: -230, z: 0, color: PALETTE.textGlow, scale: 0.6 });
 
-const extras = [];
-function addTemp(o) { extras.push(o); return o; }
-function clearExtras() { extras.forEach(o => { try { o.remove(); } catch (e) {} }); extras.length = 0; }
-const pt = (x, y, color, label, r = 11) => addTemp(new VNode(scene, { x, y, z: 0, radius: r, label, color, emissive: color }));
-const line = (a, b, color, opacity = 0.55, radius = 2.5) => addTemp(tubeBetween(scene, a, b, { color, opacity, radius }));
-const txt = (text, x, y, color, scale = 0.42) => addTemp(new VText(scene, { text, x, y, z: 0, color, scale }));
+const temp = [];
+function addTemp(o) { temp.push(o); return o; }
+function clearTemp() { temp.forEach(o => { try { o.remove(); } catch (e) {} }); temp.length = 0; }
+const pt = (x, y, color, label, r = 12) => addTemp(new VNode(scene, { x, y, z: 0, radius: r, label, color, emissive: color }));
+const seg = (a, b, color, opacity = 0.6, radius = 3) => addTemp(tubeBetween(scene, { x: a[0], y: a[1], z: 0 }, { x: b[0], y: b[1], z: 0 }, { color, opacity, radius }));
 
-new VText(scene, { text: '几何工具箱：叉积判转向 / 鞋带公式算面积 / 点线距离 —— 三个基本操作拼出整个计算几何大厦', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '三段演示自上而下：①三点转向（叉积）②多边形面积（鞋带公式）③点到直线距离 —— 金色 = 最终答案', x: 0, y: -245, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 268, z: 0, color: PALETTE.textGlow, scale: 0.52 });
-const outT = new VText(scene, { text: '', x: 0, y: 290, z: 0, color: PALETTE.textGlow, scale: 0.5 });
+// ① 三点转向
+const PA = [-170, 70], PB = [10, -30], PC = [150, 80];
+// ② 四边形鞋带
+const Q = [[-160, -130], [60, -175], [160, -60], [-40, 40]];
+// ③ 点线距离：3x − 4y + 12 = 0，P = (16, 10) → d = 4
+const La = [-60, -42], Lb = [60, 48], P0 = [16, 10];
 
-function resetAll() {
-  engine.clear();
-  clearExtras();
-  stageT.setText(''); eqT.setText(''); outT.setText('');
+function* showCross() {
+  yield S(() => { stageT.setText('① 三点转向（叉积）：A(−170,70) B(10,−30) C(150,80)'); eqT.setText('AB = (180, −100)，AC = (320, 10)'); });
+  yield W(600);
+  pt(PA[0], PA[1], CYAN, 'A'); pt(PB[0], PB[1], CYAN, 'B'); pt(PC[0], PC[1], CYAN, 'C');
+  seg(PA, PB, CYAN); seg(PA, PC, ORANGE);
+  yield W(500);
+  const cr = (PB[0] - PA[0]) * (PC[1] - PA[1]) - (PB[1] - PA[1]) * (PC[0] - PA[0]);
+  yield S(() => { stageT.setText('cross = AB×AC = 180·10 − (−100)·320 = ' + cr); eqT.setText('cross > 0 → 从 A 看 B→C 是左转（逆时针）'); });
+  yield W(650);
+  pt(PC[0], PC[1], GREEN, 'C');
+  yield S(() => { stageT.setText('cross = ' + cr + ' > 0 → 左转 ✓（叉积符号决定转向：>0 左 / <0 右 / =0 共线）'); outT.setText('① 结论：A→B→C 逆时针左转，cross = ' + cr); });
+  yield W(900);
+  clearTemp();
 }
 
-function runGeometry() {
-  resetAll();
-  hint.setText('三件套是凸包（反复叉积）、多边形面积（反复鞋带）、碰撞检测（反复点线距离）的原子操作 —— 每个算法都从这三招开始');
-  // 演示 1：叉积方向
-  C(700, () => {
-    pt(-60, 120, VIOLET, 'A(1,1)');
-    pt(160, 70, VIOLET, 'B(5,2)');
-    stageT.setText('① 叉积判转向：三点 A、B、C —— 问：从 AB 看 C 在左还是右？');
-    hint.setText('叉积 (B−A)×(C−A)：> 0 逆时针（左），< 0 顺时针（右），= 0 共线 —— 凸包判断全看它');
-  });
-  C(700, () => {
-    pt(40, -10, CYAN, 'C(2,4)');
-    line([-60, 120, 0], [160, 70, 0], VIOLET, 0.6);
-    line([-60, 120, 0], [40, -10, 0], CYAN, 0.45, 2);
-    eqT.setText('AB = (4, 1)，AC = (1, 3)', { color: PALETTE.textGlow });
-    stageT.setText('连线：AB（紫）+ AC（青）—— 向量夹角决定 C 的方位');
-  });
-  C(900, () => {
-    eqT.setText('AB × AC = 4×3 − 1×1 = 11 > 0', { color: GOLD });
-    outT.setText('① 结果：AB×AC = 11 > 0 → C 在 AB 左侧（逆时针 CCW）✓', { color: GOLD });
-    stageT.setText('叉积 = 平行四边形有向面积：正数 = 左转。Graham 扫描每步都用它决定「该不该拐弯」');
-  });
-  C(500, () => { clearExtras(); eqT.setText(''); outT.setText(''); stageT.setText(''); });
-  // 演示 2：鞋带公式
-  C(700, () => {
-    pt(-100, 50, VIOLET, 'P1(0,0)');
-    pt(40, 40, VIOLET, 'P2(2,0)');
-    pt(90, -30, VIOLET, 'P3(3,1)');
-    stageT.setText('② 鞋带公式：四边形 (0,0),(2,0),(3,1),(0,4) —— 求面积');
-    hint.setText('鞋带：沿边交叉相乘 Σxᵢyᵢ₊₁ − Σyᵢxᵢ₊₁，除以 2 —— 名字来自计算时叉乘项如鞋带般交错');
-  });
-  C(700, () => {
-    pt(-80, -120, VIOLET, 'P4(0,4)');
-    line([-100, 50, 0], [40, 40, 0], VIOLET, 0.55);
-    line([40, 40, 0], [90, -30, 0], VIOLET, 0.55);
-    line([90, -30, 0], [-80, -120, 0], VIOLET, 0.55);
-    line([-80, -120, 0], [-100, 50, 0], VIOLET, 0.55);
-    eqT.setText('Σxᵢyᵢ₊₁ = 0×0 + 2×1 + 3×4 + 0×0 = 14', { color: PALETTE.textGlow });
-    stageT.setText('四边闭合 —— 鞋带第 1 行：每个点的 x 乘下一个点的 y');
-  });
-  C(900, () => {
-    eqT.setText('Σyᵢxᵢ₊₁ = 0 → 面积 = |14 − 0| / 2 = 7', { color: GOLD });
-    outT.setText('② 结果：面积 = 7 ✓（鞋带公式对任意简单多边形有效，凹凸都行）', { color: GOLD });
-    stageT.setText('第 2 行：每个点的 y 乘下一个点的 x —— 两行相减取一半就是面积');
-  });
-  C(500, () => { clearExtras(); eqT.setText(''); outT.setText(''); stageT.setText(''); });
-  // 演示 3：点到直线距离
-  C(700, () => {
-    pt(-130, -90, VIOLET, 'A(0,0)');
-    pt(130, -230, VIOLET, 'B(3,4)');
-    line([-130, -90, 0], [130, -230, 0], VIOLET, 0.6);
-    stageT.setText('③ 点到直线距离：直线过 A(0,0)、B(3,4)，点 P(1,0) —— 问 P 离直线多远？');
-    hint.setText('距离 = |AB × AP| / |AB| —— 分子是平行四边形面积，除以底边长就是高 = 距离');
-  });
-  C(800, () => {
-    pt(20, -150, CYAN, 'P(1,0)');
-    pt(-99, -107, GOLD, 'H', 7);
-    line([20, -150, 0], [-99, -107, 0], GOLD, 0.75, 2.2);
-    eqT.setText('AB×AP = |3×0 − 4×1| = 4，|AB| = 5', { color: PALETTE.textGlow });
-    stageT.setText('P 到垂足 H 的金色垂线段 —— 垂线段长度就是距离');
-  });
-  C(900, () => {
-    eqT.setText('距离 = 4 / 5 = 0.8', { color: GOLD });
-    outT.setText('③ 结果：P(1,0) 到直线 AB 的距离 = 0.8 ✓', { color: GOLD });
-    stageT.setText('叉积分子 ÷ 向量模长分母 —— 碰撞检测：距离 < 半径即相撞');
-  });
-  // 总结
-  C(500, () => { clearExtras(); eqT.setText(''); outT.setText(''); stageT.setText(''); });
-  C(1100, () => {
-    outT.setText('三件套合体：Graham 凸包 = 反复叉积；多边形面积 = 反复鞋带；物理碰撞 = 反复点线距离 —— 计算几何从这三招起步');
-    status.textContent = `几何工具箱：叉积 11（CCW）、鞋带面积 7、点线距离 0.8`;
-    hint.setText('进阶：极角排序 + 叉积 = 凸包 O(n log n)；增量法 + 鞋带 = 任意多边形面积；SDF 距离场 = 游戏碰撞');
-  });
+function* showArea() {
+  yield S(() => { stageT.setText('② 多边形面积（鞋带公式）：四边形 4 顶点'); eqT.setText('S = ½·|Σ (xᵢ·yᵢ₊₁ − xᵢ₊₁·yᵢ)| —— 逐边累加交叉项'); });
+  yield W(600);
+  let sum = 0;
+  for (let i = 0; i < Q.length; i++) {
+    const j = (i + 1) % Q.length;
+    pt(Q[i][0], Q[i][1], i === 0 ? RED : BLUE, String(i));
+    seg(Q[i], Q[j], BLUE);
+    const term = Q[i][0] * Q[j][1] - Q[j][0] * Q[i][1];
+    sum += term;
+    yield S(() => { stageT.setText('边 ' + i + '→' + j + '：x' + i + '·y' + j + ' − x' + j + '·y' + i + ' = ' + Q[i][0] + '·' + Q[j][1] + ' − ' + Q[j][0] + '·' + Q[i][1] + ' = ' + term); eqT.setText('累计 Σ = ' + sum); });
+    yield W(550);
+  }
+  const area = Math.abs(sum) / 2;
+  yield S(() => { stageT.setText('面积 = ½·|' + sum + '| = ' + area); eqT.setText('鞋带公式：顶点绕一圈的交叉项和的一半'); outT.setText('② 结论：多边形面积 = ' + area + ' 平方单位'); });
+  yield W(900);
+  clearTemp();
 }
 
-panel.addButton('运行几何工具箱', runGeometry);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；紫 = 已知几何体，青 = 提问对象，金 = 垂线/答案）');
+function* showDist() {
+  yield S(() => { stageT.setText('③ 点到直线距离：线 3x − 4y + 12 = 0，点 P(16, 10)'); eqT.setText('d = |a·x₀ + b·y₀ + c| / √(a² + b²)'); });
+  yield W(600);
+  seg(La, Lb, GOLD);
+  pt(P0[0], P0[1], CYAN, 'P');
+  yield W(500);
+  const num = Math.abs(3 * P0[0] - 4 * P0[1] + 12);
+  const den = Math.sqrt(3 * 3 + 4 * 4);
+  yield S(() => { stageT.setText('分子 = |3·16 − 4·10 + 12| = |' + (3 * P0[0] - 4 * P0[1] + 12) + '| = ' + num); eqT.setText('分母 = √(9 + 16) = 5'); });
+  yield W(600);
+  yield S(() => { stageT.setText('d = ' + num + ' / 5 = ' + (num / den) + '（垂线段紫色）'); outT.setText('③ 结论：P 到直线距离 = ' + num / den); });
+  seg(P0, [P0[0] - 3 * 4, P0[1] + 4 * 4], PUR, 0.8, 2.5);
+  yield W(900);
+  clearTemp();
+}
+
+function* geomGen() {
+  yield S(() => { hint.setText('几何工具箱：叉积判转向 / 鞋带公式算面积 / 点线距离 —— 三个基本操作拼出整个计算几何大厦'); stageT.setText('三段演示自上而下：①三点转向（叉积）②多边形面积（鞋带公式）③点到直线距离'); });
+  yield W(700);
+  yield* showCross();
+  yield* showArea();
+  yield* showDist();
+  yield S(() => { hint.setText('复杂度：叉积/点线距离 O(1)；鞋带面积 O(n)（绕一圈）—— 三者是凸包、碰撞检测、多边形裁剪的共同基础'); outT.setText('应用：转向判定（Graham 扫描）、面积计算（地图/图形学）、距离分类（碰撞检测）—— 叉积也叫「楔积」'); });
+  yield W(1100);
+  yield S(() => { hint.setText('几何工具箱演示完成：左转判定 → 面积 → 距离 4'); outT.setText(''); });
+  yield W(400);
+}
+
+function* runGeom() {
+  hint.setText('几何工具箱：叉积 / 鞋带 / 点线距离');
+  yield W(400);
+  yield* geomGen();
+}
+
+panel.addButton('运行演示', () => engine.start(runGeom()));
+panel.addButton('清空', () => { engine.clear(); clearTemp(); stageT.setText(''); eqT.setText(''); outT.setText(''); hint.setText('已清空，可重新运行'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；① 上区三点转向，② 中区鞋带面积，③ 下区点线距离；青/蓝 = 演示元素，金 = 直线，紫 = 垂线段）');
 
 scene.start(engine);

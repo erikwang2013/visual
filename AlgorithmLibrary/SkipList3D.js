@@ -1,99 +1,123 @@
-// AlgorithmLibrary/SkipList3D.js — 跳表：多层有序链表加速查找（向下向右搜索）
+// AlgorithmLibrary/SkipList3D.js — 跳表：多层有序链表加速查找 —— 顶层稀疏「快车道」，底层全量兜底；搜索 = 逐层向右 + 向下（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, tubeBetween } from '../3D/VisualObject3D.js';
+import { VNode, VText, VBox, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SkipList3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 420, 640], fov: 50 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const scene = new Scene3D('scene', { cameraPos: [0, 380, 640], fov: 50 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const KEY = 9;
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, DIM = 0x475569;
-// 每层包含的节点值（自顶向下 L3 → L0），下层必然包含上层值
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
+const hint = new VText(scene, { text: '点击「运行演示」开始：跳表搜索 19（找到）+ 搜索 10（未找到）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: -70, z: 0, color: PALETTE.textGlow, scale: 0.56 });
+const outT = new VText(scene, { text: '', x: 0, y: -130, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+
 const LANES = [[3, 17, 25], [3, 9, 17, 25], [3, 6, 9, 12, 17, 19, 22, 25], [3, 6, 9, 12, 17, 19, 22, 25, 28]];
-const LANE_Y = [190, 130, 70, 10];
+const LAYER_Y = [190, 130, 70, 10];
 const vx = v => -300 + v * 20;
-const laneBoxes = [];
-const hint = new VText(scene, { text: '点击「运行跳表」开始：查找 ' + KEY, x: 0, y: 280, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
 
-LANES.forEach((vals, l) => {
-  new VText(scene, { text: 'L' + l, x: -350, y: LANE_Y[l], z: 0, color: PALETTE.textDim, scale: 0.7 });
-  laneBoxes[l] = [];
-  vals.forEach(v => {
-    laneBoxes[l].push(new VBox(scene, { w: 34, h: 34, d: 34, x: vx(v), y: LANE_Y[l], z: 0, label: String(v), color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+const nodes = new Map();
+let edgeMeshes = new Map();
+LANES.forEach((lane, li) => {
+  lane.forEach(v => {
+    nodes.set(li + '-' + v, new VNode(scene, { radius: 18, x: vx(v), y: LAYER_Y[li], z: 0, label: String(v), color: BLUE, emissive: BLUE }));
   });
-  for (let k = 0; k + 1 < vals.length; k++) {
-    tubeBetween(scene, [vx(vals[k]), LANE_Y[l], 0], [vx(vals[k + 1]), LANE_Y[l], 0], { color: PALETTE.edge, radius: 2, opacity: 0.35 });
-  }
 });
-const seqBox = new VBox(scene, { w: 40, h: 40, d: 40, x: 345, y: 10, z: 0, label: String(KEY), color: PALETTE.orange, emissive: PALETTE.orange });
-new VText(scene, { text: '目标', x: 345, y: 65, z: 0, color: PALETTE.textDim, scale: 0.65 });
-const info = new VText(scene, { text: '', x: 0, y: -80, z: 0, color: PALETTE.text, scale: 0.8 });
+new VText(scene, { text: 'L3 顶层（稀疏）', x: -360, y: 190, z: 0, color: PALETTE.textDim, scale: 0.45 });
+new VText(scene, { text: 'L0 底层（全量）', x: -360, y: 10, z: 0, color: PALETTE.textDim, scale: 0.45 });
 
-function resetAll() {
-  engine.clear();
-  for (const l of laneBoxes) for (const b of l) b.setColor(PALETTE.node, PALETTE.nodeEmissive);
-  seqBox.setColor(PALETTE.orange, PALETTE.orange);
-  info.setText('');
-}
-
-function runSkipList() {
-  resetAll();
-  hint.setText('跳表查找 ' + KEY + '：从顶层 L3 开始向右，遇到比 KEY 大的节点就沿其前驱下移一层');
-  const steps = [];
-  let comps = 0;
-  for (let l = 3, startIdx = 0; l >= 0; l--) {
-    const vals = LANES[l];
-    let k = startIdx, found = false;
-    for (; k < vals.length; k++) {
-      const v = vals[k];
-      comps++;
-      if (v === KEY) { steps.push({ t: 'visit', l, v, found: true }); found = true; break; }
-      if (v < KEY) { steps.push({ t: 'visit', l, v, found: false }); continue; }
-      steps.push({ t: 'nxt', l, v });
-      break;
-    }
-    if (found || l === 0) break;
-    const from = vals[k > 0 ? k - 1 : 0];
-    startIdx = Math.max(0, LANES[l - 1].indexOf(from));
-    steps.push({ t: 'down', l, from });
+function buildEdges() {
+  edgeMeshes.forEach(m => scene.remove(m));
+  edgeMeshes = new Map();
+  const mk = (li, v1, v2) => {
+    const a = { x: vx(v1), y: LAYER_Y[li], z: 0 }, b = { x: vx(v2), y: LAYER_Y[li], z: 0 };
+    edgeMeshes.set(li + '-' + v1 + '-' + v2, tubeBetween(scene, a, b, { color: PALETTE.edge, opacity: 0.35, radius: 2 }));
+  };
+  LANES.forEach((lane, li) => {
+    for (let i = 0; i + 1 < lane.length; i++) mk(li, lane[i], lane[i + 1]);
+  });
+  for (let li = 1; li < LANES.length; li++) {
+    LANES[li - 1].forEach(v => {
+      if (!LANES[li].includes(v)) return;
+      const a = { x: vx(v), y: LAYER_Y[li - 1], z: 0 }, b = { x: vx(v), y: LAYER_Y[li], z: 0 };
+      edgeMeshes.set('down-' + li + '-' + v, tubeBetween(scene, a, b, { color: PALETTE.edge, opacity: 0.2, radius: 1.5 }));
+    });
   }
+}
+buildEdges();
+const nodeAt = (li, v) => nodes.get(li + '-' + v);
+function setCol(li, v, c) { nodeAt(li, v).setColor(c, c); }
+function resetAll() { LANES.forEach((lane, li) => lane.forEach(v => setCol(li, v, BLUE))); }
 
-  let i = 0;
-  const step = () => {
-    if (i >= steps.length) {
-      status.textContent = '跳表查找完成：找到 ' + KEY + '，共比较 ' + comps + ' 次（顺序查找需 ' + LANES[0].length + ' 次）';
-      hint.setText('找到 ' + KEY + '！比较 ' + comps + ' 次，跳过了 ' + (LANES[0].length - comps) + ' 个无关元素');
-      info.setText('L0 全链表共 ' + LANES[0].length + ' 个元素；跳表借助高层“跳跃指针”只需比较 ' + comps + ' 个');
-      seqBox.setColor(GREEN, GREEN);
+function* searchGen(key) {
+  let l = 0;
+  let cur = LANES[0][0];
+  setCol(l, cur, CYAN);
+  yield S(() => stageT.setText('搜索 ' + key + '：从顶层 L' + l + ' 起点 ' + cur + ' 出发（青 = 当前考察）'));
+  yield W(600);
+  while (true) {
+    const lane = LANES[l];
+    const i = lane.indexOf(cur);
+    const next = lane[i + 1];
+    if (next !== undefined && next < key) {
+      setCol(l, cur, GOLD);
+      cur = next;
+      setCol(l, cur, CYAN);
+      yield S(() => stageT.setText('L' + l + '：' + next + ' < ' + key + ' → 向右推进（路径金色）'));
+      yield W(550);
+      continue;
+    }
+    if (next !== undefined && next === key) {
+      setCol(l, next, GREEN);
+      yield S(() => { stageT.setText('L' + l + '：' + next + ' == ' + key + ' → 找到！'); outT.setText('搜索 ' + key + ' 成功 ✓ —— 顶层大步跳过大量节点，只访问了少数几个'); status.textContent = '跳表搜索 ' + key + '：找到（L' + l + '）'; });
+      yield W(900);
       return;
     }
-    const e = steps[i]; i++;
-    if (e.t === 'visit') {
-      const box = laneBoxes[e.l][LANES[e.l].indexOf(e.v)];
-      box.setColor(YELLOW, YELLOW);
-      hint.setText('L' + e.l + '：节点 ' + e.v + ' < ' + KEY + '，继续向右');
-      C(420, () => { if (!e.found) box.setColor(PALETTE.node, PALETTE.nodeEmissive); step(); });
-    } else if (e.t === 'nxt') {
-      const box = laneBoxes[e.l][LANES[e.l].indexOf(e.v)];
-      box.setColor(DIM, DIM);
-      hint.setText('L' + e.l + '：下一个 ' + e.v + ' > ' + KEY + '，沿前驱下移一层');
-      C(480, () => { box.setColor(PALETTE.node, PALETTE.nodeEmissive); step(); });
-    } else {
-      hint.setText('下移到 L' + (e.l - 1) + '，从 ' + e.from + ' 继续向右');
-      C(300, step);
+    if (l < LANES.length - 1) {
+      setCol(l, cur, ORANGE);
+      yield S(() => stageT.setText('L' + l + '：' + next + ' > ' + key + ' 或已到头 → 向下 down 到 L' + (l + 1) + '（橙）'));
+      yield W(550);
+      l++;
+      cur = LANES[l][LANES[l].indexOf(cur)];
+      setCol(l, cur, CYAN);
+      continue;
     }
-  };
-  step();
+    setCol(l, cur, RED);
+    yield S(() => { stageT.setText('L' + l + '：' + next + ' ≠ ' + key + ' 且已到底层 → 未找到（红）'); outT.setText('搜索 ' + key + ' 失败 ✗ —— 跳表保证期望 O(log n)，但单次最坏 O(n)'); status.textContent = '跳表搜索 ' + key + '：未找到'; });
+    yield W(900);
+    return;
+  }
 }
 
-panel.addButton('运行跳表', runSkipList);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+function* skipGen() {
+  yield S(() => { hint.setText('跳表：每层是上一层的「抽样快车道」—— 顶层大步跳、底层精确走，查找期望 O(log n)'); stageT.setText('演示 1：搜索 19 —— 观察向右推进与向下换层'); });
+  yield W(700);
+  yield* searchGen(19);
+  yield S(() => stageT.setText('演示 2：搜索 10（不在表中）—— 最后落到 L3 底层才确定失败'));
+  yield W(600);
+  resetAll();
+  yield W(400);
+  yield* searchGen(10);
+  yield S(() => { hint.setText('复杂度：查找/插入/删除期望 O(log n)（随机化层高）；最坏 O(n) —— Redis 有序集合 zset 与 LevelDB MemTable 的底层'); outT.setText('插入 = 搜索路径 + 按硬币随机提升层数；删除 = 搜索后逐层摘链 —— 比平衡树实现更简单'); });
+  yield W(1100);
+  yield S(() => { hint.setText('跳表演示完成：搜索 19 命中 L2（跳过底层大量比较）；搜索 10 确认不存在'); outT.setText(''); });
+  yield W(400);
+}
+
+function* runSkip() {
+  hint.setText('跳表：快车道搜索');
+  yield W(400);
+  yield* skipGen();
+}
+
+panel.addButton('运行演示', () => engine.start(runSkip()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); buildEdges(); stageT.setText(''); eqT.setText(''); outT.setText(''); hint.setText('已清空，可重新运行'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 当前考察，金 = 已走过路径，橙 = 向下换层，绿 = 命中，红 = 未找到；竖线 = down 指针）');
 
 scene.start(engine);

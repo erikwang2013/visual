@@ -112,7 +112,7 @@
 
 <div id="overlay">
   <h1>算法可视化</h1>
-  <p class="sub">143 个数据结构与算法 · 3D 动态演示</p>
+  <p class="sub">166 个数据结构与算法 · 3D 动态演示</p>
   <p class="hint">拖拽旋转视角 · 滚轮缩放</p>
 </div>
 
@@ -313,6 +313,20 @@
       <div class="card"><a href="Graham.html" class="title">Graham 凸包</a><p class="intro">极角排序 + 单调栈求凸包</p></div>
       <div class="card"><a href="Gauss.html" class="title">高斯消元</a><p class="intro">消元回代解线性方程组</p></div>
       <div class="card"><a href="ExGcd.html" class="title">扩展欧几里得</a><p class="intro">求 ax+by=gcd(a,b) 整数解</p></div>
+      <div class="card"><a href="Euclidean.html" class="title">欧几里得算法</a><p class="intro">辗转相除求最大公约数 + 贝祖系数</p></div>
+      <div class="card"><a href="MatrixFastPow.html" class="title">矩阵快速幂</a><p class="intro">按二进制位倍增矩阵，斐波那契 O(log n)</p></div>
+      <div class="card"><a href="LUDecomposition.html" class="title">LU 分解（Doolittle）</a><p class="intro">高斯消元拆出 L/U 矩阵，一次分解多次求解</p></div>
+      <div class="card"><a href="QRDecomposition.html" class="title">QR 分解（Gram-Schmidt）</a><p class="intro">正交化拆 Q·R，解最小二乘与特征值迭代</p></div>
+      <div class="card"><a href="Cholesky.html" class="title">Cholesky 分解</a><p class="intro">对称正定矩阵拆 LLᵀ，平方根消元</p></div>
+      <div class="card"><a href="Strassen.html" class="title">Strassen 矩阵乘法</a><p class="intro">7 次乘法替代 8 次，O(n^2.81) 分治</p></div>
+      <div class="card"><a href="MillerRabin.html" class="title">Miller-Rabin 素性检测</a><p class="intro">费马小定理 + 二次探测的概率判素</p></div>
+      <div class="card"><a href="PollardRho.html" class="title">Pollard-Rho 因数分解</a><p class="intro">生日悖论随机序列 + Floyd 判圈找因子</p></div>
+      <div class="card"><a href="GeometryBase.html" class="title">计算几何基础</a><p class="intro">叉积定向 / 鞋带面积 / 点到直线距离</p></div>
+      <div class="card"><a href="NearestPair.html" class="title">最近点对</a><p class="intro">分治 + δ 条带 O(n log n) 求最近距离</p></div>
+      <div class="card"><a href="HalfPlane.html" class="title">半平面交</a><p class="intro">Sutherland–Hodgman 逐边裁剪凸多边形</p></div>
+      <div class="card"><a href="FFT.html" class="title">FFT 快速傅里叶变换</a><p class="intro">ω 对称性蝶形分治，卷积 O(n log n)</p></div>
+      <div class="card"><a href="NTT.html" class="title">NTT 数论变换</a><p class="intro">模素数整数 ω 替代复数，零误差卷积</p></div>
+      <div class="card"><a href="FWT.html" class="title">FWT 沃尔什-哈达玛</a><p class="intro">纯加减蝶形，异或卷积专属加速器</p></div>
     </div>
   </section>
   <section class="cat">
@@ -346,6 +360,15 @@
       <div class="card"><a href="MD5.html" class="title">MD5 消息摘要</a><p class="intro">4 轮×16 步压缩，128bit 摘要</p></div>
       <div class="card"><a href="SHA256.html" class="title">SHA-256 摘要</a><p class="intro">8 寄存器 64 轮，256bit，比特币 PoW 核心</p></div>
       <div class="card"><a href="SM3.html" class="title">SM3 国密摘要</a><p class="intro">P0/P1 双置换 + FF/GG 门，国标 256bit</p></div>
+      <div class="card"><a href="SM4.html" class="title">SM4 国密分组密码</a><p class="intro">128 位密钥 32 轮 Feistel，国标对称加密</p></div>
+      <div class="card"><a href="TripleDES.html" class="title">3DES</a><p class="intro">三把密钥 EDE 串联，168 位有效密钥</p></div>
+      <div class="card"><a href="RC4.html" class="title">RC4 流密码</a><p class="intro">KSA 打乱 S 盒，PRGA 逐字节密钥流</p></div>
+      <div class="card"><a href="ECC.html" class="title">椭圆曲线群 ECC</a><p class="intro">mod 17 曲线循环群，倍点加法定群律</p></div>
+      <div class="card"><a href="ElGamal.html" class="title">ElGamal 加密</a><p class="intro">离散对数难题 + 随机 k 的概率加密</p></div>
+      <div class="card"><a href="SM2.html" class="title">SM2 国密签名</a><p class="intro">Schnorr 风格曲线签名，GB/T 32918</p></div>
+      <div class="card"><a href="ECDH.html" class="title">ECDH 密钥交换</a><p class="intro">交换律点乘殊途同归的共享秘密</p></div>
+      <div class="card"><a href="DSA.html" class="title">DSA 数字签名</a><p class="intro">NIST 双模数（p 大域 + q 子群）签名</p></div>
+      <div class="card"><a href="ECDSA.html" class="title">ECDSA 签名</a><p class="intro">比特币/以太坊标准椭圆曲线签名</p></div>
       <div class="card"><a href="MurmurHash.html" class="title">MurmurHash 散列</a><p class="intro">乘转异或三连混合，非加密哈希快如闪电</p></div>
       <div class="card"><a href="CityHash.html" class="title">CityHash 散列</a><p class="intro">Google 4 路并行混合，64bit 吞吐之王</p></div>
       <div class="card"><a href="RLE.html" class="title">游程编码 RLE</a><p class="intro">连续相同字符计数的无损压缩</p></div>

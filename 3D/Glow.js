@@ -146,6 +146,12 @@ const PAGE_THEMES = {
   DigitDP3D: 'cyan', ActivitySelect3D: 'amber', TaskSched3D: 'magenta', UnboundedKnapsack3D: 'teal', SetCover3D: 'pink',
   BruteForce3D: 'red', Sunday3D: 'orange', SuffixTree3D: 'teal', SuffixArray3D: 'violet', SuffixAutomaton3D: 'rose',
   BKDRHash3D: 'magenta', ELFHash3D: 'amber', LCP3D: 'emerald',
+  LUDecomposition3D: 'amber', QRDecomposition3D: 'cyan', Cholesky3D: 'emerald', Strassen3D: 'violet',
+  MillerRabin3D: 'rose', PollardRho3D: 'purple', Euclidean3D: 'teal', MatrixFastPow3D: 'gold',
+  GeometryBase3D: 'indigo', NearestPair3D: 'orange', HalfPlane3D: 'pink', FFT3D: 'magenta',
+  NTT3D: 'azure', FWT3D: 'red',
+  SM43D: 'red', TripleDES3D: 'rose', RC43D: 'orange', ECC3D: 'violet', ElGamal3D: 'purple',
+  SM23D: 'magenta', ECDH3D: 'gold', DSA3D: 'indigo', ECDSA3D: 'emerald',
 };
 
 export let CURRENT_THEME = null;

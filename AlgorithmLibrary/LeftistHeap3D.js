@@ -1,178 +1,135 @@
-// AlgorithmLibrary/LeftistHeap3D.js
-// 左倾堆：递归合并沿右路径进行，回溯时若左子树 npl 较小则交换左右孩子。每节点下方显示 npl。
+// AlgorithmLibrary/LeftistHeap3D.js — 左倾堆：合并 = 取小根 + 递归并右子树 + npl 检查交换 —— npl 强制右路径 O(log n)，合并 O(log n)（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Tree3D } from '../3D/modes/Tree3D.js';
-import { VText, easeInOut } from '../3D/VisualObject3D.js';
+import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('LeftistHeap3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 210, 620], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const tree = new Tree3D(scene);
-const status = panel.addStatus('');
-let root = null;               // 模型根 { id, key, left, right, npl }
-let nextId = 1;
-const modelMap = new Map();    // id -> 模型节点
-const nplLabels = new Map();   // id -> VText
-let posMap = new Map();
-const moved = new Set();
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155, ROSE = 0xfb7185, VIOLET = 0xa78bfa, AMBER = 0xfbbf24;
+const hint = new VText(scene, { text: '点击「运行演示」开始：左倾堆 插入×5 + 删除最小', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const stageT = new VText(scene, { text: '', x: 0, y: 258, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textGlow, scale: 0.56 });
+const outT = new VText(scene, { text: '', x: 0, y: -205, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-function nplOf(n) { return n ? n.npl : 0; }
-function modelNode(key) { const n = { id: nextId++, key, left: null, right: null, npl: 1 }; modelMap.set(n.id, n); return n; }
+const ins = [5, 3, 8, 1, 7];
+let root = null;
+const allNodes = new Set();
+let edgeMeshes = new Map();
+const nplOf = n => (n ? n.npl : 0);
 
-// 递归合并，同时记录动画步骤：descend = 比较两棵树的根；swap = 回溯时交换左右孩子
-function mergeModel(a, b, steps) {
-  if (!a) return b;
-  if (!b) return a;
-  if (b.key < a.key) { const t = a; a = b; b = t; }
-  steps.push({ type: 'descend', a, b });
-  a.right = mergeModel(a.right, b, steps);
-  if (nplOf(a.left) < nplOf(a.right)) {
-    steps.push({ type: 'swap', node: a, l: a.left, r: a.right });
-    const t = a.left; a.left = a.right; a.right = t;
-  }
-  a.npl = nplOf(a.right) + 1;
-  return a;
+function newNode(v) {
+  const n = { v, left: null, right: null, npl: 1, mesh: new VNode(scene, { radius: 22, x: 330, y: 150, z: 0, label: String(v), color: BLUE, emissive: BLUE }), badge: new VText(scene, { text: 'npl=1', x: 330, y: 112, z: 0, color: PUR, scale: 0.42 }) };
+  allNodes.add(n);
+  return n;
 }
-
-// ---- 布局：中序遍历定 x，深度定 y ----
-function layoutPositions() {
+function countNodes(n) { return n ? 1 + countNodes(n.left) + countNodes(n.right) : 0; }
+function layoutTree(r) {
   const pos = new Map();
-  let total = 0;
-  (function count(n) { if (!n) return; total++; count(n.left); count(n.right); })(root);
-  let i = 0;
+  const cnt = countNodes(r);
+  let x = 0;
   (function walk(n, d) {
     if (!n) return;
     walk(n.left, d + 1);
-    pos.set(n.id, { x: (i++ - (total - 1) / 2) * (56 + d * 10), y: 210 - d * 90, z: 0 });
+    pos.set(n, { x: (x - (cnt - 1) / 2) * 72, y: 165 - d * 68 });
+    x++;
     walk(n.right, d + 1);
-  })(root, 0);
+  })(r, 0);
   return pos;
 }
+function applyLayout() {
+  const pos = layoutTree(root);
+  allNodes.forEach(n => {
+    const p = pos.get(n);
+    if (!p) return;
+    n.mesh.moveTo(p.x, p.y, 0, 450);
+    n.badge.moveTo(p.x, p.y - 38, 0, 450);
+    n.badge.setText('npl=' + n.npl, { color: PUR });
+  });
+  edgeMeshes.forEach(m => scene.remove(m));
+  edgeMeshes = new Map();
+  (function walk(n) {
+    if (!n) return;
+    if (n.left) { edgeMeshes.set(n.left, tubeBetween(scene, pos.get(n), pos.get(n.left), { color: PALETTE.edge, opacity: 0.4, radius: 2 })); }
+    if (n.right) { edgeMeshes.set(n.right, tubeBetween(scene, pos.get(n), pos.get(n.right), { color: PALETTE.edge, opacity: 0.4, radius: 2 })); }
+    walk(n.left); walk(n.right);
+  })(root);
+}
+function setCol(n, c) { n.mesh.setColor(c, c); }
+function heapVals() { const a = []; (function walk(n) { if (!n) return; walk(n.left); a.push(n.v); walk(n.right); })(root); return a; }
 
-function moveSubtree(n, cmd) {
-  if (!n || moved.has(n.id)) return;
-  moved.add(n.id);
-  const p = posMap.get(n.id);
-  const e = tree.nodes.get(n.id);
-  if (e && p) {
-    const lbl = nplLabels.get(n.id);
-    const fx = e.x, fy = e.y, fz = e.z;
-    tree.moveNode(n.id, p.x, p.y, p.z, cmd);
-    if (lbl) cmd({ duration: 500, fn: (pp) => {
-      const t = easeInOut(pp);
-      lbl.sprite.position.set(fx + (p.x - fx) * t, fy - 36 + (p.y - fy) * t, fz + (p.z - fz) * t);
-    }, undo: () => { lbl.sprite.position.set(fx, fy - 36, fz); } });
+function* mergeGen(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  if (a.v > b.v) {
+    yield S(() => stageT.setText('merge(' + a.v + ', ' + b.v + ')：' + b.v + ' 更小 → 两堆互换，以 ' + b.v + ' 为根'));
+    yield W(500);
+    const t = a; a = b; b = t;
   }
-  moveSubtree(n.left, cmd);
-  moveSubtree(n.right, cmd);
+  setCol(a, ORANGE); setCol(b, CYAN);
+  yield S(() => stageT.setText('merge(' + a.v + ', ' + b.v + ')：根取 ' + a.v + '（橙），把 ' + b.v + '（青）并入右子树'));
+  yield W(550);
+  a.right = yield* mergeGen(a.right, b);
+  setCol(a, BLUE); setCol(b, BLUE);
+  const swapNow = nplOf(a.left) < nplOf(a.right);
+  if (swapNow) {
+    yield S(() => stageT.setText('npl 检查：左 ' + nplOf(a.left) + ' < 右 ' + nplOf(a.right) + ' → 交换左右，保证左偏'));
+    [a.left, a.right] = [a.right, a.left];
+  } else {
+    yield S(() => stageT.setText('npl 检查：左 ' + nplOf(a.left) + ' ≥ 右 ' + nplOf(a.right) + ' → 左偏已满足，不交换'));
+  }
+  a.npl = nplOf(a.right) + 1;
+  applyLayout();
+  yield S(() => stageT.setText(a.v + '：npl = npl(右) + 1 = ' + a.npl + '（紫标）—— npl = 到最近空子树的距离'));
+  yield W(600);
+  return a;
 }
 
-function layoutAndMove() {
-  for (const [id, e] of tree.nodes) {
-    const p = posMap.get(id);
-    if (!p || (e.x === p.x && e.y === p.y && e.z === p.z)) continue;
-    const lbl = nplLabels.get(id);
-    const fx = e.x, fy = e.y, fz = e.z;
-    tree.moveNode(id, p.x, p.y, p.z, C);
-    if (lbl) C(500, (pp) => {
-      const t = easeInOut(pp);
-      lbl.sprite.position.set(fx + (p.x - fx) * t, fy - 36 + (p.y - fy) * t, fz + (p.z - fz) * t);
-    }, () => { lbl.sprite.position.set(fx, fy - 36, fz); });
-  }
-}
-
-function replaySteps(steps) {
-  for (const s of steps) {
-    if (s.type === 'descend') {
-      tree.highlight(s.a.id, C);
-      tree.highlight(s.b.id, C);
-      status.textContent = '比较根 ' + s.a.key + ' 与 ' + s.b.key;
-      tree.unhighlight(s.a.id, C);
-      tree.unhighlight(s.b.id, C);
-    } else {
-      status.textContent = '回溯: 交换 ' + s.node.key + ' 的左右子树';
-      moveSubtree(s.l, C);
-      moveSubtree(s.r, C);
+function* leftistGen() {
+  yield S(() => { hint.setText('左倾堆：用 npl（空路径长度）强制左偏 —— 右路径永远 ≤ log(n+1)，合并只走右路径'); stageT.setText('演示：插入 5, 3, 8, 1, 7（每次 = 与单点堆合并），再删除最小'); });
+  yield W(700);
+  for (let k = 0; k < ins.length; k++) {
+    const v = ins[k];
+    const nn = newNode(v);
+    yield S(() => stageT.setText('插入 ' + v + '：新建单点堆，与主堆 merge（单点堆从右侧入场）'));
+    yield W(500);
+    root = yield* mergeGen(root, nn);
+    if (k === ins.length - 1) {
+      yield S(() => { outT.setText('插入完成：堆 = ' + heapVals().join(' → ') + '（根最小）—— 每个节点紫色 npl 保持左偏'); status.textContent = '左倾堆：[1,3,5,8,7]（5 次插入合并）'; });
+      yield W(900);
     }
   }
+  yield S(() => stageT.setText('删除最小：根 ' + root.v + ' 弹出（红）—— 合并左右子树即完成'));
+  yield W(600);
+  setCol(root, RED);
+  yield W(450);
+  const oldRoot = root;
+  root = yield* mergeGen(oldRoot.left, oldRoot.right);
+  oldRoot.mesh.remove(); oldRoot.badge.remove();
+  allNodes.delete(oldRoot);
+  applyLayout();
+  yield S(() => { outT.setText('删除完成：堆 = ' + heapVals().join(' → ') + '（旧根 1 已弹出）✓'); status.textContent = '左倾堆最终：[3,5,8,7]（npl 左偏保持）'; });
+  yield W(900);
+  yield S(() => { hint.setText('复杂度：合并 O(log n)（右路径长度 ≤ log(n+1)）；插入/删除 = 一次合并；取最小 O(1)'); outT.setText('应用：可并堆（Dijkstra 优化、K 路归并、动态中位数）。npl(null) = 0，叶子 npl = 1'); });
+  yield W(1100);
+  yield S(() => { hint.setText('左倾堆演示完成：插入 ×5 → 根 1；删除最小 → 根 3'); outT.setText(''); });
+  yield W(400);
 }
 
-function updateNplLabels() {
-  for (const [id, e] of tree.nodes) {
-    const n = modelMap.get(id);
-    const v = n ? n.npl : 0;
-    let lbl = nplLabels.get(id);
-    if (!lbl) {
-      lbl = new VText(scene, { text: String(v), x: e.x, y: e.y - 36, z: e.z, color: PALETTE.textDim, scale: 0.6 });
-      nplLabels.set(id, lbl);
-    } else lbl.setText(String(v));
-  }
+function* runLeftist() {
+  hint.setText('左倾堆：npl 强制左偏，合并走右路径');
+  yield W(400);
+  yield* leftistGen();
 }
 
-// ---- 插入：单节点堆与主堆合并 ----
-function insertValue(v) {
-  status.textContent = '插入 ' + v;
-  const n = modelNode(v);
-  const steps = [];
-  root = mergeModel(root, n, steps);
-  posMap = layoutPositions();
-  moved.clear();
-  const p = posMap.get(n.id);
-  tree.addNode(n.id, String(v), p.x, p.y + 250, p.z);
-  tree.highlight(n.id, C);
-  replaySteps(steps);
-  layoutAndMove();
-  tree.unhighlight(n.id, C);
-  updateNplLabels();
-  status.textContent = '';
-}
-
-// ---- 删除最小的：移除根，合并其左右子树 ----
-function deleteMin() {
-  if (!root) { status.textContent = '堆为空'; return; }
-  const min = root;
-  status.textContent = '删除最小 ' + min.key;
-  tree.highlight(min.id, C);
-  const steps = [];
-  root = mergeModel(root.left, root.right, steps);
-  posMap = layoutPositions();
-  moved.clear();
-  const e = tree.nodes.get(min.id);
-  if (e) C(350, (p) => {
-    e.node.mesh.scale.setScalar(Math.max(1 - easeInOut(p), 0.01));
-    if (p === 1) {
-      tree.removeNode(min.id);
-      const lbl = nplLabels.get(min.id);
-      if (lbl) { lbl.remove(); nplLabels.delete(min.id); }
-    }
-  }, () => { e.node.mesh.scale.set(1, 1, 1); });
-  modelMap.delete(min.id);
-  replaySteps(steps);
-  layoutAndMove();
-  updateNplLabels();
-  status.textContent = '';
-}
-
-// ---- 清除堆 ----
-function clearHeap() {
-  tree.clear();
-  for (const lbl of nplLabels.values()) lbl.remove();
-  nplLabels.clear();
-  modelMap.clear();
-  root = null;
-}
-
-// 控件
-let input = panel.addInput('输入数字', (v) => { if (v) insertValue(parseInt(v)); }, 10);
-panel.addButton('插入', () => { const v = parseInt(input.value); if (!isNaN(v)) insertValue(v); });
-panel.addButton('删除最小的', deleteMin);
-panel.addButton('清除堆', clearHeap);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+panel.addButton('运行演示', () => engine.start(runLeftist()));
+panel.addButton('清空', () => { engine.clear(); allNodes.forEach(n => { n.mesh.remove(); n.badge.remove(); }); allNodes.clear(); root = null; edgeMeshes.forEach(m => scene.remove(m)); edgeMeshes = new Map(); stageT.setText(''); eqT.setText(''); outT.setText(''); hint.setText('已清空，可重新运行'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；橙 = 合并主堆根，青 = 被并入堆，红 = 待删除根；紫标 = 每节点的 npl）');
 
 scene.start(engine);

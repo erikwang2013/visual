@@ -1,107 +1,162 @@
-// AlgorithmLibrary/BucketSort3D.js
-// 桶排序：值 0..4 映射到 5 个桶，分桶后按序收集
+// AlgorithmLibrary/BucketSort3D.js — 桶排序：悬浮半透明桶 + 小球飞入桶内自动排队 + 桶内插入排序 + 按序倒出（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Array3D } from '../3D/modes/Array3D.js';
-import { VText, VBox } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { VText } from '../3D/VisualObject3D.js';
+import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('BucketSort3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 120, 700], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
-const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
-const N = 10, BUCKETS = 5;
-const status = panel.addStatus('');
-const say = (msg) => C(1, () => { status.textContent = msg; });
-const state = { data: [] };
-const array = new Array3D(scene, { type: 'bar', count: N, w: 40, h: 40, spacing: 70, startY: 0, z: 0 });
-array.create();
-const buckets = Array.from({ length: BUCKETS }, () => []);
-const bucketBoxes = [];
+const BASE = 0x60a5fa, GOLD = 0xfcd34d, OK = 0x4ade80, CYAN = 0x22d3ee, RED = 0xef4444, WHITE = 0xf8fafc;
 
-const bucketX = (k) => (k - (BUCKETS - 1) / 2) * 95;
-const itemY = (j) => -45 - 30 * (j + 1);
+const hint = new VText(scene, { text: '桶排序：球按值域飞入悬浮桶（桶内自动排队），桶内插入排序，再按序倒出', x: 0, y: 345, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const status = panel.addStatus('就绪');
 
-function buildBucketHeads() {
-  for (let k = 0; k < BUCKETS; k++) {
-    new VBox(scene, { label: '桶' + k, x: bucketX(k), y: -45, w: 52, h: 28, d: 22, color: PALETTE.blue, emissive: PALETTE.blueEmissive });
-  }
+const N = 16, BUCKETS = 5, MAXV = 20;
+const SP = 46, X0 = -345;
+const slotX = i => X0 + i * SP;
+const BX = b => -300 + b * 150;
+const bucketOf = v => Math.floor((v - 1) / (MAXV / BUCKETS));
+
+const spheres = [];
+for (let i = 0; i < N; i++) {
+  const v = 1 + Math.floor(Math.random() * MAXV);
+  const g = new THREE.Group();
+  const s = new THREE.Mesh(new THREE.SphereGeometry(15, 20, 20), glowMaterial(BASE, { emissive: BASE }));
+  g.add(s);
+  const lbl = new VText(scene, { text: String(v), x: 0, y: 0, z: 0, color: '#ffffff', scale: 0.6 });
+  scene.remove(lbl.sprite); g.add(lbl.sprite);
+  g.position.set(slotX(i), 40, 0);
+  scene.add(g);
+  spheres.push({ g, s, lbl, value: v });
 }
-buildBucketHeads();
+const setSphColor = (p, c) => { p.s.material.color.setHex(c); p.s.material.emissive.setHex(c); };
 
-function clearBuckets() {
-  for (const b of bucketBoxes) { b.remove(); }
-  bucketBoxes.length = 0;
-  for (const b of buckets) b.length = 0;
-}
-
-function setBar(i, v, cmd) {
-  const el = array.elems[i];
-  const prev = el.height;
-  cmd({ duration: 280, fn: () => el.setHeight((v + 1) * 12), undo: () => el.setHeight(prev) });
-}
-
-function fly(text, fromX, fromY, toX, toY, dur) {
-  const t = new VText(scene, { text, x: fromX, y: fromY, z: 0, color: PALETTE.text, scale: 0.8 });
-  C(dur, (p) => {
-    const e = easeInOut(p);
-    t.sprite.position.x = fromX + (toX - fromX) * e;
-    t.sprite.position.y = fromY + (toY - fromY) * e;
-  }, () => t.remove());
-  return t;
+const buckets = [];
+for (let b = 0; b < BUCKETS; b++) {
+  const lo = b * 4 + 1, hi = Math.min((b + 1) * 4, MAXV);
+  const box = new THREE.Mesh(new THREE.BoxGeometry(118, 215, 118), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.13 }));
+  box.position.set(BX(b), 122, -10);
+  scene.add(box);
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(120, 5, 120), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.6 }));
+  lid.position.set(BX(b), 232, -10);
+  scene.add(lid);
+  new VText(scene, { text: '桶 ' + (b + 1) + '：' + lo + '..' + hi, x: BX(b), y: -55, z: -10, color: PALETTE.textDim, scale: 0.6 });
+  buckets.push({ b, box, stack: [] });
 }
 
-function randomize(animate) {
-  if (animate === false) status.textContent = '随机列表'; else say('随机列表');
+function* fly(sph, from, to, opts = {}) {
+  const lift = opts.lift ?? 70, ms = opts.ms ?? 420;
+  yield A(ms, p => {
+    sph.g.position.set(
+      from.x + (to.x - from.x) * p,
+      from.y + (to.y - from.y) * p + lift * Math.sin(Math.PI * p),
+      from.z + (to.z - from.z) * p);
+  });
+}
+function resetAll() {
   for (let i = 0; i < N; i++) {
-    state.data[i] = Math.floor(Math.random() * BUCKETS); // 0..4
-    if (animate === false) array.elems[i].setHeight((state.data[i] + 1) * 12);
-    else setBar(i, state.data[i], C);
+    const p = spheres[i];
+    p.g.position.set(slotX(i), 40, 0);
+    p.g.rotation.set(0, 0, 0);
+    setSphColor(p, BASE);
+  }
+  buckets.forEach(b => { b.stack = []; });
+}
+function* doneMsg() {
+  yield S(() => { hint.setText('桶排序完成：数据均匀时 O(n)，桶内用插入排序'); status.textContent = '桶排序完成：O(n) 期望'; spheres.forEach(p => setSphColor(p, OK)); });
+  yield W(700);
+}
+
+// 桶内相邻交换（排队调整）
+function* swapInBucket(b, aIdx, bIdx) {
+  const pa = b.stack[aIdx], pb = b.stack[bIdx];
+  const ya = pa.g.position.y, yb = pb.g.position.y;
+  yield A(340, p => {
+    pa.g.position.y = ya + (yb - ya) * p + 45 * Math.sin(Math.PI * p);
+    pb.g.position.y = yb + (ya - yb) * p + 45 * Math.sin(Math.PI * p);
+  });
+  b.stack[aIdx] = pb; b.stack[bIdx] = pa;
+}
+
+// 桶内插入排序（自动排队后整理）
+function* sortBucket(b) {
+  if (b.stack.length < 2) return;
+  for (let i = 1; i < b.stack.length; i++) {
+    const key = b.stack[i];
+    setSphColor(key, RED);
+    yield A(220, p => { key.g.position.y += 38 * p; });
+    let j = i - 1;
+    while (j >= 0 && b.stack[j].value > key.value) {
+      setSphColor(b.stack[j], WHITE);
+      yield S(() => hint.setText('桶 ' + (b.b + 1) + ' 内排序：' + b.stack[j].value + ' > ' + key.value + '，后移'));
+      yield W(170);
+      yield* swapInBucket(b, j, j + 1);
+      setSphColor(b.stack[j + 1], BASE);
+      j--;
+    }
+    b.stack[j + 1] = key;
+    yield A(220, p => { key.g.position.y -= 38 * p; });
+    setSphColor(key, BASE);
+    yield W(90);
   }
 }
 
-function bucketSort() {
-  if (bucketBoxes.length) { status.textContent = '请先点击 随机列表'; return; }
-  say('桶排序：扫描数组，按值分桶');
+function* bucketSort() {
+  yield S(resetAll);
+  hint.setText('阶段 1：按值域分桶（球飞入悬浮桶，桶内自动排队）');
+  yield W(400);
   for (let i = 0; i < N; i++) {
-    const v = state.data[i];
-    const k = v; // 值即桶号
-    array.highlight(i, C);
-    say('元素 ' + v + ' 放入桶 ' + k);
-    const j = buckets[k].length;
-    const box = new VBox(scene, { label: '', x: bucketX(k), y: itemY(j), w: 40, h: 26, d: 16, color: PALETTE.green, emissive: PALETTE.greenEmissive });
-    buckets[k].push({ v, box });
-    bucketBoxes.push(box);
-    const lbl = fly(v, array.xOf(i), (v + 1) * 12, bucketX(k), itemY(j), 420);
-    C(30, () => { lbl.remove(); box.setText(v); }, () => { lbl.remove(); box.setText(''); });
-    array.unhighlight(i, C);
+    const p = spheres[i];
+    const b = buckets[bucketOf(p.value)];
+    setSphColor(p, GOLD);
+    yield S(() => hint.setText('a[' + i + ']=' + p.value + ' → 桶 ' + (b.b + 1) + '（第 ' + (b.stack.length + 1) + ' 个）'));
+    yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: BX(b.b), y: 18 + b.stack.length * 30, z: -10 }, { lift: 95 });
+    b.stack.push(p);
+    yield W(110);
   }
-  let k = 0;
-  for (let b = 0; b < BUCKETS; b++) {
-    say('收集桶 ' + b);
-    for (const it of buckets[b]) {
-      array.highlight(k, C);
-      const lbl = fly(it.v, it.box.mesh.position.x, it.box.mesh.position.y, array.xOf(k), (it.v + 1) * 12, 420);
-      state.data[k] = it.v;
-      setBar(k, it.v, C);
-      C(30, () => lbl.remove(), () => {});
-      array.unhighlight(k, C);
-      k++;
+  yield S(() => { hint.setText('分桶完成：' + buckets.map((b, k) => (k + 1) + ':' + b.stack.length + '个').join(' ')); status.textContent = '分桶完成'; });
+  yield W(450);
+  hint.setText('阶段 2：桶内插入排序（红=待插入，白=比较）');
+  yield W(350);
+  for (const b of buckets) yield* sortBucket(b);
+  yield S(() => { hint.setText('桶内全部有序'); status.textContent = '桶内排序完成'; });
+  yield W(400);
+  hint.setText('阶段 3：按序倒出（桶 1 → 5）');
+  yield W(350);
+  let outIdx = 0;
+  for (const b of buckets) {
+    while (b.stack.length) {
+      const p = b.stack.shift();
+      yield S(() => hint.setText('倒出 ' + p.value + ' → 输出 [' + outIdx + ']'));
+      yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: slotX(outIdx), y: -185, z: 0 }, { lift: 55, ms: 380 });
+      setSphColor(p, OK);
+      outIdx++;
+      yield W(90);
     }
   }
-  say('排序完成');
+  yield* doneMsg();
 }
 
-panel.addButton('随机列表', () => { clearBuckets(); randomize(); });
-panel.addButton('桶排序', () => {
-  if (engine.queue.length || engine.current) { status.textContent = '请先完成或清空当前动画'; return; }
-  bucketSort();
-});
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+function* randomizeGen() {
+  yield S(resetAll);
+  hint.setText('随机打乱数组');
+  for (let i = 0; i < N; i++) {
+    const v = 1 + Math.floor(Math.random() * MAXV);
+    spheres[i].value = v;
+    spheres[i].lbl.setText(String(v));
+    yield W(60);
+  }
+  yield S(() => hint.setText('已随机化，可点击「运行桶排序」'));
+}
 
-randomize(false);
+panel.addButton('随机化', () => engine.start(randomizeGen()));
+panel.addButton('运行桶排序', () => engine.start(bucketSort()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；5 个悬浮桶按值域均分 1..20）');
+
 scene.start(engine);

@@ -1,108 +1,165 @@
-// AlgorithmLibrary/RadixSort3D.js
-// 基数排序：按个位、十位依次分桶收集（LSD）
+// AlgorithmLibrary/RadixSort3D.js — 基数排序（LSD）：10 桶 + 数字环按位旋转 90° + 收集重连成链（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Array3D } from '../3D/modes/Array3D.js';
-import { VText, VBox } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { VText, tubeBetween } from '../3D/VisualObject3D.js';
+import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('RadixSort3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 120, 800], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
-const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
-const N = 10, RADIX = 10;
-const status = panel.addStatus('');
-const say = (msg) => C(1, () => { status.textContent = msg; });
-const state = { data: [] };
-const array = new Array3D(scene, { type: 'bar', count: N, w: 40, h: 40, spacing: 72, startY: 0, z: 0 });
-array.create();
-const bucketBoxes = [];
-const phaseLabel = new VText(scene, { text: '基数排序', x: 0, y: 215, z: 0, color: PALETTE.textGlow, scale: 1.2 });
+const BASE = 0x60a5fa, GOLD = 0xfcd34d, OK = 0x4ade80, CYAN = 0x22d3ee;
 
-const bucketX = (k) => (k - (RADIX - 1) / 2) * 72;
-const itemY = (j) => -67 - 18 * j;
+const hint = new VText(scene, { text: '基数排序 LSD：数字环按位旋转 90°，球飞入 10 桶，收集回主行重连成链', x: 0, y: 360, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const status = panel.addStatus('就绪');
 
-function clearBuckets() {
-  for (const b of bucketBoxes) { b.remove(); }
-  bucketBoxes.length = 0;
+const DATA = [170, 45, 75, 90, 802, 24, 2, 66, 745, 91, 351, 488, 611, 223, 990];
+const N = DATA.length;
+const SP = 46, X0 = -322;
+const slotX = i => X0 + i * SP;
+const BX = d => -333 + d * 74;
+const digitOf = (v, pass) => Math.floor(v / (10 ** pass)) % 10;
+const NAMES = ['个位', '十位', '百位'];
+
+const spheres = [];
+for (let i = 0; i < N; i++) {
+  const v = DATA[i];
+  const g = new THREE.Group();
+  const s = new THREE.Mesh(new THREE.SphereGeometry(16, 20, 20), glowMaterial(BASE, { emissive: BASE }));
+  g.add(s);
+  const lbl = new VText(scene, { text: String(v), x: 0, y: 0, z: 0, color: '#ffffff', scale: 0.55 });
+  scene.remove(lbl.sprite); g.add(lbl.sprite);
+  const ring = new THREE.Group();
+  ring.add(new THREE.Mesh(new THREE.TorusGeometry(21, 1.8, 8, 32), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.85 })));
+  const mark = new THREE.Mesh(new THREE.SphereGeometry(2.6, 8, 8), new THREE.MeshBasicMaterial({ color: GOLD }));
+  mark.position.x = 21;
+  ring.add(mark);
+  const dLbl = new VText(scene, { text: '?', x: 0, y: 37, z: 0, color: '#fcd34d', scale: 0.5 });
+  scene.remove(dLbl.sprite); g.add(dLbl.sprite);
+  g.add(ring);
+  g.position.set(slotX(i), 40, 0);
+  scene.add(g);
+  spheres.push({ g, s, lbl, dLbl, ring, value: v });
+}
+const setSphColor = (p, c) => { p.s.material.color.setHex(c); p.s.material.emissive.setHex(c); };
+
+const buckets = [];
+for (let d = 0; d < 10; d++) {
+  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(34, 34, 240, 20), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.13 }));
+  cyl.position.set(BX(d), 120, -50);
+  scene.add(cyl);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(34, 2.2, 8, 28), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.7 }));
+  rim.position.set(BX(d), 240, -50);
+  rim.rotation.x = Math.PI / 2;
+  scene.add(rim);
+  new VText(scene, { text: String(d), x: BX(d), y: -56, z: -50, color: PALETTE.textDim, scale: 0.7 });
 }
 
-function setBar(i, v, cmd) {
-  const el = array.elems[i];
-  const prev = el.height;
-  cmd({ duration: 280, fn: () => el.setHeight((v + 1) * 2), undo: () => el.setHeight(prev) });
+let chains = [];
+function clearChains() {
+  chains.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+  chains = [];
+}
+function* fadeChains() {
+  if (!chains.length) return;
+  yield A(260, p => chains.forEach(m => { m.material.opacity = 0.4 * (1 - p); }));
+  clearChains();
+}
+function* linkChain() {
+  clearChains();
+  for (let i = 0; i < N - 1; i++) {
+    const m = tubeBetween(scene, spheres[i].g.position, spheres[i + 1].g.position, { color: GOLD, radius: 1.8, opacity: 0 });
+    chains.push(m);
+  }
+  yield A(400, p => chains.forEach(m => { m.material.opacity = 0.4 * p; }));
 }
 
-function fly(text, fromX, fromY, toX, toY, dur) {
-  const t = new VText(scene, { text, x: fromX, y: fromY, z: 0, color: PALETTE.text, scale: 0.8 });
-  C(dur, (p) => {
-    const e = easeInOut(p);
-    t.sprite.position.x = fromX + (toX - fromX) * e;
-    t.sprite.position.y = fromY + (toY - fromY) * e;
-  }, () => t.remove());
-  return t;
+function* fly(sph, from, to, opts = {}) {
+  const lift = opts.lift ?? 70, ms = opts.ms ?? 420;
+  yield A(ms, p => {
+    sph.g.position.set(
+      from.x + (to.x - from.x) * p,
+      from.y + (to.y - from.y) * p + lift * Math.sin(Math.PI * p),
+      from.z + (to.z - from.z) * p);
+  });
 }
 
-function randomize(animate) {
-  if (animate === false) status.textContent = '随机列表'; else say('随机列表');
-  phaseLabel.setText('基数排序');
+function resetAll() {
+  clearChains();
   for (let i = 0; i < N; i++) {
-    state.data[i] = Math.floor(Math.random() * 100); // 0..99
-    if (animate === false) array.elems[i].setHeight((state.data[i] + 1) * 2);
-    else setBar(i, state.data[i], C);
+    const p = spheres[i];
+    p.g.position.set(slotX(i), 40, 0);
+    p.g.rotation.set(0, 0, 0);
+    p.ring.rotation.y = 0;
+    p.dLbl.setText('?');
+    setSphColor(p, BASE);
   }
 }
-
-function radixSort() {
-  if (bucketBoxes.length) { status.textContent = '请先点击 随机列表'; return; }
-  for (const pass of [0, 1]) {
-    const isUnits = pass === 0;
-    phaseLabel.setText(isUnits ? '按个位分桶' : '按十位分桶');
-    say(isUnits ? '按个位分桶' : '按十位分桶');
-    const buckets = Array.from({ length: RADIX }, () => []);
-    for (let i = 0; i < N; i++) {
-      const v = state.data[i];
-      const d = isUnits ? v % 10 : Math.floor(v / 10);
-      const j = buckets[d].length;
-      array.highlight(i, C);
-      say('元素 ' + v + ' 的' + (isUnits ? '个位' : '十位') + ' ' + d + ' 放入桶 ' + d);
-      const box = new VBox(scene, { label: '', x: bucketX(d), y: itemY(j), w: 30, h: 16, d: 12, color: PALETTE.green, emissive: PALETTE.greenEmissive });
-      buckets[d].push({ v, d, box });
-      bucketBoxes.push(box);
-      const lbl = fly(d, array.xOf(i), (v + 1) * 2, bucketX(d), itemY(j), 380);
-      C(30, () => { lbl.remove(); box.setText(d); }, () => { lbl.remove(); box.setText(''); });
-      array.unhighlight(i, C);
-    }
-    phaseLabel.setText('收集回数组');
-    say('收集回数组');
-    let k = 0;
-    for (let b = 0; b < RADIX; b++) {
-      for (const it of buckets[b]) {
-        array.highlight(k, C);
-        const lbl = fly(it.v, it.box.mesh.position.x, it.box.mesh.position.y, array.xOf(k), (it.v + 1) * 2, 380);
-        state.data[k] = it.v;
-        setBar(k, it.v, C);
-        C(30, () => lbl.remove(), () => {});
-        array.unhighlight(k, C);
-        k++;
-      }
-    }
-    clearBuckets();
-  }
-  phaseLabel.setText('排序完成');
-  say('排序完成');
+function* doneMsg() {
+  yield S(() => { hint.setText('基数排序完成：LSD 稳定，O(d·(n+k))'); status.textContent = '基数排序完成：O(d·(n+k))'; spheres.forEach(p => setSphColor(p, OK)); });
+  yield W(700);
 }
 
-panel.addButton('随机列表', () => { clearBuckets(); randomize(); });
-panel.addButton('基数排序', () => {
-  if (engine.queue.length || engine.current) { status.textContent = '请先完成或清空当前动画'; return; }
-  radixSort();
-});
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+function* pass(passNo) {
+  yield* fadeChains();
+  yield A(420, pp => spheres.forEach(p => { p.ring.rotation.y = Math.PI / 2 * pp; }));
+  yield S(() => {
+    spheres.forEach(p => { p.ring.rotation.y = 0; p.dLbl.setText(String(digitOf(p.value, passNo))); });
+    hint.setText('第 ' + (passNo + 1) + ' 趟：按' + NAMES[passNo] + '分桶（环旋转 90° 指向当前位）');
+  });
+  yield W(450);
+  const buckets = Array.from({ length: 10 }, () => []);
+  for (let i = 0; i < N; i++) {
+    const p = spheres[i];
+    const d = digitOf(p.value, passNo);
+    setSphColor(p, GOLD);
+    yield S(() => hint.setText('a[' + i + ']=' + p.value + ' 的' + NAMES[passNo] + ' = ' + d + '，飞入桶 ' + d));
+    yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: BX(d), y: 24 + buckets[d].length * 30, z: -50 }, { lift: 90 });
+    buckets[d].push(p);
+    yield W(90);
+  }
+  yield S(() => hint.setText('按桶 0→9 顺序收集回主行（重连成链）'));
+  yield W(320);
+  let k = 0;
+  for (let d = 0; d < 10; d++) {
+    for (const p of buckets[d]) {
+      yield S(() => hint.setText('桶 ' + d + ' → 主行 [' + k + ']'));
+      yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: slotX(k), y: 40, z: 0 }, { lift: 55, ms: 340 });
+      setSphColor(p, BASE);
+      k++;
+      yield W(70);
+    }
+  }
+  yield* linkChain();
+  yield W(250);
+}
 
-randomize(false);
+function* radixSort() {
+  yield S(resetAll);
+  hint.setText('LSD 基数排序：从个位到百位，逐趟按位分桶');
+  yield W(400);
+  for (let passNo = 0; passNo < 3; passNo++) yield* pass(passNo);
+  yield* doneMsg();
+}
+
+function* randomizeGen() {
+  yield S(resetAll);
+  hint.setText('随机生成 0..999 的数');
+  for (let i = 0; i < N; i++) {
+    const v = Math.floor(Math.random() * 1000);
+    spheres[i].value = v;
+    spheres[i].lbl.setText(String(v));
+    yield W(60);
+  }
+  yield S(() => hint.setText('已随机化，可点击「运行基数排序」'));
+}
+
+panel.addButton('随机化', () => engine.start(randomizeGen()));
+panel.addButton('运行基数排序', () => engine.start(radixSort()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；金链 = 收集后的顺序链）');
+
 scene.start(engine);

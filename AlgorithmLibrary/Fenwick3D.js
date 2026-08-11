@@ -1,189 +1,201 @@
-// AlgorithmLibrary/Fenwick3D.js
-// 树状数组（Fenwick Tree / BIT）：n=12 随机数组（柱状）+ 下方一排 BIT 节点（VBox），
-// i 与 i+lowbit(i) 之间连线。点更新自底向上逐层累加；前缀查询自右向左逐段累加。
+// AlgorithmLibrary/Fenwick3D.js — 树状数组 BIT：lowbit 连线 + 点更新自底向上累加 + 前缀查询自右向左累加（function* 生成器驱动）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Array3D } from '../3D/modes/Array3D.js';
-import { VBox, VText, tubeBetween } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { VText } from '../3D/VisualObject3D.js';
+import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('Fenwick3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 170, 720], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const N = 12;
-const status = panel.addStatus('');
-const lowbit = (i) => i & -i;
-
-const arr = new Array3D(scene, { type: 'bar', count: N, w: 34, h: 60, spacing: 62, z: 0 });
-arr.create();
-
-let arrVals = [];               // arrVals[i] 对应数组下标 i+1
-const bitVals = new Array(N + 1).fill(0);
-const boxes = [];               // boxes[i] 对应 BIT 下标 i+1
-const boxIdxLbl = [];
-const barLbl = [];              // 柱顶数值标签
-const edgeMap = new Map();      // "i-j" -> 连线
+const BLUE = 0x60a5fa, WHITE = 0xffffff, GOLD = 0xfcd34d, RED = 0xfb7185;
+const hint = new VText(scene, { text: '点击「运行演示」开始：建 BIT → 前缀查询 → 点更新', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: -170, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 const result = new VText(scene, { text: '前缀和: —', x: 0, y: 300, z: 0, color: PALETTE.yellow, scale: 1 });
 
-function boxX(i) { const half = (N - 1) / 2; return (i - 1 - half) * 62; }
+const N = 12;
+const lowbit = i => i & -i;
+const ARR = [5, 3, 8, 1, 9, 4, 7, 2, 6, 3, 9, 5];  // arrVals[i-1] 对应下标 i
+const bitVals = new Array(N + 1).fill(0);
 
-// ---- 模型：由数组重建 BIT ----
+const bars = [];   // i(0..N-1) -> { mesh, lbl }
+const boxes = [];  // i(1..N) -> { mesh, lbl }
+const edges = new Map();  // 'i-j' -> tube
+function boxX(i) { const half = (N - 1) / 2; return (i - 1 - half) * 62; }
+function barPos(i) { const half = (N - 1) / 2; return new THREE.Vector3((i - half) * 62, 0, 0); }
+
 function rebuildModel() {
   bitVals.fill(0);
   for (let i = 1; i <= N; i++) {
     let j = i;
-    while (j <= N) { bitVals[j] += arrVals[i - 1]; j += lowbit(j); }
+    while (j <= N) { bitVals[j] += ARR[i - 1]; j += lowbit(j); }
   }
 }
-
-function clearEdges() {
-  for (const m of edgeMap.values()) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
-  edgeMap.clear();
+function clearView() {
+  bars.forEach(o => { scene.remove(o.mesh); scene.remove(o.lbl.sprite); });
+  boxes.forEach(o => { scene.remove(o.mesh); scene.remove(o.lbl.sprite); scene.remove(o.idxLbl.sprite); });
+  edges.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+  bars.length = 0; boxes.length = 0; edges.clear();
+}
+function tube(a, b) {
+  const curve = new THREE.CatmullRomCurve3([a, b]);
+  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.45 }));
+  scene.add(m);
+  return m;
 }
 
-function clearVisuals() {
-  for (const b of boxes) b.remove();
-  for (const l of boxIdxLbl) l.remove();
-  for (const l of barLbl) l.remove();
-  boxes.length = 0; boxIdxLbl.length = 0; barLbl.length = 0;
-  clearEdges();
-}
-
-// ---- 静态渲染（无动画） ----
-function buildStatic() {
+// ---- 建树：放置结构 → 逐个 i 沿 lowbit 链累加 ----
+function* buildGen() {
+  yield S(() => outT.setText('建树：上方柱状数组 arr[1..12]，下方 BIT 盒子 + lowbit 连线'));
+  const todo = [];
+  for (let i = 0; i < N; i++) {
+    const v = ARR[i];
+    const h = v * 6;
+    const p = barPos(i);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(34, 60, 10), glowMaterial(BLUE, { emissive: BLUE }));
+    mesh.scale.y = h / 60;
+    mesh.position.set(p.x, h / 2, -40);
+    mesh.scale.setScalar(0.01);
+    const lbl = new VText(scene, { text: String(v), x: p.x, y: h + 16, z: -40, color: '#ffffff', scale: 0.6 });
+    scene.add(mesh);
+    bars.push({ mesh, lbl });
+    todo.push({ mesh, sx: 1, sy: h / 60, sz: 1 });
+  }
   for (let i = 1; i <= N; i++) {
     const x = boxX(i);
-    const box = new VBox(scene, { w: 46, h: 46, d: 30, x, y: 210, z: 0, label: String(bitVals[i]), color: PALETTE.node, emissive: PALETTE.nodeEmissive });
-    boxes.push(box);
-    boxIdxLbl.push(new VText(scene, { text: String(i), x, y: 168, z: 0, color: PALETTE.textDim, scale: 0.55 }));
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(46, 46, 30), glowMaterial(WHITE, { emissive: WHITE }));
+    mesh.position.set(x, 210, 0);
+    mesh.scale.setScalar(0.01);
+    const lbl = new VText(scene, { text: String(bitVals[i]), x, y: 210, z: 18, color: '#ffffff', scale: 0.62 });
+    const idxLbl = new VText(scene, { text: String(i), x, y: 168, z: 0, color: PALETTE.textDim, scale: 0.55 });
+    scene.add(mesh);
+    boxes.push({ mesh, lbl, idxLbl });
+    todo.push({ mesh, sx: 1, sy: 1, sz: 1 });
+  }
+  yield A(420, p => todo.forEach(t => t.mesh.scale.setScalar(0.01 + 0.99 * p)));
+  for (let i = 1; i <= N; i++) {
     const j = i + lowbit(i);
-    if (j <= N) {
-      const m = tubeBetween(scene, new THREE.Vector3(x, 210, 0), new THREE.Vector3(boxX(j), 210, 0), { color: PALETTE.edge, opacity: 0.45, radius: 2.5 });
-      edgeMap.set(i + '-' + j, m);
+    if (j <= N) edges.set(i + '-' + j, tube(new THREE.Vector3(boxX(i), 210, 0), new THREE.Vector3(boxX(j), 210, 0)));
+  }
+  yield W(300);
+  for (let i = 1; i <= N; i++) {
+    const chain = [];
+    let j = i;
+    while (j <= N) { chain.push(j); j += lowbit(j); }
+    bars[i - 1].mesh.material.color.setHex(GOLD); bars[i - 1].mesh.material.emissive.setHex(GOLD);
+    yield S(() => outT.setText('arr[' + i + '] = ' + ARR[i - 1] + ' 沿 lowbit 链累加：' + chain.join(' → ')));
+    yield W(420);
+    for (const k of chain) {
+      boxes[k - 1].mesh.material.color.setHex(GOLD); boxes[k - 1].mesh.material.emissive.setHex(GOLD);
+      boxes[k - 1].lbl.setText(String(bitVals[k]));
+      yield* pulse(k, GOLD);
+      yield W(220);
     }
+    bars[i - 1].mesh.material.color.setHex(BLUE); bars[i - 1].mesh.material.emissive.setHex(BLUE);
+    resetBoxColors();
   }
-  for (let i = 0; i < N; i++) {
-    const h = arrVals[i] * 6;
-    barLbl.push(new VText(scene, { text: String(arrVals[i]), x: arr.xOf(i), y: h + 16, z: 0, color: PALETTE.text, scale: 0.6 }));
-  }
+  yield S(() => {
+    outT.setText('建树完成：bit[i] = arr[i-lowbit(i)+1 .. i] 之和');
+    status.textContent = 'BIT 构建完成：12 个盒子 + 8 条 lowbit 连线';
+  });
+  yield W(400);
+}
+function resetBoxColors() {
+  boxes.forEach(o => { o.mesh.material.color.setHex(WHITE); o.mesh.material.emissive.setHex(WHITE); });
+}
+function* pulse(i, c) {
+  const o = boxes[i - 1];
+  const base = o.mesh.position.y;
+  yield A(260, p => { o.mesh.position.y = base + 14 * Math.sin(p * Math.PI); o.mesh.material.color.setHex(c); o.mesh.material.emissive.setHex(c); });
+  o.mesh.position.y = base;
 }
 
-// ---- 高亮 ----
-function hlBox(i, c) {
-  const box = boxes[i - 1];
-  C({ duration: 250, fn: (p) => { box.mesh.material.color.lerpColors(new THREE.Color(PALETTE.node), new THREE.Color(c), p); box.mesh.material.emissive.setHex(PALETTE.highlightEmissive); }, undo: () => { box.mesh.material.color.setHex(PALETTE.node); box.mesh.material.emissive.setHex(PALETTE.nodeEmissive); } });
-}
-function unhlBox(i, c) {
-  const box = boxes[i - 1];
-  const from = c || PALETTE.highlight;
-  C({ duration: 250, fn: (p) => { box.mesh.material.color.lerpColors(new THREE.Color(from), new THREE.Color(PALETTE.node), p); box.mesh.material.emissive.setHex(PALETTE.nodeEmissive); }, undo: () => {} });
-}
-function hlEdge(i, j) {
-  const m = edgeMap.get(i + '-' + j);
-  if (!m) return;
-  C({ duration: 250, fn: () => { m.material.color.setHex(PALETTE.highlight); m.material.opacity = 0.95; }, undo: () => { m.material.color.setHex(PALETTE.edge); m.material.opacity = 0.45; } });
-}
-
-// ---- 值变化 ----
-function updateBox(i, val, prev) {
-  C({ duration: 300, fn: (p) => { boxes[i - 1].mesh.scale.setScalar(Math.max(1 + 0.15 * Math.sin(p * Math.PI), 0.01)); boxes[i - 1].setText(String(val)); }, undo: () => { boxes[i - 1].mesh.scale.set(1, 1, 1); boxes[i - 1].setText(String(prev)); } });
-}
-function updateBarLabel(i) {
-  const h = arrVals[i] * 6;
-  C({ duration: 300, fn: () => { barLbl[i].sprite.position.y = h + 16; barLbl[i].setText(String(arrVals[i])); }, undo: () => {} });
-}
-
-// ---- 随机化数组 ----
-function randomize() {
-  arrVals = Array.from({ length: N }, () => Math.floor(Math.random() * 10) + 2);
-  rebuildModel();
-  status.textContent = '随机化数组并重建 BIT';
-  for (let i = 0; i < N; i++) {
-    arr.setValue(i, arrVals[i], C);
-    updateBarLabel(i);
-    updateBox(i + 1, bitVals[i + 1], bitVals[i + 1]);
-  }
-  status.textContent = '';
-}
-
-// ---- 点更新：自底向上逐层累加 ----
-function pointUpdate(raw) {
-  let idx = 0, delta = 0;
-  const s = String(raw || '').trim();
-  let m = s.match(/^(\d+)\s*[,\s，]\s*(-?\d+)$/);
-  if (m) { idx = +m[1]; delta = +m[2]; }
-  else { idx = 3; delta = 2; status.textContent = '输入格式: 下标 增量（如 3 5），已用默认 3 2 演示'; }
-  if (idx < 1 || idx > N) { status.textContent = '下标需在 1~' + N + ' 之间'; return; }
-  if (delta === 0) { status.textContent = '增量为 0，无变化'; return; }
-  status.textContent = '点更新: bit[' + idx + '] 自底向上累加 ' + delta;
-  arr.highlight(idx - 1, C, PALETTE.cyan);
-  arr.unhighlight(idx - 1, C);
-  hlBox(idx, PALETTE.cyan);
-  hlEdge(idx, idx + lowbit(idx));
-  unhlBox(idx, PALETTE.cyan);
+// ---- 点更新：arr[idx] += delta，自底向上逐层累加 ----
+function* updateGen(idx, delta) {
+  yield S(() => outT.setText('点更新：arr[' + idx + '] ' + ARR[idx - 1] + ' + ' + delta + '（柱红闪）'));
+  ARR[idx - 1] += delta;
+  const bar = bars[idx - 1];
+  const oldH = bar.mesh.scale.y, newH = (ARR[idx - 1] * 6) / 60;
+  const oldY = bar.mesh.position.y, newY = (ARR[idx - 1] * 6) / 2;
+  bar.mesh.material.color.setHex(RED); bar.mesh.material.emissive.setHex(RED);
+  yield A(360, p => {
+    bar.mesh.scale.y = oldH + (newH - oldH) * p;
+    bar.mesh.position.y = oldY + (newY - oldY) * p;
+  });
+  bar.lbl.setText(String(ARR[idx - 1]));
+  bar.lbl.sprite.position.y = ARR[idx - 1] * 6 + 16;
+  bar.mesh.material.color.setHex(BLUE); bar.mesh.material.emissive.setHex(BLUE);
+  yield W(300);
   let j = idx;
   while (j <= N) {
-    const prev = bitVals[j];
+    boxes[j - 1].mesh.material.color.setHex(GOLD); boxes[j - 1].mesh.material.emissive.setHex(GOLD);
     bitVals[j] += delta;
-    status.textContent = '更新 bit[' + j + '] += ' + delta;
-    hlBox(j, PALETTE.cyan);
-    updateBox(j, bitVals[j], prev);
-    if (j + lowbit(j) <= N) hlEdge(j, j + lowbit(j));
-    unhlBox(j, PALETTE.cyan);
+    boxes[j - 1].lbl.setText(String(bitVals[j]));
+    const e = edges.get(j + '-' + (j + lowbit(j)));
+    if (e) { e.material.color.setHex(GOLD); e.material.opacity = 0.95; }
+    yield S(() => outT.setText('更新 bit[' + j + '] += ' + delta + '（金色脉冲，沿 lowbit 上跳）'));
+    yield* pulse(j, GOLD);
+    yield W(350);
+    if (e) { e.material.color.setHex(WHITE); e.material.opacity = 0.45; }
     j += lowbit(j);
   }
-  status.textContent = '点更新完成';
+  resetBoxColors();
+  yield S(() => {
+    let j = idx, s = [];
+    while (j <= N) { s.push(j); j += lowbit(j); }
+    outT.setText('点更新完成：受影响链 ' + s.join(' → '));
+  });
+  yield W(450);
 }
 
 // ---- 前缀查询：自右向左逐段累加 ----
-function prefixQuery(raw) {
-  let idx = parseInt(String(raw || '').trim());
-  if (isNaN(idx) || idx < 1 || idx > N) { idx = 6; status.textContent = '输入 1~' + N + ' 之间的下标（已用默认 6 演示）'; }
+function* queryGen(idx) {
   let sum = 0;
-  status.textContent = '前缀查询: 自右向左累加，起点 bit[' + idx + ']';
+  const chain = [];
   let j = idx;
-  while (j > 0) {
-    const k = j - lowbit(j);
-    sum += bitVals[j];
-    status.textContent = '累加 bit[' + j + '] = ' + bitVals[j] + '，当前和 ' + sum;
-    hlBox(j, PALETTE.yellow);
-    if (k >= 1) hlEdge(k, j);
-    result.setText('前缀和 sum(1..' + idx + ') = ' + sum);
-    unhlBox(j, PALETTE.yellow);
-    j = k;
+  while (j > 0) { chain.push(j); j -= lowbit(j); }
+  yield S(() => outT.setText('前缀查询 sum(1..' + idx + ')：自右向左 ' + chain.join(' → ')));
+  yield W(450);
+  for (const k of chain) {
+    sum += bitVals[k];
+    boxes[k - 1].mesh.material.color.setHex(GOLD); boxes[k - 1].mesh.material.emissive.setHex(GOLD);
+    yield S(() => result.setText('前缀和 sum(1..' + idx + ') = ' + sum));
+    yield* pulse(k, GOLD);
+    yield S(() => outT.setText('累加 bit[' + k + '] = ' + bitVals[k] + '，当前和 ' + sum));
+    yield W(400);
   }
-  status.textContent = '';
+  resetBoxColors();
+  yield S(() => {
+    outT.setText('查询完成：sum(1..' + idx + ') = ' + sum);
+    status.textContent = '前缀和 sum(1..' + idx + ') = ' + sum;
+  });
+  yield W(500);
 }
 
-// ---- 清空：停止动画 + 清理对象 + 重建随机初始状态 ----
-function clearAll() {
-  engine.clear();
-  clearVisuals();
-  arrVals = Array.from({ length: N }, () => Math.floor(Math.random() * 10) + 2);
+function* runFenwick() {
+  clearView();
+  ARR.splice(0, ARR.length, 5, 3, 8, 1, 9, 4, 7, 2, 6, 3, 9, 5);
   rebuildModel();
+  hint.setText('树状数组 BIT：bit[i] 覆盖 arr[i-lowbit(i)+1..i]，i 与 i+lowbit(i) 连线');
   result.setText('前缀和: —');
-  buildStatic();
-  status.textContent = '已清空';
+  yield W(300);
+  yield* buildGen();
+  yield* queryGen(6);
+  yield* updateGen(3, 2);
+  yield* queryGen(6);
+  yield S(() => {
+    outT.setText('');
+    hint.setText('BIT 完成：更新/查询均 O(log n)，lowbit 决定跳转步长');
+    status.textContent = 'BIT 演示完成：建树 12 节点，sum(1..6)=30，arr[3]+=2 后 sum(1..6)=32';
+  });
 }
 
-// 控件
-let updInput = panel.addInput('点更新: 下标 增量（如 3 5）', (v) => pointUpdate(v), 12);
-panel.addButton('随机化数组', randomize);
-panel.addButton('点更新', () => pointUpdate(updInput.value));
-let qryInput = panel.addInput('前缀查询: 下标（如 6）', (v) => prefixQuery(v), 6);
-panel.addButton('前缀查询', () => prefixQuery(qryInput.value));
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
-
-// 初始随机数组
-clearVisuals();
-arrVals = Array.from({ length: N }, () => Math.floor(Math.random() * 10) + 2);
-rebuildModel();
-buildStatic();
+panel.addButton('运行演示', () => engine.start(runFenwick()));
+panel.addButton('清空', () => { engine.clear(); clearView(); ARR.splice(0, ARR.length, 5, 3, 8, 1, 9, 4, 7, 2, 6, 3, 9, 5); rebuildModel(); result.setText('前缀和: —'); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；金 = 累加链，红 = 更新点，连线 = lowbit 关系）');
 
 scene.start(engine);

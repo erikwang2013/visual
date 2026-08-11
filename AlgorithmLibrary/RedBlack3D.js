@@ -1,38 +1,46 @@
-// AlgorithmLibrary/RedBlack3D.js
-// 红黑树：红节点橙色、黑节点蓝色；插入/删除按 CLRS 修复（变色 + 旋转）。
+// AlgorithmLibrary/RedBlack3D.js — 红黑树：红节点橙色/黑节点蓝色 + 插入修复 case1 变色 / case2/3 旋转 + 删除双黑修复（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Tree3D } from '../3D/modes/Tree3D.js';
-import { VText, VNode, easeInOut } from '../3D/VisualObject3D.js';
+import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('RedBlack3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 240, 560], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const tree = new Tree3D(scene);
-const status = panel.addStatus('');
-let root = null;   // { key, left, right, parent, color:'R'|'B' }
+const BLACK = 0x60a5fa, REDC = 0xfb923c, GOLD = 0xfcd34d, WHITE = 0xffffff, GREEN = 0x4ade80;
+const hint = new VText(scene, { text: '点击「运行演示」开始：红黑树变色 + 旋转修复', x: 0, y: 430, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
+const ROOT_Y = 260, STEP_Y = 85, X_STEP = 80;
+
+// ---- 纯数据红黑树（parent 为键引用，color: 'R'|'B'） ----
+let root = null;
 function findNode(key) {
   let cur = root;
   while (cur) { if (key === cur.key) return cur; cur = key < cur.key ? cur.left : cur.right; }
   return null;
 }
-function depthOf(n) { let d = 0, cur = n; while (cur.parent != null) { d++; cur = findNode(cur.parent); if (!cur) break; } return d; }
-function isBlack(n) { return !n || n.color === 'B'; }
-function applyColor(key) {
-  const n = findNode(key);
-  if (!n) return;
-  if (n.color === 'R') tree.setColor(key, PALETTE.orange, PALETTE.orangeEmissive);
-  else tree.setColor(key, PALETTE.node, PALETTE.nodeEmissive);
+function depthOf(n) { let d = 0, cur = n; while (cur.parent != null) { d++; const p = findNode(cur.parent); if (!p) break; cur = p; } return d; }
+function collect() {
+  const arr = [];
+  (function inOrder(n) { if (!n) return; inOrder(n.left); arr.push(n); inOrder(n.right); })(root);
+  return arr;
 }
-
+function layout() {
+  const arr = collect(), pos = new Map();
+  arr.forEach((n, i) => {
+    const d = depthOf(n);
+    pos.set(n.key, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 10), ROOT_Y - d * STEP_Y, -d * 6));
+  });
+  return pos;
+}
 function insertModel(key) {
-  if (!root) { root = { key, left: null, right: null, parent: null, color: 'B' }; return root; }
+  if (!root) return (root = { key, left: null, right: null, parent: null, color: 'B' });
   let cur = root;
   while (true) {
     if (key < cur.key) {
@@ -44,53 +52,6 @@ function insertModel(key) {
     }
   }
 }
-
-function layoutPositions() {
-  const order = [];
-  (function inOrder(n) { if (!n) return; inOrder(n.left); order.push(n); inOrder(n.right); })(root);
-  const pos = new Map();
-  const total = order.length;
-  order.forEach((n, i) => {
-    const d = depthOf(n);
-    pos.set(n.key, { x: (i - (total - 1) / 2) * (64 + d * 14), y: 180 - d * 95, z: d * 2 });
-  });
-  return pos;
-}
-
-function syncParentIds() {
-  for (const [key, e] of tree.nodes) {
-    const n = findNode(key);
-    if (n) e.parentId = n.parent;
-  }
-  tree.drawEdges();
-}
-function syncColors() {
-  for (const [key] of tree.nodes) applyColor(key);
-}
-function layoutAndMove() {
-  const pos = layoutPositions();
-  for (const [key, e] of tree.nodes) {
-    const p = pos.get(key);
-    if (!p || (e.x === p.x && e.y === p.y && e.z === p.z)) continue;
-    tree.moveNode(key, p.x, p.y, p.z, C);
-  }
-}
-function drawAll() {
-  tree.clear();
-  const pos = layoutPositions();
-  (function walk(n) {
-    if (!n) return;
-    const p = pos.get(n.key);
-    tree.addNode(n.key, String(n.key), p.x, p.y, p.z, {
-      parentId: n.parent ?? null,
-      color: n.color === 'R' ? PALETTE.orange : PALETTE.node,
-      emissive: n.color === 'R' ? PALETTE.orangeEmissive : PALETTE.nodeEmissive,
-    });
-    walk(n.left); walk(n.right);
-  })(root);
-}
-
-// ---- 旋转（模型 + 布局动画）----
 function rotateLeft(x) {
   const y = x.right;
   x.right = y.left;
@@ -98,11 +59,8 @@ function rotateLeft(x) {
   y.left = x;
   y.parent = x.parent;
   if (x.parent == null) root = y;
-  else if (findNode(x.parent).left === x) findNode(x.parent).left = y;
-  else findNode(x.parent).right = y;
+  else { const p = findNode(x.parent); if (p.left === x) p.left = y; else p.right = y; }
   x.parent = y.key;
-  syncParentIds();
-  layoutAndMove();
 }
 function rotateRight(x) {
   const y = x.left;
@@ -111,216 +69,254 @@ function rotateRight(x) {
   y.right = x;
   y.parent = x.parent;
   if (x.parent == null) root = y;
-  else if (findNode(x.parent).left === x) findNode(x.parent).left = y;
-  else findNode(x.parent).right = y;
+  else { const p = findNode(x.parent); if (p.left === x) p.left = y; else p.right = y; }
   x.parent = y.key;
-  syncParentIds();
-  layoutAndMove();
 }
+const colorOf = n => n ? n.color : 'B';
 
-// ---- 插入修复 ----
-function rbInsertFix(z) {
-  let cur = z, guard = 0;
-  while (cur.parent != null && findNode(cur.parent).color === 'R' && guard++ < 100) {
-    let p = findNode(cur.parent);
-    const g = p.parent != null ? findNode(p.parent) : null;
-    if (!g) break;
-    if (p === g.left) {
-      const u = g.right;
-      if (u && u.color === 'R') {
-        p.color = 'B'; applyColor(p.key);
-        u.color = 'B'; applyColor(u.key);
-        g.color = 'R'; applyColor(g.key);
-        cur = g;
-      } else {
-        if (cur === p.right) { cur = p; rotateLeft(p); }
-        p = findNode(cur.parent);
-        p.color = 'B'; applyColor(p.key);
-        const gg = findNode(p.parent);
-        gg.color = 'R'; applyColor(gg.key);
-        rotateRight(gg);
-      }
-    } else {
-      const u = g.left;
-      if (u && u.color === 'R') {
-        p.color = 'B'; applyColor(p.key);
-        u.color = 'B'; applyColor(u.key);
-        g.color = 'R'; applyColor(g.key);
-        cur = g;
-      } else {
-        if (cur === p.left) { cur = p; rotateRight(p); }
-        p = findNode(cur.parent);
-        p.color = 'B'; applyColor(p.key);
-        const gg = findNode(p.parent);
-        gg.color = 'R'; applyColor(gg.key);
-        rotateLeft(gg);
-      }
-    }
-  }
-  if (root) { root.color = 'B'; applyColor(root.key); }
+// ---- 视觉 ----
+const nodeView = new Map();  // key -> VNode
+const edgeView = new Map();  // childKey -> tube
+function clearView() {
+  nodeView.forEach(v => scene.remove(v.mesh));
+  edgeView.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+  nodeView.clear(); edgeView.clear();
 }
-
-// ---- 删除（CLRS）----
-function rbTransplant(u, v) {
-  if (u.parent == null) root = v;
-  else if (u === findNode(u.parent).left) findNode(u.parent).left = v;
-  else findNode(u.parent).right = v;
-  if (v) v.parent = u.parent;
+function colorHex(n) { return n.color === 'R' ? REDC : BLACK; }
+function addNodeMesh(n, p) {
+  const c = colorHex(n);
+  const vn = new VNode(scene, { radius: 20, x: p.x, y: p.y, z: p.z, label: String(n.key), color: c, emissive: c });
+  nodeView.set(n.key, vn);
+  return vn;
 }
-
-function rbFix(x, xParent, side) {
-  let curX = x, guard = 0;
-  while (curX !== root && isBlack(curX) && guard++ < 100) {
-    let p, xIsLeft;
-    if (!curX) { p = xParent != null ? findNode(xParent) : null; xIsLeft = side === 'L'; }
-    else { p = findNode(curX.parent); xIsLeft = curX === p.left; }
-    if (!p) break;
-    let w = xIsLeft ? p.right : p.left;
-    if (!isBlack(w)) {
-      w.color = 'B'; applyColor(w.key);
-      p.color = 'R'; applyColor(p.key);
-      if (xIsLeft) rotateLeft(p); else rotateRight(p);
-      w = xIsLeft ? findNode(p.key).right : findNode(p.key).left;
-    }
-    const wlB = isBlack(w.left), wrB = isBlack(w.right);
-    if (wlB && wrB) {
-      w.color = 'R'; applyColor(w.key);
-      curX = p;
-    } else {
-      if (xIsLeft ? wrB : wlB) {
-        if (xIsLeft ? w.left : w.right) { (xIsLeft ? w.left : w.right).color = 'B'; applyColor((xIsLeft ? w.left : w.right).key); }
-        w.color = 'R'; applyColor(w.key);
-        if (xIsLeft) rotateRight(w); else rotateLeft(w);
-        w = xIsLeft ? findNode(p.key).right : findNode(p.key).left;
-      }
-      w.color = p.color; applyColor(w.key);
-      p.color = 'B'; applyColor(p.key);
-      const wc = xIsLeft ? w.right : w.left;
-      if (wc) { wc.color = 'B'; applyColor(wc.key); }
-      if (xIsLeft) rotateLeft(p); else rotateRight(p);
-      curX = root;
-    }
-  }
-  if (curX) { curX.color = 'B'; applyColor(curX.key); }
+function syncColor(key) {
+  const n = findNode(key), vn = nodeView.get(key);
+  if (!n || !vn) return;
+  const c = colorHex(n);
+  vn.setColor(c, c);
 }
-
-function rbDelete(z) {
-  let y = z, yColor = y.color, x = null, xParent = z.parent, side = 'L';
-  const delSide = (z.parent != null && findNode(z.parent).left === z) ? 'L' : 'R';
-  if (!z.left) { x = z.right; rbTransplant(z, z.right); xParent = z.parent; side = delSide; }
-  else if (!z.right) { x = z.left; rbTransplant(z, z.left); xParent = z.parent; side = delSide; }
-  else {
-    y = z.right; while (y.left) y = y.left;
-    yColor = y.color; x = y.right;
-    if (y.parent === z.key) { xParent = y.key; side = 'R'; if (x) x.parent = y.key; }
-    else {
-      xParent = y.parent; side = findNode(y.parent).left === y ? 'L' : 'R';
-      rbTransplant(y, y.right);
-      y.right = z.right;
-      y.right.parent = y.key;
-    }
-    rbTransplant(z, y);
-    y.left = z.left;
-    y.left.parent = y.key;
-    y.color = z.color;
-  }
-  if (yColor === 'B') rbFix(x, xParent, side);
-  if (root) { root.color = 'B'; applyColor(root.key); }
+function syncAllColors() { collect().forEach(n => syncColor(n.key)); }
+function tube(a, b) {
+  const A = a.clone(), B = b.clone();
+  const mid = new THREE.Vector3((A.x + B.x) / 2, (A.y + B.y) / 2, (A.z + B.z) / 2 + 18);
+  const curve = new THREE.CatmullRomCurve3([A, mid, B]);
+  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 10, 2, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.7 }));
+  scene.add(m);
+  return m;
 }
-
-// ---- 操作 ----
-function insertValue(v) {
-  const key = parseInt(v);
-  if (isNaN(key)) return;
-  if (findNode(key)) { status.textContent = key + ' 已存在'; return; }
-  status.textContent = '插入 ' + key;
-  let cur = root;
-  while (cur) { tree.highlight(cur.key, C); cur = key < cur.key ? cur.left : cur.right; }
-  const node = insertModel(key);
-  const parentKey = node.parent;
-  const p = layoutPositions().get(key);
-  const tmp = new VNode(scene, { x: p.x, y: p.y + 260, z: p.z, label: String(key), color: PALETTE.orange, emissive: PALETTE.orangeEmissive });
-  C(600, (pp) => {
-    tmp.mesh.position.y = p.y + 260 * (1 - easeInOut(pp));
-    if (pp === 1) {
-      tree.addNode(key, String(key), p.x, p.y, p.z, { parentId: parentKey, color: PALETTE.orange, emissive: PALETTE.orangeEmissive });
-      tmp.remove();
-      syncParentIds();
-      layoutAndMove();
-    }
-  }, () => tmp.remove());
-  rbInsertFix(node);
-  syncParentIds();
-  layoutAndMove();
-  status.textContent = '';
+function syncEdges() {
+  edgeView.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+  edgeView.clear();
+  (function walk(n) {
+    if (n.left) { edgeView.set(n.left.key, tube(nodeView.get(n.key).mesh.position, nodeView.get(n.left.key).mesh.position)); walk(n.left); }
+    if (n.right) { edgeView.set(n.right.key, tube(nodeView.get(n.key).mesh.position, nodeView.get(n.right.key).mesh.position)); walk(n.right); }
+  })(root);
 }
-
-function deleteValue(v) {
-  const key = parseInt(v);
-  if (isNaN(key)) return;
-  const z = findNode(key);
-  if (!z) { status.textContent = key + ' 不存在'; return; }
-  status.textContent = '删除 ' + key;
-  let cur = root;
-  while (cur && cur.key !== key) { tree.highlight(cur.key, C); cur = key < cur.key ? cur.left : cur.right; }
-  tree.highlight(key, C);
-  C(1, () => tree.removeNode(key), () => {});
-  rbDelete(z);
-  syncParentIds();
-  syncColors();
-  layoutAndMove();
-  status.textContent = '';
-}
-
-function findValue(v) {
-  const key = parseInt(v);
-  if (isNaN(key)) return;
-  let cur = root, depth = 0;
-  while (cur && cur.key !== key) { tree.highlight(cur.key, C); cur = key < cur.key ? cur.left : cur.right; depth++; }
-  if (cur) { tree.highlight(key, C); status.textContent = key + ' 存在（深度 ' + depth + '）'; }
-  else status.textContent = key + ' 不存在';
-}
-
-function printTree() {
-  const order = [];
-  (function walk(n) { if (!n) return; walk(n.left); order.push(n.key); walk(n.right); })(root);
-  const total = order.length;
-  order.forEach((k, i) => {
-    const e = tree.nodes.get(k);
-    if (!e) return;
-    const fx = e.x, fy = e.y + 26;
-    const tx = (i - (total - 1) / 2) * 78, ty = -270;
-    const tmp = new VText(scene, { text: String(k), x: fx, y: fy, z: 0, color: PALETTE.text, scale: 1 });
-    C(420, (p) => { tmp.sprite.position.set(fx + (tx - fx) * easeInOut(p), fy + (ty - fy) * easeInOut(p), 0); }, () => tmp.remove());
+function setNodeColor(key, c) { nodeView.get(key).setColor(c, c); }
+function* moveToLayout() {
+  const pos = layout();
+  const tasks = [];
+  nodeView.forEach((vn, key) => {
+    const p = pos.get(key);
+    if (!p) return;
+    const f = vn.mesh.position.clone();
+    if (f.distanceTo(p) < 0.5) return;
+    tasks.push({ vn, from: f, to: p });
   });
-  status.textContent = '中序遍历 ' + total + ' 个节点';
+  if (!tasks.length) { syncEdges(); return; }
+  yield A(460, pp => tasks.forEach(t => t.vn.mesh.position.lerpVectors(t.from, t.to, pp)));
+  syncEdges();
+}
+function* dropIn(vn, p) {
+  yield A(480, pp => {
+    vn.mesh.position.y = p.y + 250 * (1 - pp);
+    vn.mesh.scale.setScalar(0.4 + 0.6 * pp);
+  });
+  vn.mesh.scale.setScalar(1);
 }
 
-function clearAll() {
-  engine.clear();
-  tree.clear();
-  root = null;
-  status.textContent = '已清空';
-}
-
-// 控件
-let input = panel.addInput('输入数字', (v) => { if (v) insertValue(v); }, 6);
-panel.addButton('插入', () => { if (input.value) insertValue(input.value); });
-panel.addButton('查找', () => { if (input.value) findValue(input.value); });
-panel.addButton('打印', printTree);
-panel.addButton('删除', () => { if (input.value) deleteValue(input.value); });
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
-
-// 初始树
-[41, 38, 31, 12, 19, 8].forEach((k) => {
-  if (!root) { root = { key: k, left: null, right: null, parent: null, color: 'B' }; return; }
+// ---- 插入：下钻 → 降落红节点 → rbFix 逐 case 演示 ----
+function* insertGen(key) {
+  yield S(() => outT.setText('插入 ' + key + '：沿比较路径下钻'));
   let cur = root;
-  while (true) {
-    if (k < cur.key) { if (!cur.left) { cur.left = { key: k, left: null, right: null, parent: cur.key, color: 'R' }; break; } cur = cur.left; }
-    else { if (!cur.right) { cur.right = { key: k, left: null, right: null, parent: cur.key, color: 'R' }; break; } cur = cur.right; }
+  while (cur && cur.key !== key) {
+    setNodeColor(cur.key, GOLD);
+    yield W(240);
+    cur = key < cur.key ? cur.left : cur.right;
   }
-  rbInsertFix(findNode(k));
-});
-drawAll();
+  if (cur) { setNodeColor(cur.key, GOLD); yield S(() => outT.setText(key + ' 已存在')); yield W(450); return; }
+  const n = insertModel(key);
+  const pos = layout().get(key);
+  const vn = addNodeMesh(n, new THREE.Vector3(pos.x, pos.y + 250, pos.z));
+  yield S(() => outT.setText('新节点 ' + key + ' 染红降落（红 = 待修复）'));
+  yield* dropIn(vn, pos);
+  yield* moveToLayout();
+  yield* growEdge(n);
+  yield W(300);
+  // 修复循环
+  let z = n, guard = 0;
+  while (guard++ < 12) {
+    const p = z.parent ? findNode(z.parent) : null;
+    if (!p || colorOf(p) !== 'R') break;
+    const g = p.parent ? findNode(p.parent) : null;
+    if (!g) break;
+    const u = g.left === p ? g.right : g.left;
+    if (colorOf(u) === 'R') {
+      setNodeColor(p.key, WHITE); setNodeColor(u.key, WHITE); setNodeColor(g.key, REDC);
+      yield S(() => outT.setText('case1 叔 ' + u.key + ' 为红：父/叔变黑，祖父 ' + g.key + ' 变红'));
+      yield W(550);
+      p.color = 'B'; u.color = 'B'; g.color = 'R';
+      syncColor(p.key); syncColor(u.key); syncColor(g.key);
+      z = g;
+      yield W(250);
+    } else if (p === g.left) {
+      if (z === p.right) {
+        setNodeColor(z.key, WHITE);
+        yield S(() => outT.setText('case2 之字形：左旋 ' + p.key));
+        yield W(500);
+        rotateLeft(p); yield* moveToLayout();
+        z = p; p = findNode(z.parent);
+        syncAllColors();
+      }
+      setNodeColor(g.key, WHITE); setNodeColor(p.key, WHITE);
+      yield S(() => outT.setText('case3：父 ' + p.key + ' 变黑，祖 ' + g.key + ' 变红，右旋 ' + g.key));
+      yield W(500);
+      const tmp = p.color; p.color = g.color; g.color = tmp;
+      rotateRight(g);
+      yield* moveToLayout();
+      syncAllColors();
+      break;
+    } else {
+      if (z === p.left) {
+        setNodeColor(z.key, WHITE);
+        yield S(() => outT.setText('case2 之字形：右旋 ' + p.key));
+        yield W(500);
+        rotateRight(p); yield* moveToLayout();
+        z = p; p = findNode(z.parent);
+        syncAllColors();
+      }
+      setNodeColor(g.key, WHITE); setNodeColor(p.key, WHITE);
+      yield S(() => outT.setText('case3：父 ' + p.key + ' 变黑，祖 ' + g.key + ' 变红，左旋 ' + g.key));
+      yield W(500);
+      const tmp = p.color; p.color = g.color; g.color = tmp;
+      rotateLeft(g);
+      yield* moveToLayout();
+      syncAllColors();
+      break;
+    }
+  }
+  if (root && root.color !== 'B') {
+    root.color = 'B';
+    yield S(() => outT.setText('根染黑（红黑性质 2）'));
+    syncColor(root.key);
+    yield W(350);
+  }
+  yield W(200);
+}
+function* growEdge(n) {
+  if (!n.parent) return;
+  const e = edgeView.get(n.key);
+  e.material.opacity = 0;
+  yield A(280, p => { e.material.opacity = 0.7 * p; });
+}
+
+function* searchGen(key) {
+  yield S(() => outT.setText('查找 ' + key + '：沿金色路径下钻'));
+  let cur = root;
+  while (cur && cur.key !== key) { setNodeColor(cur.key, GOLD); yield W(260); cur = key < cur.key ? cur.left : cur.right; }
+  if (cur) {
+    setNodeColor(cur.key, GREEN);
+    yield S(() => outT.setText('命中 ' + key + '！（绿色闪光）'));
+    yield W(500);
+    setNodeColor(cur.key, colorHex(cur));
+  } else {
+    yield S(() => outT.setText(key + ' 不存在'));
+    yield W(500);
+  }
+  syncAllColors();
+}
+
+// ---- 删除：红叶子直接删；黑叶子做简化双黑修复 ----
+function* deleteGen(key) {
+  const z = findNode(key);
+  if (!z) { yield S(() => outT.setText(key + ' 不存在')); yield W(400); return; }
+  const isRed = z.color === 'R';
+  yield S(() => outT.setText('删除 ' + key + '（' + (isRed ? '红' : '黑') + '节点）：目标高亮'));
+  setNodeColor(key, isRed ? GREEN : REDC);
+  yield W(500);
+  // 从模型中删除
+  root = (function rec(node) {
+    if (!node) return null;
+    if (key < node.key) { node.left = rec(node.left); if (node.left) node.left.parent = node.key; }
+    else if (key > node.key) { node.right = rec(node.right); if (node.right) node.right.parent = node.key; }
+    else return null;
+    return node;
+  })(root);
+  if (isRed) {
+    yield S(() => outT.setText('红叶子删除：不破坏红黑性质，直接收缩消失'));
+    const vn = nodeView.get(key);
+    yield A(300, p => { vn.mesh.scale.setScalar(1 - p); });
+    scene.remove(vn.mesh);
+    nodeView.delete(key);
+  } else {
+    // 黑叶子：简化双黑修复（兄弟红 → 旋转换黑兄弟；兄弟黑 → 兄弟变红上溯）
+    yield S(() => outT.setText('黑叶子删除：触发双黑修复（兄弟变红上溯）'));
+    const p = z.parent ? findNode(z.parent) : null;
+    if (p) {
+      let sib = p.left === z ? p.right : p.left;
+      if (sib) {
+        setNodeColor(p.key, WHITE);
+        yield W(450);
+        if (sib.color === 'R') {
+          yield S(() => outT.setText('兄弟 ' + sib.key + ' 为红：旋转换黑兄弟'));
+          const tmp = p.color; p.color = sib.color; sib.color = tmp;
+          if (p.left === z) rotateLeft(p); else rotateRight(p);
+          yield* moveToLayout();
+          syncAllColors();
+          yield W(400);
+          sib = (p.left === z ? p.right : p.left);
+        }
+        if (sib && sib.color === 'B') {
+          setNodeColor(sib.key, REDC);
+          yield S(() => outT.setText('兄弟 ' + sib.key + ' 变红（黑高平衡转移）'));
+          yield W(500);
+          sib.color = 'R';
+          syncColor(sib.key);
+        }
+      }
+    }
+    const vn = nodeView.get(key);
+    yield A(300, p => { vn.mesh.scale.setScalar(1 - p); });
+    scene.remove(vn.mesh);
+    nodeView.delete(key);
+    yield W(250);
+  }
+  if (root) root.color = 'B';
+  yield* moveToLayout();
+  syncAllColors();
+  yield W(200);
+}
+
+function* runRBT() {
+  clearView(); root = null;
+  hint.setText('红黑树：红节点橙色 / 黑节点蓝色，插入修复分 case1 变色 / case2/3 旋转');
+  yield W(400);
+  for (const k of [41, 38, 31, 12, 19, 8]) yield* insertGen(k);
+  yield S(() => outT.setText('6 节点插入完成，红黑性质保持'));
+  yield W(450);
+  yield* searchGen(19);
+  yield* deleteGen(8);
+  yield* deleteGen(31);
+  const arr = collect();
+  yield S(() => {
+    outT.setText('最终中序：' + arr.map(n => n.key).join(' → '));
+    hint.setText('红黑树完成：任意根到叶路径黑高相等，保证 O(log n) 操作');
+    status.textContent = '红黑树演示完成：插入 6 节点展示 case1 变色与 case2/3 旋转，删除红叶子 8 与黑叶子 31（双黑修复）';
+  });
+}
+
+panel.addButton('运行演示', () => engine.start(runRBT()));
+panel.addButton('清空', () => { engine.clear(); clearView(); root = null; hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；橙 = 红节点，蓝 = 黑节点，白闪 = 变色目标，绿 = 命中）');
+
 scene.start(engine);

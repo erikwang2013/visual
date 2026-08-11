@@ -1,246 +1,224 @@
-// AlgorithmLibrary/Treap3D.js
-// Treap（树堆）：BST 结构 + 随机优先值 prio。每个节点 = VBox + key（大字）+ prio（小字紫色）。
-// 插入按 BST 下降，违反堆性质（prio < 父）时以节点为轴左旋/右旋恢复。
+// AlgorithmLibrary/Treap3D.js — Treap：BST 键 + 随机优先级堆性质；违反时旋转修复（function* 生成器驱动）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, tubeBetween, easeInOut } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { VText } from '../3D/VisualObject3D.js';
+import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('Treap3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const status = panel.addStatus('');
-let root = null;              // 模型节点 { key, prio, left, right, parent, id }
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, WHITE = 0xffffff, GREEN = 0x4ade80, ORANGE = 0xfb923c, PURPLE = 0xc084fc;
+const hint = new VText(scene, { text: '点击「运行演示」开始：Treap 堆性质修复（旋转）', x: 0, y: 380, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const status = panel.addStatus('就绪');
+const outT = new VText(scene, { text: '', x: 0, y: -20, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+
+const ROOT_Y = 260, STEP_Y = 95, X_STEP = 84;
+
+// ---- 纯数据模型：BST 键 + 优先级（小顶堆性质：父 prio < 子 prio） ----
 let nextId = 0;
-const entry = new Map();      // id -> { box, keyText, prioText, x, y, z }
-let edgeMeshes = [];
-
-function modelNode(key, prio) { return { key, prio, left: null, right: null, parent: null, id: nextId++ }; }
-function find(key) { let cur = root; while (cur) { if (key === cur.key) return cur; cur = key < cur.key ? cur.left : cur.right; } return null; }
-
-// ---- 模型：BST 插入 / 旋转 ----
-function bstInsert(node, key, prio) {
-  if (!node) return modelNode(key, prio);
-  if (key < node.key) { node.left = bstInsert(node.left, key, prio); node.left.parent = node; }
-  else { node.right = bstInsert(node.right, key, prio); node.right.parent = node; }
-  return node;
+const model = new Map();  // id -> { key, prio, left:null, right:null, parent:key|null }
+let root = null;
+function mkNode(key, prio) { const n = { id: 't' + (nextId++), key, prio, left: null, right: null, parent: null }; model.set(n.id, n); return n; }
+function findNode(key) { let cur = root; while (cur) { if (key === cur.key) return cur; cur = key < cur.key ? cur.left : cur.right; } return null; }
+function depthOf(n) { let d = 0, cur = n; while (cur.parent != null) { d++; const p = findNode(cur.parent); if (!p) break; cur = p; } return d; }
+function collect() {
+  const arr = [];
+  (function inOrder(n) { if (!n) return; inOrder(n.left); arr.push(n); inOrder(n.right); })(root);
+  return arr;
 }
-function rotateLeft(p) {
-  const q = p.right;
-  p.right = q.left; if (q.left) q.left.parent = p;
-  q.left = p; q.parent = p.parent;
-  if (p.parent) { if (p.parent.left === p) p.parent.left = q; else p.parent.right = q; }
-  else root = q;
-  p.parent = q;
-}
-function rotateRight(p) {
-  const q = p.left;
-  p.left = q.right; if (q.right) q.right.parent = p;
-  q.right = p; q.parent = p.parent;
-  if (p.parent) { if (p.parent.left === p) p.parent.left = q; else p.parent.right = q; }
-  else root = q;
-  p.parent = q;
-}
-
-// ---- 布局：中序定 x，深度定 y ----
-function depthOf(n) { let d = 0, cur = n; while (cur.parent) { d++; cur = cur.parent; } return d; }
-function layoutPositions() {
-  const order = [];
-  (function io(n) { if (!n) return; io(n.left); order.push(n); io(n.right); })(root);
-  const pos = new Map();
-  order.forEach((n, i) => {
+function layout() {
+  const arr = collect(), pos = new Map();
+  arr.forEach((n, i) => {
     const d = depthOf(n);
-    pos.set(n.id, { x: (i - (order.length - 1) / 2) * (64 + d * 16), y: 205 - d * 95, z: d * 2 });
+    pos.set(n.id, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 10), ROOT_Y - d * STEP_Y, -d * 6));
   });
   return pos;
 }
-
-// ---- 渲染 ----
-function createEntry(n, x, y, z) {
-  const box = new VBox(scene, { w: 56, h: 56, d: 34, x, y, z, color: PALETTE.node, emissive: PALETTE.nodeEmissive });
-  const keyText = new VText(scene, { text: String(n.key), x, y: y + 52, z, color: PALETTE.text, scale: 0.95 });
-  const prioText = new VText(scene, { text: String(n.prio), x, y: y - 52, z, color: PALETTE.purple, scale: 0.55 });
-  entry.set(n.id, { n, box, keyText, prioText, x, y, z });
+function rotateLeft(x) {
+  const y = x.right;
+  x.right = y.left;
+  if (y.left) y.left.parent = x.key;
+  y.left = x;
+  y.parent = x.parent;
+  if (x.parent == null) root = y;
+  else { const p = findNode(x.parent); if (p.left === x) p.left = y; else p.right = y; }
+  x.parent = y.key;
 }
-function moveEntry(id, x, y, z) {
-  const e = entry.get(id);
-  if (!e) return;
-  const fx = e.x, fy = e.y, fz = e.z;
-  C({ duration: 500, fn: (p) => {
-    const t = easeInOut(p);
-    e.box.mesh.position.set(fx + (x - fx) * t, fy + (y - fy) * t, fz + (z - fz) * t);
-    e.keyText.sprite.position.set(fx + (x - fx) * t, fy + 52 + (y - fy) * t, fz + (z - fz) * t);
-    e.prioText.sprite.position.set(fx + (x - fx) * t, fy - 52 + (y - fy) * t, fz + (z - fz) * t);
-    if (p === 1) drawEdges();
-  }, undo: () => {
-    e.box.mesh.position.set(fx, fy, fz);
-    e.keyText.sprite.position.set(fx, fy + 52, fz);
-    e.prioText.sprite.position.set(fx, fy - 52, fz);
-    drawEdges();
-  } });
-  e.x = x; e.y = y; e.z = z;
+function rotateRight(x) {
+  const y = x.left;
+  x.left = y.right;
+  if (y.right) y.right.parent = x.key;
+  y.right = x;
+  y.parent = x.parent;
+  if (x.parent == null) root = y;
+  else { const p = findNode(x.parent); if (p.left === x) p.left = y; else p.right = y; }
+  x.parent = y.key;
 }
-function drawEdges() {
-  for (const m of edgeMeshes) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
-  edgeMeshes = [];
-  (function walk(n) {
-    if (!n) return;
-    if (n.parent) {
-      const a = entry.get(n.id), b = entry.get(n.parent.id);
-      if (a && b) {
-        const from = a.box.mesh.position.clone(), to = b.box.mesh.position.clone();
-        const dir = to.clone().sub(from);
-        if (dir.lengthSq() > 1e-6) {
-          dir.normalize();
-          from.addScaledVector(dir, 30); to.addScaledVector(dir, 30);
-          edgeMeshes.push(tubeBetween(scene, from, to, { color: PALETTE.edge, opacity: 0.5, radius: 2 }));
-        }
-      }
+function insertModel(key, prio) {
+  const n = mkNode(key, prio);
+  if (!root) { root = n; return n; }
+  let cur = root;
+  while (true) {
+    if (key < cur.key) {
+      if (!cur.left) { cur.left = n; n.parent = cur.key; return n; }
+      cur = cur.left;
+    } else {
+      if (!cur.right) { cur.right = n; n.parent = cur.key; return n; }
+      cur = cur.right;
     }
-    walk(n.left); walk(n.right);
+  }
+}
+
+// ---- 视觉：方块节点（键标签在上，优先级标签在下，紫色） ----
+const nodeView = new Map();  // id -> { g, keyT, prioT }
+const edgeView = new Map();  // childId -> tube
+function clearView() {
+  nodeView.forEach(v => { scene.remove(v.g); });
+  edgeView.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+  nodeView.clear(); edgeView.clear();
+}
+function addNodeVis(n, p) {
+  const g = new THREE.Group();
+  const box = new THREE.Mesh(new THREE.BoxGeometry(56, 56, 34), glowMaterial(BLUE, { emissive: BLUE }));
+  g.add(box);
+  const keyT = new VText(scene, { text: String(n.key), x: 0, y: 52, z: 0, color: '#ffffff', scale: 0.95 });
+  scene.remove(keyT.sprite); g.add(keyT.sprite);
+  const prioT = new VText(scene, { text: String(n.prio), x: 0, y: -52, z: 0, color: PURPLE, scale: 0.55 });
+  scene.remove(prioT.sprite); g.add(prioT.sprite);
+  g.position.copy(p);
+  g.scale.setScalar(0.01);
+  scene.add(g);
+  nodeView.set(n.id, { g, keyT, prioT });
+  return g;
+}
+function setNodeColor(id, c) {
+  const v = nodeView.get(id);
+  if (v) { v.g.children[0].material.color.setHex(c); v.g.children[0].material.emissive.setHex(c); }
+}
+function resetColors() { nodeView.forEach(v => { v.g.children[0].material.color.setHex(BLUE); v.g.children[0].material.emissive.setHex(BLUE); }); }
+function tube(a, b) {
+  const A = a.clone(), B = b.clone();
+  const mid = new THREE.Vector3((A.x + B.x) / 2, (A.y + B.y) / 2, (A.z + B.z) / 2 + 18);
+  const curve = new THREE.CatmullRomCurve3([A, mid, B]);
+  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 10, 2, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.7 }));
+  scene.add(m);
+  return m;
+}
+function syncEdges() {
+  edgeView.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+  edgeView.clear();
+  (function walk(n) {
+    if (n.left) { edgeView.set(n.left.id, tube(nodeView.get(n.id).g.position, nodeView.get(n.left.id).g.position)); walk(n.left); }
+    if (n.right) { edgeView.set(n.right.id, tube(nodeView.get(n.id).g.position, nodeView.get(n.right.id).g.position)); walk(n.right); }
   })(root);
 }
-function layoutAll() {
-  const pos = layoutPositions();
-  for (const [id, e] of entry) {
+function* moveToLayout() {
+  const pos = layout();
+  const tasks = [];
+  nodeView.forEach((v, id) => {
     const p = pos.get(id);
-    if (!p) continue;
-    if (e.x === p.x && e.y === p.y && e.z === p.z) continue;
-    moveEntry(id, p.x, p.y, p.z);
-  }
+    if (!p) return;
+    const f = v.g.position.clone();
+    if (f.distanceTo(p) < 0.5) return;
+    tasks.push({ v, from: f, to: p });
+  });
+  if (!tasks.length) { syncEdges(); return; }
+  yield A(440, pp => tasks.forEach(t => t.v.g.position.lerpVectors(t.from, t.to, pp)));
+  syncEdges();
 }
-function clearTree() {
-  for (const e of entry.values()) { e.box.remove(); e.keyText.remove(); e.prioText.remove(); }
-  entry.clear();
-  for (const m of edgeMeshes) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
-  edgeMeshes = [];
-  root = null; nextId = 0;
+function* dropIn(g, p) {
+  yield A(480, pp => {
+    g.position.y = p.y + 250 * (1 - pp);
+    g.scale.setScalar(0.4 + 0.6 * pp);
+  });
+  g.scale.setScalar(1);
 }
-function hl(id, c) {
-  const e = entry.get(id);
-  if (!e) return;
-  C({ duration: 250, fn: (p) => { e.box.mesh.material.color.lerpColors(new THREE.Color(PALETTE.node), new THREE.Color(c), p); e.box.mesh.material.emissive.setHex(PALETTE.highlightEmissive); }, undo: () => { e.box.mesh.material.color.setHex(PALETTE.node); e.box.mesh.material.emissive.setHex(PALETTE.nodeEmissive); } });
-}
-function unhl(id) {
-  const e = entry.get(id);
-  if (!e) return;
-  C({ duration: 250, fn: (p) => { e.box.mesh.material.color.lerpColors(new THREE.Color(PALETTE.highlight), new THREE.Color(PALETTE.node), p); e.box.mesh.material.emissive.setHex(PALETTE.nodeEmissive); }, undo: () => {} });
+function* growEdge(n) {
+  if (!n.parent) return;
+  const e = edgeView.get(n.id);
+  e.material.opacity = 0;
+  yield A(280, p => { e.material.opacity = 0.7 * p; });
 }
 
-// ---- 插入 ----
-function insertValue(raw) {
-  let key = parseInt(String(raw || '').trim());
-  if (isNaN(key)) {
-    const cand = [15, 35, 5, 40, 22, 3, 12, 28];
-    key = cand.find(k => !find(k));
-    if (key === undefined) { status.textContent = '演示值都已存在，请先清空'; return; }
-    status.textContent = '输入为空，插入演示值 ' + key;
-  }
-  if (find(key)) { status.textContent = key + ' 已存在'; return; }
-  const prio = Math.floor(Math.random() * 90) + 10;
-  status.textContent = '插入 ' + key + '（随机优先值 ' + prio + '）';
-  // BST 下降动画
-  const path = [];
+// ---- 插入：BST 下降 → 降落 → 堆性质冒泡旋转 ----
+function* insertGen(key, prio) {
+  yield S(() => outT.setText('插入 ' + key + '（优先级 ' + prio + '）：沿 BST 比较路径下钻'));
   let cur = root;
-  while (cur) {
-    path.push(cur);
+  while (cur && cur.key !== key) {
+    setNodeColor(cur.id, GOLD);
+    yield W(220);
     cur = key < cur.key ? cur.left : cur.right;
   }
-  path.forEach(n => {
-    status.textContent = 'BST 下降: ' + key + ' 与 ' + n.key + ' 比较' + (key < n.key ? '，向左' : '，向右');
-    hl(n.id, PALETTE.cyan);
-    unhl(n.id);
+  if (cur) { setNodeColor(cur.id, GOLD); yield S(() => outT.setText(key + ' 已存在')); yield W(450); resetColors(); return; }
+  const n = insertModel(key, prio);
+  const pos = layout().get(n.id);
+  const g = addNodeVis(n, new THREE.Vector3(pos.x, pos.y + 250, pos.z));
+  yield S(() => outT.setText('新节点 ' + key + ' 降落：键 ' + key + ' 满足 BST，优先级 ' + prio + ' 待验证'));
+  yield* dropIn(g, pos);
+  yield* moveToLayout();
+  yield* growEdge(n);
+  yield W(300);
+  // 堆性质修复：父 prio > 子 prio 则旋转（小顶堆）
+  let z = n, guard = 0;
+  while (z.parent && guard++ < 12) {
+    const p = findNode(z.parent);
+    if (z.prio >= p.prio) break;
+    setNodeColor(z.id, ORANGE); setNodeColor(p.id, ORANGE);
+    const dir = p.left === z ? '右' : '左';
+    yield S(() => outT.setText('堆性质破坏：' + z.key + ' 优先级 ' + z.prio + ' < 父 ' + p.key + ' 的 ' + p.prio + ' → ' + dir + '旋 ' + p.key));
+    yield W(500);
+    if (p.left === z) rotateRight(p); else rotateLeft(p);
+    yield* moveToLayout();
+    yield W(300);
+    z = findNode(z.key);
+  }
+  setNodeColor(n.id, GREEN);
+  yield S(() => outT.setText('插入 ' + key + ' 完成：BST + 堆性质均满足（绿闪）'));
+  yield W(450);
+  resetColors();
+  yield W(150);
+}
+
+function* randomizeGen() {
+  clearView(); root = null; model.clear(); nextId = 0;
+  hint.setText('Treap：键满足 BST，优先级满足小顶堆；插入后旋转修复');
+  yield W(300);
+  const used = new Set();
+  const pairs = [];
+  while (pairs.length < 8) {
+    const k = 1 + Math.floor(Math.random() * 60);
+    if (used.has(k)) continue;
+    used.add(k);
+    const p = 1 + Math.floor(Math.random() * 99);
+    pairs.push([k, p]);
+  }
+  for (const [k, p] of pairs) yield* insertGen(k, p);
+  yield S(() => {
+    outT.setText('随机 8 键构建完成');
+    status.textContent = 'Treap 随机演示：' + pairs.map(([k, p]) => k + '(' + p + ')').join(' ') + '，所有节点满足堆性质';
   });
-  // 模型插入 + 新节点从上方飞入
-  root = bstInsert(root, key, prio);
-  const node = find(key);
-  const pos = layoutPositions().get(node.id);
-  createEntry(node, pos.x, pos.y, pos.z);
-  const e0 = entry.get(node.id);
-  e0.box.mesh.position.y += 260;
-  e0.keyText.sprite.position.y += 260;
-  e0.prioText.sprite.position.y += 260;
-  e0.y += 260;
-  C({ duration: 600, fn: (p) => {
-    const dy = 260 * (1 - easeInOut(p));
-    e0.box.mesh.position.y = pos.y + dy;
-    e0.keyText.sprite.position.y = pos.y + 52 + dy;
-    e0.prioText.sprite.position.y = pos.y - 52 + dy;
-    if (p === 1) { e0.y = pos.y; drawEdges(); }
-  }, undo: () => {
-    e0.box.mesh.position.set(pos.x, pos.y + 260, pos.z);
-    e0.keyText.sprite.position.set(pos.x, pos.y + 312, pos.z);
-    e0.prioText.sprite.position.set(pos.x, pos.y + 208, pos.z);
-    e0.y = pos.y + 260;
-    drawEdges();
-  } });
-  e0.y = pos.y;
-  // 自底向上旋转恢复堆性质
-  let n = node;
-  while (n.parent && n.prio < n.parent.prio) {
-    const p = n.parent;
-    const isLeft = p.left === n;
-    status.textContent = '堆性质破坏: prio ' + n.prio + ' < 父 ' + p.prio + '，以 ' + n.key + ' 为轴' + (isLeft ? '右旋' : '左旋');
-    hl(n.id, PALETTE.orange);
-    hl(p.id, PALETTE.orange);
-    if (isLeft) rotateRight(p); else rotateLeft(p);
-    unhl(n.id);
-    unhl(p.id);
-    layoutAll();
-  }
-  hl(n.id, PALETTE.green);
-  status.textContent = '插入 ' + key + ' 完成';
 }
 
-// ---- 随机生成 ----
-function randomTree() {
-  clearTree();
-  const seen = new Set();
-  const keys = [];
-  while (keys.length < 10) {
-    const k = Math.floor(Math.random() * 50) + 1;
-    if (!seen.has(k)) { seen.add(k); keys.push(k); }
-  }
-  for (const k of keys) root = bstInsert(root, k, Math.floor(Math.random() * 90) + 10);
-  const pos = layoutPositions();
-  (function walk(n) {
-    if (!n) return;
-    const p = pos.get(n.id);
-    createEntry(n, p.x, p.y, p.z);
-    walk(n.left); walk(n.right);
-  })(root);
-  drawEdges();
-  status.textContent = '随机生成 ' + keys.length + ' 个节点';
+function* runTreap() {
+  clearView(); root = null; model.clear(); nextId = 0;
+  hint.setText('Treap = Tree + Heap：键决定 BST 位置，随机优先级决定堆形状');
+  yield W(400);
+  for (const [k, p] of [[10, 30], [20, 50], [30, 10], [25, 5], [5, 1]]) yield* insertGen(k, p);
+  const arr = collect();
+  yield S(() => {
+    outT.setText('最终中序：' + arr.map(n => n.key).join(' → '));
+    hint.setText('Treap 完成：插入 5 键触发 4 次旋转（左旋/右旋修复堆性质）');
+    status.textContent = 'Treap 演示完成：插入 (10,30)(20,50)(30,10)(25,5)(5,1)，30 左旋、25 两次左旋、5 两次右旋，堆性质保持';
+  });
 }
 
-// ---- 清空 ----
-function clearAll() {
-  engine.clear();
-  clearTree();
-  status.textContent = '已清空';
-}
-
-// 控件
-let input = panel.addInput('插入 key（空则插入演示值）', (v) => insertValue(v), 6);
-panel.addButton('插入', () => insertValue(input.value));
-panel.addButton('随机生成', randomTree);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
-
-// 初始演示树：10/20/30/25
-for (const k of [10, 20, 30, 25]) root = bstInsert(root, k, Math.floor(Math.random() * 90) + 10);
-const initPos = layoutPositions();
-(function walk(n) {
-  if (!n) return;
-  const p = initPos.get(n.id);
-  createEntry(n, p.x, p.y, p.z);
-  walk(n.left); walk(n.right);
-})(root);
-drawEdges();
+panel.addButton('运行演示', () => engine.start(runTreap()));
+panel.addButton('随机化', () => engine.start(randomizeGen()));
+panel.addButton('清空', () => { engine.clear(); clearView(); root = null; model.clear(); nextId = 0; hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；键标签白字在上，优先级紫字在下；橙 = 旋转目标，绿 = 完成）');
 
 scene.start(engine);

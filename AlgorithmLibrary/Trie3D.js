@@ -1,190 +1,217 @@
-// AlgorithmLibrary/Trie3D.js
-// 字典树：Graph3D；边标签=字符；词尾节点 ★；插入/查找点亮路径，删除逐层收缩。
+// AlgorithmLibrary/Trie3D.js — 字典树：白色曲线边 + 新节点生长 + 金色查找路径 + 词尾脉动光圈（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Graph3D } from '../3D/modes/Graph3D.js';
-import { VText, easeInOut } from '../3D/VisualObject3D.js';
+import { VText, VNode, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Trie3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 660], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 380, 800], fov: 60 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-function graphRemoveNode(g, id) {
-  const e = g.nodes.get(id);
-  if (!e) return;
-  e.node.remove();
-  g.nodes.delete(id);
-  for (const [k, edge] of [...g.edges]) {
-    if (k.includes(`${id}->`) || k.includes(`->${id}`)) {
-      g.scene.remove(edge.mesh); edge.mesh.geometry.dispose(); edge.mesh.material.dispose();
-      if (edge.weightLabel) edge.weightLabel.remove();
-      g.edges.delete(k);
-    }
-  }
-}
-function graphRemoveEdge(g, a, b) {
-  const k = `${a}->${b}`;
-  const edge = g.edges.get(k);
-  if (!edge) return;
-  g.scene.remove(edge.mesh); edge.mesh.geometry.dispose(); edge.mesh.material.dispose();
-  if (edge.weightLabel) edge.weightLabel.remove();
-  g.edges.delete(k);
-}
-
-const graph = new Graph3D(scene);
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 760, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
-const ROOT_Y = 220, STEP_Y = 75, X_GAP = 90;
+const outT = new VText(scene, { text: '', x: 0, y: 40, z: 0, color: PALETTE.textGlow, scale: 0.75 });
 
-let nextId = 0;
-const model = new Map();
-const root = { id: 'root', char: '', end: false, depth: 0, parent: null, children: new Map() };
-model.set(root.id, root);
-graph.addNode('root', '根', 0, ROOT_Y, 0);
+const WORDS = ['cat', 'car', 'card', 'do', 'dog'];
+const SEARCH = 'car', MISS = 'cap', DEL = 'cat';
+const SP = 88, ROOT_Y = 620, STEP_Y = 72;
 
-function layout() {
-  const byDepth = [];
-  const q = [root];
-  root.depth = 0;
-  while (q.length) {
-    const n = q.shift();
-    (byDepth[n.depth] = byDepth[n.depth] || []).push(n);
-    for (const c of n.children.values()) { c.depth = n.depth + 1; q.push(c); }
-  }
-  const pos = new Map();
-  for (const d in byDepth) {
-    const arr = byDepth[d];
-    arr.forEach((n, i) => pos.set(n.id, { x: (i - (arr.length - 1) / 2) * X_GAP, y: ROOT_Y - STEP_Y * n.depth, z: 0 }));
-  }
-  return pos;
-}
-
-function popIn(id) {
-  const vn = graph.nodes.get(id).node;
-  vn.mesh.scale.setScalar(0.01);
-  C(400, (p) => { const t = easeInOut(p); vn.mesh.scale.setScalar(0.01 + 0.99 * t); }, () => vn.mesh.scale.set(1, 1, 1));
-}
-function pulse(id) {
-  const vn = graph.nodes.get(id).node;
-  C(600, (p) => vn.mesh.scale.setScalar(1 + 0.25 * Math.sin(p * Math.PI)), () => vn.mesh.scale.set(1, 1, 1));
-}
-
-function insertWord(word) {
-  engine.clear();
-  status.textContent = '插入 ' + word;
-  const lit = [], created = [];
+// ---- 纯数据 Trie ----
+const root = { ch: '', next: {}, end: false, depth: 0, children: [] };
+function insert(word) {
   let cur = root;
   for (const ch of word) {
-    let next = cur.children.get(ch);
-    if (!next) {
-      next = { id: 'n' + (nextId++), char: ch, end: false, parent: cur, children: new Map() };
-      model.set(next.id, next);
-      cur.children.set(ch, next);
-      created.push({ parent: cur, child: next, char: ch });
-    } else lit.push([cur.id, next.id]);
-    cur = next;
-  }
-  const existed = cur.end;
-  cur.end = true;
-  const pos = layout();
-  for (const [id, e] of graph.nodes) {
-    if (id === 'root') continue;
-    const p = pos.get(id);
-    if (p && (e.x !== p.x || e.y !== p.y)) graph.positionNode(id, p.x, p.y, p.z, C);
-  }
-  for (const { parent, child, char } of created) {
-    const p = pos.get(child.id);
-    graph.addNode(child.id, char, p.x, p.y, p.z);
-    popIn(child.id);
-    graph.addEdge(parent.id, child.id, { weight: char });
-    lit.push([parent.id, child.id]);
-  }
-  for (const [a, b] of lit) graph.lightEdge(a, b, true, C);
-  pulse(cur.id);
-  C(1, () => graph.setNodeLabel(cur.id, '★'), () => {});
-  status.textContent = existed ? word + ' 已存在' : '';
-}
-
-function findWord(word) {
-  engine.clear();
-  const lit = [];
-  let cur = root;
-  for (const ch of word) {
-    const next = cur.children.get(ch);
-    if (!next) { status.textContent = word + ' 未找到'; return; }
-    lit.push([cur.id, next.id]);
-    cur = next;
-  }
-  for (const [a, b] of lit) graph.lightEdge(a, b, true, C);
-  if (cur.end) { pulse(cur.id); status.textContent = word + ' 找到'; }
-  else status.textContent = word + ' 未找到（前缀存在，非完整单词）';
-}
-
-function deleteWord(word) {
-  engine.clear();
-  let cur = root;
-  for (const ch of word) {
-    const next = cur.children.get(ch);
-    if (!next) { status.textContent = word + ' 不存在'; return; }
-    cur = next;
-  }
-  if (!cur.end) { status.textContent = word + ' 不存在'; return; }
-  status.textContent = '删除 ' + word;
-  cur.end = false;
-  C(1, () => graph.setNodeLabel(cur.id, cur.char), () => {});
-  pulse(cur.id);
-  let node = cur;
-  while (node !== root && node.children.size === 0) {
-    const id = node.id, parent = node.parent;
-    parent.children.delete(node.char);
-    model.delete(id);
-    const e = graph.nodes.get(id);
-    if (e) {
-      const m = e.node.mesh;
-      C(300, (p) => m.scale.setScalar(Math.max(1 - p, 0.001)), () => m.scale.set(1, 1, 1));
-      C(1, () => graphRemoveNode(graph, id), () => {});
+    if (!cur.next[ch]) {
+      const n = { ch, next: {}, end: false, depth: cur.depth + 1, children: [] };
+      cur.next[ch] = n; cur.children.push(n);
     }
-    node = parent;
+    cur = cur.next[ch];
   }
-  status.textContent = '';
+  cur.end = true;
 }
+WORDS.forEach(insert);
 
-function printWords() {
-  engine.clear();
-  const words = [];
-  (function dfs(n, prefix) {
-    if (n.end) words.push(prefix);
-    for (const c of n.children.values()) dfs(c, prefix + c.char);
-  })(root, '');
-  status.textContent = '共 ' + words.length + ' 个单词';
-  words.forEach((w, i) => {
-    const x = (i - (words.length - 1) / 2) * 150;
-    const tmp = new VText(scene, { text: w, x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.9 });
-    C(450, (p) => { const t = easeInOut(p); tmp.sprite.position.x = x * t; tmp.sprite.position.y = 230 + (-235 - 230) * t; }, () => tmp.remove());
-    C(60, () => tmp.remove(), () => {});
+// leafCount 布局：x 居中于叶子区间，y 按深度
+function leafCount(n) { return n.children.length ? n.children.reduce((s, c) => s + leafCount(c), 0) : 1; }
+const pos = new Map();
+function place(n, lo, hi) {
+  pos.set(n, { x: ((lo + hi) / 2 - (WORDS.length - 1) / 2) * SP, y: ROOT_Y - n.depth * STEP_Y });
+  let acc = lo;
+  n.children.forEach(c => { place(c, acc, acc + leafCount(c)); acc += leafCount(c); });
+}
+place(root, 0, WORDS.length);
+
+// ---- 视觉：球形节点 + 白色曲线边 ----
+const nodeView = new Map();
+const edgeView = new Map();
+function curveEdge(a, b) {
+  const A = new THREE.Vector3(a.x, a.y, 0);
+  const B = new THREE.Vector3(b.x, b.y, 0);
+  const mid = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2, 26);
+  const curve = new THREE.CatmullRomCurve3([A, mid, B]);
+  const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 12, 2.2, 6),
+    new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.85 }));
+  scene.add(mesh);
+  return mesh;
+}
+const rootNode = new VNode(scene, { radius: 24, x: pos.get(root).x, y: ROOT_Y, label: '根', color: GOLD, emissive: GOLD });
+(function buildView(n) {
+  n.children.forEach(c => {
+    if (c !== root) {
+      const p = pos.get(c);
+      const vn = new VNode(scene, { radius: 20, x: p.x, y: p.y, label: c.ch, color: BLUE, emissive: BLUE });
+      vn.mesh.scale.setScalar(0.05);
+      nodeView.set(c, vn);
+      edgeView.set(c, curveEdge(pos.get(n), p));
+    }
+    buildView(c);
   });
-  status.textContent = '';
-}
+})(root);
 
-function clearAll() {
-  engine.clear();
-  for (const id of [...graph.nodes.keys()]) {
-    if (id !== 'root') graphRemoveNode(graph, id);
+// 词尾：脉动光圈 + ★
+const ring = new Map(), star = new Map();
+(function buildEndViews(n) {
+  if (n.end) {
+    const p = pos.get(n);
+    const r = new VTorus(scene, { radius: 34, x: p.x, y: p.y, color: GOLD });
+    r.mesh.visible = false;
+    const s = new VText(scene, { text: '★', x: p.x, y: p.y + 48, z: 0, color: GOLD, scale: 0.9 });
+    s.sprite.visible = false;
+    ring.set(n, r); star.set(n, s);
   }
-  model.clear();
-  root.children.clear();
-  status.textContent = '已清空';
+  n.children.forEach(buildEndViews);
+})(root);
+
+const resetPath = () => {
+  nodeView.forEach(vn => vn.setColor(BLUE, BLUE));
+  edgeView.forEach(e => e.material.color.setHex(WHITE));
+};
+function resetAll() {
+  resetPath();
+  nodeView.forEach(vn => vn.mesh.scale.setScalar(1));
+  ring.forEach(r => { r.mesh.visible = false; r.mesh.scale.setScalar(1); });
+  star.forEach(s => s.sprite.visible = false);
+  outT.setText('');
 }
 
-let input = panel.addInput('输入单词', (v) => { if (v) insertWord(v.trim()); }, 12);
-panel.addButton('插入', () => { if (input.value) insertWord(input.value.trim()); });
-panel.addButton('查找', () => { if (input.value) findWord(input.value.trim()); });
-panel.addButton('打印', printWords);
-panel.addButton('删除', () => { if (input.value) deleteWord(input.value.trim()); });
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+const growNode = (n, p) => nodeView.get(n).mesh.scale.setScalar(0.05 + 0.95 * p);
+const pulseRing = (n) => A(500, p => { const r = ring.get(n).mesh; r.scale.setScalar(1 + 0.25 * Math.sin(p * Math.PI * 2)); });
+
+function* insertWord(word) {
+  yield S(() => outT.setText(`插入 "${word}"：逐字符下钻，新节点从父节点生长（缩放动画）`));
+  yield W(400);
+  let cur = root;
+  for (const ch of word) {
+    const isNew = !cur.next[ch];
+    cur = cur.next[ch];
+    if (isNew) {
+      yield A(450, p => growNode(cur, p));
+      yield W(120);
+    }
+    yield S(() => {
+      nodeView.get(cur).setColor(GOLD, GOLD);
+      edgeView.get(cur).material.color.setHex(GOLD);
+      outT.setText(`插入 "${word}"：→ '${ch}'（深度 ${cur.depth}）`);
+    });
+    yield W(320);
+  }
+  yield S(() => {
+    ring.get(cur).mesh.position.set(pos.get(cur).x, pos.get(cur).y, 0);
+    ring.get(cur).mesh.visible = true;
+    star.get(cur).sprite.visible = true;
+    outT.setText(`"${word}" 词尾节点出现脉动光圈 ★`);
+  });
+  yield* pulseRing(cur);
+  yield W(250);
+  yield S(resetPath);
+}
+
+function* walkPath(word, color, revealMissing) {
+  let cur = root;
+  for (const ch of word) {
+    if (!cur.next[ch]) {
+      if (revealMissing) {
+        yield S(() => {
+          nodeView.get(cur).setColor(RED, RED);
+          outT.setText(`查找 "${word}"：字符 '${ch}' 在节点 '${cur.ch || '根'}' 下不存在 —— 路径中断`);
+        });
+        yield W(600);
+        yield S(() => nodeView.get(cur).setColor(BLUE, BLUE));
+      }
+      return null;
+    }
+    cur = cur.next[ch];
+    yield S(() => {
+      nodeView.get(cur).setColor(color, color);
+      edgeView.get(cur).material.color.setHex(color);
+      outT.setText(`查找 "${word}"：→ '${ch}'`);
+    });
+    yield W(380);
+  }
+  return cur;
+}
+
+function* searchWord(word) {
+  yield S(() => outT.setText(`查找 "${word}"：沿金色路径下钻`));
+  yield W(300);
+  const end = yield* walkPath(word, GOLD, true);
+  if (!end) {
+    yield S(() => outT.setText(`查找 "${word}"：未命中（路径中断，红闪 = 缺失处）`));
+    yield W(500);
+  } else if (!end.end) {
+    yield S(() => outT.setText(`查找 "${word}"：前缀存在但非完整单词 —— 未命中`));
+    yield W(500);
+  } else {
+    yield S(() => {
+      ring.get(end).mesh.visible = true;
+      star.get(end).sprite.visible = true;
+      outT.setText(`查找 "${word}"：命中！词尾光圈脉动`);
+    });
+    yield* pulseRing(end);
+    yield W(250);
+    yield S(() => { ring.get(end).mesh.visible = false; star.get(end).sprite.visible = false; });
+  }
+  yield S(resetPath);
+}
+
+function* deleteWord(word) {
+  yield S(() => outT.setText(`删除 "${word}"：移除词尾标记`));
+  yield W(300);
+  const end = yield* walkPath(word, RED, false);
+  if (end) {
+    yield S(() => {
+      ring.get(end).mesh.visible = false;
+      star.get(end).sprite.visible = false;
+      nodeView.get(end).setColor(RED, RED);
+      outT.setText(`已删除 "${word}"：★ 与光圈消失（节点保留供复用）`);
+    });
+    yield W(600);
+    yield S(() => nodeView.get(end).setColor(BLUE, BLUE));
+  }
+  yield S(resetPath);
+}
+
+function* runTrie() {
+  yield S(resetAll);
+  yield S(() => { hint.setText('字典树：白色曲线边 = 字符转移。插入时新节点从父节点生长；查找时路径变金色；词尾节点脉动光圈 ★'); });
+  yield W(500);
+  for (const w of WORDS) yield* insertWord(w);
+  yield* searchWord(SEARCH);
+  yield* searchWord(MISS);
+  yield* deleteWord(DEL);
+  yield S(() => {
+    outT.setText(`剩余单词：car, card, do, dog（共 4 个）`);
+    hint.setText('复杂度 O(L)：L 为单词长度；插入/查找/删除都只沿一条路径下钻');
+    status.textContent = 'Trie 演示完成：5 词插入，查找 "car" 命中、"cap" 未命中，删除 "cat" 后剩余 4 词';
+  });
+}
+
+panel.addButton('运行演示', () => engine.start(runTrie()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；金球 = 根，蓝球 = 字母节点，金环 = 词尾脉动光圈）');
 
 scene.start(engine);

@@ -1,176 +1,280 @@
-// AlgorithmLibrary/SuffixTree3D.js — 后缀树：逐个插入后缀，边冲突时「拆边」，共享前缀自动合并
+// AlgorithmLibrary/SuffixTree3D.js — 后缀树：压缩边胶囊体 + 逐后缀生长 + 后缀链接虚线光带 + 起点旋转圆环（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
+import { VText, VNode, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SuffixTree3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const scene = new Scene3D('scene', { cameraPos: [0, 380, 800], fov: 60 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, VIOLET = 0xa78bfa;
-const hint = new VText(scene, { text: '点击「运行后缀树」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x67e8f9, VIOLET = 0xa78bfa, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 760, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
+const outT = new VText(scene, { text: '', x: 0, y: 40, z: 0, color: PALETTE.textGlow, scale: 0.75 });
 
-const STR = 'banana';
+const TXT = 'banana';
+const T = TXT + '$';
+const SP = 100, ROOT_Y = 620, STEP_Y = 80;
+const lerp = (a, b, p) => a + (b - a) * p;
 
-function buildSuffixTree(str) {
-  const T = str + '$';
-  const nodes = [{ id: 0, parent: -1, start: -1, end: -1, label: '', children: [], suf: null }];
-  const steps = [];
-  for (let i = 0; i < str.length; i++) {
-    steps.push({ type: 'insert', i });
-    let node = 0, pos = 0;
-    while (true) {
-      let child = null;
-      for (const c of nodes[node].children) { if (nodes[c].label[0] === T[i + pos]) { child = c; break; } }
-      if (child === null) {
-        const leaf = nodes.length;
-        nodes.push({ id: leaf, parent: node, start: i + pos, end: T.length, label: T.slice(i + pos), children: [], suf: i });
-        nodes[node].children.push(leaf);
-        steps.push({ type: 'leaf', parent: node, leaf, label: T.slice(i + pos), suf: i });
-        break;
-      }
-      const cl = nodes[child];
-      const L = cl.label.length;
-      let k = 0;
-      while (k < L && i + pos + k < T.length && T[i + pos + k] === cl.label[k]) k++;
-      if (k < L) {
-        const mid = nodes.length;
-        nodes.push({ id: mid, parent: node, start: cl.start, end: cl.start + k, label: cl.label.slice(0, k), children: [], suf: null });
-        cl.parent = mid; cl.start += k; cl.label = cl.label.slice(k);
-        nodes[node].children[nodes[node].children.indexOf(child)] = mid;
-        nodes[mid].children.push(child);
-        const rem = T.slice(i + pos + k);
-        const leaf = nodes.length;
-        nodes.push({ id: leaf, parent: mid, start: i + pos + k, end: T.length, label: rem, children: [], suf: i });
-        nodes[mid].children.push(leaf);
-        steps.push({ type: 'split', parent: node, old: child, mid, rest: cl.label, leaf, leafLabel: rem, suf: i });
-        break;
-      }
-      node = child; pos += k;
-      if (i + pos >= T.length) { nodes[node].suf = i; steps.push({ type: 'exist', node, suf: i }); break; }
+// ---- 构建正确后缀树：插入每个后缀，边冲突时拆边并转移旧子树 ----
+const root = { ch: '', label: '', children: [], parent: null, pos: 0, id: 0 };
+const allNodes = [root];
+let nextId = 1;
+function insertSuffixData(text, start) {
+  let cur = root, rest = text;
+  while (rest.length) {
+    const child = cur.children.find(c => c.label[0] === rest[0]);
+    if (!child) {
+      const leaf = { ch: rest[0], label: rest, children: [], parent: cur, pos: start, id: nextId++ };
+      cur.children.push(leaf); allNodes.push(leaf);
+      return;
     }
+    let k = 0;
+    while (k < child.label.length && k < rest.length && child.label[k] === rest[k]) k++;
+    if (k < child.label.length) {
+      const split = { ch: rest[0], label: child.label.slice(0, k), children: [], parent: cur, pos: child.pos, id: nextId++ };
+      child.label = child.label.slice(k); child.parent = split;
+      split.children.push(child);
+      cur.children.splice(cur.children.indexOf(child), 1);
+      cur.children.push(split);
+      allNodes.push(split);
+      cur = split; rest = rest.slice(k);
+      continue;
+    }
+    cur = child; rest = rest.slice(k);
   }
-  return { nodes, steps };
 }
-const st = buildSuffixTree(STR);
-const N = st.nodes;
+const suffixStarts = [...T].map((_, i) => i);
+suffixStarts.forEach(i => insertSuffixData(T.slice(i), i));
 
-// ---- 布局：叶子均匀铺开，内部节点取子节点中点，根强制居中 ----
-const xs = new Array(N.length), ys = new Array(N.length), depth = new Array(N.length);
-let slot = 0;
-function dfsLayout(u, d) {
-  depth[u] = d;
-  if (N[u].children.length === 0) { xs[u] = -230 + slot * 92; slot++; return; }
-  N[u].children.forEach(c => dfsLayout(c, d + 1));
-  xs[u] = (xs[N[u].children[0]] + xs[N[u].children[N[u].children.length - 1]]) / 2;
+// 每个后缀的根→叶路径（最终树）
+function pathOf(suffixText) {
+  const path = [root];
+  let cur = root, rest = suffixText;
+  while (rest.length) {
+    const child = cur.children.find(c => c.label[0] === rest[0]);
+    path.push(child);
+    cur = child; rest = rest.slice(child.label.length);
+  }
+  return path;
 }
-dfsLayout(0, 0);
-const cx = xs[0];
-xs.forEach((x, i) => { xs[i] = x - cx; ys[i] = 225 - depth[i] * 62; });
+const suffixPaths = suffixStarts.map(i => pathOf(T.slice(i)));
 
-const nodeObjs = N.map((n, i) =>
-  new VNode(scene, { radius: 17, x: xs[i], y: ys[i], z: 0, label: n.suf !== null ? 'S' + n.suf : (i === 0 ? '根' : ''), color: DIM, emissive: DIM }));
-const edgeOf = {};
-N.forEach((n, i) => {
-  if (i === 0) return;
-  const p = n.parent;
-  const t = tubeBetween(scene, [xs[p], ys[p], 0], [xs[i], ys[i], 0], { color: PALETTE.edge, opacity: 0.12, radius: 2.2 });
-  edgeOf[i] = { parent: p, child: i, tube: t, label: n.label };
+// 路径文本（根→节点拼接）
+function pathText(n) { return n === root ? '' : pathText(n.parent) + n.label; }
+
+// ---- leafCount 布局 ----
+function leafCount(n) { return n.children.length ? n.children.reduce((s, c) => s + leafCount(c), 0) : 1; }
+const pos = new Map();
+const depth = new Map();
+function depthOf(n) { return n === root ? 0 : (depth.get(n) ?? (depth.set(n, depthOf(n.parent) + 1), depth.get(n))); }
+function place(n, lo, hi) {
+  pos.set(n, { x: ((lo + hi) / 2 - (suffixStarts.length - 1) / 2) * SP, y: ROOT_Y - (n === root ? 0 : depthOf(n)) * STEP_Y });
+  let acc = lo;
+  n.children.forEach(c => { place(c, acc, acc + leafCount(c)); acc += leafCount(c); });
+}
+place(root, 0, suffixStarts.length);
+
+// ---- 视觉：胶囊体边 + 球形节点 ----
+function makeCapsule(a, b) {
+  const A = new THREE.Vector3(a.x, a.y, 0), B = new THREE.Vector3(b.x, b.y, 0);
+  const dir = B.clone().sub(A), len = dir.length(), norm = dir.clone().normalize();
+  const mat = new THREE.MeshStandardMaterial({ color: WHITE, emissive: WHITE, emissiveIntensity: 0.25, transparent: true, opacity: 0.85 });
+  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, len, 10), mat);
+  const cap1 = new THREE.Mesh(new THREE.SphereGeometry(7, 10, 8), mat);
+  const cap2 = cap1.clone();
+  cap1.position.y = len / 2; cap2.position.y = -len / 2;
+  cyl.add(cap1, cap2);
+  cyl.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), norm);
+  cyl.position.copy(A).addScaledVector(norm, len / 2);
+  scene.add(cyl);
+  return { mesh: cyl, A, B, norm, len };
+}
+const setFrac = (ec, f) => {
+  const h = Math.max(ec.len * f, 0.1);
+  ec.mesh.scale.y = f;
+  ec.mesh.position.copy(ec.A).addScaledVector(ec.norm, h / 2);
+};
+
+const nodeView = new Map();
+const edgeOf = new Map();
+const edgeLabel = new Map();
+allNodes.forEach(n => {
+  if (n === root) {
+    nodeView.set(n, new VNode(scene, { radius: 24, x: pos.get(n).x, y: pos.get(n).y, label: '根', color: GOLD, emissive: GOLD }));
+    return;
+  }
+  const p = pos.get(n);
+  const isLeaf = n.children.length === 0;
+  const label = isLeaf ? T.slice(n.pos) : pathText(n);
+  const vn = new VNode(scene, { radius: isLeaf ? 15 : 19, x: p.x, y: p.y, label, color: isLeaf ? GOLD : VIOLET, emissive: isLeaf ? GOLD : VIOLET });
+  vn.mesh.visible = false;
+  nodeView.set(n, vn);
+  const ec = makeCapsule(pos.get(n.parent), p);
+  ec.mesh.visible = false;
+  edgeOf.set(n, ec);
+  const pp = pos.get(n.parent);
+  const mid = { x: (pp.x + p.x) / 2, y: (pp.y + p.y) / 2 };
+  const dx = p.x - pp.x, dy = p.y - pp.y, d = Math.hypot(dx, dy) || 1;
+  const lbl = new VText(scene, { text: n.label, x: mid.x + (-dy / d) * 26, y: mid.y + (dx / d) * 26, z: 0, color: PALETTE.textDim, scale: 0.42 });
+  lbl.sprite.visible = false;
+  edgeLabel.set(n, lbl);
 });
-const edgeLabelObjs = N.map((n, i) => {
-  if (i === 0) return null;
-  const p = n.parent;
-  return new VText(scene, { text: n.label, x: (xs[p] + xs[i]) / 2, y: (ys[p] + ys[i]) / 2, z: 0, color: PALETTE.textDim, scale: 0.42 });
+
+// 字符行 + 起点旋转圆环
+const chRow = [...T].map((ch, k) => {
+  const b = new THREE.Mesh(new THREE.BoxGeometry(28, 28, 28),
+    new THREE.MeshStandardMaterial({ color: 0x334155, emissive: 0x334155, emissiveIntensity: 0.4 }));
+  b.position.set((k - (T.length - 1) / 2) * 60, 150, 0);
+  scene.add(b);
+  return b;
 });
-const suffT = STR.split('').map((ch, i) =>
-  new VText(scene, { text: i + ': ' + STR.slice(i) + '$', x: -330, y: -150 + i * 30, z: 0, color: PALETTE.textDim, scale: 0.48 }));
-new VText(scene, { text: '后缀树：把「banana」的 6 个后缀全部存进一棵树，共享的前缀自动合并 —— 空间换查找速度', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '紫色 = 内部节点（有分叉），金色 = 叶子（标记后缀编号 S i）；边上的字 = 路径串；红色幽灵线 = 被拆开的旧边', x: 0, y: -225, z: 0, color: PALETTE.textDim, scale: 0.6 });
-const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: -195, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+[...T].forEach((ch, k) => {
+  const t = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xffffff, depthTest: false }));
+  t.position.set((k - (T.length - 1) / 2) * 60, 150, 16);
+  t.scale.set(22, 22, 1);
+  scene.add(t);
+});
+const ring = new VTorus(scene, { radius: 26, x: 0, y: 150, color: GOLD });
+ring.mesh.visible = false;
+const marker = (k) => { ring.mesh.position.set((k - (T.length - 1) / 2) * 60, 150, 0); };
 
-const extras = [];
-function addTemp(makeFn) { const o = makeFn(); extras.push(o); return o; }
-function clearExtras() { extras.forEach(o => { try { o.remove(); } catch (e) {} }); extras.length = 0; }
+let fxGroup = new THREE.Group();
+scene.add(fxGroup);
+const clearFx = () => { scene.remove(fxGroup); fxGroup = new THREE.Group(); scene.add(fxGroup); };
 
+const created = new Set();
 function resetAll() {
-  engine.clear();
-  clearExtras();
-  N.forEach((n, i) => {
-    nodeObjs[i].setColor(DIM, DIM);
-    nodeObjs[i].setText(n.suf !== null ? 'S' + n.suf : (i === 0 ? '根' : ''));
+  clearFx();
+  created.clear();
+  allNodes.forEach(n => {
+    if (n === root) return;
+    nodeView.get(n).mesh.visible = false;
+    edgeOf.get(n).mesh.visible = false;
+    edgeOf.get(n).mesh.material.color.setHex(WHITE);
+    edgeLabel.get(n).sprite.visible = false;
   });
-  tubeObjs.forEach(t => { t.tube.material.color.setHex(PALETTE.edge); t.tube.material.opacity = 0.12; });
-  suffT.forEach(t => t.setText(t.text, { color: PALETTE.textDim }));
-  stageT.setText(''); outT.setText('');
+  ring.mesh.visible = false;
+  outT.setText('');
 }
-const tubeObjs = Object.values(edgeOf).map(e => e);
 
-function runST() {
-  resetAll();
-  hint.setText('核心思想：所有后缀共用一个根 —— 公共前缀只存一份。插入新后缀 = 沿已有路径走，走到岔路就挂新叶子');
-  for (const s of st.steps) {
-    if (s.type === 'insert') {
-      C(450, () => {
-        suffT[s.i].setText(suffT[s.i].text, { color: GOLD });
-        stageT.setText(`插入第 ${s.i} 个后缀「${STR.slice(s.i)}」：从根出发，按字符往下找`);
-        hint.setText(`后缀 ${s.i} = '${STR.slice(s.i)}$'：先看看前几个字符能不能沿着已有边走`);
-      });
-    } else if (s.type === 'leaf') {
-      C(620, () => {
-        clearExtras();
-        nodeObjs[s.parent].setColor(VIOLET, VIOLET);
-        nodeObjs[s.leaf].setColor(GOLD, GOLD);
-        nodeObjs[s.leaf].pulse(0.4);
-        const e = edgeOf[s.leaf];
-        e.tube.material.color.setHex(GREEN);
-        e.tube.material.opacity = 0.95;
-        edgeLabelObjs[s.leaf].setText(e.label, { color: GREEN });
-        stageT.setText(`没有以「${s.label[0]}」开头的边 → 直接从该节点挂出叶子，标记 S ${s.suf}`);
-        hint.setText(`叶子 = 一个完整后缀的终点；从根走到叶子的路径拼起来正好是 '${STR.slice(s.suf)}$'`);
-      });
-    } else {
-      C(950, () => {
-        clearExtras();
-        nodeObjs[s.parent].setColor(VIOLET, VIOLET);
-        nodeObjs[s.mid].setColor(VIOLET, VIOLET);
-        nodeObjs[s.mid].pulse(0.4);
-        nodeObjs[s.leaf].setColor(GOLD, GOLD);
-        addTemp(() => tubeBetween(scene, [xs[s.parent], ys[s.parent], 0], [xs[s.old], ys[s.old], 0], { color: ROSE, opacity: 0.55, radius: 3.2 }));
-        const oldLabel = edgeOf[s.old].label;
-        edgeLabelObjs[s.old].setText(oldLabel, { color: ROSE });
-        [s.mid, s.leaf].forEach(id => { const e = edgeOf[id]; e.tube.material.color.setHex(CYAN); e.tube.material.opacity = 0.9; });
-        stageT.setText(`冲突！边「${oldLabel}」只匹配到一半 → 拆出中间节点，剩余部分和新后缀各挂一枝`);
-        hint.setText(`旧边 ${s.old} 被拆成两段：${edgeOf[s.mid].label} + ${edgeOf[s.old].label} —— 后缀 ${s.suf} 的叶子挂在中间节点下`);
-      });
-    }
+// 粒子沿胶囊体轴向流动
+function flowAlong(ec, count = 3, ms = 400) {
+  const parts = [];
+  for (let i = 0; i < count; i++) {
+    const v = new THREE.Mesh(new THREE.SphereGeometry(3.4, 8, 8),
+      new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.9 }));
+    parts.push(v); fxGroup.add(v);
   }
-  C(1000, () => {
-    clearExtras();
-    let best = { len: 0, lab: '' };
-    N.forEach(n => {
-      if (n.suf !== null || n.id === 0) return;
-      let p = n, lab = '';
-      while (p.id !== 0) { lab = p.label + lab; p = N[p.parent]; }
-      if (lab.length > best.len) best = { len: lab.length, lab };
+  return A(ms, p => parts.forEach((v, i) => {
+    const t = (p + i * 0.18) % 1;
+    v.position.copy(ec.A).lerp(ec.B, t);
+  }));
+}
+
+function* walkEdge(to) {
+  const ec = edgeOf.get(to);
+  if (!created.has(to)) {
+    created.add(to);
+    ec.mesh.visible = true;
+    yield A(400, p => setFrac(ec, p));
+    yield S(() => {
+      nodeView.get(to).mesh.visible = true;
+      nodeView.get(to).mesh.scale.setScalar(0.01);
     });
-    outT.setText(`后缀树完成：${N.length} 节点 / ${STR.length} 叶子 —— 根到叶路径 = 每个后缀；最深分叉 = 「${best.lab}」→ 最长重复子串`);
-    status.textContent = `后缀树：${N.length} 节点，${STR.length} 个后缀全部挂载`;
-    hint.setText('后缀树的价值：任意模式串匹配 O(m) + 结果数；最长重复子串、DNA 比对、压缩（LZ 的兄弟）全靠它');
+    yield A(300, p => nodeView.get(to).mesh.scale.setScalar(0.01 + 0.99 * p));
+    yield S(() => edgeLabel.get(to).sprite.visible = true);
+    yield W(120);
+  }
+  yield S(() => {
+    ec.mesh.material.color.setHex(GOLD);
+    nodeView.get(to).setColor(GOLD, GOLD);
+    outT.setText(`沿边「${edgeLabel.get(to).text}」下钻（边 = 一段压缩的字符）`);
   });
-  C(1200, () => {
-    outT.setText('教学用朴素构建 O(n²)；Ukkonen 算法 O(n) 在线构建 —— 「拆边」正是它的核心操作，这里演示的就是拆边本身');
-    hint.setText('应用：基因序列重复检测、字符串搜索索引（后缀数组的树形态）、生物信息学比对工具的核心索引');
+  yield* flowAlong(ec);
+  yield W(250);
+}
+
+function* insertSuffix(i) {
+  const path = suffixPaths[i];
+  yield S(() => {
+    marker(i);
+    ring.mesh.visible = true;
+    outT.setText(`插入后缀 #${i}：「${T.slice(i)}」—— 金环标记起点，从根沿匹配边走`);
+  });
+  yield A(500, p => { ring.mesh.rotation.z = p * Math.PI * 2; });
+  yield W(250);
+  for (let e = 1; e < path.length; e++) yield* walkEdge(path[e]);
+  const leaf = path[path.length - 1];
+  yield S(() => {
+    clearFx();
+    nodeView.get(leaf).setColor(GOLD, GOLD);
+    const p = pos.get(leaf);
+    const pr = new VTorus(scene, { radius: 30, x: p.x, y: p.y, color: GREEN });
+    fxGroup.add(pr.mesh);
+    outT.setText(`后缀 #${i} 归位：叶子「${T.slice(i)}」（根到叶路径 = 完整后缀）`);
+  });
+  yield W(550);
+  yield S(() => {
+    clearFx();
+    allNodes.forEach(n => {
+      if (n === root || !created.has(n)) return;
+      edgeOf.get(n).mesh.material.color.setHex(WHITE);
+      if (n.children.length) nodeView.get(n).setColor(VIOLET, VIOLET);
+    });
+  });
+  yield W(200);
+}
+
+function* runSuffixTree() {
+  yield S(resetAll);
+  yield S(() => { hint.setText('后缀树：所有后缀共用一个根，压缩边 = 无分叉的连续字符段。每次插入沿匹配边下钻，首次走过的边从父节点生长出胶囊体'); });
+  yield W(500);
+  for (let i = 0; i < suffixStarts.length; i++) yield* insertSuffix(i);
+  // 后缀链接：虚线光带
+  const links = [];
+  allNodes.forEach(n => {
+    if (n === root || n.children.length === 0) return;
+    const pt = pathText(n);
+    const target = allNodes.find(m => m !== n && pathText(m) === pt.slice(1));
+    if (target) links.push([n, target]);
+  });
+  yield S(() => outT.setText(`构建完成：${allNodes.length} 节点。现在点亮 ${links.length} 条后缀链接（虚线段 = 去掉首字符后的最长真后缀位置）`));
+  yield W(500);
+  for (const [from, to] of links) {
+    const pA = pos.get(from), pB = pos.get(to);
+    const pts = [new THREE.Vector3(pA.x, pA.y, 30), new THREE.Vector3(pB.x, pB.y, 30)];
+    const mat = new THREE.LineDashedMaterial({ color: CYAN, dashSize: 7, gapSize: 4, transparent: true, opacity: 0 });
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat);
+    line.computeLineDistances();
+    scene.add(line);
+    yield A(450, p => { mat.opacity = 0.9 * p; });
+    yield S(() => {
+      nodeView.get(from).setColor(CYAN, CYAN);
+      nodeView.get(to).setColor(CYAN, CYAN);
+      outT.setText(`后缀链接：${pathText(from) || '根'} → ${pathText(to) || '根'}（'${pathText(from)}' 去掉首字符 = '${pathText(to)}'）`);
+    });
+    yield W(500);
+    yield S(() => {
+      nodeView.get(from).setColor(VIOLET, VIOLET);
+      if (to !== root) nodeView.get(to).setColor(VIOLET, VIOLET);
+    });
+    yield W(200);
+  }
+  yield S(() => {
+    outT.setText(`最长重复子串：「ana」（节点 a→na 路径，深度 = 公共前缀长度）`);
+    hint.setText('Ukkonen 算法 O(n) 在线构建；后缀链接让「插入新后缀」时只需从上一位置继续。应用：基因重复检测、全文索引');
+    status.textContent = `后缀树构建完成："banana$" 共 ${allNodes.length} 节点（7 叶子、3 内部节点），${links.length} 条后缀链接`;
   });
 }
 
-panel.addButton('运行后缀树', runST);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；6 个后缀依次插入，3 次「拆边」是动画的高潮）');
+panel.addButton('运行演示', () => engine.start(runSuffixTree()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；胶囊体 = 压缩边，紫球 = 内部节点，金球 = 叶子，青虚线 = 后缀链接，金环 = 当前后缀起点）');
 
 scene.start(engine);

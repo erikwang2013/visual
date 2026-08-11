@@ -1,154 +1,164 @@
-// AlgorithmLibrary/SuffixAutomaton3D.js — 后缀自动机 SAM：在线逐个加字符，转移 + 后缀链接 + 克隆，O(n) 状态 ≤ 2n−1
+// AlgorithmLibrary/SuffixAutomaton3D.js — 后缀自动机：六边形状态逐一生长 + 蓝色转移曲线粒子流 + 橙色后缀链接虚线（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
+import { VText, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SuffixAutomaton3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const scene = new Scene3D('scene', { cameraPos: [0, 380, 800], fov: 60 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, VIOLET = 0xa78bfa, AMBER = 0xfbbf24;
-const hint = new VText(scene, { text: '点击「运行后缀自动机」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, CYAN = 0x67e8f9, ORANGE = 0xfb923c;
+const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 760, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
+const outT = new VText(scene, { text: '', x: 0, y: 40, z: 0, color: PALETTE.textGlow, scale: 0.75 });
 
-const STR = 'banana';
+const TXT = 'abab';
 
-function buildSAM(text) {
-  const states = [{ len: 0, link: -1, next: {} }];
-  let last = 0;
-  const steps = [];
-  for (const ch of text) {
-    const cur = states.length;
-    states.push({ len: states[last].len + 1, link: -1, next: {} });
-    const op = { char: ch, cur, trans1: [], trans2: [], clones: [], linkChg: [] };
-    let p = last;
-    while (p !== -1 && !(ch in states[p].next)) { states[p].next[ch] = cur; op.trans1.push(p); p = states[p].link; }
-    if (p === -1) { states[cur].link = 0; op.linkChg.push([cur, 0]); }
+// ---- 构建 SAM：每字符一个新状态，沿后缀链接补转移，必要时克隆（'abab' 无克隆） ----
+const states = [{ len: 0, link: -1, next: {} }];
+const steps = [];
+let last = 0;
+for (const ch of TXT) {
+  const cur = states.length;
+  states.push({ len: states[last].len + 1, link: -1, next: {} });
+  const op = { ch, cur, trans1: [], linkChg: [] };
+  let p = last;
+  while (p !== -1 && !(ch in states[p].next)) { states[p].next[ch] = cur; op.trans1.push(p); p = states[p].link; }
+  if (p === -1) { states[cur].link = 0; op.linkChg.push([cur, 0]); }
+  else {
+    const q = states[p].next[ch];
+    if (states[p].len + 1 === states[q].len) { states[cur].link = q; op.linkChg.push([cur, q]); }
     else {
-      const q = states[p].next[ch];
-      if (states[p].len + 1 === states[q].len) { states[cur].link = q; op.linkChg.push([cur, q]); }
-      else {
-        const clone = states.length;
-        states.push({ len: states[p].len + 1, link: states[q].link, next: { ...states[q].next } });
-        op.clones.push(clone);
-        while (p !== -1 && states[p].next[ch] === q) { states[p].next[ch] = clone; op.trans2.push(p); p = states[p].link; }
-        states[q].link = clone; states[cur].link = clone;
-        op.linkChg.push([q, clone], [cur, clone]);
-      }
+      const clone = states.length;
+      states.push({ len: states[p].len + 1, link: states[q].link, next: { ...states[q].next } });
+      while (p !== -1 && states[p].next[ch] === q) { states[p].next[ch] = clone; op.trans1.push(p); p = states[p].link; }
+      states[q].link = clone; states[cur].link = clone;
+      op.linkChg.push([q, clone], [cur, clone]);
     }
-    last = cur;
-    steps.push(op);
   }
-  return { states, steps };
+  last = cur;
+  steps.push(op);
 }
-const sam = buildSAM(STR);
-const NS = sam.states.length;
 
-// ---- 布局：按 len 分层 ----
-const levels = {};
-sam.states.forEach((s, id) => { (levels[s.len] = levels[s.len] || []).push(id); });
-const posX = new Array(NS), posY = new Array(NS);
-for (const L of Object.keys(levels).map(Number).sort((a, b) => a - b)) {
-  const ids = levels[L];
-  ids.forEach((id, t) => {
-    posX[id] = ids.length === 1 ? 0 : -100 + t * (200 / (ids.length - 1));
-    posY[id] = 225 - L * 40;
-  });
-}
-const nodeObjs = sam.states.map((s, id) =>
-  new VNode(scene, { radius: 16, x: posX[id], y: posY[id], z: 0, label: String(id), color: DIM, emissive: DIM }));
-const lenT = sam.states.map((s, id) =>
-  new VText(scene, { text: 'len ' + s.len, x: posX[id], y: posY[id] - 30, z: 0, color: PALETTE.textDim, scale: 0.4 }));
-new VText(scene, { text: '后缀自动机：接受「banana」的所有子串。边 = 转移（读一个字符跳向另一个状态），玫瑰斜线 = 后缀链接', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '构建 = 每次加一个字符：新状态 + 一串新转移；必要时「克隆」旧状态（金色）保存不变量 —— 状态数 ≤ 2n−1', x: 0, y: -225, z: 0, color: PALETTE.textDim, scale: 0.6 });
-const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: -195, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+// ---- 之字形布局 ----
+const posX = states.map((_, i) => -300 + i * 150);
+const posY = states.map((_, i) => 260 - (i % 2) * 140);
 
-const extras = [];
-function clearExtras() { extras.forEach(o => { try { o.remove(); } catch (e) {} }); extras.length = 0; }
-function addEdge(a, b, color, opacity, zOff, label) {
-  const t = tubeBetween(scene, [posX[a], posY[a], zOff], [posX[b], posY[b], zOff], { color, opacity, radius: 2 });
-  extras.push(t);
-  if (label !== undefined) {
-    const mid = [(posX[a] + posX[b]) / 2, (posY[a] + posY[b]) / 2];
-    const txt = new VText(scene, { text: label, x: mid[0], y: mid[1] + (zOff ? 8 : 4), z: zOff, color: GREEN, scale: 0.42 });
-    extras.push(txt);
-  }
+// ---- 六边形状态节点（CylinderGeometry 6 段，旋转后六边形面朝相机） ----
+const hexes = states.map((s, i) => {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(20, 20, 14, 6),
+    new THREE.MeshStandardMaterial({ color: i === 0 ? GOLD : CYAN, emissive: i === 0 ? GOLD : CYAN, emissiveIntensity: 0.5 }));
+  mesh.rotation.x = Math.PI / 2;
+  mesh.position.set(posX[i], posY[i], 0);
+  mesh.visible = i === 0;
+  scene.add(mesh);
+  const lbl = new VText(scene, { text: String(i), x: posX[i], y: posY[i] + 44, z: 0, color: i === 0 ? GOLD : PALETTE.textGlow, scale: 0.5 });
+  lbl.sprite.visible = i === 0;
+  return { mesh, lbl };
+});
+const hexColor = (hx, c) => { hx.mesh.material.color.setHex(c); hx.mesh.material.emissive.setHex(c); };
+
+// 蓝色转移曲线边 + 字符标签
+function curveEdge(a, b, label) {
+  const A = new THREE.Vector3(a.x, a.y, 0);
+  const B = new THREE.Vector3(b.x, b.y, 0);
+  const mid = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2, 22);
+  const curve = new THREE.QuadraticBezierCurve3(A, mid, B);
+  const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 12, 2, 6),
+    new THREE.MeshBasicMaterial({ color: BLUE, transparent: true, opacity: 0.85 }));
+  mesh.visible = false;
+  scene.add(mesh);
+  const lbl = new VText(scene, { text: label, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 + 20, z: 10, color: PALETTE.textGlow, scale: 0.5 });
+  lbl.sprite.visible = false;
+  return { mesh, curve, lbl };
 }
+const nextEdge = new Map();
+steps.forEach(op => op.trans1.forEach(p => nextEdge.set(`${p}->${op.cur}`, curveEdge({ x: posX[p], y: posY[p] }, { x: posX[op.cur], y: posY[op.cur] }, op.ch))));
+
+// 橙色后缀链接虚线
+const linkLine = new Map();
+steps.forEach(op => op.linkChg.forEach(([from, to]) => {
+  const A = new THREE.Vector3(posX[from], posY[from], 34);
+  const B = new THREE.Vector3(posX[to], posY[to], 34);
+  const mat = new THREE.LineDashedMaterial({ color: ORANGE, dashSize: 6, gapSize: 4, transparent: true, opacity: 0 });
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([A, B]), mat);
+  line.computeLineDistances();
+  line.visible = false;
+  scene.add(line);
+  linkLine.set(`${from}->${to}`, line);
+}));
+
+let fxGroup = new THREE.Group();
+scene.add(fxGroup);
+const clearFx = () => { scene.remove(fxGroup); fxGroup = new THREE.Group(); scene.add(fxGroup); };
 
 function resetAll() {
-  engine.clear();
-  clearExtras();
-  nodeObjs.forEach((n, id) => {
-    n.setColor(id === 0 ? CYAN : DIM, id === 0 ? CYAN : DIM);
-    n.setText(String(id));
-  });
-  lenT.forEach(t => t.setText(t.text, { color: PALETTE.textDim }));
-  stageT.setText(''); outT.setText('');
+  clearFx();
+  hexes.forEach((hx, i) => { hx.mesh.visible = i === 0; hx.mesh.scale.setScalar(1); hexColor(hx, i === 0 ? GOLD : CYAN); hx.lbl.sprite.visible = i === 0; });
+  nextEdge.forEach(e => { e.mesh.visible = false; e.lbl.sprite.visible = false; });
+  linkLine.forEach(l => { l.visible = false; l.material.opacity = 0; });
+  outT.setText('');
 }
 
-function runSAM() {
-  resetAll();
-  hint.setText('自动机 = 状态 + 转移的图：从根出发读一个子串，跟着字符走，能走通就说明它是子串 —— 现在把图建出来');
-  sam.steps.forEach((op, si) => {
-    C(600, () => {
-      nodeObjs[op.cur].setColor(VIOLET, VIOLET);
-      nodeObjs[op.cur].pulse(0.4);
-      stageT.setText(`第 ${si + 1} 个字符「${op.char}」：新状态 ${op.cur}（len = ${sam.states[op.cur].len}）诞生`);
-      hint.setText('新状态 cur 的 len = 原 last 的 len + 1 —— 它是「读到最长后缀」的终点');
-    });
-    op.trans1.forEach((p, t1) => {
-      C(420, () => {
-        addEdge(p, op.cur, CYAN, 0.85, 0, op.char);
-        if (p !== op.cur) nodeObjs[p].pulse(0.25);
-        stageT.setText(`沿后缀链接上溯：状态 ${p} 补上转移「${op.char}」→ ${op.cur}`);
-        hint.setText('凡是缺少该字符转移的 suffix 祖先，都补一条到 cur 的边 —— 保证「读任意前缀都能往下走」');
+// 金色粒子沿曲线流动
+function flowAlong(e, count = 3, ms = 420) {
+  const parts = [];
+  for (let i = 0; i < count; i++) {
+    const v = new THREE.Mesh(new THREE.SphereGeometry(4, 8, 8),
+      new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.9 }));
+    parts.push(v); fxGroup.add(v);
+  }
+  return A(ms, p => parts.forEach((v, i) => v.position.copy(e.curve.getPoint((p + i * 0.18) % 1))));
+}
+
+const pulseHex = (hx) => A(500, p => { hx.mesh.scale.setScalar(1 + 0.2 * Math.sin(p * Math.PI * 2)); });
+
+function* runSAM() {
+  yield S(resetAll);
+  yield S(() => { hint.setText('后缀自动机：在线加字符构建。六边形状态逐一生长 → 沿后缀链补转移（蓝曲线+金粒子）→ 新后缀链接（橙虚线）。状态数 ≤ 2n−1'); });
+  yield W(500);
+  for (const op of steps) {
+    const hx = hexes[op.cur];
+    yield S(() => outT.setText(`第 ${op.cur} 个字符 '${op.ch}'：新状态 ${op.cur} 诞生（len = ${states[op.cur].len}）`));
+    yield A(400, p => { hx.mesh.visible = true; hx.mesh.scale.setScalar(0.05 + 0.95 * p); });
+    yield S(() => { hexColor(hx, GOLD); hx.lbl.sprite.visible = true; });
+    yield* pulseHex(hx);
+    yield W(150);
+    for (const p of op.trans1) {
+      const e = nextEdge.get(`${p}->${op.cur}`);
+      yield S(() => {
+        e.mesh.visible = true;
+        e.lbl.sprite.visible = true;
+        hexColor(hexes[p], GOLD);
+        outT.setText(`状态 ${p} 缺 '${op.ch}' 转移 → 补边 ${p}→${op.cur}`);
       });
-    });
-    op.clones.forEach((cl, ci) => {
-      C(750, () => {
-        nodeObjs[cl].setColor(AMBER, AMBER);
-        nodeObjs[cl].pulse(0.45);
-        stageT.setText(`克隆！状态 ${cl} 复制其引用的转移表，len = 祖先的 len + 1`);
-        hint.setText('克隆条件：maxlen[p]+1 ≠ maxlen[q] → 直接指 q 会丢长度信息，必须造一个「长度中间态」clone');
-      });
-    });
-    op.trans2.forEach((p, t2) => {
-      C(420, () => {
-        addEdge(p, op.clones[0], GREEN, 0.8, 0, op.char);
-        stageT.setText(`重定向：状态 ${p} 的「${op.char}」转移改指克隆 ${op.clones[0]}`);
-      });
-    });
-    op.linkChg.forEach(([from, to]) => {
-      C(420, () => {
-        addEdge(from, to, ROSE, 0.5, 8, undefined);
-        stageT.setText(`后缀链接：${from} → ${to}（读最长真后缀后应处的状态）`);
-      });
-    });
-    C(350, () => {
-      stageT.setText(`字符「${op.char}」处理完毕 —— 继续`);
-      hint.setText('后缀链接 = 失败指针：子串匹配失配时沿着它回退，这就是 SAM 能做「所有子串索引」的秘密');
-    });
-  });
-  const transCount = sam.states.reduce((s, st) => s + Object.keys(st.next).length, 0);
-  const cloneCount = sam.steps.reduce((s, op) => s + op.clones.length, 0);
-  C(1000, () => {
-    outT.setText(`SAM 完成：${NS} 状态 / ${transCount} 转移 / ${cloneCount} 个克隆 —— 状态数 ≤ 2n−1 = ${2 * STR.length - 1}，转移数 ≤ 3n−4`);
-    status.textContent = `后缀自动机：${NS} 状态，${transCount} 转移（${cloneCount} 克隆）`;
-    hint.setText('它同时是：所有子串的 DFA、后缀树的对偶、回文算法（Eertree 前身）的基础 —— 一个结构三种用途');
-  });
-  C(1200, () => {
-    outT.setText('构建 O(n) 在线：每个字符均摊 O(1) 次转移补边。应用：多模式匹配、字典序第 k 小子串、最长公共子串');
-    hint.setText('对比后缀树：SAM 是「最小 DFA」更省状态；对比 AC 自动机：SAM 一次构建支持任意模式串查询');
+      yield* flowAlong(e);
+      yield W(280);
+      yield S(() => hexColor(hexes[p], CYAN));
+    }
+    for (const [from, to] of op.linkChg) {
+      const l = linkLine.get(`${from}->${to}`);
+      yield S(() => outT.setText(`后缀链接：${from} → ${to}（读最长真后缀后所在状态）`));
+      yield A(400, p => { l.visible = true; l.material.opacity = 0.9 * p; });
+      yield W(300);
+    }
+    yield S(() => { hexColor(hx, CYAN); });
+    yield W(250);
+  }
+  const transCount = states.reduce((s, st) => s + Object.keys(st.next).length, 0);
+  yield S(() => {
+    outT.setText(`SAM 完成：${states.length} 状态、${transCount} 条转移、${steps.reduce((s, op) => s + op.linkChg.length, 0)} 条后缀链接`);
+    hint.setText('用途：所有子串索引、最长公共子串、字典序第 k 小子串。状态数 ≤ 2n−1，转移数 ≤ 3n−4');
+    status.textContent = `SAM("abab") 构建完成：5 状态、4 条 link（橙）、5 条转移（蓝）`;
   });
 }
 
-panel.addButton('运行后缀自动机', runSAM);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；青色边 = 转移，玫瑰色斜线 = 后缀链接，金色 = 克隆状态，绿色 = 重定向边）');
+panel.addButton('运行演示', () => engine.start(runSAM()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；六边形 = 状态，蓝曲线 = 转移（金粒子流动），橙虚线 = 后缀链接）');
 
 scene.start(engine);

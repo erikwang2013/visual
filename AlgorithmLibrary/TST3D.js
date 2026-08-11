@@ -1,196 +1,251 @@
-// AlgorithmLibrary/TST3D.js
-// 三叉搜索树：Tree3D；节点=字符；中(相等)下/左(小于)/右(大于)；词尾变绿加 ★。
+// AlgorithmLibrary/TST3D.js — 三叉搜索树：左/中/右三叉 + 流动粒子流 + 词尾光圈（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Tree3D } from '../3D/modes/Tree3D.js';
-import { VText, easeInOut } from '../3D/VisualObject3D.js';
+import { VText, VNode, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('TST3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 220, 700], fov: 60 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 380, 800], fov: 60 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const tree = new Tree3D(scene);
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, CYAN = 0x67e8f9, ORANGE = 0xfb923c, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 760, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
+const outT = new VText(scene, { text: '', x: 0, y: 40, z: 0, color: PALETTE.textGlow, scale: 0.75 });
 
-let nextId = 0;
-const model = new Map();
-let root = null;
+const WORDS = ['sea', 'seat', 'see', 'sock'];
+const SEARCH = 'see', MISS = 'set';
+const SP = 90, ROOT_Y = 620, STEP_Y = 72;
+const edgeColor = { left: CYAN, mid: WHITE, right: ORANGE };
 
-function mkNode(ch, x, y, parent) {
-  const n = { id: 'n' + (nextId++), char: ch, x, y, end: false, parent, left: null, mid: null, right: null };
-  model.set(n.id, n);
-  return n;
-}
-
-function popIn(id) {
-  const vn = tree.nodes.get(id).node;
-  vn.mesh.scale.setScalar(0.01);
-  C(400, (p) => { const t = easeInOut(p); vn.mesh.scale.setScalar(0.01 + 0.99 * t); }, () => vn.mesh.scale.set(1, 1, 1));
-}
-function pulse(id) {
-  const vn = tree.nodes.get(id).node;
-  C(600, (p) => vn.mesh.scale.setScalar(1 + 0.25 * Math.sin(p * Math.PI)), () => vn.mesh.scale.set(1, 1, 1));
-}
-function markEnd(id) {
-  const n = model.get(id);
-  tree.setColor(id, PALETTE.green, PALETTE.greenEmissive);
-  C(1, () => tree.nodes.get(id) && tree.nodes.get(id).node.setText(n.char + '★'), () => {});
-}
-function unmarkEnd(id) {
-  const n = model.get(id);
-  tree.setColor(id, PALETTE.node, PALETTE.nodeEmissive);
-  C(1, () => tree.nodes.get(id) && tree.nodes.get(id).node.setText(n.char), () => {});
-}
-
-function insertWord(word) {
-  engine.clear();
-  status.textContent = '插入 ' + word;
-  if (!root) {
-    root = mkNode(word[0], 0, 210, null);
-    tree.addNode(root.id, root.char, 0, 210, 0);
-    popIn(root.id);
-  }
-  const path = [];
-  let cur = root, i = 0;
-  while (true) {
-    const ch = word[i];
-    if (cur.char === ch) {
-      path.push(cur.id);
-      if (i === word.length - 1) break;
-      i++;
-      if (!cur.mid) {
-        cur.mid = mkNode(word[i], cur.x, cur.y - 95, cur);
-        tree.addNode(cur.mid.id, cur.mid.char, cur.mid.x, cur.mid.y, 0, { parentId: cur.id });
-        popIn(cur.mid.id);
+// ---- 纯数据 TST ----
+const root = { ch: '', left: null, mid: null, right: null, end: false, depth: 0 };
+function insert(word) {
+  let cur = root;
+  for (const ch of word) {
+    if (!cur.mid) {
+      cur.mid = { ch, left: null, mid: null, right: null, end: false, depth: cur.depth + 1 };
+      cur = cur.mid; continue;
+    }
+    cur = cur.mid;
+    while (cur.ch !== ch) {
+      if (ch < cur.ch) {
+        if (!cur.left) cur.left = { ch, left: null, mid: null, right: null, end: false, depth: cur.depth + 1 };
+        cur = cur.left;
+      } else {
+        if (!cur.right) cur.right = { ch, left: null, mid: null, right: null, end: false, depth: cur.depth + 1 };
+        cur = cur.right;
       }
-      cur = cur.mid;
-    } else if (ch < cur.char) {
-      path.push(cur.id);
-      if (!cur.left) {
-        cur.left = mkNode(ch, cur.x - 90, cur.y - 95, cur);
-        tree.addNode(cur.left.id, cur.left.char, cur.left.x, cur.left.y, 0, { parentId: cur.id });
-        popIn(cur.left.id);
-      }
-      cur = cur.left;
-    } else {
-      path.push(cur.id);
-      if (!cur.right) {
-        cur.right = mkNode(ch, cur.x + 90, cur.y - 95, cur);
-        tree.addNode(cur.right.id, cur.right.char, cur.right.x, cur.right.y, 0, { parentId: cur.id });
-        popIn(cur.right.id);
-      }
-      cur = cur.right;
     }
   }
-  const existed = cur.end;
   cur.end = true;
-  for (const id of path) tree.highlight(id, C);
-  markEnd(cur.id);
-  pulse(cur.id);
-  status.textContent = existed ? word + ' 已存在' : '';
+}
+WORDS.forEach(insert);
+
+// leafCount 布局：左/中/右按叶子区间排列，区间互不重叠
+function leafCount(n) {
+  return (n.end ? 1 : 0) + (n.left ? leafCount(n.left) : 0) + (n.mid ? leafCount(n.mid) : 0) + (n.right ? leafCount(n.right) : 0);
+}
+const pos = new Map();
+function place(n, lo, hi) {
+  pos.set(n, { x: ((lo + hi) / 2 - (WORDS.length - 1) / 2) * SP, y: ROOT_Y - n.depth * STEP_Y });
+  const lc = n.left ? leafCount(n.left) : 0, mc = n.mid ? leafCount(n.mid) : 0;
+  let acc = lo;
+  if (n.left) { place(n.left, acc, acc + lc); acc += lc; }
+  if (n.mid) { place(n.mid, acc, acc + mc); acc += mc; }
+  if (n.right) place(n.right, acc, hi);
+}
+place(root, 0, WORDS.length);
+
+// ---- 视觉：球形节点 + 曲线边（青=左 白=中 橙=右） ----
+const nodeView = new Map();
+const edgeView = new Map();
+const curves = new Map();
+const edgeKind = new Map();
+function curveEdge(a, b, color) {
+  const A = new THREE.Vector3(a.x, a.y, 0);
+  const B = new THREE.Vector3(b.x, b.y, 0);
+  const mid = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2, 26);
+  const curve = new THREE.QuadraticBezierCurve3(A, mid, B);
+  const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 12, 2.2, 6),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 }));
+  scene.add(mesh);
+  curves.set(mesh, curve);
+  return mesh;
+}
+new VNode(scene, { radius: 24, x: pos.get(root).x, y: ROOT_Y, label: '根', color: GOLD, emissive: GOLD });
+(function buildView(n) {
+  if (n !== root) {
+    const p = pos.get(n);
+    const vn = new VNode(scene, { radius: 18, x: p.x, y: p.y, label: n.ch, color: BLUE, emissive: BLUE });
+    vn.mesh.scale.setScalar(0.05);
+    nodeView.set(n, vn);
+  }
+  const kinds = [['left', n.left], ['mid', n.mid], ['right', n.right]];
+  for (const [kind, c] of kinds) {
+    if (!c) continue;
+    edgeView.set(c, curveEdge(pos.get(n), pos.get(c), edgeColor[kind]));
+    edgeKind.set(c, kind);
+    buildView(c);
+  }
+})(root);
+new VText(scene, { text: '青 = 左子树（字符 <），白 = 中子树（=），橙 = 右子树（字符 >）', x: 0, y: 700, z: 0, color: PALETTE.textDim, scale: 0.5 });
+
+const ring = new Map(), star = new Map();
+(function buildEndViews(n) {
+  if (n.end) {
+    const p = pos.get(n);
+    const r = new VTorus(scene, { radius: 30, x: p.x, y: p.y, color: GOLD });
+    r.mesh.visible = false;
+    const s = new VText(scene, { text: '★', x: p.x, y: p.y + 42, z: 0, color: GOLD, scale: 0.85 });
+    s.sprite.visible = false;
+    ring.set(n, r); star.set(n, s);
+  }
+  if (n.left) buildEndViews(n.left);
+  if (n.mid) buildEndViews(n.mid);
+  if (n.right) buildEndViews(n.right);
+})(root);
+
+let fxGroup = new THREE.Group();
+scene.add(fxGroup);
+const clearFx = () => { scene.remove(fxGroup); fxGroup = new THREE.Group(); scene.add(fxGroup); };
+
+function resetPath() {
+  nodeView.forEach(vn => vn.setColor(BLUE, BLUE));
+  edgeView.forEach((e, n) => e.material.color.setHex(edgeColor[edgeKind.get(n)]));
+}
+function resetAll() {
+  clearFx();
+  resetPath();
+  nodeView.forEach(vn => vn.mesh.scale.setScalar(1));
+  ring.forEach(r => { r.mesh.visible = false; r.mesh.scale.setScalar(1); });
+  star.forEach(s => s.sprite.visible = false);
+  outT.setText('');
 }
 
-function findWord(word) {
-  engine.clear();
-  const path = [];
-  let cur = root, i = 0;
-  while (cur && i < word.length) {
-    const ch = word[i];
-    path.push(cur.id);
-    if (cur.char === ch) { if (i === word.length - 1) break; i++; cur = cur.mid; }
-    else if (ch < cur.char) cur = cur.left;
-    else cur = cur.right;
+const growNode = (n, p) => nodeView.get(n).mesh.scale.setScalar(0.05 + 0.95 * p);
+const pulseRing = (n) => A(500, p => { const r = ring.get(n).mesh; r.scale.setScalar(1 + 0.25 * Math.sin(p * Math.PI * 2)); });
+
+// 流动粒子流：金色小球沿曲线依次滑过
+function flowAlong(edgeMesh, count = 3, ms = 420) {
+  const curve = curves.get(edgeMesh);
+  const parts = [];
+  for (let i = 0; i < count; i++) {
+    const v = new THREE.Mesh(new THREE.SphereGeometry(4, 8, 8),
+      new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.9 }));
+    parts.push(v); fxGroup.add(v);
   }
-  for (const id of path) tree.highlight(id, C);
-  const found = !!cur && cur.char === word[word.length - 1] && cur.end;
-  if (found) pulse(cur.id);
-  status.textContent = found ? word + ' 找到' : word + ' 未找到';
+  return A(ms, p => parts.forEach((v, i) => v.position.copy(curve.getPoint((p + i * 0.18) % 1))));
 }
 
-function deleteWord(word) {
-  engine.clear();
-  let cur = root, i = 0;
-  while (cur && i < word.length) {
-    const ch = word[i];
-    if (cur.char === ch) { if (i === word.length - 1) break; i++; cur = cur.mid; }
-    else if (ch < cur.char) cur = cur.left;
-    else cur = cur.right;
-  }
-  if (!cur || cur.char !== word[word.length - 1] || !cur.end) { status.textContent = word + ' 不存在'; return; }
-  status.textContent = '删除 ' + word;
-  cur.end = false;
-  unmarkEnd(cur.id);
-  pulse(cur.id);
-  let node = cur;
-  while (node && !node.left && !node.mid && !node.right) {
-    if (node === root) {
-      const rid = root.id;
-      root = null;
-      model.delete(rid);
-      const re = tree.nodes.get(rid);
-      if (re) {
-        const rm = re.node.mesh;
-        C(300, (p2) => rm.scale.setScalar(Math.max(1 - p2, 0.001)), () => rm.scale.set(1, 1, 1));
-        C(1, () => tree.removeNode(rid), () => {});
-      }
-      break;
+const edgeKindOf = (n, parent) => n === parent.mid ? '中' : n === parent.left ? '左' : '右';
+
+function* insertWord(word) {
+  yield S(() => outT.setText(`插入 "${word}"：逐字符下钻，新节点从父节点生长`));
+  yield W(350);
+  let cur = root;
+  for (const ch of word) {
+    const parent = cur;
+    if (!cur.mid) cur.mid = { ch, left: null, mid: null, right: null, end: false, depth: cur.depth + 1 };
+    cur = cur.mid;
+    let guard = 0;
+    while (cur.ch !== ch) {
+      if (ch < cur.ch) { if (!cur.left) cur.left = { ch, left: null, mid: null, right: null, end: false, depth: cur.depth + 1 }; cur = cur.left; }
+      else { if (!cur.right) cur.right = { ch, left: null, mid: null, right: null, end: false, depth: cur.depth + 1 }; cur = cur.right; }
+      if (++guard > 8) break;
     }
-    const p = node.parent;
-    if (p.mid === node) p.mid = null;
-    else if (p.left === node) p.left = null;
-    else p.right = null;
-    const id = node.id;
-    model.delete(id);
-    const e = tree.nodes.get(id);
-    if (e) {
-      const m = e.node.mesh;
-      C(300, (p2) => m.scale.setScalar(Math.max(1 - p2, 0.001)), () => m.scale.set(1, 1, 1));
-      C(1, () => tree.removeNode(id), () => {});
+    const edge = edgeView.get(cur);
+    if (nodeView.get(cur).mesh.scale.x < 0.5) {
+      yield A(400, p => growNode(cur, p));
+      yield W(100);
     }
-    node = p;
+    yield S(() => {
+      nodeView.get(cur).setColor(GOLD, GOLD);
+      edge.material.color.setHex(GOLD);
+      outT.setText(`插入 "${word}"：'${ch}' 走${edgeKindOf(cur, parent)} → 第 ${cur.depth} 层`);
+    });
+    yield* flowAlong(edge);
+    yield W(260);
   }
-  status.textContent = '';
-}
-
-function printWords() {
-  engine.clear();
-  const words = [];
-  (function inorder(n, prefix) {
-    if (!n) return;
-    inorder(n.left, prefix);
-    const here = prefix + n.char;
-    if (n.end) words.push(here);
-    inorder(n.mid, here);
-    inorder(n.right, prefix);
-  })(root, '');
-  status.textContent = '共 ' + words.length + ' 个单词';
-  words.forEach((w, i) => {
-    const x = (i - (words.length - 1) / 2) * 150;
-    const tmp = new VText(scene, { text: w, x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.9 });
-    C(450, (p) => { const t = easeInOut(p); tmp.sprite.position.x = x * t; tmp.sprite.position.y = 230 + (-235 - 230) * t; }, () => tmp.remove());
-    C(60, () => tmp.remove(), () => {});
+  yield S(() => {
+    ring.get(cur).mesh.position.set(pos.get(cur).x, pos.get(cur).y, 0);
+    ring.get(cur).mesh.visible = true;
+    star.get(cur).sprite.visible = true;
+    outT.setText(`"${word}" 插入完成：词尾光圈 ★`);
   });
-  status.textContent = '';
+  yield* pulseRing(cur);
+  yield W(200);
+  yield S(resetPath);
+  yield W(150);
 }
 
-function clearAll() {
-  engine.clear();
-  tree.clear();
-  model.clear();
-  root = null;
-  status.textContent = '已清空';
+function* searchWord(word) {
+  yield S(() => outT.setText(`查找 "${word}"：逐字符比较，字符 < 走左 / > 走右 / = 走中`));
+  yield W(350);
+  let cur = root;
+  for (const ch of word) {
+    if (!cur.mid) { cur = null; break; }
+    const parent = cur;
+    cur = cur.mid;
+    let guard = 0;
+    while (cur.ch !== ch) {
+      const cmp = ch < cur.ch ? '<' : '>';
+      yield S(() => outT.setText(`查找 "${word}"：'${ch}' ${cmp} '${cur.ch}' → 走${edgeKindOf(cur, parent)}`));
+      yield W(300);
+      const next = ch < cur.ch ? cur.left : cur.right;
+      if (!next) { cur = null; break; }
+      cur = next;
+      if (++guard > 8) break;
+    }
+    if (!cur) break;
+    yield S(() => {
+      nodeView.get(cur).setColor(GOLD, GOLD);
+      edgeView.get(cur).material.color.setHex(GOLD);
+      outT.setText(`查找 "${word}"：'${ch}' = '${cur.ch}' → 走中，深度 ${cur.depth}`);
+    });
+    yield* flowAlong(edgeView.get(cur));
+    yield W(300);
+  }
+  if (cur && cur.end) {
+    yield S(() => {
+      ring.get(cur).mesh.visible = true;
+      star.get(cur).sprite.visible = true;
+      outT.setText(`查找 "${word}"：命中！词尾光圈脉动`);
+    });
+    yield* pulseRing(cur);
+    yield W(200);
+    yield S(() => { ring.get(cur).mesh.visible = false; star.get(cur).sprite.visible = false; });
+  } else {
+    yield S(() => {
+      if (cur) nodeView.get(cur).setColor(RED, RED);
+      outT.setText(`查找 "${word}"：未命中（'${word[word.length - 1]}' 无对应子树，红闪 = 断点）`);
+    });
+    yield W(550);
+    if (cur) nodeView.get(cur).setColor(BLUE, BLUE);
+  }
+  yield S(resetPath);
+  yield W(200);
 }
 
-let input = panel.addInput('输入单词', (v) => { if (v) insertWord(v.trim()); }, 12);
-panel.addButton('插入', () => { if (input.value) insertWord(input.value.trim()); });
-panel.addButton('查找', () => { if (input.value) findWord(input.value.trim()); });
-panel.addButton('打印', printWords);
-panel.addButton('删除', () => { if (input.value) deleteWord(input.value.trim()); });
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+function* runTST() {
+  yield S(resetAll);
+  yield S(() => { hint.setText('三叉搜索树（TST）：每节点三指针，字符 < 走左 / > 走右 / = 走中；插入时新节点生长，查找成功路径金色，粒子流沿边流动'); });
+  yield W(500);
+  for (const w of WORDS) yield* insertWord(w);
+  yield* searchWord(SEARCH);
+  yield* searchWord(MISS);
+  yield S(() => {
+    outT.setText(`"see" 命中：s→e→e；"set" 在 't'>'e' 处无右子树 → 未命中`);
+    hint.setText('复杂度 O(L·logS) 平均：每次比较三选一；TST 兼有 Trie（共享前缀）与 BST（按字符序分叉）的优点');
+    status.textContent = 'TST 结果：查找 "see" 命中（路径 s→e→e）；"set" 未命中';
+  });
+}
+
+panel.addButton('运行演示', () => engine.start(runTST()));
+panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；青/白/橙边 = 左/中/右三叉，金球 = 查找路径）');
 
 scene.start(engine);

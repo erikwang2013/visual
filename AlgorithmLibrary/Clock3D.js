@@ -1,105 +1,102 @@
-// AlgorithmLibrary/Clock3D.js — 时钟页面置换（二次机会算法）
+// AlgorithmLibrary/Clock3D.js — 时钟页面置换（二次机会）：环形扫描，使用位为 1 就清零放行，找到 0 才换出 —— LRU 的低成本近似（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { Array3D } from '../3D/modes/Array3D.js';
-import { VArrow, VText, easeInOut } from '../3D/VisualObject3D.js';
+import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Clock3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 260, 700], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 260, 700], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
-const status = panel.addStatus('');
 
-const REF = [7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3];
-const FRAMES = 4;
-const ref = new Array3D(scene, { type: 'box', count: REF.length, spacing: 64, startY: 130, w: 48, h: 48 });
-ref.create();
-REF.forEach((v, i) => ref.setValue(i, v, C));
-const frames = new Array3D(scene, { type: 'box', count: FRAMES, spacing: 80, startY: -60, w: 58, h: 58 });
-frames.create();
-new VText(scene, { text: '访问序列', x: -500, y: 178, z: 0, color: PALETTE.textDim, scale: 0.8 });
-new VText(scene, { text: '内存页框（下方 = 使用位）', x: -230, y: 20, z: 0, color: PALETTE.textDim, scale: 0.8 });
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
+const hint = new VText(scene, { text: '点击「运行演示」开始：Clock —— 环形指针扫过，使用位 1 清零放行，0 则换出', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textGlow, scale: 0.5 });
+const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-const created = [];
-function clearAll() {
-  engine.clear();
-  for (const o of created) o.remove();
-  created.length = 0;
-  for (const el of [...ref.elems, ...frames.elems]) {
-    el.mesh.material.emissiveIntensity = 0.35;
-    el.mesh.material.color.setHex(PALETTE.node);
-  }
-  for (let i = 0; i < FRAMES; i++) frames.setValue(i, '空', C);
-  status.textContent = '已清空';
-}
+const REF = [7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2, 1, 2, 0, 1, 7, 0, 1];
+const FRAME_X = [-220, 0, 220];
+const chips = REF.map((v, i) => new VBox(scene, { w: 40, h: 26, d: 26, x: -456 + i * 48, y: 220, z: 0, label: String(v), color: DIM, emissive: DIM }));
+const frames = FRAME_X.map(x => new VBox(scene, { w: 100, h: 70, d: 70, x, y: 70, z: 0, label: '空', color: BLUE, emissive: BLUE }));
+const bitChips = FRAME_X.map(x => new VBox(scene, { w: 46, h: 26, d: 26, x: x + 78, y: 70, z: 0, label: 'R=0', color: DIM, emissive: DIM }));
+let slots = [-1, -1, -1];
+let bits = [0, 0, 0];
 
-function runClock() {
-  clearAll();
-  let misses = 0, hits = 0, hand = 0;
-  const pages = [-1, -1, -1, -1];
-  const bits = [0, 0, 0, 0];
-  const meta = [];
-  for (let f = 0; f < FRAMES; f++) {
-    const t = new VText(scene, { text: '0', x: frames.xOf(f), y: -140, z: 0, color: PALETTE.textDim, scale: 0.72 });
-    meta.push(t);
-  }
-  created.push(...meta);
-  const arrow = new VArrow(scene, { x: ref.xOf(0), y: 82, z: 0 });
-  const handArrow = new VArrow(scene, { x: frames.xOf(0), y: 18, z: 0 });
-  created.push(arrow, handArrow);
-  let ax = ref.xOf(0), hx = frames.xOf(0);
-  const moveHand = (f) => {
-    const nx = frames.xOf(f);
-    C(260, (t) => { handArrow.group.position.x = hx + (nx - hx) * easeInOut(t); }, () => { handArrow.group.position.x = hx; });
-    hx = nx;
-  };
-  REF.forEach((p, i) => {
-    const nx = ref.xOf(i);
-    C(340, (t) => { arrow.group.position.x = ax + (nx - ax) * easeInOut(t); }, () => { arrow.group.position.x = ax; });
-    ax = nx;
-    let lastFrame = 0;
-    const fi = pages.indexOf(p);
+function* clockGen() {
+  yield S(() => { hint.setText('Clock（二次机会）：缺页时指针环形扫描 —— R=1 的页清零后跳过（给第二次机会），R=0 的页直接换出'); stageT.setText('引用串：' + REF.join(',') + '；3 个页框 —— 指针每次缺页后前进一步'); });
+  yield W(800);
+  let faults = 0, hand = 0;
+  for (let i = 0; i < REF.length; i++) {
+    const v = REF[i];
+    chips[i].setColor(GOLD, GOLD);
+    yield W(260);
+    const fi = slots.indexOf(v);
     if (fi >= 0) {
       bits[fi] = 1;
-      ref.highlight(i, C, PALETTE.green);
-      frames.highlight(fi, C, PALETTE.green);
-      lastFrame = fi;
-      hits++;
-      status.textContent = '访问 ' + p + '：命中页框 ' + fi + '，使用位置 1（缺页 ' + misses + ' 次）';
+      bitChips[fi].setText('R=1');
+      bitChips[fi].setColor(GOLD, GOLD);
+      frames[fi].setColor(GOLD, GOLD);
+      yield S(() => { stageT.setText('t=' + (i + 1) + '：引用 ' + v + ' —— 命中！使用位置 1（指针不动）'); eqT.setText('缺页 ' + faults + ' 次；指针 → 帧 ' + hand + '；R 位：' + bits.join(', ')); });
+      yield W(650);
+      frames[fi].setColor(BLUE, BLUE);
     } else {
-      ref.highlight(i, C, PALETTE.red);
-      let scans = 0;
-      while (bits[hand] === 1 && scans < FRAMES) {
+      faults++;
+      yield S(() => { stageT.setText('t=' + (i + 1) + '：引用 ' + v + ' —— 缺页，指针从帧 ' + hand + ' 开始扫'); eqT.setText('缺页 ' + faults + ' 次；R 位：' + bits.join(', ')); });
+      yield W(500);
+      while (bits[hand] === 1) {
         bits[hand] = 0;
-        moveHand(hand);
-        C(180, () => meta[hand].setText('0'), () => {});
-        status.textContent = '页框 ' + hand + ' 使用位为 1，清零继续扫描';
-        hand = (hand + 1) % FRAMES;
-        scans++;
+        bitChips[hand].setText('R=0');
+        bitChips[hand].setColor(RED, RED);
+        frames[hand].setColor(RED, RED);
+        yield S(() => { stageT.setText('帧 ' + hand + ' 的 R=1 → 清零放行（二次机会），指针前进'); });
+        yield W(500);
+        bitChips[hand].setColor(DIM, DIM);
+        frames[hand].setColor(BLUE, BLUE);
+        hand = (hand + 1) % 3;
       }
-      moveHand(hand);
-      const ri = hand;
-      pages[ri] = p; bits[ri] = 1;
-      frames.setValue(ri, p, C);
-      frames.highlight(ri, C, PALETTE.red);
-      lastFrame = ri;
-      misses++;
-      C(150, () => meta[ri].setText('1'), () => {});
-      status.textContent = '访问 ' + p + '：缺页！替换指针处页框 ' + ri + '（缺页 ' + misses + ' 次）';
-      hand = (hand + 1) % FRAMES;
+      const vi = hand;
+      const victim = slots[vi];
+      if (victim >= 0) {
+        frames[vi].moveTo(FRAME_X[vi], 25, 0, 320);
+        yield S(() => { stageT.setText('找到 R=0：换出 ' + victim + '，装入 ' + v); eqT.setText('缺页 ' + faults + ' 次；指针 → 帧 ' + vi + ' 被替换'); });
+        yield W(320);
+      } else {
+        yield S(() => { stageT.setText('帧 ' + vi + ' 为空，直接装入 ' + v); });
+      }
+      slots[vi] = v;
+      bits[vi] = 1;
+      bitChips[vi].setText('R=1');
+      bitChips[vi].setColor(GOLD, GOLD);
+      frames[vi].moveTo(FRAME_X[vi], 70, 0, 320);
+      frames[vi].setText(String(v));
+      frames[vi].setColor(GOLD, GOLD);
+      yield W(320);
+      frames[vi].setColor(BLUE, BLUE);
+      hand = (hand + 1) % 3;
     }
-    ref.unhighlight(i, C);
-    frames.unhighlight(lastFrame, C);
-  });
-  C(150, () => { arrow.remove(); handArrow.remove(); }, () => {});
-  status.textContent = 'Clock 完成：缺页 ' + misses + ' 次，命中 ' + hits + ' 次';
+    chips[i].setColor(DIM, DIM);
+    yield W(300);
+  }
+  yield S(() => { outT.setText('Clock 缺页 = ' + faults + ' 次（20 次引用 / 3 帧，命中 ' + (20 - faults) + ' 次）'); status.textContent = 'Clock 缺页 ' + faults + ' 次'; hint.setText('本串中指针多数情况要扫满一圈才找到 0 —— 退化为 FIFO（15）；命中把 R 置 1 后，热页会多活一轮'); });
+  yield W(1100);
+  yield S(() => { hint.setText('复杂度 O(n) 扫描（均摊 O(1)）。应用：Linux 页置换核心思想、Windows 二次机会 —— 只需 1 个引用位，比 LRU 便宜得多'); outT.setText('对比同引用串：LRU = 12，LFU = 13，FIFO/Clock = 15 —— Clock 是「FIFO + 二次机会」的合体'); });
+  yield W(1100);
+  yield S(() => { hint.setText('Clock 演示完成：环形扫描二次机会，缺页 ' + faults + ' 次'); outT.setText(''); });
+  yield W(400);
 }
 
-panel.addButton('运行 Clock', runClock);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+function* runClock() {
+  hint.setText('Clock：二次机会');
+  yield W(400);
+  yield* clockGen();
+}
+
+panel.addButton('运行演示', () => engine.start(runClock()));
+panel.addButton('清空', () => { engine.clear(); stageT.setText(''); eqT.setText(''); outT.setText(''); slots = [-1, -1, -1]; bits = [0, 0, 0]; chips.forEach(c => c.setColor(DIM, DIM)); frames.forEach((f, i) => { f.setText('空'); f.setColor(BLUE, BLUE); f.moveTo(FRAME_X[i], 70, 0, 10); }); bitChips.forEach((b, i) => { b.setText('R=0'); b.setColor(DIM, DIM); b.moveTo(FRAME_X[i] + 78, 70, 0, 10); }); hint.setText('已清空，可重新运行'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；右侧小方块 = 使用位 R，金 R=1 红 R=0；扫描时 R=1 清零放行，找到 R=0 才换出）');
 
 scene.start(engine);

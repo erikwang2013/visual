@@ -1,98 +1,76 @@
-// AlgorithmLibrary/CSCAN3D.js — C-SCAN 磁盘调度：单向扫描到顶回 0 再扫，回程不处理请求（总行程 722）
+// AlgorithmLibrary/CSCAN3D.js — 循环扫描：磁头单向扫到顶，然后瞬间回绕到 0 再扫 —— 回程不服务，两端等待时间更均匀（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('CSCAN3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const scene = new Scene3D('scene', { cameraPos: [0, 260, 700], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「C-SCAN 调度」开始', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
+const hint = new VText(scene, { text: '点击「运行演示」开始：C-SCAN —— 只往一个方向扫，回程走「传送带」', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 80, z: 0, color: PALETTE.textGlow, scale: 0.56 });
+const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-// 磁道条：0..200
-const trackBar = new VBox(scene, { w: 560, h: 7, d: 7, x: 0, y: 0, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
-const toX = t => -280 + (t / 200) * 560;
-new VText(scene, { text: '磁道 0', x: -280, y: 30, z: 0, color: PALETTE.textDim, scale: 0.5 });
-new VText(scene, { text: '磁道 200', x: 280, y: 30, z: 0, color: PALETTE.textDim, scale: 0.5 });
-
-// 请求队列（除磁头初始位置 53 外 9 个待处理）
-const REQUESTS = [98, 183, 37, 122, 14, 124, 65, 67];
-const reqMarks = REQUESTS.map((t, i) => new VBox(scene, { w: 14, h: 22, d: 22, x: toX(t), y: 55, z: 0, label: String(t), color: DIM, emissive: 0 }));
-
-// 磁头
-const head = new VBox(scene, { w: 18, h: 60, d: 18, x: toX(53), y: -48, z: 0, label: '磁头', color: YELLOW, emissive: YELLOW });
-
-const totalT = new VText(scene, { text: '', x: 0, y: -110, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const stepT = new VText(scene, { text: '', x: 0, y: -160, z: 0, color: PALETTE.textGlow, scale: 0.72 });
-
-// 动画剧本（验证结果）：{to, dist, sweep}
-const ORDER = [
-  { to: 65, dist: 12 }, { to: 67, dist: 2 }, { to: 98, dist: 31 }, { to: 122, dist: 24 },
-  { to: 124, dist: 2 }, { to: 183, dist: 59 },
-  { to: 0, dist: 183, sweep: true }, { to: 200, dist: 200, sweep: true },
-  { to: 14, dist: 186 }, { to: 37, dist: 23 },
-];
-let pos, total;
-
-function resetAll() {
-  engine.clear();
-  pos = 53; total = 0;
-  reqMarks.forEach(m => m.setColor(DIM, 0));
-  head.mesh.position.x = toX(53);
-  totalT.setText(''); stepT.setText('');
+const REQ = [98, 183, 37, 122, 14, 124, 65, 67];
+const START = 53;
+const AXIS_Y = -40;
+const K = 3.2;
+const xOf = c => -320 + c * K;
+// 单向向右：服务 65,67,98,122,124,183 → 顶 199 → 回绕 0 → 服务 14,37
+const SEQ = [53, 65, 67, 98, 122, 124, 183, 199, 0, 14, 37];
+tubeBetween(scene, { x: -320, y: AXIS_Y, z: 0 }, { x: 320, y: AXIS_Y, z: 0 }, { color: DIM, opacity: 0.5, radius: 3 });
+for (let c = 0; c <= 200; c += 50) {
+  new VText(scene, { text: String(c), x: xOf(c), y: AXIS_Y - 26, z: 0, color: PALETTE.textDim, scale: 0.34 });
 }
+const reqNodes = REQ.map(c => new VNode(scene, { x: xOf(c), y: AXIS_Y, z: 0, radius: 11, label: String(c), color: CYAN, emissive: CYAN }));
+const head = new VNode(scene, { x: xOf(START), y: AXIS_Y, z: 0, radius: 17, label: '头 53', color: GOLD, emissive: GOLD });
+let visited = new Set();
 
-function runCSCAN() {
-  resetAll();
-  hint.setText('C-SCAN 循环扫描：磁头单向向上扫，处理一路上的请求；到顶直接跳回 0 再扫 — 回程不干活');
-  C(400, () => {
-    totalT.setText('初始：磁头在 53，方向 ↑（磁道越大越靠右）');
-    stepT.setText('请求队列：98,183,37,122,14,124,65,67 — 谁在扫到的路上就先服务谁');
-  });
-  ORDER.forEach((o, i) => {
-    if (o.sweep) {
-      C(450, () => {
-        stepT.setText(o.to === 0 ? '到顶 183 → 回扫：直接跳回磁道 0（C-SCAN 特色，回程不处理任何请求）' : '从 0 空扫到最大磁道 200（一路上无请求）');
-        head.setColor(ROSE, ROSE);
-        head.mesh.position.x = toX(o.to);
-        total += o.dist;
-        totalT.setText('累计行程 ' + total + '（含回扫 ' + o.dist + '）');
-      });
+function* cscanGen() {
+  yield S(() => { hint.setText('C-SCAN（循环扫描）：只向右扫 —— 到顶 199 后不折返，直接「传送」回 0，回程不处理任何请求'); stageT.setText('请求：' + REQ.join(', ') + '；磁头 53 向右，顶 = 199，底 = 0'); });
+  yield W(800);
+  let total = 0;
+  for (let i = 1; i < SEQ.length; i++) {
+    const from = SEQ[i - 1], to = SEQ[i];
+    const d = Math.abs(to - from);
+    total += d;
+    const warp = from === 199 && to === 0;
+    head.moveTo(xOf(to), AXIS_Y, 0, warp ? 250 : 620);
+    yield W(warp ? 250 : 620);
+    if (warp) {
+      yield S(() => { stageT.setText('199 → 0：瞬移回绕（不服务）—— 这就是 C-SCAN 与 SCAN 的本质区别'); eqT.setText('回绕距离 ' + d + '，累计 ' + total + '（回程白白走，换均匀等待）'); });
+    } else if (REQ.includes(to) && !visited.has(to)) {
+      visited.add(to);
+      reqNodes[REQ.indexOf(to)].setColor(GOLD, GOLD);
+      yield S(() => { stageT.setText('服务柱面 ' + to + '（金色点亮）—— 只做单向扫描'); eqT.setText('移动 ' + from + ' → ' + to + '：|Δ| = ' + d + '，累计 ' + total); });
     } else {
-      C(300, () => {
-        const m = reqMarks[i < 6 ? i : i - 2];
-        m.setColor(YELLOW, YELLOW);
-        head.setColor(YELLOW, YELLOW);
-        stepT.setText('下一个请求：磁道 ' + o.to + ' → 磁头从 ' + pos + ' 移过去');
-      });
-      C(420, () => {
-        const m = reqMarks[i < 6 ? i : i - 2];
-        m.setColor(GREEN, GREEN);
-        head.mesh.position.x = toX(o.to);
-        total += o.dist;
-        totalT.setText('累计行程 ' + total + '（本次 +' + o.dist + '）');
-        stepT.setText('服务 ' + o.to + ' ✓  ' + pos + ' → ' + o.to + ' 移动 ' + o.dist);
-        pos = o.to;
-      });
+      yield S(() => { stageT.setText(to === 199 ? '到达顶 199 —— 准备回绕' : '经过 ' + to + '（继续向右）'); eqT.setText('移动 ' + from + ' → ' + to + '：|Δ| = ' + d + '，累计 ' + total); });
     }
-  });
-  C(900, () => {
-    stepT.setText('完成：总行程 ' + total + ' — C-SCAN 回扫不服务，等待时间更均匀（对比 SCAN 回扫还要顺路干活）');
-    hint.setText('C-SCAN 回程「浪费」一段路换公平 — 与 SCAN 比，尾部磁道的等待时间更稳定');
-  });
-  C(600, () => {
-    status.textContent = 'C-SCAN 完成：磁头 53 向上扫 65/67/98/122/124/183 → 回 0 → 空扫 200 → 14/37，总行程 722';
-  });
+    yield W(600);
+  }
+  yield S(() => { outT.setText('总移动 = ' + total + ' 柱面 —— 每个请求等待时间 ≈ 一个扫描周期，两端均匀'); status.textContent = 'C-SCAN 总移动 ' + total; hint.setText('对比 SCAN（345）：C-SCAN 多花回绕路程，但换来了边缘柱面不被歧视 —— 短请求分布更公平'); });
+  yield W(1100);
+  yield S(() => { hint.setText('复杂度 O(n log n)。应用：磁盘调度 —— C-LOOK 变体只扫到最远请求，回绕到最近请求'); outT.setText('思考：回绕 199→0 的 199 柱面是纯开销 —— 磁盘真正的寻道被「传送」替代'); });
+  yield W(1100);
+  yield S(() => { hint.setText('C-SCAN 演示完成：单向扫顶回绕，总移动 ' + total + ' 柱面'); outT.setText(''); });
+  yield W(400);
 }
 
-panel.addButton('C-SCAN 调度', runCSCAN);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；黄=磁头/下一个请求，绿=已服务，红=回扫跳段，刻度=磁道号）');
+function* runCSCAN() {
+  hint.setText('C-SCAN：单向传送带');
+  yield W(400);
+  yield* cscanGen();
+}
+
+panel.addButton('运行演示', () => engine.start(runCSCAN()));
+panel.addButton('清空', () => { engine.clear(); stageT.setText(''); eqT.setText(''); outT.setText(''); visited = new Set(); reqNodes.forEach(n => n.setColor(CYAN, CYAN)); head.moveTo(xOf(START), AXIS_Y, 0, 300); hint.setText('已清空，可重新运行'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；金球 = 磁头，青球 = 待服务请求，金 = 已服务；199→0 是瞬移回绕，途中不服务）');
 
 scene.start(engine);

@@ -1,94 +1,68 @@
-// AlgorithmLibrary/Deadlock3D.js — 死锁检测：资源分配图逐边画入，发现「请求-分配」环即死锁
+// AlgorithmLibrary/Deadlock3D.js — 死锁检测：资源分配图逐边画入，蓝色 = 持有、红色 = 请求 —— 发现环 P0→R1→P1→R2→P2→R0→P0 即死锁（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VNode, VText, VBox, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Deadlock3D');
 
 const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
-const engine = new AnimationEngine({ speed: 1.3 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
 
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「死锁检测」开始', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const status = panel.addStatus('');
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
+const hint = new VText(scene, { text: '点击「运行演示」开始：死锁 —— 资源分配图逐边画出，找环', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: -140, z: 0, color: PALETTE.textGlow, scale: 0.56 });
+const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-// 进程（上排）与资源（下排）
-const procs = ['P1', 'P2', 'P3'].map((n, i) => new VBox(scene, { w: 92, h: 92, d: 92, x: -200 + i * 200, y: 120, z: 0, label: n, color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-const resBoxes = [new VBox(scene, { w: 92, h: 92, d: 92, x: -100, y: -95, z: 0, label: 'R1', color: BLUE, emissive: BLUE }),
-  new VBox(scene, { w: 92, h: 92, d: 92, x: 100, y: -95, z: 0, label: 'R2', color: BLUE, emissive: BLUE })];
-new VText(scene, { text: '资源实例点（每资源 1 个）', x: 0, y: -165, z: 0, color: PALETTE.textDim, scale: 0.6 });
-// 实例点放在盒子前面板右上角，避开居中的 R1/R2 标签（标签半宽 20.5，点半宽 9）
-const dotT = [
-  new VText(scene, { text: '●', x: -66, y: -73, z: 20, color: PALETTE.textGlow, scale: 0.6 }),
-  new VText(scene, { text: '●', x: 134, y: -73, z: 20, color: PALETTE.textGlow, scale: 0.6 }),
-];
+// 布局：3 资源方框（上排）+ 3 进程球（下排）
+const RPOS = [[-200, 70], [0, 130], [200, 70]];
+const PPOS = [[-200, -70], [0, -130], [200, -70]];
+const resBoxes = RPOS.map(([x, y], i) => new VBox(scene, { w: 90, h: 60, d: 60, x, y, z: 0, label: 'R' + i, color: DIM, emissive: DIM }));
+const procNodes = PPOS.map(([x, y], i) => new VNode(scene, { x, y, z: 0, radius: 30, label: 'P' + i, color: BLUE, emissive: BLUE }));
+const edges = new Map();
+const P = (x, y) => ({ x, y, z: 0 });
+function addEdge(key, a, b, color, radius) { edges.set(key, tubeBetween(scene, P(a[0], a[1]), P(b[0], b[1]), { color, opacity: 0.8, radius })); }
+function clearEdges() { edges.forEach(m => scene.remove(m)); edges.clear(); }
 
-// 5 条边：请求边 P→R（黄），分配边 R→P（蓝）；前 4 条成环
-const EDGES = [
-  { a: [-200, 120], b: [-100, -95], kind: 'request', cycle: true },
-  { a: [-100, -95], b: [0, 120], kind: 'alloc', cycle: true },
-  { a: [0, 120], b: [100, -95], kind: 'request', cycle: true },
-  { a: [100, -95], b: [-200, 120], kind: 'alloc', cycle: true },
-  { a: [200, 120], b: [-100, -95], kind: 'request', cycle: false },
-];
-const edgeBoxes = EDGES.map(e => new VBox(scene, { w: 200, h: 3.5, d: 3.5, x: 0, y: 0, z: 0, label: '', color: e.kind === 'request' ? YELLOW : BLUE, emissive: e.kind === 'request' ? YELLOW : BLUE }));
-edgeBoxes.forEach(b => (b.mesh.visible = false));
-function drawEdge(i) {
-  const e = EDGES[i], b = edgeBoxes[i];
-  b.mesh.position.set((e.a[0] + e.b[0]) / 2, (e.a[1] + e.b[1]) / 2, 0);
-  b.mesh.rotation.z = Math.atan2(e.b[1] - e.a[1], e.b[0] - e.a[0]);
-  b.mesh.scale.set(Math.hypot(e.b[0] - e.a[0], e.b[1] - e.a[1]) / 200, 1, 1);
-  b.mesh.visible = true;
-}
-function edgeColor(i, c) { edgeBoxes[i].setColor(c, c); }
-
-const stepT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const eqT = new VText(scene, { text: '', x: 0, y: -125, z: 0, color: PALETTE.textDim, scale: 0.68 });
-
-function resetAll() {
-  engine.clear();
-  procs.forEach(p => p.setColor(PALETTE.node, PALETTE.nodeEmissive));
-  procs[0].setText('P1'); procs[1].setText('P2'); procs[2].setText('P3');
-  edgeBoxes.forEach(b => (b.mesh.visible = false));
-  stepT.setText(''); eqT.setText('');
+function* deadlockGen() {
+  yield S(() => { hint.setText('死锁 = 一组进程互相等待对方持有的资源 —— 资源分配图里出现环'); stageT.setText('三进程三资源：先画「持有」边（蓝，P→R），再画「请求」边（红，R→P）'); });
+  yield W(800);
+  for (let i = 0; i < 3; i++) {
+    addEdge('hold' + i, PPOS[i], RPOS[i], BLUE, 4);
+    yield S(() => { stageT.setText('P' + i + ' 持有 R' + i + '（蓝边 P' + i + '→R' + i + '）—— 资源不共享，拿了不放手'); });
+    yield W(650);
+  }
+  yield S(() => { stageT.setText('持有关系就绪：P0→R0、P1→R1、P2→R2 —— 现在每个进程都还缺一个资源'); eqT.setText('死锁条件①②：互斥 + 持有并等待'); });
+  yield W(700);
+  for (let i = 0; i < 3; i++) {
+    const req = (i + 1) % 3;
+    addEdge('req' + i, RPOS[req], PPOS[i], RED, 3.5);
+    yield S(() => { stageT.setText('P' + i + ' 请求 R' + req + '（红边）—— 但 R' + req + ' 正被 P' + req + ' 持有'); eqT.setText('死锁条件③④：不可剥夺 + 循环等待'); });
+    yield W(650);
+  }
+  yield S(() => { stageT.setText('看这张图：从 P0 出发 → R1 → P1 → R2 → P2 → R0 → 回到 P0 —— 一个完整的环！'); eqT.setText('环：P0 → R1 → P1 → R2 → P2 → R0 → P0'); });
+  yield W(800);
+  [0, 1, 2].forEach(i => { procNodes[i].setColor(GOLD, GOLD); resBoxes[i].setColor(GOLD, GOLD); });
+  yield S(() => { outT.setText('检测到死锁：环上每个进程都等下一个进程手里的资源 —— 谁也不会让路'); status.textContent = '死锁：环 P0→R1→P1→R2→P2→R0→P0'; hint.setText('死锁四条件（缺一不可）：①互斥 ②持有并等待 ③不可剥夺 ④循环等待 —— 破坏任一即可预防'); });
+  yield W(1100);
+  yield S(() => { hint.setText('解除：杀一个进程（P2）收回资源，或回滚事务 —— 数据库常用「超时 + 回滚」'); outT.setText('检测手段：资源分配图找环 O(V+E)；分布式用等待图 + 中心化检测（如 2PC/锁超时）'); });
+  yield W(1100);
+  yield S(() => { hint.setText('死锁演示完成：资源分配图成环 → 死锁判定成立，四条条件可逐条拆解'); outT.setText(''); });
+  yield W(400);
 }
 
-function runDeadlock() {
-  resetAll();
-  hint.setText('资源分配图：进程请求资源（黄箭头）＋ 资源分配给进程（蓝箭头）— 有环就有死锁');
-  C(400, () => { stepT.setText('3 个进程 P1/P2/P3，2 种资源 R1/R2（各 1 个实例）。边一条条画出来…'); });
-  C(700, () => { drawEdge(0); stepT.setText('边 1：P1 正在请求 R1（P1→R1 黄色请求边）'); });
-  C(700, () => { drawEdge(1); stepT.setText('边 2：R1 已分配给了 P2（R1→P2 蓝色分配边）— R1 被 P2 占用'); });
-  C(700, () => { drawEdge(2); stepT.setText('边 3：P2 正在请求 R2（P2→R2）'); });
-  C(700, () => { drawEdge(3); stepT.setText('边 4：R2 已分配给了 P1（R2→P1）— R2 被 P1 占用'); });
-  C(700, () => { drawEdge(4); stepT.setText('边 5：P3 也在请求 R1（只等 R1，暂时不构成环）'); });
-  C(900, () => {
-    EDGES.forEach((e, i) => { if (e.cycle) edgeColor(i, ROSE); });
-    procs[0].setColor(ROSE, ROSE); procs[1].setColor(ROSE, ROSE);
-    resBoxes.forEach(r => r.setColor(ROSE, ROSE));
-    stepT.setText('环检测：P1→R1→P2→R2→P1 — 红色环闭合！检测到死锁');
-    eqT.setText('P1 握着 R2 等 R1；P2 握着 R1 等 R2 — 谁都不放手，僵持到底');
-  });
-  C(900, () => {
-    procs[2].setColor(GREEN, GREEN);
-    stepT.setText('P3 只是「等 R1」，不在环上 — 它没死锁，只是排队等待');
-    eqT.setText('死锁四条件：互斥 + 持有等待 + 不可剥夺 + 循环等待 — 环是充要的可见证据');
-  });
-  C(900, () => {
-    edgeColor(0, ROSE); procs[0].setColor(PALETTE.node, PALETTE.nodeEmissive); procs[0].setText('P1 ✗');
-    stepT.setText('处置：终止 P1 释放 R2 → R2 归还系统 → 环断开，P2 拿到 R2 继续跑');
-    hint.setText('实际系统：用「等待图」周期找环（MySQL InnoDB 就是这么检测行锁死锁的）');
-  });
-  C(900, () => {
-    status.textContent = '死锁检测完成：资源分配图发现环 P1→R1→P2→R2→P1 → 死锁成立，终止 P1 断环恢复';
-  });
+function* runDeadlock() {
+  hint.setText('死锁：资源图找环');
+  yield W(400);
+  yield* deadlockGen();
 }
 
-panel.addButton('死锁检测', runDeadlock);
-panel.addButton('清空', () => { resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；黄=请求边，蓝=分配边，红=死锁环，绿=非死锁进程）');
+panel.addButton('运行演示', () => engine.start(runDeadlock()));
+panel.addButton('清空', () => { engine.clear(); clearEdges(); stageT.setText(''); eqT.setText(''); outT.setText(''); [0, 1, 2].forEach(i => { procNodes[i].setColor(BLUE, BLUE); resBoxes[i].setColor(DIM, DIM); }); hint.setText('已清空，可重新运行'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；方框 = 资源，球 = 进程，蓝边 = 持有，红边 = 请求，金 = 环上节点；成环即死锁）');
 
 scene.start(engine);

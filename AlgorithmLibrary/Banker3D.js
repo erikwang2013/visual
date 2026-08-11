@@ -1,91 +1,89 @@
-// AlgorithmLibrary/Banker3D.js — 银行家算法（死锁避免，安全序列检测）
+// AlgorithmLibrary/Banker3D.js — 银行家算法：分配前先试算，只有能走完安全序列的请求才放行 —— 死锁避免的经典（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { AnimationEngine } from '../3D/AnimationEngine.js';
+import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Banker3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 260, 700], fov: 55 });
-const engine = new AnimationEngine({ speed: 1.2 });
+const scene = new Scene3D('scene', { cameraPos: [0, 260, 700], fov: 52 });
+const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-const C = (duration, fn, undo) => engine.addCommand(typeof duration === 'object' ? duration : { duration, fn, undo: undo || (() => {}) });
-const status = panel.addStatus('');
 
-const Alloc = [[0, 1, 0], [2, 0, 0], [3, 0, 2], [2, 1, 1], [0, 0, 2]];
-const Max = [[7, 5, 3], [3, 2, 2], [9, 0, 2], [2, 2, 2], [4, 3, 3]];
-const Need = Max.map((m, i) => m.map((v, j) => v - Alloc[i][j]));
-const N = Alloc.length;
-const ROW_Y = [55, -5, -65, -125, -185];
-const DONE_X = 430;
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
+const hint = new VText(scene, { text: '点击「运行演示」开始：银行家 —— 试算安全序列 <P1,P3,P4,P0,P2>', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const status = panel.addStatus('就绪');
+const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textGlow, scale: 0.54 });
+const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-const created = [];
-function clearAll() {
-  engine.clear();
-  for (const o of created) o.remove();
-  created.length = 0;
-  status.textContent = '已清空';
+// 经典例：资源 A=10 B=5 C=7
+const ALLOC = [[0, 1, 0], [2, 0, 0], [3, 0, 2], [2, 1, 1], [0, 0, 2]];
+const MAXM = [[7, 5, 3], [3, 2, 2], [9, 0, 2], [2, 2, 2], [4, 3, 3]];
+const AVAIL0 = [3, 3, 2];
+const NEED = MAXM.map((m, i) => m.map((v, j) => v - ALLOC[i][j]));
+// 检查顺序：先试 P0（不满足，红）→ 然后安全序列 P1→P3→P4→P0→P2
+const ORDER = [0, 1, 3, 4, 0, 2];
+const rowY = [130, 85, 40, -5, -50];
+const cellX = [-170, -40, 90];
+const needCells = {}, allocCells = {};
+for (let i = 0; i < 5; i++) {
+  new VText(scene, { text: 'P' + i, x: -330, y: rowY[i], z: 0, color: PALETTE.textGlow, scale: 0.5 });
+  needCells[i] = NEED[i].map((v, j) => new VBox(scene, { w: 74, h: 36, d: 36, x: cellX[j], y: rowY[i], z: 0, label: v, color: DIM, emissive: DIM }));
+  allocCells[i] = ALLOC[i].map((v, j) => new VBox(scene, { w: 74, h: 36, d: 36, x: cellX[j] + 195, y: rowY[i], z: 0, label: v, color: DIM, emissive: DIM }));
 }
+new VText(scene, { text: 'Need（还需）', x: -40, y: 175, z: 0, color: PALETTE.textDim, scale: 0.4 });
+new VText(scene, { text: 'Allocation（已占）', x: 155, y: 175, z: 0, color: PALETTE.textDim, scale: 0.4 });
+const availCells = AVAIL0.map((v, j) => new VBox(scene, { w: 74, h: 40, d: 40, x: cellX[j], y: -100, z: 0, label: v, color: CYAN, emissive: CYAN }));
+new VText(scene, { text: 'Available（可用）', x: -40, y: -65, z: 0, color: PALETTE.textDim, scale: 0.4 });
+const seqT = new VText(scene, { text: '', x: 0, y: -170, z: 0, color: GOLD, scale: 0.56 });
+let avail = [...AVAIL0];
 
-function runBanker() {
-  clearAll();
-  const A = [3, 3, 2];
-  new VText(scene, { text: '银行家算法 — 安全序列检测（资源 A B C）', x: -580, y: 205, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-  new VText(scene, { text: '可用 Available', x: -560, y: 145, z: 0, color: PALETTE.textDim, scale: 0.7 });
-  const availBoxes = A.map((v, j) => new VBox(scene, { w: 48, h: 40, x: -430 + j * 70, y: 145, z: 0, label: String(v), color: PALETTE.highlight }));
-  created.push(...availBoxes);
-  new VText(scene, { text: '分配 Alloc', x: -440, y: 96, z: 0, color: PALETTE.textDim, scale: 0.7 });
-  new VText(scene, { text: '尚需 Need', x: -190, y: 96, z: 0, color: PALETTE.textDim, scale: 0.7 });
-  new VText(scene, { text: '安全序列', x: 430, y: 190, z: 0, color: PALETTE.textDim, scale: 0.7 });
-  const rows = [];
-  for (let i = 0; i < N; i++) {
-    const y = ROW_Y[i];
-    const box = new VBox(scene, { w: 64, h: 44, x: -540, y, z: 0, label: 'P' + i, color: PALETTE.node });
-    created.push(box);
-    for (let j = 0; j < 3; j++) {
-      const at = new VText(scene, { text: String(Alloc[i][j]), x: -405 + j * 50, y, z: 0, color: PALETTE.orange, scale: 0.62 });
-      const nt = new VText(scene, { text: String(Need[i][j]), x: -155 + j * 50, y, z: 0, color: PALETTE.textDim, scale: 0.62 });
-      created.push(at, nt);
-    }
-    rows.push({ box, y });
-  }
-  const done = new Array(N).fill(false);
+function leq(a, b) { return a.every((v, i) => v <= b[i]); }
+
+function* bankerGen() {
+  yield S(() => { hint.setText('银行家：把系统当银行 —— 请求资源 = 贷款，只有「还完所有贷款还有可能」才批准'); stageT.setText('资源 A=10 B=5 C=7；Available = [3,3,2]；Need = Max − Allocation'); });
+  yield W(800);
   const seq = [];
-  let unsafe = false;
-  while (seq.length < N) {
-    let found = -1;
-    for (let i = 0; i < N; i++) {
-      if (done[i]) continue;
-      const ok = Need[i].every((v, j) => v <= A[j]);
-      C(120, () => rows[i].box.setColor(ok ? PALETTE.green : PALETTE.red), () => rows[i].box.setColor(PALETTE.node));
-      C(350, () => {}, () => {});
-      C(120, () => { if (!ok) rows[i].box.setColor(PALETTE.node); }, () => rows[i].box.setColor(PALETTE.node));
-      if (ok) {
-        status.textContent = 'P' + i + '：Need ' + Need[i].join(',') + ' ≤ 可用 ' + A.join(',') + '，可运行';
-        found = i;
-        break;
-      }
-      status.textContent = 'P' + i + '：Need ' + Need[i].join(',') + ' > 可用 ' + A.join(',') + '，暂不可运行';
+  for (let k = 0; k < ORDER.length; k++) {
+    const i = ORDER[k];
+    const ok = leq(NEED[i], avail);
+    needCells[i].forEach(c => c.setColor(ok ? GREEN : RED, ok ? GREEN : RED));
+    yield S(() => {
+      const needStr = '[' + NEED[i].join(',') + ']', avStr = '[' + avail.join(',') + ']';
+      stageT.setText('检查 P' + i + '：Need ' + needStr + ' ≤ Available ' + avStr + (ok ? ' ✓' : ' ✗（资源不够）'));
+      eqT.setText(ok ? '满足 → 假定 P' + i + ' 执行完，释放 Allocation 归还系统' : '不满足 → 现在不能批准 P' + i + '，跳过（未入安全序列）');
+      seqT.setText('安全序列（已确认）：<' + seq.join(', ') + '>');
+    });
+    yield W(800);
+    if (ok) {
+      avail = avail.map((v, j) => v + ALLOC[i][j]);
+      seq.push('P' + i);
+      availCells.forEach((c, j) => { c.setText(avail[j]); c.setColor(GOLD, GOLD); });
+      allocCells[i].forEach(c => c.setColor(GREEN, GREEN));
+      yield S(() => { stageT.setText('P' + i + ' 完成并释放：Available ← [' + avail.join(',') + ']（资源回笼）'); eqT.setText('安全序列追加 P' + i); });
+      yield W(700);
+      availCells.forEach(c => c.setColor(CYAN, CYAN));
     }
-    if (found < 0) { unsafe = true; break; }
-    done[found] = true;
-    seq.push(found);
-    const fy = 140 - seq.length * 46;
-    C(450, (t) => {
-      rows[found].box.mesh.position.set(-540 + (DONE_X + 540) * t * (2 - t), rows[found].y + (fy - rows[found].y) * t * (2 - t), 0);
-    }, () => { rows[found].box.mesh.position.set(-540, rows[found].y, 0); });
-    for (let j = 0; j < 3; j++) A[j] += Alloc[found][j];
-    C(300, () => availBoxes.forEach((b, j) => b.setText(String(A[j]))), () => {});
-    status.textContent = 'P' + found + ' 运行完毕，释放 ' + Alloc[found].join(',') + '，可用变为 ' + A.join(',');
+    yield W(350);
   }
-  C(200, () => {
-    if (unsafe) status.textContent = '银行家算法结束：找不到安全序列，系统处于不安全状态！';
-    else status.textContent = '安全序列：' + seq.join(' → ') + '，全部进程可顺利执行';
-  }, () => {});
+  yield S(() => { outT.setText('安全序列 <P1, P3, P4, P0, P2> —— 每个进程都能跑完，系统永远不会死锁'); status.textContent = '银行家：状态安全，序列 <P1,P3,P4,P0,P2>'; hint.setText('核心：安全状态 = 存在安全序列。银行家只在「分配后仍安全」时才批准请求'); });
+  yield W(1100);
+  yield S(() => { hint.setText('复杂度 O(n²·m)。应用：数据库事务预检、资源管理教学 —— 现实中很少用，因需预知 Max'); outT.setText('反例：不安全状态也可能不死锁（保守）；已知最大需求是硬前提，否则退化为死锁检测'); });
+  yield W(1100);
+  yield S(() => { hint.setText('银行家演示完成：安全序列 <P1,P3,P4,P0,P2>，Available 从 [3,3,2] 涨到 [10,5,7]'); outT.setText(''); seqT.setText(''); });
+  yield W(400);
 }
 
-panel.addButton('运行银行家', runBanker);
-panel.addButton('清空', clearAll);
-panel.addLabel('（拖拽旋转视角，滚轮缩放）');
+function* runBanker() {
+  hint.setText('银行家：试算安全序列');
+  yield W(400);
+  yield* bankerGen();
+}
+
+panel.addButton('运行演示', () => engine.start(runBanker()));
+panel.addButton('清空', () => { engine.clear(); stageT.setText(''); eqT.setText(''); outT.setText(''); seqT.setText(''); for (let i = 0; i < 5; i++) { needCells[i].forEach((c, j) => { c.setColor(DIM, DIM); c.setText(NEED[i][j]); }); allocCells[i].forEach((c, j) => { c.setColor(DIM, DIM); c.setText(ALLOC[i][j]); }); } availCells.forEach((c, j) => { c.setColor(CYAN, CYAN); c.setText(AVAIL0[j]); }); avail = [...AVAIL0]; hint.setText('已清空，可重新运行'); status.textContent = ''; });
+panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = Available，绿 = 满足并释放，红 = 不满足跳过；Need ≤ Available 是放行判据）');
 
 scene.start(engine);

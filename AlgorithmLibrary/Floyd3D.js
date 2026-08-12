@@ -7,14 +7,14 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Floyd3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 350, 700], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, WHITE = 0xffffff, SLATE = 0x475569;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Floyd-Warshall 全源最短路', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Floyd-Warshall 全源最短路', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const N = 5;
 const INF = Infinity;
@@ -29,7 +29,7 @@ const W0 = [
 const cells = new Map();  // 'r,c' -> { mesh, lbl, v }
 const rowLbl = [], colLbl = [];
 let D = [];
-function cellPos(r, c) { return new THREE.Vector3((c - (N - 1) / 2) * 108, 130 - r * 88, 0); }
+function cellPos(r, c) { return new THREE.Vector3((c - (N - 1) / 2) * 108 + 320, 450 - r * 88, 0); }
 function fmt(v) { return v === INF ? '∞' : String(v); }
 function clearView() {
   cells.forEach(o => { scene.remove(o.mesh); scene.remove(o.lbl.sprite); });
@@ -40,8 +40,8 @@ function clearView() {
 function buildMatrix() {
   clearView();
   for (let r = 0; r < N; r++) {
-    rowLbl.push(new VText(scene, { text: '行' + r, x: -290, y: cellPos(r, 0).y, z: 0, color: PALETTE.textDim, scale: 0.55 }));
-    colLbl.push(new VText(scene, { text: '列' + r, x: cellPos(0, r).x, y: 245, z: 0, color: PALETTE.textDim, scale: 0.55 }));
+    rowLbl.push(new VText(scene, { text: '行' + r, x: 630, y: cellPos(r, 0).y, z: 0, color: PALETTE.textDim, scale: 0.55 }));
+    colLbl.push(new VText(scene, { text: '列' + r, x: cellPos(0, r).x, y: 460, z: 0, color: PALETTE.textDim, scale: 0.55 }));
     for (let c = 0; c < N; c++) {
       const p = cellPos(r, c);
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(70, 52, 22), new THREE.MeshBasicMaterial({ color: WHITE }));

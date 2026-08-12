@@ -7,14 +7,14 @@ import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('DisjointSets3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 680], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, ORANGE = 0xfb923c, GREEN = 0x4ade80, RED = 0xfb7185, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：并查集按秩合并 + 路径压缩', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：并查集按秩合并 + 路径压缩', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: 215, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const N = 8;
 let parent = Array.from({ length: N }, (_, i) => i);
@@ -32,7 +32,7 @@ function layout() {
   const pos = {};
   for (let i = 0; i < N; i++) {
     const r = i < 4 ? 0 : 1;
-    pos[i] = parent[i] === i ? { x: -225 + (i % 4) * 150, y: r === 0 ? 130 : 20, z: 0 } : null;
+    pos[i] = parent[i] === i ? { x: 225 + (i % 4) * 150, y: r === 0 ? 430 : 320, z: 0 } : null;
   }
   let moved = true;
   while (moved) {
@@ -57,7 +57,7 @@ const edgeView = new Map();  // i -> tube（父边）
 const tblRow0 = [];  // 父
 const tblRow1 = [];  // 秩
 const rowLbl = [];
-function colX(i) { return -225 + (i % 4) * 150; }
+function colX(i) { return 95 + (i % 4) * 150; }
 function clearView() {
   nodeView.forEach(v => scene.remove(v.mesh));
   edgeView.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
@@ -73,11 +73,11 @@ function buildStatic() {
     const vn = new VNode(scene, { radius: 18, x: p.x, y: p.y, z: p.z, label: String(i), color: BLUE, emissive: BLUE });
     nodeView.set(i, vn);
   }
-  rowLbl.push(new VText(scene, { text: '父', x: -330, y: -85, z: 0, color: PALETTE.textDim, scale: 0.6 }));
-  rowLbl.push(new VText(scene, { text: '秩', x: -330, y: -130, z: 0, color: PALETTE.textDim, scale: 0.6 }));
+  rowLbl.push(new VText(scene, { text: '父', x: 10, y: 215, z: 0, color: PALETTE.textDim, scale: 0.6 }));
+  rowLbl.push(new VText(scene, { text: '秩', x: 10, y: 170, z: 0, color: PALETTE.textDim, scale: 0.6 }));
   for (let i = 0; i < N; i++) {
-    tblRow0.push(new VText(scene, { text: String(parent[i]), x: colX(i), y: -85, z: 0, color: '#ffffff', scale: 0.62 }));
-    tblRow1.push(new VText(scene, { text: String(size[i]), x: colX(i), y: -130, z: 0, color: '#ffffff', scale: 0.62 }));
+    tblRow0.push(new VText(scene, { text: String(parent[i]), x: colX(i), y: 215, z: 0, color: '#ffffff', scale: 0.62 }));
+    tblRow1.push(new VText(scene, { text: String(size[i]), x: colX(i), y: 170, z: 0, color: '#ffffff', scale: 0.62 }));
   }
   syncEdges();
 }

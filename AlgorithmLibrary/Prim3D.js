@@ -7,22 +7,22 @@ import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Prim3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 660], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Prim 最小生成树', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Prim 最小生成树', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -250, z: 0, color: PALETTE.textGlow, scale: 0.7 });
-const seqT = new VText(scene, { text: '', x: 0, y: 225, z: 0, color: GREEN, scale: 0.62 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const seqT = new VText(scene, { text: '', x: 700, y: 300, z: 0, color: GREEN, scale: 0.55, wrapChars: 8 });
 
 const N = 6, R = 210;
 const nodeView = new Map();    // i -> VNode
 const edgeView = new Map();    // 'a-b'(a<b) -> { tube, wt }
 const wView = new Map();       // 'a-b' -> 权重标签
 const POS = [];
-for (let i = 0; i < N; i++) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; POS[i] = [Math.cos(a) * R, 0, Math.sin(a) * R]; }
+for (let i = 0; i < N; i++) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; POS[i] = [Math.cos(a) * R + 320, 300, Math.sin(a) * R]; }
 const adjW = [
   [{ v: 1, w: 4 }, { v: 2, w: 2 }],
   [{ v: 0, w: 4 }, { v: 2, w: 1 }, { v: 3, w: 5 }],
@@ -57,7 +57,7 @@ function buildGraph() {
     const m = tube(pa, pb);
     scene.add(m);
     edgeView.set(edgeKey(a, b), { tube: m });
-    const wt = new VText(scene, { text: String(wOf(a, b)), x: (POS[a][0] + POS[b][0]) / 2, y: 26, z: (POS[a][2] + POS[b][2]) / 2, color: WHITE, scale: 0.52 });
+    const wt = new VText(scene, { text: String(wOf(a, b)), x: (POS[a][0] + POS[b][0]) / 2, y: (POS[a][1] + POS[b][1]) / 2 + 26, z: (POS[a][2] + POS[b][2]) / 2, color: WHITE, scale: 0.52 });
     wView.set(edgeKey(a, b), wt);
   }
 }

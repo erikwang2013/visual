@@ -7,15 +7,15 @@ import { VText, VNode, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('BFS3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 260, 720], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：BFS 从节点 0 出发', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：BFS 从节点 0 出发', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -200, z: 0, color: PALETTE.textGlow, scale: 0.7 });
-const orderT = new VText(scene, { text: '遍历顺序: ', x: 0, y: -245, z: 0, color: PALETTE.green, scale: 0.75 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const orderT = new VText(scene, { text: '遍历顺序: ', x: 700, y: 300, z: 0, color: PALETTE.green, scale: 0.55, wrapChars: 8 });
 
 const N = 8, R = 200;
 const adj = Array.from({ length: N }, () => []);
@@ -23,7 +23,7 @@ const nodeView = new Map();  // i -> VNode
 const edgeView = new Map();  // 'i-j' -> tube
 const queueBoxes = [];       // 队列盒
 
-function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R, 0, Math.sin(a) * R); }
+function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R + 320, 300, Math.sin(a) * R); }
 function tube(a, b) {
   const curve = new THREE.CatmullRomCurve3([a, b]);
   const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.5 }));
@@ -53,11 +53,12 @@ function buildGraph(edges) {
 function setNodeColor(i, c) { nodeView.get(i).setColor(c, c); }
 function resetNodeColors() { nodeView.forEach(v => v.setColor(BLUE, BLUE)); }
 function setEdgeColor(a, b, c, op) { const e = edgeView.get(a + '-' + b); if (e) { e.material.color.setHex(c); e.material.opacity = op; } }
+function resetEdgeColors() { edgeView.forEach(e => { e.material.color.setHex(WHITE); e.material.opacity = 0.5; }); }
 
 // ---- 队列可视化 ----
 function* pushBox(id) {
-  const x = -190 + queueBoxes.length * 55;
-  const box = new VBox(scene, { w: 42, h: 42, d: 20, x, y: 175, z: 0, label: id, color: ORANGE, emissive: ORANGE });
+  const x = 130 + queueBoxes.length * 55;
+  const box = new VBox(scene, { w: 42, h: 42, d: 20, x, y: 475, z: 0, label: id, color: ORANGE, emissive: ORANGE });
   box.mesh.scale.setScalar(0.01);
   yield A(280, p => { box.mesh.scale.setScalar(0.01 + 0.99 * p); });
   queueBoxes.push({ id, box });
@@ -101,6 +102,7 @@ function* bfsGen() {
     yield S(() => { orderT.setText('遍历顺序: ' + order.concat(cur).join(' → ')); });
   }
   resetNodeColors();
+  resetEdgeColors();
   yield S(() => {
     outT.setText('BFS 完成：按距离分层，队列先进先出');
     status.textContent = 'BFS 顺序: ' + order.join(' → ');

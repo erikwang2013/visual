@@ -7,24 +7,25 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('AStar3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 420, 640], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const COLS = 6, ROWS = 5, GAP = 92, SIZE = 74;
-const START = [0, 0], END = [5, 4];
+const START = [0, 0], END = [4, 5];
 const OBS = [[1, 1], [2, 1], [3, 1], [1, 3], [2, 3], [3, 3]];
+const skey = START[0] + ',' + START[1], ekey = END[0] + ',' + END[1];
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, SLATE = 0x475569, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：A* 从 S(0,0) 到 E(5,4)', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：A* 从 S(0,0) 到 E(4,5)', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -230, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const cells = new Map();  // 'r,c' -> { mesh, fT, ghT }
 const g = {}, h = {}, f = {}, par = {};
 const obsSet = new Set(OBS.map(([r, c]) => r + ',' + c));
 
 function cellPos(r, c) {
-  return new THREE.Vector3((c - (COLS - 1) / 2) * GAP, (ROWS - 1) / 2 * GAP - r * GAP, 0);
+  return new THREE.Vector3((c - (COLS - 1) / 2) * GAP + 320, (ROWS - 1) / 2 * GAP - r * GAP + 300, 0);
 }
 function clearView() {
   cells.forEach(o => { scene.remove(o.mesh); scene.remove(o.fT.sprite); scene.remove(o.ghT.sprite); });
@@ -57,7 +58,6 @@ function* astarGen() {
   const open = new Map();  // key -> f 值
   const closed = new Set();
   const heu = (r, c) => Math.abs(r - END[0]) + Math.abs(c - END[1]);
-  const skey = START[0] + ',' + START[1], ekey = END[0] + ',' + END[1];
   open.set(skey, heu(START[0], START[1]));
   g[skey] = 0; h[skey] = heu(START[0], START[1]); f[skey] = h[skey];
   setCell(skey, GREEN);
@@ -110,7 +110,7 @@ function* astarGen() {
   }
   yield S(() => {
     outT.setText('A* 完成：open 表按 f 排序取最小，h 可采纳（≤ 真实代价）则最优');
-    status.textContent = 'A* 完成：S(0,0) → E(5,4) 步数 ' + (path[0] === skey ? path.length - 1 : '—');
+    status.textContent = 'A* 完成：S(0,0) → E(4,5) 步数 ' + (path[0] === skey ? path.length - 1 : '—');
   });
   yield W(400);
 }

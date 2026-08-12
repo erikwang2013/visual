@@ -7,15 +7,15 @@ import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Kruskal3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 260, 720], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Kruskal 最小生成树（并查集判环）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Kruskal 最小生成树（并查集判环）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textGlow, scale: 0.7 });
-const parT = new VText(scene, { text: '', x: 0, y: -252, z: 0, color: PALETTE.textDim, scale: 0.6 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const parT = new VText(scene, { text: '', x: 700, y: 360, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 
 const N = 6, R = 185;
 // 无向加权图（同 Prim）：MST 总权 12
@@ -26,7 +26,7 @@ const edgeView = new Map();  // 'a-b'(a<b) -> { tube, lbl }
 const mstEdges = [];
 let parent = [];
 
-function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R, 0, Math.sin(a) * R); }
+function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R + 320, 300, Math.sin(a) * R); }
 function tube(a, b) {
   const curve = new THREE.CatmullRomCurve3([a, b]);
   return new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));

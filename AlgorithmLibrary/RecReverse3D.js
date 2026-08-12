@@ -1,5 +1,4 @@
 // AlgorithmLibrary/RecReverse3D.js — 递归逆转字符串：rev(s) = rev(s[1:]) + s[0]，调用帧链 rev("ABCDE")→…→rev("E") 深入展开，基线 rev("") 后回溯逐字符拼出 "EDCBA"（function* 生成器驱动，结果运行时拼接）
-import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
@@ -12,19 +11,19 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：递归逆转 —— 拆串深入再拼回', x: 0, y: 310, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：递归逆转 —— 拆串深入再拼回', x: 0, y: -305, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 320, y: 250, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 320, y: 120, z: 0, color: PALETTE.textGlow, scale: 0.44 });
-const outT = new VText(scene, { text: '', x: 320, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const eqT = new VText(scene, { text: '', x: 375, y: 120, z: 0, color: PALETTE.textGlow, scale: 0.44 });
+const outT = new VText(scene, { text: '', x: 420, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const S0 = 'ABCDE';
 const N = S0.length;
 const inChips = S0.split('').map((ch, i) => new VBox(scene, { w: 100, h: 50, d: 50, x: -330 + i * 132, y: 170, z: 0, label: ch, color: BLUE, emissive: BLUE }));
-new VText(scene, { text: '输入串：每帧取首字符 s[0]，其余 s[1:] 递归', x: 320, y: 190, z: 0, color: PALETTE.textDim, scale: 0.34 });
+new VText(scene, { text: '输入串：每帧取首字符 s[0]，其余递归', x: 520, y: 190, z: 0, color: PALETTE.textDim, scale: 0.34 });
 const frames = Array.from({ length: N }, (_, i) => new VBox(scene, { w: 320, h: 42, d: 42, x: 0, y: 75 - i * 46, z: 0, label: S0.slice(i), color: DIM, emissive: DIM }));
 const outChips = Array.from({ length: N }, (_, i) => new VBox(scene, { w: 100, h: 50, d: 50, x: -330 + i * 132, y: -165, z: 0, label: '?', color: DIM, emissive: DIM }));
-new VText(scene, { text: '输出串：回溯字符拼到尾部', x: 320, y: -150, z: 0, color: PALETTE.textDim, scale: 0.34 });
+new VText(scene, { text: '输出串：回溯拼到尾部', x: 520, y: -150, z: 0, color: PALETTE.textDim, scale: 0.34 });
 
 function* recRevGen() {
   yield S(() => { hint.setText('递归逆转：把首字符不断推迟到最后，回溯时才知结果'); stageT.setText('拆串深入：rev("ABCDE") 挂起，等待右子串'); });
@@ -51,9 +50,9 @@ function* recRevGen() {
   status.textContent = 'rev("ABCDE") = "EDCBA"';
   yield S(() => { stageT.setText(''); hint.setText('本质：字符等待右边子串先完成 —— 后进先出即逆序'); });
   yield W(1100);
-  yield S(() => { hint.setText('非递归实现：循环 + 双指针原地交换，O(1) 空间'); outT.setText('复杂度：时间 O(n)，空间 O(n)（递归栈）—— 反转同样可原地迭代完成'); });
+  yield S(() => { hint.setText('非递归实现：循环 + 双指针原地交换，O(1) 空间'); outT.setText('复杂度：时间 O(n)，空间 O(n)（递归栈）'); });
   yield W(1100);
-  yield S(() => { hint.setText('演示完成：拆串 → 基线 → 拼回 "EDCBA"'); outT.setText(''); });
+  yield S(() => { hint.setText('演示完成：拆串 → 基线 → 拼回 "EDCBA"；原地反转 O(1) 空间'); outT.setText(''); });
   yield W(400);
 }
 

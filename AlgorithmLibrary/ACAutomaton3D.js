@@ -7,14 +7,14 @@ import { VBox, VText, VNode, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ACAutomaton3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 800], fov: 60 });
+const scene = new Scene3D('scene', { cameraPos: [260, 500, 900], lookAt: [260, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
-const outT = new VText(scene, { text: '', x: 0, y: 40, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const outT = new VText(scene, { text: '', x: 700, y: 440, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const WORDS = ['he', 'she', 'his', 'hers'];
 const TEXT = 'ushers';
@@ -55,7 +55,7 @@ while (queue.length) {
 function leafCount(n) { return n.children.length ? n.children.reduce((s, c) => s + leafCount(c), 0) : 1; }
 const pos = new Map();
 function place(n, lo, hi) {
-  pos.set(n, { x: ((lo + hi) / 2 - 1.5) * SP, y: ROOT_Y - n.depth * STEP_Y });
+  pos.set(n, { x: ((lo + hi) / 2 - 1.5) * SP + 260, y: ROOT_Y - n.depth * STEP_Y });
   let acc = lo;
   n.children.forEach(c => { place(c, acc, acc + leafCount(c)); acc += leafCount(c); });
 }
@@ -125,11 +125,11 @@ failEdges.forEach(([a, b]) => {
 
 // 主串字符行
 const textBoxes = [...TEXT].map((ch, i) => {
-  const b = new VBox(scene, { w: 40, h: 40, d: 26, x: (i - (TEXT.length - 1) / 2) * 70, y: 140, label: ch, color: BLUE, emissive: BLUE });
-  const idx = new VText(scene, { text: String(i), x: (i - (TEXT.length - 1) / 2) * 70, y: 96, z: 0, color: PALETTE.textDim, scale: 0.45 });
+  const b = new VBox(scene, { w: 40, h: 40, d: 26, x: (i - (TEXT.length - 1) / 2) * 70 + 300, y: 140, label: ch, color: BLUE, emissive: BLUE });
+  const idx = new VText(scene, { text: String(i), x: (i - (TEXT.length - 1) / 2) * 70 + 300, y: 96, z: 0, color: PALETTE.textDim, scale: 0.45 });
   return { box: b, idx };
 });
-new VText(scene, { text: '主串', x: -260, y: 140, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '主串', x: 70, y: 140, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
 let fxGroup = new THREE.Group();
 scene.add(fxGroup);

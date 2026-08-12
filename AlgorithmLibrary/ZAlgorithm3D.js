@@ -7,12 +7,12 @@ import { VBox, VText, VNode, VBar } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ZAlgorithm3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 400, 800], fov: 60 });
+const scene = new Scene3D('scene', { cameraPos: [260, 500, 900], lookAt: [260, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, RED = 0xfb7185, GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x67e8f9, PINK = 0xf472b6;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
 
 const TXT = 'abacaba';
@@ -20,24 +20,24 @@ const Z = (() => { const n = TXT.length, z = Array(n).fill(0); let l = 0, r = 0;
   for (let i = 1; i < n; i++) { if (i <= r) z[i] = Math.min(r - i + 1, z[i - l]);
     while (i + z[i] < n && TXT[z[i]] === TXT[i + z[i]]) z[i]++;
     if (i + z[i] - 1 > r) { l = i; r = i + z[i] - 1; } } return z; })();
-const SP = 52;
-const cx = k => (k - (TXT.length - 1) / 2) * SP;
+const SP = 52, BAR_BASE = 100;
+const cx = k => (k - (TXT.length - 1) / 2) * SP + 260;
 const lerp = (a, b, p) => a + (b - a) * p;
-const chBox = [...TXT].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: cx(k), y: 170, label: ch, color: BLUE, emissive: BLUE }));
-const bar = Z.map((v, k) => { const b = new VBar(scene, { w: 34, d: 34, x: cx(k), color: CYAN, emissive: CYAN }); b.mesh.scale.y = 0.5; b.mesh.position.y = 0.25; b.h = 1 + v * 46; b.val = v; return b; });
-const valT = Z.map((v, k) => new VText(scene, { text: `z[${k}]`, x: cx(k), y: 300, z: 0, color: PALETTE.textDim, scale: 0.45 }));
-const valN = Z.map((v, k) => new VText(scene, { text: String(v), x: cx(k), y: 370, z: 0, color: CYAN, scale: 0.55 }));
-const lBall = new VNode(scene, { radius: 10, x: cx(0), y: 470, color: PINK, emissive: PINK });
-const rBall = new VNode(scene, { radius: 10, x: cx(0), y: 470, color: GOLD, emissive: GOLD });
+const chBox = [...TXT].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: cx(k), y: 280, label: ch, color: BLUE, emissive: BLUE }));
+const bar = Z.map((v, k) => { const b = new VBar(scene, { w: 34, d: 34, x: cx(k), color: CYAN, emissive: CYAN }); b.mesh.scale.y = 0.5; b.mesh.position.y = BAR_BASE + 0.25; b.h = 1 + v * 46; b.val = v; return b; });
+const valT = Z.map((v, k) => new VText(scene, { text: `z[${k}]`, x: cx(k), y: 410, z: 0, color: PALETTE.textDim, scale: 0.45 }));
+const valN = Z.map((v, k) => new VText(scene, { text: String(v), x: cx(k), y: 480, z: 0, color: CYAN, scale: 0.55 }));
+const lBall = new VNode(scene, { radius: 10, x: cx(0), y: 580, color: PINK, emissive: PINK });
+const rBall = new VNode(scene, { radius: 10, x: cx(0), y: 580, color: GOLD, emissive: GOLD });
 lBall.mesh.visible = false; rBall.mesh.visible = false;
-const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-new VText(scene, { text: 'Z 数组（柱高 = 与前缀匹配长度）；蓝色胶囊 = Z-box [l, r]', x: 0, y: 250, z: 0, color: PALETTE.textDim, scale: 0.6 });
+const outT = new VText(scene, { text: '', x: 700, y: 440, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+new VText(scene, { text: 'Z 数组（柱高 = 与前缀匹配长度）；蓝色胶囊 = Z-box [l, r]', x: 700, y: 330, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 12 });
 
 let fxGroup = new THREE.Group();
 scene.add(fxGroup);
 const clearFx = () => { scene.remove(fxGroup); fxGroup = new THREE.Group(); scene.add(fxGroup); };
 
-const growBar = (b, p) => { const h = Math.max(b.h * p, 0.5); b.mesh.scale.y = h; b.mesh.position.y = h / 2; };
+const growBar = (b, p) => { const h = Math.max(b.h * p, 0.5); b.mesh.scale.y = h; b.mesh.position.y = BAR_BASE + h / 2; };
 
 function showBox(l, r) {
   clearFx();
@@ -50,10 +50,10 @@ function showBox(l, r) {
   cap.position.x = -len / 2 + 34;
   const cap2 = cap.clone(); cap2.position.x = len / 2 - 34;
   cyl.add(cap, cap2);
-  cyl.position.set(mid, 170, 0);
+  cyl.position.set(mid, 280, 0);
   fxGroup.add(cyl);
-  lBall.mesh.position.set(x0, 470, 0); lBall.mesh.visible = true;
-  rBall.mesh.position.set(x1, 470, 0); rBall.mesh.visible = true;
+  lBall.mesh.position.set(x0, 580, 0); lBall.mesh.visible = true;
+  rBall.mesh.position.set(x1, 580, 0); rBall.mesh.visible = true;
 }
 
 const fly = (ball, x, ms = 300) => {
@@ -64,7 +64,7 @@ const fly = (ball, x, ms = 300) => {
 function resetAll() {
   clearFx();
   chBox.forEach(b => b.setColor(BLUE, BLUE));
-  bar.forEach(b => { b.mesh.scale.y = 0.5; b.mesh.position.y = 0.25; });
+  bar.forEach(b => { b.mesh.scale.y = 0.5; b.mesh.position.y = BAR_BASE + 0.25; });
   valN.forEach((t, k) => t.setText(String(Z[k]), { color: CYAN }));
   lBall.mesh.visible = false; rBall.mesh.visible = false;
   outT.setText('');

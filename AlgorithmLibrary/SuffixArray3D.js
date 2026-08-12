@@ -7,32 +7,32 @@ import { VBox, VText, VBar } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SuffixArray3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 800], fov: 60 });
+const scene = new Scene3D('scene', { cameraPos: [260, 500, 900], lookAt: [260, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const VIOLET = 0xc4b5fd, GOLD = 0xfcd34d, CYAN = 0x67e8f9, GREEN = 0x4ade80, SLATE = 0x64748b;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
 
 const TXT = 'banana';
 const SA = (() => { const sa = [...TXT].map((_, i) => i).sort((a, b) => TXT.slice(a) < TXT.slice(b) ? -1 : 1); return sa; })();
 const SUF = TXT.length;
 const SP = 92;
-const cx = k => (k - (SUF - 1) / 2) * SP;
+const cx = k => (k - (SUF - 1) / 2) * SP + 260;
 const lerp = (a, b, p) => a + (b - a) * p;
 const shade = (rank, maxRank) => new THREE.Color(VIOLET).multiplyScalar(0.45 + 0.55 * (maxRank > 0 ? rank / maxRank : 1)).getHex();
 const BAR_BASE = 340;
 const rankToH = rank => 1 + rank * 42;
 const sufT = [...TXT].map((_, i) => new VText(scene, { text: `"${TXT.slice(i)}"`, x: cx(i), y: 290, z: 0, color: PALETTE.textGlow, scale: 0.5 }));
 const colT = [...TXT].map((_, i) => new VText(scene, { text: `i=${i}`, x: cx(i), y: 230, z: 0, color: PALETTE.textDim, scale: 0.45 }));
-const bar = [...TXT].map((_, i) => { const b = new VBar(scene, { w: 42, d: 42, x: cx(i), color: SLATE, emissive: SLATE }); b.mesh.scale.y = 0.5; b.mesh.position.y = 0.25; return b; });
+const bar = [...TXT].map((_, i) => { const b = new VBar(scene, { w: 42, d: 42, x: cx(i), color: SLATE, emissive: SLATE }); b.mesh.scale.y = 0.5; b.mesh.position.y = BAR_BASE + 0.25; return b; });
 const rankT = [...TXT].map((_, i) => new VText(scene, { text: '', x: cx(i), y: 0, z: 0, color: GOLD, scale: 0.55 }));
-const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const saT = new VText(scene, { text: '', x: 0, y: 160, z: 0, color: PALETTE.textGlow, scale: 0.6 });
+const outT = new VText(scene, { text: '', x: 700, y: 440, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const saT = new VText(scene, { text: '', x: 700, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const growBar = (b, h, p, color) => {
-  const hh = Math.max(h * p, 0.5); b.mesh.scale.y = hh; b.mesh.position.y = hh / 2;
+  const hh = Math.max(h * p, 0.5); b.mesh.scale.y = hh; b.mesh.position.y = BAR_BASE + hh / 2;
   if (color) b.setColor(color, color);
 };
 
@@ -47,7 +47,7 @@ function roundRanks(k) {
 const R1 = roundRanks(1), R2 = roundRanks(2), R3 = roundRanks(4);
 
 function resetAll() {
-  bar.forEach(b => { b.mesh.scale.y = 0.5; b.mesh.position.y = 0.25; b.setColor(SLATE, SLATE); });
+  bar.forEach(b => { b.mesh.scale.y = 0.5; b.mesh.position.y = BAR_BASE + 0.25; b.setColor(SLATE, SLATE); });
   rankT.forEach(t => t.setText(''));
   outT.setText(''); saT.setText('');
 }

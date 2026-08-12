@@ -7,14 +7,14 @@ import { VText, VNode, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('TST3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 800], fov: 60 });
+const scene = new Scene3D('scene', { cameraPos: [260, 500, 900], lookAt: [260, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, CYAN = 0x67e8f9, ORANGE = 0xfb923c, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
-const outT = new VText(scene, { text: '', x: 0, y: 40, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const outT = new VText(scene, { text: '', x: 700, y: 440, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const WORDS = ['sea', 'seat', 'see', 'sock'];
 const SEARCH = 'see', MISS = 'set';
@@ -51,7 +51,7 @@ function leafCount(n) {
 }
 const pos = new Map();
 function place(n, lo, hi) {
-  pos.set(n, { x: ((lo + hi) / 2 - (WORDS.length - 1) / 2) * SP, y: ROOT_Y - n.depth * STEP_Y });
+  pos.set(n, { x: ((lo + hi) / 2 - (WORDS.length - 1) / 2) * SP + 260, y: ROOT_Y - n.depth * STEP_Y });
   const lc = n.left ? leafCount(n.left) : 0, mc = n.mid ? leafCount(n.mid) : 0;
   let acc = lo;
   if (n.left) { place(n.left, acc, acc + lc); acc += lc; }
@@ -92,7 +92,7 @@ new VNode(scene, { radius: 24, x: pos.get(root).x, y: ROOT_Y, label: '根', colo
     buildView(c);
   }
 })(root);
-new VText(scene, { text: '青 = 左子树（字符 <），白 = 中子树（=），橙 = 右子树（字符 >）', x: 0, y: 250, z: 0, color: PALETTE.textDim, scale: 0.5 });
+new VText(scene, { text: '青 = 左子树（字符 <），白 = 中子树（=），橙 = 右子树（字符 >）', x: 700, y: 330, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 12 });
 
 const ring = new Map(), star = new Map();
 (function buildEndViews(n) {

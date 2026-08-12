@@ -7,14 +7,14 @@ import { VText, VNode, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Trie3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 800], fov: 60 });
+const scene = new Scene3D('scene', { cameraPos: [260, 500, 900], lookAt: [260, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
-const outT = new VText(scene, { text: '', x: 0, y: 40, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const outT = new VText(scene, { text: '', x: 700, y: 440, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const WORDS = ['cat', 'car', 'card', 'do', 'dog'];
 const SEARCH = 'car', MISS = 'cap', DEL = 'cat';
@@ -39,7 +39,7 @@ WORDS.forEach(insert);
 function leafCount(n) { return n.children.length ? n.children.reduce((s, c) => s + leafCount(c), 0) : 1; }
 const pos = new Map();
 function place(n, lo, hi) {
-  pos.set(n, { x: ((lo + hi) / 2 - (WORDS.length - 1) / 2) * SP, y: ROOT_Y - n.depth * STEP_Y });
+  pos.set(n, { x: ((lo + hi) / 2 - (WORDS.length - 1) / 2) * SP + 260, y: ROOT_Y - n.depth * STEP_Y });
   let acc = lo;
   n.children.forEach(c => { place(c, acc, acc + leafCount(c)); acc += leafCount(c); });
 }

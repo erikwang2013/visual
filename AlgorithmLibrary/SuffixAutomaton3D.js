@@ -7,14 +7,14 @@ import { VText, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SuffixAutomaton3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 800], fov: 60 });
+const scene = new Scene3D('scene', { cameraPos: [260, 500, 900], lookAt: [260, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, CYAN = 0x67e8f9, ORANGE = 0xfb923c;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
-const outT = new VText(scene, { text: '', x: 0, y: 40, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const outT = new VText(scene, { text: '', x: 700, y: 440, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const TXT = 'abab';
 
@@ -45,7 +45,7 @@ for (const ch of TXT) {
 }
 
 // ---- 之字形布局 ----
-const posX = states.map((_, i) => -300 + i * 150);
+const posX = states.map((_, i) => -300 + i * 150 + 260);
 const posY = states.map((_, i) => 260 - (i % 2) * 140);
 
 // ---- 六边形状态节点（CylinderGeometry 6 段，旋转后六边形面朝相机） ----

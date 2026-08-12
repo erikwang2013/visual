@@ -22,7 +22,7 @@ const S0 = 'ABCDE';
 const N = S0.length;
 const inChips = S0.split('').map((ch, i) => new VBox(scene, { w: 100, h: 50, d: 50, x: -330 + i * 132, y: 170, z: 0, label: ch, color: BLUE, emissive: BLUE }));
 new VText(scene, { text: '输入串：每帧取首字符 s[0]，其余 s[1:] 递归', x: 0, y: 205, z: 0, color: PALETTE.textDim, scale: 0.34 });
-const frames = Array.from({ length: N }, (_, i) => new VBox(scene, { w: 320, h: 42, d: 42, x: 0, y: 75 - i * 46, z: 0, label: 'rev("' + S0.slice(i) + '")', color: DIM, emissive: DIM }));
+const frames = Array.from({ length: N }, (_, i) => new VBox(scene, { w: 320, h: 42, d: 42, x: 0, y: 75 - i * 46, z: 0, label: S0.slice(i), color: DIM, emissive: DIM }));
 const outChips = Array.from({ length: N }, (_, i) => new VBox(scene, { w: 100, h: 50, d: 50, x: -330 + i * 132, y: -165, z: 0, label: '?', color: DIM, emissive: DIM }));
 new VText(scene, { text: '输出串：回溯字符拼到尾部', x: 0, y: -122, z: 0, color: PALETTE.textDim, scale: 0.34 });
 
@@ -42,7 +42,6 @@ function* recRevGen() {
   for (let i = N - 1; i >= 0; i--) {
     result = result + S0[i];
     frames[i].setColor(GREEN, GREEN);
-    frames[i].setText('rev("' + S0.slice(i) + '") = "' + result + '"');
     outChips[N - 1 - i].setText(S0[i]);
     outChips[N - 1 - i].setColor(GREEN, GREEN);
     yield S(() => { stageT.setText('回溯：rev("' + S0.slice(i) + '") 返回 "' + result + '"'); eqT.setText('rev("' + S0.slice(i) + '") = rev("' + S0.slice(i + 1) + '") + "' + S0[i] + '" —— 字符落到尾部'); });
@@ -67,7 +66,7 @@ function* runRecRev() {
 panel.addButton('运行演示', () => engine.start(runRecRev()));
 panel.addButton('清空', () => {
   engine.clear();
-  frames.forEach((f, i) => { f.setText('rev("' + S0.slice(i) + '")'); f.setColor(DIM, DIM); });
+  frames.forEach((f, i) => { f.setText(S0.slice(i)); f.setColor(DIM, DIM); });
   outChips.forEach(c => { c.setText('?'); c.setColor(DIM, DIM); });
   stageT.setText(''); eqT.setText(''); outT.setText('');
   hint.setText('已清空，可重新运行'); status.textContent = '';

@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const RED = 0xfb7185, PURPLE = 0xa78bfa, GREEN = 0x4ade80, GOLD = 0xfcd34d, CYAN = 0x67e8f9, SLATE = 0x64748b;
-const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 640, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
 
 const TXT = 'abacaba';
@@ -34,7 +34,7 @@ mBall.mesh.visible = false; mBall2.mesh.visible = false;
 const ring = new VTorus(scene, { radius: 36, x: 0, y: 170, color: GOLD });
 ring.mesh.visible = false;
 const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-new VText(scene, { text: '回文半径立柱：中心红柱，镜像位置柱色向外渐变 红→紫；金球连线 = 对称镜像', x: 0, y: 560, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '回文半径立柱：中心红柱，镜像位置柱色向外渐变 红→紫；金球连线 = 对称镜像', x: 0, y: 250, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
 let fxGroup = new THREE.Group();
 scene.add(fxGroup);

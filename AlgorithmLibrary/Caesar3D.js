@@ -36,8 +36,8 @@ for (let i = 0; i < MSG.length; i++) {
   msgBoxes.push(new VBox(scene, { w: 56, h: 56, d: 56, x: mX + i * mSP, y: -60, z: 0, label: c === ' ' ? '␣' : c, color: c === ' ' ? DIM : BLUE, emissive: c === ' ' ? DIM : BLUE }));
   outBoxes.push(new VBox(scene, { w: 56, h: 56, d: 56, x: mX + i * mSP, y: -160, z: 0, label: '', color: DIM, emissive: DIM }));
 }
-new VText(scene, { text: '明文', x: -540, y: -60, z: 0, color: PALETTE.textDim, scale: 0.7 });
-new VText(scene, { text: '密文', x: -540, y: -160, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '明文', x: -400, y: -60, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '密文', x: -400, y: -160, z: 0, color: PALETTE.textDim, scale: 0.7 });
 const arrowT = new VText(scene, { text: '↓', x: mX, y: 8, z: 0, color: GOLD, scale: 0.8 });
 
 function* caesarGen() {

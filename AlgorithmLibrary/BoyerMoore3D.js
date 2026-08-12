@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, RED = 0xfb7185, GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x67e8f9, ORANGE = 0xfb923c;
-const hint = new VText(scene, { text: '点击「运行 BM 匹配」开始', x: 0, y: 640, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
 
 const TXT = 'ABCBABAB', P = 'ABAB';
@@ -146,7 +146,7 @@ function* runBM() {
   yield S(() => { outT.setText('匹配失败：主串中不存在模式串'); status.textContent = `BM 结果：主串 "${TXT}" 中未找到 "${P}"`; });
 }
 
-panel.addButton('运行 BM 匹配', () => engine.start(runBM()));
+panel.addButton('运行演示', () => engine.start(runBM()));
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；红 ✕ = 坏字符，绿 = 好后缀，金球 = 比较指针，橙色箭头 = 平移步长）');
 

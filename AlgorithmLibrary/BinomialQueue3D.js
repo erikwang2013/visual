@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：二项队列 插入 1~5 + 删除最小 ×3', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：二项队列插入 1~5 + 删最小×3', x: 0, y: 290, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 238, z: 0, color: GOLD, scale: 0.72 });
 const eqT = new VText(scene, { text: '', x: 0, y: -160, z: 0, color: PALETTE.textGlow, scale: 0.56 });
@@ -21,8 +21,8 @@ const outT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.te
 let forest = [];
 const allNodes = new Set();
 let edgeMeshes = new Map();
-const slots = [0, 1, 2, 3].map(r => new VBox(scene, { w: 64, h: 26, d: 26, x: -200 + r * 105, y: 275, z: 0, label: 'B' + r, color: DIM, emissive: DIM }));
-new VText(scene, { text: '秩槽位：B_r 有 2^r 个节点，森林 = 若干棵二项树（槽位被占 = 二进制那一位是 1）', x: 0, y: 252, z: 0, color: PALETTE.textDim, scale: 0.55 });
+const slots = [0, 1, 2, 3].map(r => new VBox(scene, { w: 64, h: 26, d: 26, x: -200 + r * 105, y: 245, z: 0, label: 'B' + r, color: DIM, emissive: DIM }));
+new VText(scene, { text: '秩槽位：B_r 有 2^r 个节点（二进制表示）', x: 0, y: 200, z: 0, color: PALETTE.textDim, scale: 0.55 });
 
 function newNode(v) {
   const n = { v, children: [], mesh: new VNode(scene, { radius: 22, x: 330, y: 150, z: 0, label: String(v), color: BLUE, emissive: BLUE }) };

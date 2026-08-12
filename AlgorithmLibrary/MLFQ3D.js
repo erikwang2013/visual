@@ -44,7 +44,7 @@ const blockOf = {};
 const left = {};
 PROCS.forEach(p => {
   left[p.name] = p.burst;
-  blockOf[p.name] = new VBox(scene, { w: 84, h: 38, d: 38, x: 400, y: 55, z: 0, label: p.name + ' ' + p.burst, color: BLUE, emissive: BLUE });
+  blockOf[p.name] = new VBox(scene, { w: 84, h: 38, d: 38, x: 350, y: 55, z: 0, label: p.name + ' ' + p.burst, color: BLUE, emissive: BLUE });
 });
 LAYERS.forEach((L, i) => {
   new VText(scene, { text: L.name + '（' + L.note + '）', x: -400, y: L.y + 30, z: 0, color: i === 0 ? GOLD : PALETTE.textDim, scale: 0.44 });

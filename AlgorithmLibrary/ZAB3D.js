@@ -45,7 +45,7 @@ function makeNode(x, y) {
 const NX = [-240, -120, 0, 120, 240];
 const nodes = NX.map((x, i) => makeNode(x, 110));
 const nodeLabel = NX.map((x, i) => new VText(scene, { text: 'F' + (i + 1), x, y: 110, z: 22, color: PALETTE.textGlow, scale: 0.58 }));
-new VText(scene, { text: '5 节点集群：F1 当选 Leader（epoch 2）', x: 0, y: 210, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '5 节点集群：F1 当选 Leader（epoch 2）', x: 0, y: 185, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
 const logT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 const stepT = new VText(scene, { text: '', x: 0, y: -40, z: 0, color: PALETTE.textGlow, scale: 0.75 });

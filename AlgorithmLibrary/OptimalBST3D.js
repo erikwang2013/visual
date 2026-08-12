@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：最优二叉搜索树（键 k1..k5，查找概率已知）', x: 0, y: 308, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：最优二叉搜索树', x: 0, y: 308, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 265, z: 0, color: GOLD, scale: 0.72 });
 const outT = new VText(scene, { text: '', x: 0, y: -268, z: 0, color: PALETTE.textGlow, scale: 0.6 });
@@ -67,7 +67,7 @@ const tEdges = [
   tubeBetween(scene, { x: TPOS[5][0], y: TPOS[5][1], z: 0 }, { x: TPOS[4][0], y: TPOS[4][1], z: 0 }, { color: CYAN, opacity: 0, radius: 1.8 }),
   tubeBetween(scene, { x: TPOS[4][0], y: TPOS[4][1], z: 0 }, { x: TPOS[3][0], y: TPOS[3][1], z: 0 }, { color: CYAN, opacity: 0, radius: 1.8 })
 ];
-new VText(scene, { text: '键 k1..k5 各有查找概率 p，q 为查找失败（哑键）概率 —— 找期望查找代价最小的 BST', x: 0, y: 250, z: 0, color: WHITE, scale: 0.68 });
+new VText(scene, { text: '键 k1..k5 各有查找概率 p', x: 0, y: 248, z: 0, color: WHITE, scale: 0.68 });
 new VText(scene, { text: 'e[i][j] = min_{r}(e[i][r−1] + e[r+1][j]) + w[i][j]：每加深一层，区间内全部键与哑键都多算一次', x: 0, y: -238, z: 0, color: WHITE, scale: 0.62 });
 
 function cellOf(i, j) { return cells.find(c => c.i === i && c.j === j); }

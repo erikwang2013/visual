@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：ECDH —— 不传秘密，却算出同一个秘密（DH 的椭圆曲线版）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：ECDH —— 椭圆曲线 DH', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
 const eqT = new VText(scene, { text: '', x: 0, y: 148, z: 0, color: PALETTE.textGlow, scale: 0.44 });
@@ -55,7 +55,7 @@ new VText(scene, { text: '鲍勃', x: 330, y: 230, z: 0, color: ORANGE, scale: 0
 new VText(scene, { text: '私钥', x: -385, y: 175, z: 0, color: RED, scale: 0.42 });
 new VText(scene, { text: '公钥', x: -385, y: 45, z: 0, color: PUR, scale: 0.42 });
 new VText(scene, { text: '共享秘密', x: -385, y: -95, z: 0, color: GREEN, scale: 0.42 });
-new VText(scene, { text: '曲线 y²=x³+2x+2 (mod 17)，G = (5,1)，n = 19 —— ECDH：双方不传秘密，却算出同一个秘密', x: 0, y: 230, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: '曲线 y²=x³+2x+2，G=(5,1)，n=19', x: 0, y: 235, z: 0, color: PALETTE.textDim, scale: 0.68 });
 new VText(scene, { text: '核心等式：aA·(aB·G) = aB·(aA·G) —— 点乘交换律让两边殊途同归', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
 const setCell = (obj, v, color) => { obj.setText(String(v)); if (color) obj.setColor(color, color); };
 

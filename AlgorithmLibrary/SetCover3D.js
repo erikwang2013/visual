@@ -11,7 +11,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, WHITE = 0xe2e8f0;
-const hint = new VText(scene, { text: '点击「运行演示」开始：集合覆盖 —— 最少集合盖住全部元素', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：集合覆盖', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 const SETS = [
@@ -63,7 +63,7 @@ SETS.forEach(s => s.elems.forEach(e => {
   tubes[s.id + '-' + e] = t;
 }));
 const setTube = (sid, e, color, op) => { const t = tubes[sid + '-' + e]; t.material.color.setHex(color); t.material.opacity = op; };
-new VText(scene, { text: '全集 U = {1,2,3,4,5,6}，三个候选集合 —— 选最少的集合覆盖全部元素（NP-难）', x: 0, y: 248, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: '全集 U = {1..6}，三个候选集合', x: 0, y: 246, z: 0, color: PALETTE.textDim, scale: 0.68 });
 new VText(scene, { text: '贪心策略：每轮选「能覆盖最多未覆盖元素」的集合 —— 局部最大覆盖，希望全局集合数最少', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
 const coverT = new VText(scene, { text: '', x: 0, y: -130, z: 0, color: GOLD, scale: 0.8 });
 const stageT = new VText(scene, { text: '', x: 0, y: 265, z: 0, color: GOLD, scale: 0.72 });

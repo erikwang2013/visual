@@ -123,7 +123,7 @@ function* openHashGen() {
     }
     node.remove();
     chains[5].splice(di, 1);
-    if (chains[5].length === 0) nullTexts[5] = new VText(scene, { text: '/', x: bx(5), y: 0, z: 0, color: PALETTE.textDim, scale: 0.8 });
+    if (chains[5].length === 0 && !nullTexts[5].sprite) nullTexts[5] = new VText(scene, { text: '/', x: bx(5), y: 0, z: 0, color: PALETTE.textDim, scale: 0.8 });
     buckets[5].setColor(PALETTE.node, PALETTE.nodeEmissive);
     stepT.setText('45 已摘除：链重连为 25 → 35 — 删除是局部操作，其余节点不受影响');
   });

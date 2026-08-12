@@ -24,7 +24,7 @@ for (let i = 0; i < N; i++) {
   ampT.push(new VText(scene, { text: '', x: (i - 3.5) * SPX, y: 175, z: 0, color: PALETTE.textDim, scale: 0.55 }));
 }
 new VText(scene, { text: '★ 目标 x=5（金色文本）', x: 0, y: 232, z: 0, color: GOLD, scale: 0.65 });
-new VText(scene, { text: '数据集 8 项 —— 柱高 = |振幅|，绿=正 红=负', x: 0, y: 200, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '数据集 8 项 —— 柱高 = |振幅|，绿=正 红=负', x: 0, y: 175, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
 function renderAmps() {
   amps.forEach((a, i) => {

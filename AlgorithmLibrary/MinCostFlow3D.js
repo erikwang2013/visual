@@ -68,7 +68,7 @@ function refreshResidual() {
     const m = tube(a, b, 1.6);
     m.material.color.setHex(PUR); m.material.opacity = 0.9;
     scene.add(m);
-    const mid = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2 - 22, (a.z + b.z) / 2);
+    const mid = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2 - 48, (a.z + b.z) / 2);
     const lbl = new VText(scene, { text: '-c' + E[i][3], x: mid.x, y: mid.y, z: mid.z, color: PUR, scale: 0.5 });
     resView.set(v + '->' + u, { tube: m, lbl });
   }

@@ -20,7 +20,7 @@ const bars = [];
 for (let i = 0; i < N; i++) {
   bars.push(new VBox(scene, { w: 30, h: 36, d: 36, x: (i - 5.5) * SPX, y: 0, z: 0, label: String(DATA[i]), color: DIM, emissive: DIM }));
 }
-new VText(scene, { text: '数组近似等差（均匀分布）→ 可用"按值比例"直接估算下标', x: 0, y: 300, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '数组近似等差（均匀分布）→ 按值比例估算', x: 0, y: 305, z: 0, color: PALETTE.textDim, scale: 0.7 });
 const lowM = new VBox(scene, { w: 10, h: 10, d: 10, x: -2000, y: -78, z: 0, color: BLUE, emissive: BLUE });
 const highM = new VBox(scene, { w: 10, h: 10, d: 10, x: -2000, y: -78, z: 0, color: BLUE, emissive: BLUE });
 const lowT = new VText(scene, { text: '', x: 0, y: -60, z: 0, color: BLUE, scale: 0.6 });

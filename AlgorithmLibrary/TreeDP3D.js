@@ -54,7 +54,7 @@ const f0T = NODES.map(n => new VText(scene, { text: '', x: n.pos[0] + 40, y: n.p
 NODES.forEach(n => n.kids.forEach(k => {
   tubeBetween(scene, { x: n.pos[0], y: n.pos[1] - 20, z: 0 }, { x: NODES[k].pos[0], y: NODES[k].pos[1] + 20, z: 0 }, { color: PALETTE.edge, opacity: 0.3, radius: 2 });
 }));
-new VText(scene, { text: '公司开年会：员工与直属上司不能同时出席，每人有快乐值 h —— 求最大总快乐值（父子互斥）', x: 0, y: 248, z: 0, color: WHITE, scale: 0.68 });
+new VText(scene, { text: '公司年会：员工与上司不能同时出席，求最大快乐值', x: 0, y: 248, z: 0, color: WHITE, scale: 0.68 });
 new VText(scene, { text: '树上两种状态：f1[u] = 出席 = h[u] + Σ f0[v]；f0[u] = 缺席 = Σ max(f0[v], f1[v]) —— 后序遍历自底向上', x: 0, y: -205, z: 0, color: WHITE, scale: 0.62 });
 
 function clearView() {

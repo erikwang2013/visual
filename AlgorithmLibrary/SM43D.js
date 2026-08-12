@@ -24,7 +24,7 @@ new VText(scene, { text: 'X0~X3 = 4 个 32 位字（128 位明文分组）——
 const rkChip = new VBox(scene, { w: 280, h: 52, d: 52, x: -290, y: -5, z: 0, label: 'rk_i = 轮密钥', color: GOLD, emissive: GOLD });
 const tBox = new VBox(scene, { w: 240, h: 72, d: 72, x: 60, y: -5, z: 0, label: 'T = τ ∘ L', color: CYAN, emissive: CYAN });
 const sBox = new VBox(scene, { w: 150, h: 52, d: 52, x: 250, y: -30, z: 0, label: 'τ：S 盒×4', color: DIM, emissive: DIM });
-const lBox = new VBox(scene, { w: 150, h: 52, d: 52, x: 420, y: -30, z: 0, label: 'L：循环移位异或', color: DIM, emissive: DIM });
+const lBox = new VBox(scene, { w: 150, h: 52, d: 52, x: 380, y: -30, z: 0, label: 'L：循环移位异或', color: DIM, emissive: DIM });
 new VText(scene, { text: 'T′（密钥扩展用）= τ ∘ L′，L′ = B ⊕ (B<<<13) ⊕ (B<<<23)', x: 0, y: -60, z: 0, color: PALETTE.textDim, scale: 0.36 });
 const ckT = new VText(scene, { text: '密钥扩展：K = MK ⊕ FK（系统参数）；rk_i = K_{i+4} = K_i ⊕ T′(K_{i+1}⊕K_{i+2}⊕K_{i+3}⊕CK_i)，CK_i = 固定常数', x: 0, y: -95, z: 0, color: PALETTE.textDim, scale: 0.36 });
 

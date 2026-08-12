@@ -11,7 +11,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：卷积神经网络', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：卷积神经网络（3×3 输入）', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 // 输入 3×3 图像（0=暗，1=亮）：1 0 1 / 0 1 0 / 1 0 1（X 形十字）
@@ -28,17 +28,17 @@ new VText(scene, { text: '输入图像 3×3（X 形十字）', x: 0, y: 215, z: 
 const KER = [[1, 0], [0, 1]];
 const kcols = [280, 370], krows = [130, 40];
 const kerBoxes = KER.map((row, r) => row.map((v, c) => new VBox(scene, { w: 84, h: 84, d: 26, x: kcols[c], y: krows[r], z: 0, label: String(v), color: v ? YELLOW : DIM, emissive: v ? YELLOW : 0 })));
-new VText(scene, { text: '卷积核 2×2（黄=1）', x: 325, y: 215, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '卷积核 2×2（黄=1）', x: 220, y: 215, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
 // 2×2 特征图（初始暗，滑动后点亮）
 const CONV_VAL = [[2, 0], [0, 2]];
 const convBoxes = CONV_VAL.map((row, r) => row.map((v, c) => new VBox(scene, { w: 84, h: 84, d: 26, x: kcols[c], y: -130 + (r ? -40 : 0), z: 0, label: '?', color: DIM, emissive: 0 })));
-new VText(scene, { text: '特征图 2×2（卷积结果）', x: 325, y: -156, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '特征图 2×2（卷积结果）', x: 220, y: -145, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
 // 最大池化输出
-const poolBox = new VBox(scene, { w: 84, h: 84, d: 26, x: 520, y: -85, z: 0, label: 'max = 2', color: BLUE, emissive: BLUE });
+const poolBox = new VBox(scene, { w: 84, h: 84, d: 26, x: 320, y: -85, z: 0, label: 'max = 2', color: BLUE, emissive: BLUE });
 poolBox.mesh.visible = false;
-new VText(scene, { text: '最大池化 → 1×1', x: 520, y: -165, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '最大池化 → 1×1', x: 320, y: -185, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
 // 卷积窗口高亮（4 个 2×2 窗口）
 const winBox = new VBox(scene, { w: 196, h: 196, d: 10, x: 0, y: 0, z: 0, label: '', color: YELLOW, emissive: YELLOW });

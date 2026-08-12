@@ -79,7 +79,7 @@ function* chGen() {
   yield S(() => {
     const nd = addKey('k2', 170, 'D');
     nd.setColor(RED, RED);
-    const kt = new VText(scene, { text: 'k2 → B → D', x: pos(170)[0], y: -45, z: pos(170)[2], color: RED, scale: 0.7 });
+    const kt = new VText(scene, { text: 'k2 → B → D', x: pos(170)[0], y: -65, z: pos(170)[2], color: RED, scale: 0.7 });
     notes.push(kt);
     hint.setText('k2(170) 在 A(130) 与 D(220) 之间：原来顺时针遇到 B，现在先遇到 D → 只有它需要迁移');
   });

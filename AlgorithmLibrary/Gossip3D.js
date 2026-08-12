@@ -56,7 +56,7 @@ const nodeLabel = [0, 1, 2, 3, 4, 5].map((i) => {
   const p = pos(i);
   return new VText(scene, { text: 'N' + i, x: p.x, y: p.y, z: 20, color: PALETTE.textGlow, scale: 0.55 });
 });
-new VText(scene, { text: '6 个节点，每个已知情节点每轮随机「闲聊」2 人（fanout=2）', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: '6 个节点，每轮随机闲聊 2 人（fanout=2）', x: 0, y: 195, z: 0, color: PALETTE.textDim, scale: 0.68 });
 
 // 聊天连线（每轮显示）
 const line = new VBox(scene, { w: 200, h: 2.5, d: 2.5, x: 0, y: 0, z: 0, label: '', color: YELLOW, emissive: YELLOW });

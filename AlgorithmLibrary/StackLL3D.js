@@ -26,7 +26,7 @@ const topLbl = new VText(scene, { text: 'Top →', x: NODE_X(-1) + 110, y: 88, z
 const emptyT = new VText(scene, { text: '空栈', x: 0, y: 0, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
 function newNode(v) {
-  const n = { v, mesh: new VNode(scene, { radius: 22, x: 380, y: 150, z: 0, label: String(v), color: BLUE, emissive: BLUE }) };
+  const n = { v, mesh: new VNode(scene, { radius: 22, x: 320, y: 150, z: 0, label: String(v), color: BLUE, emissive: BLUE }) };
   allNodes.add(n);
   return n;
 }

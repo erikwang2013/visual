@@ -19,7 +19,7 @@ const eqT = new VText(scene, { text: '', x: 0, y: 132, z: 0, color: PALETTE.text
 const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const padChips = [-330, -110, 110].map((x, i) => new VBox(scene, { w: 200, h: 50, d: 50, x, y: 190, z: 0, label: ['消息 "abc"', '填充 + 64 位长度', '512 位分组'], color: [BLUE, CYAN, PUR][i], emissive: [BLUE, CYAN, PUR][i] }));
-const wChip = new VBox(scene, { w: 300, h: 50, d: 50, x: 330, y: 190, z: 0, label: 'W[0..67] + W′[0..63]', color: ORANGE, emissive: ORANGE });
+const wChip = new VBox(scene, { w: 300, h: 50, d: 50, x: 280, y: 190, z: 0, label: 'W[0..67] + W′[0..63]', color: ORANGE, emissive: ORANGE });
 const regChips = [-336, -240, -144, -48, 48, 144, 240, 336].map((x, i) => new VBox(scene, { w: 84, h: 50, d: 50, x, y: 100, z: 0, label: ['V0','V1','V2','V3','V4','V5','V6','V7'][i], color: GOLD, emissive: GOLD }));
 new VText(scene, { text: 'V0~V7 = 8 个 32 位寄存器。每轮：SS1 = ((V0<<<12) + V4 + (T_j<<<j)) <<< 7；SS2 = SS1 ⊕ (V0<<<12)；TT1 = FF + V3 + SS2 + W′[j]；TT2 = GG + V7 + SS1 + W[j]；链式左移并做 P0/P1 置换', x: 0, y: 55, z: 0, color: PALETTE.textDim, scale: 0.36 });
 const fBoxes = [-330, -110, 110, 330].map((x, i) => new VBox(scene, { w: 200, h: 54, d: 54, x, y: -10, z: 0, label: ['FF_j：轮 0~15 XOR / 16~63 多数', 'GG_j：轮 0~15 XOR / 16~63 选择', 'P0(X) = X⊕(X<<<9)⊕(X<<<17)', 'P1(X) = X⊕(X<<<15)⊕(X<<<23)'][i], color: DIM, emissive: DIM }));

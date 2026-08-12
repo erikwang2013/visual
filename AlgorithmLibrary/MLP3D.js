@@ -34,9 +34,9 @@ const link = (x1, y1, x2, y2) => {
 const L1 = [link(-200, 90, 0, 90), link(-200, 90, 0, -90), link(-200, -90, 0, 90), link(-200, -90, 0, -90)];
 const L2 = [link(0, 90, 200, 0), link(0, -90, 200, 0)];
 new VText(scene, { text: '输入层', x: -260, y: 155, z: 0, color: PALETTE.textDim, scale: 0.55 });
-new VText(scene, { text: '隐藏层（σ 激活）', x: 0, y: 155, z: 0, color: PALETTE.textDim, scale: 0.55 });
+new VText(scene, { text: '隐藏层（σ 激活）', x: 0, y: 145, z: 0, color: PALETTE.textDim, scale: 0.55 });
 new VText(scene, { text: '输出层', x: 260, y: 155, z: 0, color: PALETTE.textDim, scale: 0.55 });
-new VText(scene, { text: 'XOR：输入相同 → 0，不同 → 1（线性不可分）', x: 0, y: 215, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: 'XOR：输入相同 → 0，不同 → 1（线性不可分）', x: 0, y: 185, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
 const eq1T = new VText(scene, { text: '', x: 0, y: 55, z: 0, color: PALETTE.textDim, scale: 0.68 });
 const eq2T = new VText(scene, { text: '', x: 0, y: -55, z: 0, color: PALETTE.textDim, scale: 0.68 });

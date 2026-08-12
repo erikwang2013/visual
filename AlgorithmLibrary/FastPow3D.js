@@ -22,8 +22,8 @@ const bits = [];
 { let e = EXP; while (e) { bits.push(e & 1); e >>= 1; } }
 const bitBoxes = [];
 bits.forEach((b, i) => {
-  bitBoxes.push(new VBox(scene, { w: 56, h: 42, d: 42, x: -430, y: 135 - i * 70, z: 0, label: String(b), color: b ? YELLOW : DIM, emissive: b ? YELLOW : DIM }));
-  new VText(scene, { text: '2^' + i + ' 位', x: -430, y: 160 - i * 70, z: 0, color: PALETTE.textDim, scale: 0.6 });
+  bitBoxes.push(new VBox(scene, { w: 56, h: 42, d: 42, x: -380, y: 135 - i * 70, z: 0, label: String(b), color: b ? YELLOW : DIM, emissive: b ? YELLOW : DIM }));
+  new VText(scene, { text: '2^' + i + ' 位', x: -380, y: 160 - i * 70, z: 0, color: PALETTE.textDim, scale: 0.6 });
 });
 const baseBox = new VBox(scene, { w: 100, h: 64, d: 64, x: -150, y: 40, z: 0, label: '2', color: BLUE, emissive: BLUE });
 const resBox = new VBox(scene, { w: 100, h: 64, d: 64, x: 210, y: 40, z: 0, label: '1', color: PUR, emissive: PUR });

@@ -27,7 +27,7 @@ MAILS.forEach((m, i) => {
   mailBoxes.push(new VBox(scene, { w: 110, h: 68, d: 60, x, y: 215, z: 0, label: '', color: m.spam ? GREEN : ROSE, emissive: m.spam ? GREEN : ROSE }));
   new VText(scene, { text: m.words, x, y: 215, z: 33, color: PALETTE.textDim, scale: 0.42 });
 });
-new VText(scene, { text: '训练集：4 封邮件（绿=垃圾 2 封 · 红=正常 2 封）', x: 0, y: 268, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '训练集：4 封邮件（绿=垃圾 · 红=正常）', x: 0, y: 240, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
 const TEST = ['offer', 'win', 'now'];
 const testBoxes = [];

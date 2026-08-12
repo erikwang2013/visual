@@ -81,7 +81,7 @@ for (let size = 1; size <= 3; size++) {
     cells.push({ mask, i, box: new VBox(scene, { w: 52, h: 32, d: 32, x: cx, y: yRow[size], z: 0, label: '', color: BLUE, emissive: BLUE }) });
   });
 }
-new VText(scene, { text: '旅行商问题：从城 0 出发、访问其余 3 城恰好一次再回到 0 —— 求最短环（n=4 有 6 条环）', x: 0, y: 248, z: 0, color: WHITE, scale: 0.68 });
+new VText(scene, { text: '旅行商问题：从城 0 出发回到 0，求最短环', x: 0, y: 248, z: 0, color: WHITE, scale: 0.68 });
 new VText(scene, { text: '状态压缩 DP：dp[mask][i] = 走过 mask 集合、停在 i 的最短路；答案 = min(dp[全][i] + d[i][0])', x: 0, y: -205, z: 0, color: WHITE, scale: 0.62 });
 
 function cellOf(mask, i) { return cells.find(c => c.mask === mask && c.i === i); }

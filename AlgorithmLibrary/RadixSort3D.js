@@ -154,11 +154,11 @@ function* randomizeGen() {
     spheres[i].lbl.setText(String(v));
     yield W(60);
   }
-  yield S(() => hint.setText('已随机化，可点击「运行基数排序」'));
+  yield S(() => hint.setText('已随机化，可点击「运行演示」'));
 }
 
 panel.addButton('随机化', () => engine.start(randomizeGen()));
-panel.addButton('运行基数排序', () => engine.start(radixSort()));
+panel.addButton('运行演示', () => engine.start(radixSort()));
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；金链 = 收集后的顺序链）');
 

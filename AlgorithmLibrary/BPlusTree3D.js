@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, INDIGO = 0x818cf8, GOLD = 0xfcd34d, WHITE = 0xffffff, GREEN = 0x4ade80;
-const hint = new VText(scene, { text: '点击「运行演示」开始：B+ 树内部节点 + 叶层链 + 分裂复制键上移', x: 0, y: 380, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：B+ 树内部节点 + 叶层链 + 分裂复制键上移', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
@@ -125,25 +125,16 @@ function syncEdges() {
   edgeView.clear();
   (function walk(n) {
     if (n.isLeaf) return;
-    for (const c of n.children) {
-      edgeView.set(c.id, tube(nodeView.get(n.id).g.position, nodeView.get(c.id).g.position));
-      walk(c);
-    }
+    for (const c of n.children) { edgeView.set(c.id, tube(nodeView.get(n.id).g.position, nodeView.get(c.id).g.position)); walk(c); }
   })(root);
-  for (let l = leafHead; l && l.next; l = l.next) {
-    const a = nodeView.get(l.id).g.position, b = nodeView.get(l.next.id).g.position;
-    edgeView.set('chain-' + l.id, tube(a, b, { lift: 6, r: 1.8, op: 0.45 }));
-  }
+  for (let l = leafHead; l && l.next; l = l.next) edgeView.set('chain-' + l.id, tube(nodeView.get(l.id).g.position, nodeView.get(l.next.id).g.position, { lift: 6, r: 1.8, op: 0.45 }));
 }
 function* moveToLayout() {
   const pos = layout();
   const tasks = [];
   nodeView.forEach((v, id) => {
     const p = pos.get(id);
-    if (!p) return;
-    const f = v.g.position.clone();
-    if (f.distanceTo(p) < 0.5) return;
-    tasks.push({ v, from: f, to: p });
+    if (p && v.g.position.distanceTo(p) >= 0.5) tasks.push({ v, from: v.g.position.clone(), to: p });
   });
   if (!tasks.length) { syncEdges(); return; }
   yield A(440, pp => tasks.forEach(t => t.v.g.position.lerpVectors(t.from, t.to, pp)));
@@ -350,7 +341,6 @@ function* rebalanceLeafGen(n) {
   const left = idx > 0 ? parent.children[idx - 1] : null;
   const right = idx < parent.children.length - 1 ? parent.children[idx + 1] : null;
   const fromN = nodeView.get(n.id).g.position.clone();
-  const fromP = nodeView.get(parent.id).g.position.clone();
   if (left && left.keys.length > LMIN) {
     const moved = left.keys.pop();
     n.keys.unshift(moved);

@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：ECC —— 椭圆曲线点构成加法群，kG 循环遍历整条曲线', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：ECC —— 椭圆曲线加法群', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
 const eqT = new VText(scene, { text: '', x: 0, y: 148, z: 0, color: PALETTE.textGlow, scale: 0.44 });
@@ -48,8 +48,8 @@ const row1 = [0, 1, 2, 3, 4, 5].map(i => box('', -180 + i * 70, 175, 62));
 const row2 = [0, 1, 2, 3, 4, 5].map(i => box('', -180 + i * 70, 75, 62));
 const row3 = [0, 1, 2, 3, 4, 5].map(i => box('', -180 + i * 70, -25, 62));
 new VText(scene, { text: 'G', x: -290, y: 228, z: 0, color: CYAN, scale: 0.46 });
-new VText(scene, { text: 'kG 循环群（k = 2..18）', x: 0, y: 228, z: 0, color: GOLD, scale: 0.46 });
-new VText(scene, { text: '曲线 y² = x³ + 2x + 2 (mod 17)，G = ' + fmt(G0) + '，阶 n = 19 —— 从 G 出发反复「加自己」，18 步后回到 ∞，再一步回到 G', x: 0, y: 250, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: 'kG 循环群（k = 2..18）', x: 0, y: 192, z: 0, color: GOLD, scale: 0.46 });
+new VText(scene, { text: '曲线 y²=x³+2x+2，G=(5,1)，n=19', x: 0, y: 235, z: 0, color: PALETTE.textDim, scale: 0.68 });
 new VText(scene, { text: '点加法：λ = (y₂−y₁)/(x₂−x₁)，x₃ = λ²−x₁−x₂，y₃ = λ(x₁−x₃)−y₁ —— 除法 = 模逆元，全部在 mod 17 里做', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
 const setCell = (obj, v, color) => { obj.setText(String(v)); if (color) obj.setColor(color, color); };
 

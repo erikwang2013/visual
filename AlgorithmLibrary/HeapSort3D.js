@@ -13,7 +13,7 @@ const panel = new ControlPanel({ engine });
 
 const BASE = 0x60a5fa, WHITE = 0xf8fafc, GOLD = 0xfcd34d, ORANGE = 0xfb923c, OK = 0x4ade80;
 
-const hint = new VText(scene, { text: '堆排序：完全二叉树三维分层，橙色牵引光束 = 父子比较，火花 = 交换', x: 0, y: 385, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '堆排序：完全二叉树三维分层，橙色牵引光束 = 父子比较，火花 = 交换', x: 0, y: 275, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('就绪');
 
 const N = 15;
@@ -205,11 +205,11 @@ function* randomizeGen() {
     nodes[i].lbl.setText(String(v));
     yield W(60);
   }
-  yield S(() => hint.setText('已随机化，可点击「运行堆排序」'));
+  yield S(() => hint.setText('已随机化，可点击「运行演示」'));
 }
 
 panel.addButton('随机化', () => engine.start(randomizeGen()));
-panel.addButton('运行堆排序', () => engine.start(heapSort()));
+panel.addButton('运行演示', () => engine.start(heapSort()));
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；橙光束 = 父子比较，火花 = 交换碰撞）');
 

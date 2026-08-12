@@ -18,7 +18,7 @@ const blend = (a, b) => new THREE.Color(a).lerp(new THREE.Color(b), 0.5).getHex(
 const c01 = blend(RUN_COLORS[0], RUN_COLORS[1]);
 const c23 = blend(RUN_COLORS[2], RUN_COLORS[3]);
 
-const hint = new VText(scene, { text: 'TimSort：4 个 Run 色块 + 组内插入排序微光 + 归并碰撞波纹', x: 0, y: 380, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: 'TimSort：4 个 Run 色块 + 组内插入排序微光 + 归并碰撞波纹', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('就绪');
 
 const N = 24, RUNLEN = 6, RUNS = 4;
@@ -214,11 +214,11 @@ function* randomizeGen() {
     setV(i, a[i]);
     yield W(60);
   }
-  yield S(() => hint.setText('已随机化，可点击「运行 TimSort」'));
+  yield S(() => hint.setText('已随机化，可点击「运行演示」'));
 }
 
 panel.addButton('随机化', () => engine.start(randomizeGen()));
-panel.addButton('运行 TimSort', () => engine.start(timSort()));
+panel.addButton('运行演示', () => engine.start(timSort()));
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；色块 = Run 范围，波纹 = 归并碰撞）');
 

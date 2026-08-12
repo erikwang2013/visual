@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：DES —— 64 位分组 / 56 位密钥 / 16 轮 Feistel 网络', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：DES（16 轮 Feistel）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
 const eqT = new VText(scene, { text: '', x: 0, y: 148, z: 0, color: PALETTE.textGlow, scale: 0.44 });
@@ -88,15 +88,15 @@ for (let i = 0; i < 64; i += 8) { let v = 0; for (let j = 0; j < 8; j++) v = (v 
 const keyChips = [], ptChips = [], ctChips = [];
 const KSP = 62, KX0 = -217;
 for (let i = 0; i < 8; i++) keyChips.push(new VBox(scene, { w: 50, h: 46, d: 46, x: KX0 + i * KSP, y: 245, z: 0, label: h2(KEY[i]), color: PUR, emissive: PUR }));
-new VText(scene, { text: '56 位密钥（含奇偶校验位）→ PC1 去校验 → 16 轮左移 + PC2 → 48 位轮密钥', x: 0, y: 284, z: 0, color: PALETTE.textDim, scale: 0.34 });
+new VText(scene, { text: '56 位密钥 → PC1 → 16 轮左移 → 轮密钥', x: 0, y: 232, z: 0, color: PALETTE.textDim, scale: 0.34 });
 const subkeyT = new VText(scene, { text: '', x: 0, y: 210, z: 0, color: CYAN, scale: 0.5 });
 for (let i = 0; i < 8; i++) ptChips.push(new VBox(scene, { w: 50, h: 46, d: 46, x: KX0 + i * KSP, y: 165, z: 0, label: h2(PT[i]), color: BLUE, emissive: BLUE }));
-new VText(scene, { text: '64 位明文分组', x: -342, y: 165, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '64 位明文分组', x: -280, y: 165, z: 0, color: PALETTE.textDim, scale: 0.6 });
 const lBox = new VBox(scene, { w: 200, h: 56, d: 56, x: -160, y: 85, z: 0, label: 'L₀ = IP 左 32 位', color: BLUE, emissive: BLUE });
 const rBox = new VBox(scene, { w: 200, h: 56, d: 56, x: 160, y: 85, z: 0, label: 'R₀ = IP 右 32 位', color: CYAN, emissive: CYAN });
 new VText(scene, { text: '16 轮 Feistel：Lᵢ = Rᵢ₋₁，Rᵢ = Lᵢ₋₁ ⊕ f(Rᵢ₋₁, Kᵢ)', x: 0, y: 122, z: 0, color: PALETTE.textDim, scale: 0.34 });
 for (let i = 0; i < 8; i++) ctChips.push(new VBox(scene, { w: 50, h: 46, d: 46, x: KX0 + i * KSP, y: -170, z: 0, label: '00', color: DIM, emissive: DIM }));
-new VText(scene, { text: 'IP⁻¹ 逆置换 → 密文', x: -342, y: -170, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: 'IP⁻¹ 逆置换 → 密文', x: -280, y: -170, z: 0, color: PALETTE.textDim, scale: 0.6 });
 const roundT = new VText(scene, { text: '第 1 轮', x: 0, y: 28, z: 0, color: GOLD, scale: 0.55 });
 
 function* desGen() {

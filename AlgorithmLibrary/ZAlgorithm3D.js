@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, RED = 0xfb7185, GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x67e8f9, PINK = 0xf472b6;
-const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 640, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
 
 const TXT = 'abacaba';
@@ -31,7 +31,7 @@ const lBall = new VNode(scene, { radius: 10, x: cx(0), y: 470, color: PINK, emis
 const rBall = new VNode(scene, { radius: 10, x: cx(0), y: 470, color: GOLD, emissive: GOLD });
 lBall.mesh.visible = false; rBall.mesh.visible = false;
 const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-new VText(scene, { text: 'Z 数组（柱高 = 与前缀匹配长度）；蓝色胶囊 = Z-box [l, r]', x: 0, y: 560, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: 'Z 数组（柱高 = 与前缀匹配长度）；蓝色胶囊 = Z-box [l, r]', x: 0, y: 250, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
 let fxGroup = new THREE.Group();
 scene.add(fxGroup);

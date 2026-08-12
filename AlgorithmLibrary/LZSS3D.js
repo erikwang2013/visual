@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, CYAN = 0x67e8f9, GOLD = 0xfcd34d;
-const hint = new VText(scene, { text: '点击「运行压缩」开始', x: 0, y: 260, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 260, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('');
 
 const INPUT = 'the cat sat on the mat';
@@ -23,7 +23,7 @@ for (let i = 0; i < INPUT.length; i++) {
   const p = pos(i);
   boxes.push(new VBox(scene, { w: BOX, h: BOX, d: BOX, x: p.x, y: p.y, z: 0, label: INPUT[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 }
-new VText(scene, { text: '输入（22 字符）', x: -330, y: 210, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '输入（22 字符）', x: -280, y: 210, z: 0, color: PALETTE.textDim, scale: 0.7 });
 const outText = new VText(scene, { text: '', x: 0, y: -40, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const ratioT = new VText(scene, { text: '', x: 0, y: -105, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
@@ -130,7 +130,7 @@ function* runCompress() {
   yield W(500);
 }
 
-panel.addButton('运行压缩', () => engine.start(runCompress()));
+panel.addButton('运行演示', () => engine.start(runCompress()));
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；黄 = 源匹配，绿 = 目标，青虚线 = 匹配弧；LZSS 是 LZ77 的改进版）');
 

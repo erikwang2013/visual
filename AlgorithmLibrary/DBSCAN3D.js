@@ -17,8 +17,8 @@ const status = panel.addStatus('就绪');
 const PTS = [[0, 0], [1, 0], [0.5, 0.5], [0, 1], [1, 1], [4, 4], [5, 4], [4.5, 4.5], [4, 5], [7, 1]];
 const WX = v => v * 45 - 160, WY = v => -(v * 45 - 112.5);
 const pts = PTS.map(([x, y]) => new VBox(scene, { w: 30, h: 30, d: 30, x: WX(x), y: WY(y), z: 0, label: '', color: DIM, emissive: 0 }));
-new VText(scene, { text: 'ε = 1.1，minPts = 3', x: -300, y: 170, z: 0, color: PALETTE.textDim, scale: 0.6 });
-new VText(scene, { text: '10 个样本点：两簇 + 一个孤立点', x: -230, y: 140, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: 'ε = 1.1，minPts = 3', x: -240, y: 180, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '10 个样本点：两簇 + 一个孤立点', x: -230, y: 130, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
 // 密度可达的邻接边（距离 ≤ ε）：簇① 8 条，簇② 5 条
 const C1 = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 4], [2, 3], [2, 4], [3, 4]];

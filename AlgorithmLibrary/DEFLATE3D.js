@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, DIM = 0x334155, GOLD = 0xfcd34d;
-const hint = new VText(scene, { text: '点击「运行压缩」开始', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('');
 
 const INPUT = 'abracadabra abracadabra abracadabra';
@@ -167,7 +167,7 @@ function* runCompress() {
   yield W(500);
 }
 
-panel.addButton('运行压缩', () => engine.start(runCompress()));
+panel.addButton('运行演示', () => engine.start(runCompress()));
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；黄 = 源匹配，绿 = 目标；DEFLATE 是 gzip/zlib 的核心算法）');
 

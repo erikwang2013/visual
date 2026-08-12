@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, GOLD = 0xfcd34d, RED = 0xfb7185, CYAN = 0x67e8f9, SLATE = 0x64748b;
-const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 700, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
 
 const TXT = 'banana';
@@ -38,7 +38,7 @@ const cells = SA.map((start, j) => {
 SA.map((start, j) => new VText(scene, { text: `SA[${j}]=${start}`, x: COL_X(j), y: 596, z: 0, color: PALETTE.textDim, scale: 0.42 }));
 const bar = LCP.map((v, j) => { const b = new VBar(scene, { w: 30, d: 30, x: BAR_X(j), color: SLATE, emissive: SLATE }); b.mesh.scale.y = 0.5; b.mesh.position.y = 0.25; b.h = 1 + v * 34; return b; });
 const barT = LCP.map((v, j) => new VText(scene, { text: '', x: BAR_X(j), y: 0, z: 0, color: GOLD, scale: 0.5 }));
-new VText(scene, { text: 'LCP 立柱（高 = 公共前缀长度）', x: 0, y: 320, z: 0, color: PALETTE.textDim, scale: 0.55 });
+new VText(scene, { text: 'LCP 立柱（高 = 公共前缀长度）', x: 0, y: 250, z: 0, color: PALETTE.textDim, scale: 0.55 });
 const ring = new VTorus(scene, { radius: 24, x: 0, y: 0, color: GOLD });
 ring.mesh.visible = false;
 const outT = new VText(scene, { text: '', x: 0, y: 40, z: 0, color: PALETTE.textGlow, scale: 0.75 });

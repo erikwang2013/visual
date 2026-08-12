@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：数位DP（统计 1..120 不含数字 6 的个数）', x: 0, y: 305, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：数位DP（1..120 不含 6）', x: 0, y: 305, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 265, z: 0, color: GOLD, scale: 0.72 });
 const outT = new VText(scene, { text: '', x: 0, y: -175, z: 0, color: PALETTE.textGlow, scale: 0.62 });
@@ -55,7 +55,7 @@ for (let p = 0; p < N; p++) for (let idx = 0; idx < 4; idx++) {
   cells.push({ p, tight, started, box });
 }
 for (let idx = 0; idx < 4; idx++) new VText(scene, { text: colLabel[idx], x: colX[idx], y: rowY[0] + 32, z: 0, color: WHITE, scale: 0.4 });
-new VText(scene, { text: 'f[p][紧][开始]：从第 p 位到个位的「合法后缀」个数 —— 表格一共 3×4 = 12 个状态', x: 0, y: 248, z: 0, color: WHITE, scale: 0.68 });
+new VText(scene, { text: 'f[p][紧][开始]：合法后缀个数', x: 0, y: 235, z: 0, color: WHITE, scale: 0.68 });
 new VText(scene, { text: '两个维度：紧贴 = 前缀与上限相同则受限；开始 = 已出现非零位（前导 0 不算数字）', x: 0, y: -235, z: 0, color: WHITE, scale: 0.62 });
 
 function cellOf(p, tight, started) { return cells.find(c => c.p === p && c.tight === tight && c.started === started); }

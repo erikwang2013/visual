@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, RED = 0xfb7185, GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x67e8f9;
-const hint = new VText(scene, { text: '点击「运行 KMP」开始', x: 0, y: 720, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
 
 const TXT = 'ABABABACABAB', P = 'BABAC';
@@ -36,7 +36,7 @@ const bars = pmt.map((v, k) => {
   return m;
 });
 const barVals = pmt.map((v, k) => new VText(scene, { text: String(v), x: px(k), y: BAR_BASE + (v + 0.6) * 26 + 22, z: 0, color: GOLD, scale: 0.5 }));
-new VText(scene, { text: 'PMT 前缀表（柱高 = 最长相同前后缀长度）', x: 0, y: 770, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: 'PMT 前缀表（柱高 = 最长相同前后缀长度）', x: 0, y: 250, z: 0, color: PALETTE.textDim, scale: 0.6 });
 const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.75 });
 
 let fxGroup = new THREE.Group();
@@ -167,7 +167,7 @@ function* runKMP() {
   yield S(() => { outT.setText('匹配失败'); status.textContent = `KMP 结果：主串 "${TXT}" 中未找到 "${P}"`; });
 }
 
-panel.addButton('运行 KMP', () => engine.start(runKMP()));
+panel.addButton('运行演示', () => engine.start(runKMP()));
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；金色柱 = PMT 值，青色虚线 = j 的跳转路径）');
 

@@ -44,7 +44,7 @@ const priceT = [1, 2, 3, 4, 5, 6, 7, 8].map(i => new VText(scene, { text: '价' 
 const dpT = [1, 2, 3, 4, 5, 6, 7, 8].map(i => new VText(scene, { text: 'dp' + i + ':0', x: X(i), y: 60, z: 0, color: WHITE, scale: 0.5 }));
 const bin1 = new VBox(scene, { w: 90, h: 56, d: 56, x: -110, y: -120, z: 0, label: '', color: BLUE, emissive: BLUE });
 const bin2 = new VBox(scene, { w: 90, h: 56, d: 56, x: -10, y: -120, z: 0, label: '', color: BLUE, emissive: BLUE });
-new VText(scene, { text: '一根长 8 的钢条可整卖也可切割零售，切多少刀免费 —— 怎么切收入最高？', x: 0, y: 228, z: 0, color: WHITE, scale: 0.68 });
+new VText(scene, { text: '一根长 8 的钢条可整卖或切割 —— 怎么切最赚？', x: 0, y: 228, z: 0, color: WHITE, scale: 0.68 });
 new VText(scene, { text: 'dp[i] = max(p[j] + dp[i−j])：第一刀切 j，剩下 i−j 交给子问题；小问题先算 → 大问题直接查', x: 0, y: -192, z: 0, color: WHITE, scale: 0.62 });
 
 function clearView() {

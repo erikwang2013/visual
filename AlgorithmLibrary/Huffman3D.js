@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, GOLD = 0xfcd34d, BLUE = 0x60a5fa, YELLOW = 0xfacc15;
-const hint = new VText(scene, { text: '点击「运行 Huffman」开始：构造最优前缀编码', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：构造最优前缀编码', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('');
 
 const FREQ = [['a', 5], ['b', 9], ['c', 12], ['d', 13], ['e', 16], ['f', 45]];
@@ -161,7 +161,7 @@ function* runHuffman() {
   yield W(600);
 }
 
-panel.addButton('运行 Huffman', () => engine.start(runHuffman()));
+panel.addButton('运行演示', () => engine.start(runHuffman()));
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；蓝曲线 = 0/1 分支，金粒子 = 合并流动）');
 

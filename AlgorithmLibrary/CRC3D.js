@@ -29,7 +29,7 @@ new VText(scene, { text: '输入 9 字节', x: -340, y: 115, z: 0, color: PALETT
 const RSP = 100, RX0 = -150;
 const reg = [];
 for (let i = 0; i < 4; i++) reg.push(new VBox(scene, { w: 84, h: 52, d: 40, x: RX0 + i * RSP, y: -40, z: 0, label: 'FF', color: DIM, emissive: 0 }));
-new VText(scene, { text: '32 位移位寄存器（每格 8 位）', x: -330, y: -75, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '32 位移位寄存器（每格 8 位）', x: -280, y: -75, z: 0, color: PALETTE.textDim, scale: 0.6 });
 new VText(scene, { text: 'CRC-32 · 多项式 0xEDB88320（反射）· 初始 0xFFFFFFFF', x: 0, y: -115, z: 0, color: PALETTE.textDim, scale: 0.7 });
 const stepT = new VText(scene, { text: '', x: 0, y: -160, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const resultT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textGlow, scale: 0.75 });

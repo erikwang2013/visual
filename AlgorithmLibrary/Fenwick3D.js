@@ -12,10 +12,10 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, WHITE = 0xffffff, GOLD = 0xfcd34d, RED = 0xfb7185;
-const hint = new VText(scene, { text: '点击「运行演示」开始：建 BIT → 前缀查询 → 点更新', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：建 BIT → 前缀查询 → 更新', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: -170, z: 0, color: PALETTE.textGlow, scale: 0.7 });
-const result = new VText(scene, { text: '前缀和: —', x: 0, y: 300, z: 0, color: PALETTE.yellow, scale: 1 });
+const result = new VText(scene, { text: '前缀和: —', x: 0, y: 280, z: 0, color: PALETTE.yellow, scale: 1 });
 
 const N = 12;
 const lowbit = i => i & -i;

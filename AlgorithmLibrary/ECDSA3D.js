@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：ECDSA —— 椭圆曲线数字签名，比特币/以太坊的标准', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：ECDSA —— 数字签名', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
 const eqT = new VText(scene, { text: '', x: 0, y: 148, z: 0, color: PALETTE.textGlow, scale: 0.44 });
@@ -59,7 +59,7 @@ const pBox = box('', -50, 25, 92);
 const ckBox = box('', 80, 25, 158);
 new VText(scene, { text: '签名', x: -395, y: 175, z: 0, color: CYAN, scale: 0.46 });
 new VText(scene, { text: '验签', x: -395, y: 25, z: 0, color: GOLD, scale: 0.46 });
-new VText(scene, { text: 'ECDSA：私钥 dA，公钥 Q = dA·G；曲线 y²=x³+2x+2 (mod 17)，n = 19，G = (5,1) —— 比特币 secp256k1 的缩小版', x: 0, y: 230, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: 'ECDSA：私钥 dA，公钥 Q=dA·G', x: 0, y: 235, z: 0, color: PALETTE.textDim, scale: 0.68 });
 new VText(scene, { text: '签名 r = x₁ mod n（x₁ 来自 kG），s = k⁻¹(e + r·dA) mod n。验签 w = s⁻¹：u1G + u2Q 还原 kG，x₁ 对得上即通过', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
 const setCell = (obj, v, color) => { obj.setText(String(v)); if (color) obj.setColor(color, color); };
 

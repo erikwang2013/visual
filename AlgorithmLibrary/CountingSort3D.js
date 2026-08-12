@@ -13,7 +13,7 @@ const panel = new ControlPanel({ engine });
 
 const BASE = 0x60a5fa, GOLD = 0xfcd34d, OK = 0x4ade80, CYAN = 0x22d3ee;
 
-const hint = new VText(scene, { text: '计数排序：小球飞入半透明圆柱计数桶，桶高随计数增长，再按序弹出', x: 0, y: 340, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '计数排序：小球飞入圆柱计数桶，随计数增长按序弹出', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('就绪');
 
 const VALUES = 5, N = 16;
@@ -126,11 +126,11 @@ function* randomizeGen() {
     spheres[i].lbl.setText(String(v));
     yield W(60);
   }
-  yield S(() => hint.setText('已随机化，可点击「运行计数排序」'));
+  yield S(() => hint.setText('已随机化，可点击「运行演示」'));
 }
 
 panel.addButton('随机化', () => engine.start(randomizeGen()));
-panel.addButton('运行计数排序', () => engine.start(countingSort()));
+panel.addButton('运行演示', () => engine.start(countingSort()));
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；金柱 = 桶内计数高度）');
 

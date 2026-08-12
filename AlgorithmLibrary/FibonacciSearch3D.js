@@ -20,7 +20,7 @@ const bars = [];
 for (let i = 0; i < N; i++) {
   bars.push(new VBox(scene, { w: 30, h: 36, d: 36, x: (i - 6) * SPX, y: 0, z: 0, label: String(DATA[i]), color: DIM, emissive: DIM }));
 }
-new VText(scene, { text: '13 个元素（斐波那契数 F7=13）—— 每次把区间按黄金比 0.618 切开', x: 0, y: 300, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '13 个元素 —— 按黄金比 0.618 二分', x: 0, y: 305, z: 0, color: PALETTE.textDim, scale: 0.7 });
 const fibT = new VText(scene, { text: '', x: 0, y: 205, z: 0, color: VIOLET, scale: 0.7 });
 const logT = new VText(scene, { text: '', x: 0, y: -95, z: 0, color: PALETTE.textGlow, scale: 0.65 });
 const foundT = new VText(scene, { text: '', x: 0, y: -130, z: 0, color: GREEN, scale: 0.75 });

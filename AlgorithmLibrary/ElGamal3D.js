@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：ElGamal —— 随机数 k 让同一明文每次加密都不同（概率性加密）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：ElGamal —— 概率性加密', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
 const eqT = new VText(scene, { text: '', x: 0, y: 148, z: 0, color: PALETTE.textGlow, scale: 0.44 });
@@ -43,7 +43,7 @@ const mBox = box('', 40, -70, 92);
 new VText(scene, { text: '密钥生成', x: -355, y: 180, z: 0, color: CYAN, scale: 0.46 });
 new VText(scene, { text: '加密（鲍勃）', x: -355, y: 55, z: 0, color: ORANGE, scale: 0.46 });
 new VText(scene, { text: '解密（爱丽丝）', x: -355, y: -70, z: 0, color: GOLD, scale: 0.46 });
-new VText(scene, { text: 'ElGamal：y = gˣ (mod p) 公开，x 保密 —— 离散对数求不出来，公钥才能放心发出去', x: 0, y: 230, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: 'ElGamal：y = gˣ mod p，x 保密', x: 0, y: 235, z: 0, color: PALETTE.textDim, scale: 0.68 });
 new VText(scene, { text: '加密 (c₁, c₂) = (gᵏ, m·yᵏ) 用随机 k；解密 m = c₂·(c₁ˣ)⁻¹ —— 随机性 k 是「一次性涂改液」', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
 const setCell = (obj, v, color) => { obj.setText(String(v)); if (color) obj.setColor(color, color); };
 

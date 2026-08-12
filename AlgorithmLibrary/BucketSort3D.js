@@ -13,7 +13,7 @@ const panel = new ControlPanel({ engine });
 
 const BASE = 0x60a5fa, GOLD = 0xfcd34d, OK = 0x4ade80, CYAN = 0x22d3ee, RED = 0xef4444, WHITE = 0xf8fafc;
 
-const hint = new VText(scene, { text: '桶排序：球按值域飞入悬浮桶（桶内自动排队），桶内插入排序，再按序倒出', x: 0, y: 345, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '桶排序：球按值域飞入悬浮桶（桶内自动排队），桶内插入排序，再按序倒出', x: 0, y: 310, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('就绪');
 
 const N = 16, BUCKETS = 5, MAXV = 20;
@@ -151,11 +151,11 @@ function* randomizeGen() {
     spheres[i].lbl.setText(String(v));
     yield W(60);
   }
-  yield S(() => hint.setText('已随机化，可点击「运行桶排序」'));
+  yield S(() => hint.setText('已随机化，可点击「运行演示」'));
 }
 
 panel.addButton('随机化', () => engine.start(randomizeGen()));
-panel.addButton('运行桶排序', () => engine.start(bucketSort()));
+panel.addButton('运行演示', () => engine.start(bucketSort()));
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；5 个悬浮桶按值域均分 1..20）');
 

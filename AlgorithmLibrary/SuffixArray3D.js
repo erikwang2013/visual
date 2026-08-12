@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const VIOLET = 0xc4b5fd, GOLD = 0xfcd34d, CYAN = 0x67e8f9, GREEN = 0x4ade80, SLATE = 0x64748b;
-const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 640, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
 
 const TXT = 'banana';

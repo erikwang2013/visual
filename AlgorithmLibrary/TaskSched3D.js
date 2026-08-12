@@ -45,7 +45,7 @@ const tasksV = TASKS.map(t => ({
 const slotBox = [1, 2, 3].map(i =>
   new VBox(scene, { w: 90, h: 60, d: 60, x: 80 + (i - 1) * 110, y: 30, z: 0, label: '槽' + i, color: DIM, emissive: DIM }));
 new VText(scene, { text: '时间槽 1…3（每个槽最多一个任务，必须在截止前完成）', x: 80, y: 88, z: 0, color: PALETTE.textDim, scale: 0.6 });
-new VText(scene, { text: '4 个任务各带利润 p 和截止 d —— 每单位时间只能做一个任务，目标：总利润最大', x: 0, y: 232, z: 0, color: PALETTE.textDim, scale: 0.62 });
+new VText(scene, { text: '4 个任务各带利润 p 和截止 d —— 总利润最大', x: 0, y: 228, z: 0, color: PALETTE.textDim, scale: 0.62 });
 new VText(scene, { text: '贪心策略：按利润降序处理，每个任务放入「不超过截止的最晚空槽」—— 并查集快速找槽', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
 const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.68 });
 const totalT = new VText(scene, { text: '', x: 0, y: -130, z: 0, color: GREEN, scale: 0.8 });

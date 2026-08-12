@@ -20,7 +20,7 @@ const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.te
 
 const REF = [7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2, 1, 2, 0, 1, 7, 0, 1];
 const FRAME_X = [-220, 0, 220];
-const chips = REF.map((v, i) => new VBox(scene, { w: 40, h: 26, d: 26, x: -456 + i * 48, y: 220, z: 0, label: String(v), color: DIM, emissive: DIM }));
+const chips = REF.map((v, i) => new VBox(scene, { w: 40, h: 26, d: 26, x: -400 + i * 48, y: 220, z: 0, label: String(v), color: DIM, emissive: DIM }));
 const frames = FRAME_X.map(x => new VBox(scene, { w: 100, h: 70, d: 70, x, y: 70, z: 0, label: '空', color: BLUE, emissive: BLUE }));
 const cntChips = FRAME_X.map(x => new VText(scene, { text: '', x, y: 22, z: 0, color: PALETTE.textDim, scale: 0.42 }));
 let slots = [-1, -1, -1];

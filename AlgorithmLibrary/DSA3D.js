@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：DSA —— 美国 NIST 数字签名标准，子群 q 上签名、模 p 验证', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：DSA —— 数字签名标准', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
 const eqT = new VText(scene, { text: '', x: 0, y: 148, z: 0, color: PALETTE.textGlow, scale: 0.44 });
@@ -40,10 +40,10 @@ const wBox = box('', -350, -125, 72);
 const u1Box = box('', -265, -125, 72);
 const u2Box = box('', -180, -125, 72);
 const vBox = box('', -10, -125, 88);
-new VText(scene, { text: '密钥生成', x: -410, y: 175, z: 0, color: CYAN, scale: 0.46 });
-new VText(scene, { text: '签名', x: -410, y: 25, z: 0, color: ORANGE, scale: 0.46 });
-new VText(scene, { text: '验签', x: -410, y: -125, z: 0, color: GOLD, scale: 0.46 });
-new VText(scene, { text: 'DSA（NIST 1991）：参数 (p, q, g)，私钥 x，公钥 y = gˣ mod p —— 签名 (r, s) 用随机数 k 一次性生成', x: 0, y: 230, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: '密钥生成', x: -360, y: 175, z: 0, color: CYAN, scale: 0.46 });
+new VText(scene, { text: '签名', x: -360, y: 25, z: 0, color: ORANGE, scale: 0.46 });
+new VText(scene, { text: '验签', x: -360, y: -125, z: 0, color: GOLD, scale: 0.46 });
+new VText(scene, { text: 'DSA：参数 (p,q,g)，私钥 x，公钥 y = gˣ mod p', x: 0, y: 220, z: 0, color: PALETTE.textDim, scale: 0.68 });
 new VText(scene, { text: 'r = (gᵏ mod p) mod q；s = k⁻¹(e + x·r) mod q。验签 w = s⁻¹，v = (g^u1·y^u2 mod p) mod q = r 即通过', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
 const setCell = (obj, v, color) => { obj.setText(String(v)); if (color) obj.setColor(color, color); };
 

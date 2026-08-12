@@ -11,11 +11,11 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：递归逆转 —— 拆串深入再拼回', x: 0, y: -305, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：递归逆转 —— 拆串深入再拼回', x: 420, y: -375, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 320, y: 250, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 375, y: 120, z: 0, color: PALETTE.textGlow, scale: 0.44 });
-const outT = new VText(scene, { text: '', x: 420, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 320, y: 265, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 375, y: 140, z: 0, color: PALETTE.textGlow, scale: 0.44 });
+const outT = new VText(scene, { text: '', x: 540, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const S0 = 'ABCDE';
 const N = S0.length;

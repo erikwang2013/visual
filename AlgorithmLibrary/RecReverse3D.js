@@ -11,17 +11,18 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：递归逆转 —— 拆串深入再拼回', x: 0, y: -375, z: 0, color: PALETTE.textGlow, scale: 0.85, wrapChars: 0 });
+const hint = new VText(scene, { text: '点击「运行演示」开始：递归逆转 —— 拆串深入再拼回', x: 0, y: -350, z: 0, color: PALETTE.textGlow, scale: 0.85, wrapChars: 0 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 265, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -165, z: 0, color: PALETTE.textGlow, scale: 0.44 });
-const outT = new VText(scene, { text: '', x: 0, y: -260, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 190, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: -230, z: 0, color: PALETTE.textGlow, scale: 0.44 });
+const outT = new VText(scene, { text: '', x: 0, y: -290, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const S0 = 'ABCDE';
 const N = S0.length;
-const inChips = S0.split('').map((ch, i) => new VBox(scene, { w: 100, h: 50, d: 50, x: -164 + i * 132, y: 336, z: 0, label: ch, color: BLUE, emissive: BLUE }));
-const frames = Array.from({ length: N }, (_, i) => new VBox(scene, { w: 320, h: 42, d: 42, x: 100, y: 221 - i * 46, z: 0, label: S0.slice(i), color: DIM, emissive: DIM }));
-const outChips = Array.from({ length: N }, (_, i) => new VBox(scene, { w: 100, h: 50, d: 50, x: -164 + i * 132, y: -44, z: 0, label: '?', color: DIM, emissive: DIM }));
+const chipX = (i) => -181 + i * 104;
+const inChips = S0.split('').map((ch, i) => new VBox(scene, { w: 90, h: 46, d: 46, x: chipX(i), y: 245, z: 0, label: ch, color: BLUE, emissive: BLUE }));
+const frames = Array.from({ length: N }, (_, i) => new VBox(scene, { w: 320, h: 42, d: 42, x: 60, y: 135 - i * 46, z: 0, label: S0.slice(i), color: DIM, emissive: DIM }));
+const outChips = Array.from({ length: N }, (_, i) => new VBox(scene, { w: 90, h: 46, d: 46, x: chipX(i), y: -140, z: 0, label: '?', color: DIM, emissive: DIM }));
 
 function* recRevGen() {
   yield S(() => { hint.setText('递归逆转：把首字符不断推迟到最后，回溯时才知结果', { wrapChars: 0 }); stageT.setText('拆串深入：rev("ABCDE") 挂起，等待右子串', { wrapChars: 0 }); });

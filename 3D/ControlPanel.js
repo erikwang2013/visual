@@ -103,7 +103,6 @@ export class ControlPanel {
     };
     this.playBtn = mkBtn('▶ 播放', () => this.engine.toggle());
     mkBtn('⏭ 单步', () => this.engine.step());
-    mkBtn('↩ 撤销', () => this.engine.undo());
     const slider = document.createElement('input');
     slider.type = 'range';
     slider.min = 0.25; slider.max = 3; slider.step = 0.25; slider.value = 1;

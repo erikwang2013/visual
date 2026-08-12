@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：BFS 从节点 0 出发', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：BFS 从节点 0 出发', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: -200, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 const orderT = new VText(scene, { text: '遍历顺序: ', x: 0, y: -245, z: 0, color: PALETTE.green, scale: 0.75 });
@@ -117,7 +117,7 @@ function* runBFS() {
   yield S(() => { outT.setText(''); hint.setText('BFS 完成：时间复杂度 O(V+E)，最短步数可达性'); });
 }
 
-panel.addButton('运行演示', () => engine.start(runBFS()));
+engine.queue(() => runBFS());
 panel.addButton('清空', () => { engine.clear(); clearView(); orderT.setText('遍历顺序: '); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；金 = 当前出队，橙 = 已入队，绿 = 已访问/边点亮；顶部为队列）');
 

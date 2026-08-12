@@ -11,7 +11,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, VIOLET = 0xa78bfa, AMBER = 0xfbbf24;
-const hint = new VText(scene, { text: '点击「运行演示」开始：最近点对（分治）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：最近点对（分治）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 const PTS = [[0, 2], [1, 5], [2, 3], [3, 4], [5, 1], [6, 6], [7, 3], [8, 5]];
@@ -124,7 +124,7 @@ function* nearestPairGen() {
   yield W(700);
 }
 
-panel.addButton('运行演示', () => engine.start(nearestPairGen()));
+engine.queue(() => nearestPairGen());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；紫/琥珀 = 左右半，金 = 最优对，青 = δ 带与带内点，玫瑰 = 被否的候选）');
 

@@ -120,6 +120,7 @@ function* runLin() {
 
 panel.addButton('运行埃氏筛', () => engine.start(runEra()));
 panel.addButton('运行线性筛', () => engine.start(runLin()));
+engine.queue(() => runEra());
 panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；红 = 当前质数，绿 = 质数锁定，青 = 正在筛掉的合数，暗灰 = 已筛去；格子 = 数字 1..30）');
 

@@ -11,7 +11,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, WHITE = 0xe2e8f0;
-const hint = new VText(scene, { text: '点击「运行演示」开始：任务调度 —— 单机排程，截止前做完任务拿利润', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：任务调度 —— 单机排程，截止前做完任务拿利润', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 const TASKS = [
@@ -109,7 +109,7 @@ function* tsGen() {
   yield W(1000);
 }
 
-panel.addButton('运行演示', () => engine.start(tsGen()));
+engine.queue(() => tsGen());
 panel.addButton('清空', () => {
   engine.clear();
   tasksV.forEach(t => { t.box.setColor(DIM, DIM); t.box.setText(t.box.text); });

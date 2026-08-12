@@ -18,7 +18,7 @@ const SERVERS = [['A', 130], ['B', 250], ['C', 390]];
 const KEYS = [['k1', 60, 'A'], ['k2', 170, 'B'], ['k3', 300, 'C'], ['k4', 40, 'A'], ['k5', 340, 'C']];
 const NEW_SERVER = ['D', 220];
 
-const hint = new VText(scene, { text: '点击「运行演示」开始：一致性哈希', x: 0, y: 310, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：一致性哈希', x: 0, y: 310, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const serverNodes = [], serverLbls = [], keyNodes = [], arcs = [], notes = [];
 
@@ -95,7 +95,7 @@ function* chGen() {
   yield W(900);
 }
 
-panel.addButton('运行演示', () => engine.start(chGen()));
+engine.queue(() => chGen());
 panel.addButton('清空', () => { engine.clear(); clearAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；绿弧 = key 到归属服务器的顺时针路径，红 = 需要迁移的 key）');
 

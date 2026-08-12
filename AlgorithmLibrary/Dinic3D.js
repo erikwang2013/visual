@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：Dinic 最大流（BFS 分层 + DFS 阻塞流）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Dinic 最大流（BFS 分层 + DFS 阻塞流）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: -245, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
@@ -148,7 +148,7 @@ function* runDinic() {
   yield S(() => { outT.setText(''); hint.setText('Dinic 完成：最大流 = ' + flow.reduce((s, f, i) => E[i][0] === 0 ? s + f : s, 0)); });
 }
 
-panel.addButton('运行演示', () => engine.start(runDinic()));
+engine.queue(() => runDinic());
 panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；节点上方 = level，青 = DFS 探测，金 = 增广边；标签 = 流量/容量）');
 

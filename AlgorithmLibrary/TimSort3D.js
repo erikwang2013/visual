@@ -214,11 +214,11 @@ function* randomizeGen() {
     setV(i, a[i]);
     yield W(60);
   }
-  yield S(() => hint.setText('已随机化，可点击「运行演示」'));
+  yield S(() => hint.setText('已随机化，可点击「▶ 演示」'));
 }
 
 panel.addButton('随机化', () => engine.start(randomizeGen()));
-panel.addButton('运行演示', () => engine.start(timSort()));
+engine.queue(() => timSort());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；色块 = Run 范围，波纹 = 归并碰撞）');
 

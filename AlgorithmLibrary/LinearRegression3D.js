@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, DIM = 0x334155, RED = 0xf87171;
-const hint = new VText(scene, { text: '点击「运行演示」开始：线性回归', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：线性回归', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 const PTS = [[-240, -100], [-180, -60], [-120, -50], [-60, -5], [0, 25], [60, 55], [120, 70], [180, 115], [240, 145]];
@@ -87,7 +87,7 @@ function* lrGen() {
   yield W(600);
 }
 
-panel.addButton('运行演示', () => engine.start(lrGen()));
+engine.queue(() => lrGen());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；多变量线性回归同理，只是参数更多）');
 

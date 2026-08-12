@@ -11,7 +11,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, VIOLET = 0xa78bfa, RED = 0xf87171;
-const hint = new VText(scene, { text: '点击「运行演示」开始：斐波那契搜索 —— 黄金分割定位', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：斐波那契搜索 —— 黄金分割定位', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 const DATA = [3, 8, 15, 19, 26, 34, 41, 47, 55, 62, 68, 74, 81];
@@ -93,7 +93,7 @@ function* fibGen() {
   yield W(700);
 }
 
-panel.addButton('运行演示', () => engine.start(fibGen()));
+engine.queue(() => fibGen());
 panel.addButton('清空', () => {
   engine.clear();
   DATA.forEach((_, i) => { setH(i); bars[i].setColor(DIM, DIM); });

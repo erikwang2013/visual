@@ -11,7 +11,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, RED = 0xf87171, YELLOW = 0xfacc15, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：决策树（ID3）', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：决策树（ID3）', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 // 8 个样本：天气/温度/湿度/风 → 是否打球
@@ -127,7 +127,7 @@ function* treeGen() {
   yield W(600);
 }
 
-panel.addButton('运行演示', () => engine.start(treeGen()));
+engine.queue(() => treeGen());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；C4.5 用增益率、CART 用基尼系数，同为贪心选特征）');
 

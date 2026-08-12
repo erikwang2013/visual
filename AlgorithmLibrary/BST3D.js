@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：插入路径金色下钻，新节点从上方降落', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：插入路径金色下钻，新节点从上方降落', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
@@ -256,7 +256,7 @@ function* runBST() {
   });
 }
 
-panel.addButton('运行演示', () => engine.start(runBST()));
+engine.queue(() => runBST());
 panel.addButton('清空', () => { engine.clear(); clearView(); root = null; hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；金 = 查找路径，红 = 目标/缺失，绿 = 命中）');
 

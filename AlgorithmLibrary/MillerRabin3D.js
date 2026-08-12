@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：Miller–Rabin —— 97 两轮通过、91 一轮露馅', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Miller–Rabin —— 97 两轮通过、91 一轮露馅', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
 const eqT = new VText(scene, { text: '', x: 0, y: 112, z: 0, color: PALETTE.textGlow, scale: 0.58 });
@@ -106,7 +106,7 @@ function* runMR() {
   yield* mrGen();
 }
 
-panel.addButton('运行演示', () => engine.start(runMR()));
+engine.queue(() => runMR());
 panel.addButton('清空', () => { engine.clear(); stageT.setText(''); eqT.setText(''); outT.setText(''); xSeq.setText(''); verdictT.setText(''); setCell(nBox, 'n = 97', DIM); setCell(dBox, 'd = 3', DIM); setCell(sBox, 's = 5', DIM); setCell(baseBox, '底数 b = 2', DIM); setCell(xBox, 'x = ?', DIM); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；紫 = 平方路径，金 = 撞出 −1（通过），红 = 合数证人（失败）；x² 连续平方即「试开根」）');
 

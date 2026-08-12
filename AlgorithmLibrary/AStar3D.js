@@ -15,7 +15,7 @@ const COLS = 6, ROWS = 5, GAP = 92, SIZE = 74;
 const START = [0, 0], END = [5, 4];
 const OBS = [[1, 1], [2, 1], [3, 1], [1, 3], [2, 3], [3, 3]];
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, SLATE = 0x475569, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：A* 从 S(0,0) 到 E(5,4)', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：A* 从 S(0,0) 到 E(5,4)', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: -230, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
@@ -124,7 +124,7 @@ function* runAStar() {
   yield S(() => { outT.setText(''); hint.setText('A* 完成：结合 Dijkstra 精确性与贪心方向性'); });
 }
 
-panel.addButton('运行演示', () => engine.start(runAStar()));
+engine.queue(() => runAStar());
 panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；金 = 当前最小 f，橙 = open 表，蓝 = closed 表，绿 = 路径，灰 = 障碍）');
 

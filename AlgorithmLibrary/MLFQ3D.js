@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：MLFQ —— 顶层秒回，用完时间片降级', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：MLFQ —— 顶层秒回，用完时间片降级', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
 const eqT = new VText(scene, { text: '', x: 0, y: 168, z: 0, color: PALETTE.textGlow, scale: 0.5 });
@@ -91,7 +91,7 @@ function* runMLFQ() {
   yield* mlfqGen();
 }
 
-panel.addButton('运行演示', () => engine.start(runMLFQ()));
+engine.queue(() => runMLFQ());
 panel.addButton('清空', () => { engine.clear(); stageT.setText(''); eqT.setText(''); outT.setText(''); timelineT.setText(''); PROCS.forEach(p => { blockOf[p.name].setColor(BLUE, BLUE); blockOf[p.name].setText(p.name + ' ' + p.burst); blockOf[p.name].moveTo(400, 55, 0, 300); left[p.name] = p.burst; }); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；金 = 运行中，蓝 = 队列中，绿 = 完成；进程块随降级逐层下移，Q0 新进程永远最先跑）');
 

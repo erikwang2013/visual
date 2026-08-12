@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：石子合并（4 堆：4、1、2、7）', x: 0, y: 308, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：石子合并（4 堆：4、1、2、7）', x: 0, y: 308, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 265, z: 0, color: GOLD, scale: 0.72 });
 const outT = new VText(scene, { text: '', x: 0, y: -238, z: 0, color: PALETTE.textGlow, scale: 0.62 });
@@ -99,7 +99,7 @@ function* runSM() {
   yield S(() => { outT.setText(''); hint.setText('石子合并完成：最小代价 24（1+2 → 4+3 → 7+7），O(n³)'); });
 }
 
-panel.addButton('运行演示', () => engine.start(runSM()));
+engine.queue(() => runSM());
 panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；玫红 = 区间端点，青 = 计算中，金 = 最优值；下方 dp 格从长度 2 填到 4）');
 

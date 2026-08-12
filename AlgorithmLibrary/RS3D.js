@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：Reed-Solomon 纠错 —— toy 版 GF(7) 编解码', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Reed-Solomon 纠错 —— toy 版 GF(7) 编解码', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
 const eqT = new VText(scene, { text: '', x: 0, y: 132, z: 0, color: PALETTE.textGlow, scale: 0.44 });
@@ -106,7 +106,7 @@ function* runRS() {
   yield* rsGen();
 }
 
-panel.addButton('运行演示', () => engine.start(runRS()));
+engine.queue(() => runRS());
 panel.addButton('清空', () => {
   engine.clear();
   cwChips.forEach((c, i) => { c.setText('c' + i + ' = ?'); c.setColor(i < 2 ? CYAN : BLUE, i < 2 ? CYAN : BLUE); });

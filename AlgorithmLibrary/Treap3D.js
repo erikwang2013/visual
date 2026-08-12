@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, WHITE = 0xffffff, GREEN = 0x4ade80, ORANGE = 0xfb923c, PURPLE = 0xc084fc;
-const hint = new VText(scene, { text: '点击「运行演示」开始：Treap 堆性质修复（旋转）', x: 0, y: 320, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Treap 堆性质修复（旋转）', x: 0, y: 320, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: -20, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
@@ -216,7 +216,7 @@ function* runTreap() {
   });
 }
 
-panel.addButton('运行演示', () => engine.start(runTreap()));
+engine.queue(() => runTreap());
 panel.addButton('随机化', () => engine.start(randomizeGen()));
 panel.addButton('清空', () => { engine.clear(); clearView(); root = null; model.clear(); nextId = 0; hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；键标签白字在上，优先级紫字在下；橙 = 旋转目标，绿 = 完成）');

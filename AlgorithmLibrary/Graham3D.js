@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：Graham 扫描求 12 点凸包', x: 0, y: 260, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Graham 扫描求 12 点凸包', x: 0, y: 260, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 222, z: 0, color: GOLD, scale: 0.72 });
 const eqT = new VText(scene, { text: '', x: 0, y: -70, z: 0, color: PALETTE.textGlow, scale: 0.56 });
@@ -90,7 +90,7 @@ function* runGraham() {
   yield* grahamGen();
 }
 
-panel.addButton('运行演示', () => engine.start(runGraham()));
+engine.queue(() => runGraham());
 panel.addButton('清空', () => { engine.clear(); clearEdges(); resetColors(); stageT.setText(''); eqT.setText(''); outT.setText(''); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；红 = 最低点 p0，橙 = 极角排序链，青 = 当前考察，绿 = 栈内顶点，红 = 被弹出，金 = 最终凸包）');
 

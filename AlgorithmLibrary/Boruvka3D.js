@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：Boruvka 最小生成树（分量并进）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Boruvka 最小生成树（分量并进）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 const parT = new VText(scene, { text: '', x: 0, y: -252, z: 0, color: PALETTE.textDim, scale: 0.6 });
@@ -122,7 +122,7 @@ function* runBoruvka() {
   yield S(() => { outT.setText(''); hint.setText('Boruvka 完成：适合并行计算的最小生成树算法'); });
 }
 
-panel.addButton('运行演示', () => engine.start(runBoruvka()));
+engine.queue(() => runBoruvka());
 panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); parT.setText(''); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；节点色 = 所属分量，青 = 最小出边，绿 = 合并，金 = MST 最终边）');
 

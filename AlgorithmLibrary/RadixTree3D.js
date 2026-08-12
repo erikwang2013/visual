@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：基数树边分裂插入', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：基数树边分裂插入', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: -170, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
@@ -314,7 +314,7 @@ function* runRadix() {
   });
 }
 
-panel.addButton('运行演示', () => engine.start(runRadix()));
+engine.queue(() => runRadix());
 panel.addButton('清空', () => { engine.clear(); clearView(); root.children.clear(); model.clear(); model.set(root.id, root); nextId = 0; hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；白字 = 边前缀标签，★ = 单词端节点，金 = 路径）');
 

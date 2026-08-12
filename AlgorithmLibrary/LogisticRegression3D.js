@@ -11,7 +11,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, ROSE = 0xfb7185;
-const hint = new VText(scene, { text: '点击「运行演示」开始：逻辑回归训练', x: 0, y: 260, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：逻辑回归训练', x: 0, y: 260, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 const PTS = [[-3, 1, 1], [-2, 2, 1], [-1, 0.5, 1], [1, -1, 0], [2, -2, 0], [3, -0.5, 0]];
@@ -83,7 +83,7 @@ function* lrGen() {
   yield W(600);
 }
 
-panel.addButton('运行演示', () => engine.start(lrGen()));
+engine.queue(() => lrGen());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；σ 函数输出概率，交叉熵衡量预测与真实标签的偏差）');
 

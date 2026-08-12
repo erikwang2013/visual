@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：Prim 最小生成树', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Prim 最小生成树', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: -250, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 const seqT = new VText(scene, { text: '', x: 0, y: 225, z: 0, color: GREEN, scale: 0.62 });
@@ -118,7 +118,7 @@ function* runPrim() {
   yield S(() => { outT.setText(''); hint.setText('Prim 完成：MST 总权重 13（0-2、2-1、1-3、3-4、4-5）'); });
 }
 
-panel.addButton('运行演示', () => engine.start(runPrim()));
+engine.queue(() => runPrim());
 panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); seqT.setText(''); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 候选边闪烁，绿 = 已选树边；顶部绿字 = 选中序列与累计权重）');
 

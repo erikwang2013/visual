@@ -1,6 +1,6 @@
-// 3D/autodemo.js — 算法内页「演示」按钮：一键 3D 演示当前算法逻辑。
-// 自动跳过"随机列表/随机化数组/更改大小"类辅助按钮，选中第一个真正的演示动作并播放动画。
-// 空输入页（树/堆/哈希/栈/队列等）按页面填充默认演示输入；树类先删后插保证插入必成功。
+// 3D/autodemo.js — 算法内页「演示」按钮：一键启动当前算法演示。
+// 页面不再有「运行演示」按钮：默认演示由 GeneratorEngine.queue(factory) 注册，
+// 本脚本的「▶ 演示」与播放条「播放」都走 engine.toggle()，首次点击自动启动。
 (function () {
   // 右侧对照说明栏 + 场景底部结果条：同步创建（本脚本先于模块脚本执行，模块的 addStatus/addLabel 依赖它）
   const sceneEl = document.querySelector('#scene');
@@ -16,58 +16,6 @@
     bar.innerHTML = '<span class="result-tag">演示结果</span>';
     sceneEl.parentNode.insertBefore(bar, sceneEl.nextSibling);
   }
-  // 每页演示序列：steps = [{ btn: 按钮文本（省略=第一个真实动作）, fills: [输入框值...] }]
-  // 无条目页面执行单次默认动作
-  const DEMOS = {
-    'BellmanFord.html': { steps: [{ btn: '运行Bellman-Ford', fills: ['s'] }] },
-    'DFS.html': { steps: [{ btn: '运行DFS' }] },
-    'ConnectedComponent.html': { steps: [{ btn: '运行连接组件' }] },
-    'Dijkstra.html': { steps: [{ btn: '运行Dijkstra' }] },
-    'Prim.html': { steps: [{ btn: '运行Prim' }] },
-    'Kruskal.html': { steps: [{ btn: '运行Kruskal' }] },
-    'Floyd.html': { steps: [{ btn: '运行Floyd-Warshall' }] },
-    'TopoSortIndegree.html': { steps: [{ btn: '做拓扑排序' }] },
-    'TopoSortDFS.html': { steps: [{ btn: '做拓扑排序' }] },
-    'BST.html': { steps: [{ btn: '删除', fills: ['50'] }, { btn: '插入', fills: ['50'] }] },
-    'AVLtree.html': { steps: [{ btn: '删除', fills: ['50'] }, { btn: '插入', fills: ['50'] }] },
-    'RedBlack.html': { steps: [{ btn: '删除', fills: ['50'] }, { btn: '插入', fills: ['50'] }] },
-    'SplayTree.html': { steps: [{ btn: '删除', fills: ['50'] }, { btn: '插入', fills: ['50'] }] },
-    'BTree.html': { steps: [{ btn: '删除', fills: ['50'] }, { btn: '插入', fills: ['50'] }] },
-    'BPlusTree.html': { steps: [{ btn: '插入', fills: ['50'] }, { btn: '插入', fills: ['25'] }, { btn: '插入', fills: ['75'] }, { btn: '插入', fills: ['60'] }] },
-    'Trie.html': { steps: [{ btn: '删除', fills: ['abc'] }, { btn: '插入', fills: ['abc'] }] },
-    'RadixTree.html': { steps: [{ btn: '删除', fills: ['abc'] }, { btn: '插入', fills: ['abc'] }] },
-    'TST.html': { steps: [{ btn: '删除', fills: ['abc'] }, { btn: '插入', fills: ['abc'] }] },
-    'Heap.html': { steps: [{ fills: ['10'] }, { fills: ['20'] }, { fills: ['30'] }] },
-    'KMP.html': { steps: [{ fills: ['ABABABCABAB', 'ABABC'] }] },
-    'Knapsack.html': { steps: [{ fills: ['2/3,3/4,4/5,5/6', '8'] }] },
-    'BinomialQueue.html': { steps: [{ fills: ['10'] }, { fills: ['20'] }, { fills: ['30'] }] },
-    'FibonacciHeap.html': { steps: [{ fills: ['10'] }, { fills: ['20'] }, { fills: ['30'] }] },
-    'LeftistHeap.html': { steps: [{ fills: ['10'] }, { fills: ['20'] }, { fills: ['30'] }] },
-    'SkewHeap.html': { steps: [{ fills: ['10'] }, { fills: ['20'] }, { fills: ['30'] }] },
-    'OpenHash.html': { steps: [{ fills: ['10'] }, { fills: ['20'] }, { fills: ['30'] }] },
-    'ClosedHash.html': { steps: [{ fills: ['10'] }, { fills: ['20'] }, { fills: ['30'] }] },
-    'ClosedHashBucket.html': { steps: [{ fills: ['10'] }, { fills: ['20'] }, { fills: ['30'] }] },
-    'StackArray.html': { steps: [{ fills: ['5'] }, { fills: ['6'] }, { fills: ['7'] }] },
-    'StackLL.html': { steps: [{ fills: ['5'] }, { fills: ['6'] }, { fills: ['7'] }] },
-    'QueueArray.html': { steps: [{ fills: ['5'] }, { fills: ['6'] }, { fills: ['7'] }] },
-    'QueueLL.html': { steps: [{ fills: ['5'] }, { fills: ['6'] }, { fills: ['7'] }] },
-    'SimpleStack.html': { steps: [{ fills: ['5'] }, { fills: ['6'] }, { fills: ['7'] }] },
-    'RecReverse.html': { steps: [{ fills: ['hello'] }] },
-    'SegmentTree.html': { steps: [{ btn: '建树' }, { btn: '区间查询', fills: ['2', '5'] }, { btn: '点更新', fills: ['2', '5', '3', '9'] }, { btn: '区间查询', fills: ['2', '5'] }] },
-    'DPFib.html': { steps: [{ fills: ['10'] }] },
-    'ComparisonSort.html': { steps: [{ select: '选择演示算法' }] },
-    'AStar.html': { steps: [{ btn: '运行 A*' }] },
-    'Dinic.html': { steps: [{ btn: '运行 Dinic' }] },
-    'Tarjan.html': { steps: [{ btn: '运行 Tarjan' }] },
-    'MatrixChain.html': { steps: [{ btn: '求解' }] },
-    'LIS.html': { steps: [{ btn: '求解' }] },
-    'EditDistance.html': { steps: [{ btn: '求解' }] },
-    'Manacher.html': { steps: [{ btn: '求解' }] },
-    'ACAutomaton.html': { steps: [{ btn: '构建' }] },
-    'Fenwick.html': { steps: [{ btn: '点更新', fills: ['3 5'] }] },
-    'Treap.html': { steps: [{ btn: '插入', fills: ['15'] }] },
-    'PairingHeap.html': { steps: [{ btn: '插入', fills: ['15'] }] },
-  };
 
   // 每页算法说明：第一段为总述，其余为子算法/子功能说明
   const ALGO_DESC = {
@@ -90,7 +38,7 @@
     'RadixTree.html': ['基数树（Compact Trie）：压缩只有一个孩子的节点，路径合并使结构更紧凑。', '子操作：插入（路径压缩）、查找、删除'],
     'TST.html': ['三元搜索树：每个节点三向分支（小于/等于/大于），比 26 叉 Trie 更省空间。', '子操作：插入、查找（三向比较）'],
     'SegmentTree.html': ['线段树（区间和）：堆式存储的完全二叉树，叶子为数组值，内部节点为区间和。', '子操作：建树（自底向上合并）、区间查询（完全/部分/不相交三类节点）、点更新（自叶到根重算）'],
-    'ComparisonSort.html': ['比较排序：6 种经典排序算法，可先用「选择演示算法」指定一种，再点「演示所选」播放该算法。', '子算法：插入排序、选择排序、冒泡排序、壳排序、归并排序、快速排序'],
+    'ComparisonSort.html': ['比较排序：6 种经典排序算法，直接用按钮选一种即播放该算法。', '子算法：插入排序、选择排序、冒泡排序、壳排序、归并排序、快速排序'],
     'BucketSort.html': ['桶排序：按值范围分桶，各桶内部排序后按序合并，适合均匀分布的数据。', '子步骤：分桶 → 桶内排序 → 合并'],
     'CountingSort.html': ['计数排序：统计每个值的出现次数，按计数直接放置元素，O(n+k) 但要求值域为小整数。', '子步骤：计数 → 前缀和定位 → 回填'],
     'RadixSort.html': ['基数排序：按位（从最低位起）逐位桶排，LSD 方式经 k 轮完成整体有序。', '子步骤：按个位/十位/百位依次分桶收集'],
@@ -273,42 +221,12 @@
   };
 
   const fileName = location.pathname.split('/').pop();
-  const demo = DEMOS[fileName] || null;
-  const steps = demo ? demo.steps : [{ btn: null, fills: null }];
 
-  const allBtns = () => [...document.querySelectorAll('#controls button.algo-btn:not(#demo-run-btn):not(#clear-run-btn)')];
-  const pickBtn = () => allBtns().find((b) => !/随机|random|更改大小/i.test(b.textContent));
-
-  const waitPlayback = () => new Promise((resolve) => {
-    const t = setInterval(() => {
-      const play = document.querySelector('#playbar button.play-btn');
-      if (play && play.textContent.includes('播放')) { clearInterval(t); resolve(); }
-    }, 200);
-  });
-
-  async function runDemo() {
-    for (let i = 0; i < steps.length; i++) {
-      const s = steps[i];
-      let btn;
-      if (s.select) {
-        const sel = document.querySelector('#controls .algo-select-input');
-        const v = sel && sel.selectedOptions[0] ? sel.selectedOptions[0].textContent : '';
-        btn = v ? allBtns().find((b) => b.textContent.trim() === v) : null;
-      } else {
-        if (s.fills) {
-          const inputs = document.querySelectorAll('#controls input.algo-input');
-          s.fills.forEach((v, k) => { if (inputs[k]) inputs[k].value = v; });
-        }
-        btn = s.btn ? allBtns().find((b) => b.textContent.includes(s.btn)) : pickBtn();
-      }
-      if (!btn) return;
-      btn.click();
-      await new Promise((r) => setTimeout(r, 600));
-      const play = document.querySelector('#playbar button.play-btn');
-      if (play && play.textContent.includes('播放')) play.click();
-      if (i < steps.length - 1) await waitPlayback();
-    }
-  }
+  // 播放条「播放」按钮：engine.toggle() 未运行时自动启动 queue 的默认演示
+  const startDemo = () => {
+    const play = document.querySelector('#playbar button.play-btn');
+    if (play && play.textContent.includes('播放')) play.click();
+  };
 
   const inject = () => {
     const controls = document.querySelector('#controls');
@@ -317,7 +235,7 @@
     btn.id = 'demo-run-btn';
     btn.className = 'algo-btn';
     btn.textContent = '▶ 演示';
-    btn.addEventListener('click', runDemo);
+    btn.addEventListener('click', startDemo);
     controls.prepend(btn);
     // 页面自身没有重置类按钮时注入：重置演示（停止动画并恢复初始状态）
     const hasNativeReset = [...controls.querySelectorAll('button.algo-btn')].some((b) => /清空|清除|清楚|随机|重置|新图|clear/i.test(b.textContent.trim()));
@@ -336,21 +254,6 @@
         if (native) { injected.remove(); clearInterval(t); }
       }, 300);
     }
-    // 页面有「选择演示算法」类选择器时，把选择器移到演示按钮正后方（选择器紧跟演示按钮）
-    let moveTries = 0;
-    const moveT = setInterval(() => {
-      if (moveTries++ > 50) { clearInterval(moveT); return; }
-      const b = document.getElementById('demo-run-btn');
-      if (!b) { clearInterval(moveT); return; }
-      const sel = controls.querySelector('.algo-select');
-      if (!sel) return;
-      if (b.nextElementSibling !== sel) {
-        const c = document.getElementById('clear-run-btn');
-        controls.insertBefore(sel, b.nextSibling);
-        if (c) controls.insertBefore(c, sel.nextSibling);
-      }
-      clearInterval(moveT);
-    }, 300);
   };
 
   // 算法说明：写入右侧「对照说明栏」的 #algo-desc 区
@@ -371,8 +274,8 @@
   if (new URLSearchParams(location.search).has('demo')) {
     let tries = 0;
     const t = setInterval(() => {
-      const btn = document.querySelector('#demo-run-btn');
-      if (btn) { clearInterval(t); runDemo(); return; }
+      const play = document.querySelector('#playbar button.play-btn');
+      if (play) { clearInterval(t); startDemo(); return; }
       if (++tries > 100) clearInterval(t);
     }, 200);
   }

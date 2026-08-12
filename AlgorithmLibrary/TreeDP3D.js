@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：树形DP（没有上司的舞会）', x: 0, y: 305, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：树形DP（没有上司的舞会）', x: 0, y: 305, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 265, z: 0, color: GOLD, scale: 0.72 });
 const outT = new VText(scene, { text: '', x: 0, y: -245, z: 0, color: PALETTE.textGlow, scale: 0.62 });
@@ -98,7 +98,7 @@ function* runTD() {
   yield S(() => { outT.setText(''); hint.setText('树形DP完成：最大快乐 ' + total + '（e0,e3,e4,e5），O(n)'); });
 }
 
-panel.addButton('运行演示', () => engine.start(runTD()));
+engine.queue(() => runTD());
 panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；红 = 计算中，青 = 选缺席，金 = 选出席/最终出席者；每个员工旁两个标签：出席 f1 / 缺席 f0）');
 

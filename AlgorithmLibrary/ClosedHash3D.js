@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const CYAN = 0x67e8f9, GREEN = 0x4ade80, GOLD = 0xfcd34d;
-const hint = new VText(scene, { text: '点击「运行演示」开始：闭寻址（线性探测）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：闭寻址（线性探测）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 const cells = [...Array(SIZE)].map((_, i) =>
@@ -98,7 +98,7 @@ function* closedHashGen() {
   yield W(700);
 }
 
-panel.addButton('运行演示', () => engine.start(closedHashGen()));
+engine.queue(() => closedHashGen());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 当前定位槽，绿 = 命中，灰 × = 墓碑，橙箭头 = 探测位置）');
 

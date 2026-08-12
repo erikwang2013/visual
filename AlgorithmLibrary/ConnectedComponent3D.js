@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：连通分量（逐分量 BFS）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：连通分量（逐分量 BFS）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: -240, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
@@ -143,7 +143,7 @@ function* runCC() {
   yield S(() => { outT.setText(''); hint.setText('连通分量完成：青 = 分量 1，紫 = 分量 2'); });
 }
 
-panel.addButton('运行演示', () => engine.start(runCC()));
+engine.queue(() => runCC());
 panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；顶行 = BFS 队列；同色节点与边 = 同一连通分量，节点下方标注 C1/C2）');
 

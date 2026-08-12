@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：Kruskal 最小生成树（并查集判环）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Kruskal 最小生成树（并查集判环）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 const parT = new VText(scene, { text: '', x: 0, y: -252, z: 0, color: PALETTE.textDim, scale: 0.6 });
@@ -109,7 +109,7 @@ function* runKruskal() {
   yield S(() => { outT.setText(''); hint.setText('Kruskal 完成：边数 ≤ V-1 且无环即最优，适用于稀疏图'); });
 }
 
-panel.addButton('运行演示', () => engine.start(runKruskal()));
+engine.queue(() => runKruskal());
 panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); parT.setText(''); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 检查，绿 = 选入，红 = 成环拒绝，金 = MST 最终边）');
 

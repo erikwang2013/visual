@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x67e8f9, VIOLET = 0xa78bfa, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
 const outT = new VText(scene, { text: '', x: 0, y: 40, z: 0, color: PALETTE.textGlow, scale: 0.75 });
 
@@ -273,7 +273,7 @@ function* runSuffixTree() {
   });
 }
 
-panel.addButton('运行演示', () => engine.start(runSuffixTree()));
+engine.queue(() => runSuffixTree());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；胶囊体 = 压缩边，紫球 = 内部节点，金球 = 叶子，青虚线 = 后缀链接，金环 = 当前后缀起点）');
 

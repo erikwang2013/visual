@@ -368,8 +368,11 @@ panel.addButton('插入排序', () => engine.start(insertionSort()));
 panel.addButton('希尔排序', () => engine.start(shellSort()));
 panel.addButton('归并排序', () => engine.start(mergeSort()));
 panel.addButton('快速排序', () => engine.start(quickSort()));
+engine.queue(() => demoDefault());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；每次运行自动复位当前数组）');
+
+function* demoDefault() { yield* randomizeGen(); yield* quickSort(); }
 
 function* randomizeGen() {
   yield S(resetAll);

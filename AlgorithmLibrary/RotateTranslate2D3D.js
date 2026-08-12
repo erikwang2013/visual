@@ -20,7 +20,7 @@ tri.moveTo(0, 40); tri.lineTo(-46, -30); tri.lineTo(46, -30); tri.closePath();
 geo.addShape(new THREE.ShapeGeometry(tri), { color: 0x22c55e, opacity: 0.92 });
 
 const matrixText = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const hint = new VText(scene, { text: '点击「运行演示」开始：2D 旋转 + 平移', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：2D 旋转 + 平移', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 const m = v => v.toFixed(2);
@@ -58,7 +58,7 @@ function* rt2dGen() {
   yield W(500);
 }
 
-panel.addButton('运行演示', () => engine.start(rt2dGen()));
+engine.queue(() => rt2dGen());
 panel.addButton('清空', () => {
   engine.clear();
   geo.shape.rotation.z = 0;

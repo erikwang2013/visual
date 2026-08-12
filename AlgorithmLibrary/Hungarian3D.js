@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：匈牙利算法（Kuhn 增广）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：匈牙利算法（Kuhn 增广）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: -265, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
@@ -126,7 +126,7 @@ function* runHungarian() {
   yield S(() => { outT.setText(''); hint.setText('Hungarian 完成：Kuhn 增广路算法，O(VE)'); });
 }
 
-panel.addButton('运行演示', () => engine.start(runHungarian()));
+engine.queue(() => runHungarian());
 panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 尝试边，金 = 新匹配，绿 = 已匹配；右列节点绿色 = 已匹配）');
 

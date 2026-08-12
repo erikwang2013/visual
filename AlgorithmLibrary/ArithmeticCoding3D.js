@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x60a5fa, GOLD = 0xfcd34d;
-const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('');
 
 const PROB = { A: 0.5, B: 0.25, C: 0.25 };
@@ -104,7 +104,7 @@ function* runEncode() {
   yield W(500);
 }
 
-panel.addButton('运行演示', () => engine.start(runEncode()));
+engine.queue(() => runEncode());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；彩色分段按概率缩窄，金环 = 编码点；JPEG 2000 / xz 用它逼近熵极限）');
 

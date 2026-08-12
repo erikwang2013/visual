@@ -1,6 +1,7 @@
 // 3D/GeneratorEngine.js
 // function* 生成器驱动的动画引擎：yield 即状态暂停点，绝不阻塞 while。
 // 与 ControlPanel playbar 完全兼容：toggle/playing/speed/onStateChange/notify/step/undo/clear。
+// queue(factory) 注册页面默认演示（生成器工厂）：播放条「播放」/单步可自动启动，结束后可重播。
 //
 // yield 协议：
 //   W(ms)        等待 ms（纯延时）
@@ -21,6 +22,7 @@ export class GeneratorEngine {
     this.gen = null;        // 当前生成器
     this.pending = null;    // {type:'anim'|'cond', ...}
     this.done = false;
+    this.factory = null;    // 页面默认演示工厂（生成器函数），可重复启动
   }
 
   onStateChange(cb) { this.listeners.push(cb); }
@@ -28,7 +30,20 @@ export class GeneratorEngine {
 
   play() { this.playing = true; this.notify(); }
   pause() { this.playing = false; this.notify(); }
-  toggle() { this.playing ? this.pause() : this.play(); }
+
+  // 注册默认演示：替换「运行演示」按钮，播放条「播放」即可启动
+  queue(factory) {
+    this.factory = factory;
+    this.gen = null;
+    this.pending = null;
+    this.done = false;
+    this.pause();
+  }
+
+  toggle() {
+    if (!this.gen && this.factory) { this.start(this.factory()); return; }
+    this.playing ? this.pause() : this.play();
+  }
 
   start(gen) {
     this.gen = gen;
@@ -39,9 +54,10 @@ export class GeneratorEngine {
 
   clear() { this.gen = null; this.pending = null; this.done = true; this.pause(); this.notify(); }
 
-  // 单步：跳过当前动画/等待，直达下一个状态点（含瞬时步骤）
+  // 单步：跳过当前动画/等待，直达下一个状态点（含瞬时步骤）；未运行时从默认演示开始
   step() {
     this.pause();
+    if (!this.gen && this.factory) { this.gen = this.factory(); this.pending = null; this.done = false; }
     this.pending = null;
     this.advance();
     this.notify();

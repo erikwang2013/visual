@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const VIOLET = 0xc4b5fd, GOLD = 0xfcd34d, CYAN = 0x67e8f9, GREEN = 0x4ade80, SLATE = 0x64748b;
-const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
 
 const TXT = 'banana';
@@ -82,7 +82,7 @@ function* runSA() {
   });
 }
 
-panel.addButton('运行演示', () => engine.start(runSA()));
+engine.queue(() => runSA());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；柱高 = 当前排名，柱色深浅 = 关键字排名，并列同色）');
 

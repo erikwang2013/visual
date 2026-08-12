@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：CRC-32 —— 把数据当作多项式做除法，余数就是校验值', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：CRC-32 —— 把数据当作多项式做除法，余数就是校验值', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 215, z: 0, color: GOLD, scale: 0.7 });
 const eqT = new VText(scene, { text: '', x: 0, y: 160, z: 0, color: PALETTE.textGlow, scale: 0.44 });
@@ -89,7 +89,7 @@ function* runCRC() {
   yield* crcGen();
 }
 
-panel.addButton('运行演示', () => engine.start(runCRC()));
+engine.queue(() => runCRC());
 panel.addButton('清空', () => {
   engine.clear();
   inBoxes.forEach(b => b.setColor(BLUE, BLUE));

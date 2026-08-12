@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：Tarjan 割点/桥（dfn/low）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Tarjan 割点/桥（dfn/low）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
@@ -139,7 +139,7 @@ function* runBiconnected() {
   yield S(() => { outT.setText(''); hint.setText('Biconnected 完成：割点 ' + cutList.join('、') + '，桥 ' + bridgeList.join('、')); });
 }
 
-panel.addButton('运行演示', () => engine.start(runBiconnected()));
+engine.queue(() => runBiconnected());
 panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 树边，红 = 回边/割点，金 = 桥；节点上方 dX lY = dfn/low）');
 

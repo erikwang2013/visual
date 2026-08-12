@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：Hopcroft-Karp（BFS 分层 + DFS 批量增广）', x: 0, y: 310, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Hopcroft-Karp（BFS 分层 + DFS 批量增广）', x: 0, y: 310, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: -250, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
@@ -209,7 +209,7 @@ function* runHK() {
   yield S(() => { outT.setText(''); hint.setText('Hopcroft-Karp 完成：最大匹配 ' + pairR.filter(x => x !== -1).length + '，O(E√V)'); });
 }
 
-panel.addButton('运行演示', () => engine.start(runHK()));
+engine.queue(() => runHK());
 panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；顶行 = BFS 队列；青 = 探测边，金 = 增广边，绿 = 匹配边，紫 = 自由右点；左点上方 d=N 为层次）');
 

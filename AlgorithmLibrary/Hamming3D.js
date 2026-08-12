@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：汉明(7,4) —— 4 数据位 + 3 校验位，纠 1 位错', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：汉明(7,4) —— 4 数据位 + 3 校验位，纠 1 位错', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
 const eqT = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textGlow, scale: 0.48 });
@@ -83,7 +83,7 @@ function* runHamming() {
   yield* hammingGen();
 }
 
-panel.addButton('运行演示', () => engine.start(runHamming()));
+engine.queue(() => runHamming());
 panel.addButton('清空', () => {
   engine.clear();
   for (let i = 0; i < 7; i++) { bits[i] = null; chips[i].setText('位' + (i + 1)); chips[i].setColor(PARITY_IDX.includes(i) ? CYAN : BLUE, PARITY_IDX.includes(i) ? CYAN : BLUE); }

@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, GOLD = 0xfcd34d, RED = 0xfb7185, CYAN = 0x67e8f9, SLATE = 0x64748b;
-const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
 
 const TXT = 'banana';
@@ -113,7 +113,7 @@ function* runLCP() {
   });
 }
 
-panel.addButton('运行演示', () => engine.start(runLCP()));
+engine.queue(() => runLCP());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；金色横线 = 扫描偏移，绿格 = 已匹配字符，柱 = LCP 长度）');
 

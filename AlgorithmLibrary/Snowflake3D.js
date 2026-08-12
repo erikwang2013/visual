@@ -13,7 +13,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：雪花 ID', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：雪花 ID', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('就绪');
 
 // —— 64 位 ID 三段：41bit 时间戳 + 10bit 机器 + 12bit 序列 ——
@@ -173,7 +173,7 @@ function* sfGen() {
   yield W(600);
 }
 
-panel.addButton('运行演示', () => engine.start(sfGen()));
+engine.queue(() => sfGen());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；钟=时间戳段，服务器=机器段，计数柱=序列段，底部=拼出的完整 ID）');
 

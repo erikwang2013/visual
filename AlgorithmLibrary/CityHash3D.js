@@ -11,7 +11,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, PUR = 0xc4b5fd, VIOLET = 0xa78bfa, ROSE = 0xfb7185;
-const hint = new VText(scene, { text: '点击「运行演示」开始：CityHash64', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：CityHash64', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 const MSG = 'city hash demo!!';
@@ -109,7 +109,7 @@ function* cityGen() {
   yield W(900);
 }
 
-panel.addButton('运行演示', () => engine.start(cityGen()));
+engine.queue(() => cityGen());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；紫/蓝/红 = 三组 64bit 块，金 = 当前四路状态，绿 = 输出哈希）');
 

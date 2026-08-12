@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, RED = 0xfb7185, GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x67e8f9, VIOLET = 0xc4b5fd;
-const hint = new VText(scene, { text: '点击「运行演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('');
 
 const TXT = 'ABABABC', P = 'ABAB';
@@ -169,7 +169,7 @@ function* runRK() {
   });
 }
 
-panel.addButton('运行演示', () => engine.start(runRK()));
+engine.queue(() => runRK());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；紫色折线 = 哈希曲线，金色顶点 + 爆炸 = 命中，金环 = 匹配窗口）');
 

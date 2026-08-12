@@ -11,7 +11,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, GOLD = 0xfcd34d, BLUE = 0x60a5fa, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：Shor —— 用量子周期性分解大数', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Shor —— 用量子周期性分解大数', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 const NV = 15, A0 = 7, CNT = 8, SPX = 70;
@@ -75,7 +75,7 @@ function* shorGen() {
   yield W(400);
 }
 
-panel.addButton('运行演示', () => engine.start(shorGen()));
+engine.queue(() => shorGen());
 panel.addButton('清空', () => {
   engine.clear();
   xboxes.forEach(b => b.setColor(PALETTE.node, PALETTE.nodeEmissive));

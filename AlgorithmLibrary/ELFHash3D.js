@@ -11,7 +11,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, AMBER = 0xfbbf24;
-const hint = new VText(scene, { text: '点击「运行演示」开始：ELF 哈希', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：ELF 哈希', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 const STR = 'helloworld';
@@ -101,7 +101,7 @@ function* elfGen() {
   yield W(1000);
 }
 
-panel.addButton('运行演示', () => engine.start(elfGen()));
+engine.queue(() => elfGen());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；红色 = 溢出折叠字符，金色位 = 寄存器中的 1，看溢出位如何被救回低 8 位）');
 

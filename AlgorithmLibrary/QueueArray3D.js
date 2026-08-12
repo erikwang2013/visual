@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：循环队列 入队×12 + 出队×5（tail 绕环回卷）', x: 0, y: 220, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：循环队列 入队×12 + 出队×5（tail 绕环回卷）', x: 0, y: 220, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 178, z: 0, color: GOLD, scale: 0.72 });
 const eqT = new VText(scene, { text: '', x: 0, y: -70, z: 0, color: PALETTE.textGlow, scale: 0.56 });
@@ -110,7 +110,7 @@ function* runQueue() {
   yield* queueGen();
 }
 
-panel.addButton('运行演示', () => engine.start(runQueue()));
+engine.queue(() => runQueue());
 panel.addButton('清空', () => { engine.clear(); for (let i = 0; i < SIZE; i++) clearSlot(i); head = 0; tail = 0; count = 0; moveInd(headInd, 0); moveInd(tailInd, 0); stageT.setText(''); eqT.setText(''); outT.setText(''); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；金 = 新入队槽，红 = 出队槽，青 = head 指针，金 = tail 指针；循环队列 = 环上滑动窗口）');
 

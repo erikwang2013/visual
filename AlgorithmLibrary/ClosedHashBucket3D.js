@@ -13,7 +13,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const CYAN = 0x67e8f9, GREEN = 0x4ade80, ROSE = 0xfb7185, GOLD = 0xfcd34d;
-const hint = new VText(scene, { text: '点击「运行演示」开始：桶内链闭哈希', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：桶内链闭哈希', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 const buckets = [...Array(BUCKETS)].map((_, i) =>
@@ -120,7 +120,7 @@ function* closedBucketGen() {
   yield W(700);
 }
 
-panel.addButton('运行演示', () => engine.start(closedBucketGen()));
+engine.queue(() => closedBucketGen());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 当前桶/节点，绿 = 命中，红 = 桶满拒绝，节点沿竖直链向下挂）');
 

@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, INDIGO = 0x818cf8, GOLD = 0xfcd34d, WHITE = 0xffffff, GREEN = 0x4ade80;
-const hint = new VText(scene, { text: '点击「运行演示」开始：B+ 树内部节点 + 叶层链 + 分裂复制键上移', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：B+ 树内部节点 + 叶层链 + 分裂复制键上移', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
@@ -492,7 +492,7 @@ function* runBPlus() {
   });
 }
 
-panel.addButton('运行演示', () => engine.start(runBPlus()));
+engine.queue(() => runBPlus());
 panel.addButton('清空', () => { engine.clear(); clearView(); root = null; leafHead = null; hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；蓝 = 内部节点，靛 = 叶，白链 = 叶层链）');
 

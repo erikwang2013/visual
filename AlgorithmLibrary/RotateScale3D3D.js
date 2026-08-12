@@ -19,7 +19,7 @@ geo.shape.children[1].position.y = 32 + 28;
 geo.shape.children[1].rotation.y = Math.PI / 4;
 
 const matrixText = new VText(scene, { text: '', x: 0, y: -130, z: 0, color: PALETTE.textDim, scale: 0.72 });
-const hint = new VText(scene, { text: '点击「运行演示」开始：3D 旋转 + 非均匀缩放', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：3D 旋转 + 非均匀缩放', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 const ANG = 45, SX = 1.5, SY = 0.8, RAD = ANG * Math.PI / 180;
@@ -49,7 +49,7 @@ function* rs3dGen() {
   yield W(500);
 }
 
-panel.addButton('运行演示', () => engine.start(rs3dGen()));
+engine.queue(() => rs3dGen());
 panel.addButton('清空', () => {
   engine.clear();
   geo.shape.rotation.z = 0;

@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, WHITE = 0xffffff, GOLD = 0xfcd34d, RED = 0xfb7185;
-const hint = new VText(scene, { text: '点击「运行演示」开始：建 BIT → 前缀查询 → 更新', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：建 BIT → 前缀查询 → 更新', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.8 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: -170, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 const result = new VText(scene, { text: '前缀和: —', x: 0, y: 280, z: 0, color: PALETTE.yellow, scale: 1 });
@@ -194,7 +194,7 @@ function* runFenwick() {
   });
 }
 
-panel.addButton('运行演示', () => engine.start(runFenwick()));
+engine.queue(() => runFenwick());
 panel.addButton('清空', () => { engine.clear(); clearView(); ARR.splice(0, ARR.length, 5, 3, 8, 1, 9, 4, 7, 2, 6, 3, 9, 5); rebuildModel(); result.setText('前缀和: —'); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；金 = 累加链，红 = 更新点，连线 = lowbit 关系）');
 

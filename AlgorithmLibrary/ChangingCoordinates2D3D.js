@@ -24,7 +24,7 @@ objMesh.position.set(P0.x, P0.y, 0);
 scene.add(objMesh);
 
 const matrixText = new VText(scene, { text: '', x: 0, y: -130, z: 0, color: PALETTE.textDim, scale: 0.72 });
-const hint = new VText(scene, { text: '点击「运行演示」开始：2D 坐标变换 —— 旋转 90° 再平移', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：2D 坐标变换 —— 旋转 90° 再平移', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 const MID = new THREE.Vector3(-P0.y, P0.x, 0);
@@ -58,7 +58,7 @@ function* cc2dGen() {
   yield W(500);
 }
 
-panel.addButton('运行演示', () => engine.start(cc2dGen()));
+engine.queue(() => cc2dGen());
 panel.addButton('清空', () => {
   engine.clear();
   point.mesh.position.set(P0.x, P0.y, 0);

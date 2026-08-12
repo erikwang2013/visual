@@ -13,7 +13,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：加权轮询', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：加权轮询', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 // —— 左侧负载均衡器（小机盒 + 双箭头标识） ——
@@ -111,7 +111,7 @@ function* lbGen() {
   yield W(600);
 }
 
-panel.addButton('运行演示', () => engine.start(lbGen()));
+engine.queue(() => lbGen());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；黄=请求分发瞬间，绿=处理完成，计数=各服务器接收量）');
 

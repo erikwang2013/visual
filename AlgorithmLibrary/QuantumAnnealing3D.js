@@ -11,7 +11,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：量子退火 —— 隧穿 vs 爬坡', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：量子退火 —— 隧穿 vs 爬坡', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const ENERGY = [8, 5, 3, 6, 2, 1, 4, 7, 5, 9];
 const GLOBAL = 5, LOCAL = 2;
@@ -55,7 +55,7 @@ function* qaGen() {
   yield W(500);
 }
 
-panel.addButton('运行演示', () => engine.start(qaGen()));
+engine.queue(() => qaGen());
 panel.addButton('清空', () => {
   engine.clear();
   ball.mesh.position.set(-270, 100, 20);

@@ -11,7 +11,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：DBSCAN 密度聚类', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：DBSCAN 密度聚类', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 
 const PTS = [[0, 0], [1, 0], [0.5, 0.5], [0, 1], [1, 1], [4, 4], [5, 4], [4.5, 4.5], [4, 5], [7, 1]];
@@ -85,7 +85,7 @@ function* dbscanGen() {
   yield W(600);
 }
 
-panel.addButton('运行演示', () => engine.start(dbscanGen()));
+engine.queue(() => dbscanGen());
 panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；连线 = 距离 ≤ ε，核心点向邻居扩散成簇）');
 

@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行演示」开始：SM4 —— 国密 128 位分组密码，32 轮迭代', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：SM4 —— 国密 128 位分组密码，32 轮迭代', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
 const eqT = new VText(scene, { text: '', x: 0, y: 130, z: 0, color: PALETTE.textGlow, scale: 0.42 });
@@ -60,7 +60,7 @@ function* runSM4() {
   yield* sm4Gen();
 }
 
-panel.addButton('运行演示', () => engine.start(runSM4()));
+engine.queue(() => runSM4());
 panel.addButton('清空', () => {
   engine.clear();
   regChips.forEach((c, i) => { c.setText(['X0','X1','X2','X3'][i]); c.setColor(BLUE, BLUE); });

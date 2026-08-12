@@ -12,7 +12,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「运行演示」开始：Johnson 全源最短路（含负权）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Johnson 全源最短路（含负权）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 const status = panel.addStatus('就绪');
 const outT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
@@ -147,7 +147,7 @@ function* runJohnson() {
   yield S(() => { outT.setText(''); hint.setText('Johnson 完成：稀疏图下优于 Floyd 的 O(V³)'); });
 }
 
-panel.addButton('运行演示', () => engine.start(runJohnson()));
+engine.queue(() => runJohnson());
 panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 松弛/重定权，绿 = 完成，金 = 当前节点；紫 = h 值）');
 

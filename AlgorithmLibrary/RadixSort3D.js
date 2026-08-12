@@ -7,20 +7,20 @@ import { VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('RadixSort3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 120, 800], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BASE = 0x60a5fa, GOLD = 0xfcd34d, OK = 0x4ade80, CYAN = 0x22d3ee;
 
-const hint = new VText(scene, { text: '基数排序 LSD：数字环按位旋转 90°，球飞入 10 桶，收集回主行重连成链', x: 0, y: 360, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '基数排序 LSD：数字环按位旋转 90°，球飞入 10 桶，收集回主行重连成链', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const DATA = [170, 45, 75, 90, 802, 24, 2, 66, 745, 91, 351, 488, 611, 223, 990];
 const N = DATA.length;
-const SP = 46, X0 = -322;
+const SP = 46, X0 = 78;
 const slotX = i => X0 + i * SP;
-const BX = d => -333 + d * 74;
+const BX = d => 67 + d * 74;
 const digitOf = (v, pass) => Math.floor(v / (10 ** pass)) % 10;
 const NAMES = ['个位', '十位', '百位'];
 
@@ -40,7 +40,7 @@ for (let i = 0; i < N; i++) {
   const dLbl = new VText(scene, { text: '?', x: 0, y: 37, z: 0, color: '#fcd34d', scale: 0.5 });
   scene.remove(dLbl.sprite); g.add(dLbl.sprite);
   g.add(ring);
-  g.position.set(slotX(i), 40, 0);
+  g.position.set(slotX(i), 320, 0);
   scene.add(g);
   spheres.push({ g, s, lbl, dLbl, ring, value: v });
 }
@@ -49,13 +49,13 @@ const setSphColor = (p, c) => { p.s.material.color.setHex(c); p.s.material.emiss
 const buckets = [];
 for (let d = 0; d < 10; d++) {
   const cyl = new THREE.Mesh(new THREE.CylinderGeometry(34, 34, 240, 20), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.13 }));
-  cyl.position.set(BX(d), 120, -50);
+  cyl.position.set(BX(d), 400, -50);
   scene.add(cyl);
   const rim = new THREE.Mesh(new THREE.TorusGeometry(34, 2.2, 8, 28), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.7 }));
-  rim.position.set(BX(d), 240, -50);
+  rim.position.set(BX(d), 520, -50);
   rim.rotation.x = Math.PI / 2;
   scene.add(rim);
-  new VText(scene, { text: String(d), x: BX(d), y: -56, z: -50, color: PALETTE.textDim, scale: 0.7 });
+  new VText(scene, { text: String(d), x: BX(d), y: 224, z: -50, color: PALETTE.textDim, scale: 0.7 });
 }
 
 let chains = [];
@@ -91,7 +91,7 @@ function resetAll() {
   clearChains();
   for (let i = 0; i < N; i++) {
     const p = spheres[i];
-    p.g.position.set(slotX(i), 40, 0);
+    p.g.position.set(slotX(i), 320, 0);
     p.g.rotation.set(0, 0, 0);
     p.ring.rotation.y = 0;
     p.dLbl.setText('?');
@@ -117,7 +117,7 @@ function* pass(passNo) {
     const d = digitOf(p.value, passNo);
     setSphColor(p, GOLD);
     yield S(() => hint.setText('a[' + i + ']=' + p.value + ' 的' + NAMES[passNo] + ' = ' + d + '，飞入桶 ' + d));
-    yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: BX(d), y: 24 + buckets[d].length * 30, z: -50 }, { lift: 90 });
+    yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: BX(d), y: 304 + buckets[d].length * 30, z: -50 }, { lift: 90 });
     buckets[d].push(p);
     yield W(90);
   }
@@ -127,7 +127,7 @@ function* pass(passNo) {
   for (let d = 0; d < 10; d++) {
     for (const p of buckets[d]) {
       yield S(() => hint.setText('桶 ' + d + ' → 主行 [' + k + ']'));
-      yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: slotX(k), y: 40, z: 0 }, { lift: 55, ms: 340 });
+      yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: slotX(k), y: 320, z: 0 }, { lift: 55, ms: 340 });
       setSphColor(p, BASE);
       k++;
       yield W(70);

@@ -7,19 +7,19 @@ import { VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('BucketSort3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 120, 700], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [260, 500, 900], lookAt: [260, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BASE = 0x60a5fa, GOLD = 0xfcd34d, OK = 0x4ade80, CYAN = 0x22d3ee, RED = 0xef4444, WHITE = 0xf8fafc;
 
-const hint = new VText(scene, { text: '桶排序：球按值域飞入悬浮桶（桶内自动排队），桶内插入排序，再按序倒出', x: 0, y: 310, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '桶排序：球按值域飞入悬浮桶（桶内自动排队），桶内插入排序，再按序倒出', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const N = 16, BUCKETS = 5, MAXV = 20;
-const SP = 46, X0 = -345;
+const SP = 44, X0 = 35;
 const slotX = i => X0 + i * SP;
-const BX = b => -300 + b * 150;
+const BX = b => -224 + b * 112 + 310;
 const bucketOf = v => Math.floor((v - 1) / (MAXV / BUCKETS));
 
 const spheres = [];
@@ -30,7 +30,7 @@ for (let i = 0; i < N; i++) {
   g.add(s);
   const lbl = new VText(scene, { text: String(v), x: 0, y: 0, z: 0, color: '#ffffff', scale: 0.6 });
   scene.remove(lbl.sprite); g.add(lbl.sprite);
-  g.position.set(slotX(i), 40, 0);
+  g.position.set(slotX(i), 250, 0);
   scene.add(g);
   spheres.push({ g, s, lbl, value: v });
 }
@@ -39,13 +39,13 @@ const setSphColor = (p, c) => { p.s.material.color.setHex(c); p.s.material.emiss
 const buckets = [];
 for (let b = 0; b < BUCKETS; b++) {
   const lo = b * 4 + 1, hi = Math.min((b + 1) * 4, MAXV);
-  const box = new THREE.Mesh(new THREE.BoxGeometry(118, 215, 118), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.13 }));
-  box.position.set(BX(b), 122, -10);
+  const box = new THREE.Mesh(new THREE.BoxGeometry(104, 215, 104), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.13 }));
+  box.position.set(BX(b), 380, -10);
   scene.add(box);
-  const lid = new THREE.Mesh(new THREE.BoxGeometry(120, 5, 120), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.6 }));
-  lid.position.set(BX(b), 232, -10);
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(106, 5, 106), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.6 }));
+  lid.position.set(BX(b), 490, -10);
   scene.add(lid);
-  new VText(scene, { text: '桶 ' + (b + 1) + '：' + lo + '..' + hi, x: BX(b), y: -55, z: -10, color: PALETTE.textDim, scale: 0.6 });
+  new VText(scene, { text: '桶 ' + (b + 1) + '：' + lo + '..' + hi, x: BX(b), y: 202, z: -10, color: PALETTE.textDim, scale: 0.6 });
   buckets.push({ b, box, stack: [] });
 }
 
@@ -61,7 +61,7 @@ function* fly(sph, from, to, opts = {}) {
 function resetAll() {
   for (let i = 0; i < N; i++) {
     const p = spheres[i];
-    p.g.position.set(slotX(i), 40, 0);
+    p.g.position.set(slotX(i), 250, 0);
     p.g.rotation.set(0, 0, 0);
     setSphColor(p, BASE);
   }
@@ -115,7 +115,7 @@ function* bucketSort() {
     const b = buckets[bucketOf(p.value)];
     setSphColor(p, GOLD);
     yield S(() => hint.setText('a[' + i + ']=' + p.value + ' → 桶 ' + (b.b + 1) + '（第 ' + (b.stack.length + 1) + ' 个）'));
-    yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: BX(b.b), y: 18 + b.stack.length * 30, z: -10 }, { lift: 95 });
+    yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: BX(b.b), y: 275 + b.stack.length * 30, z: -10 }, { lift: 95 });
     b.stack.push(p);
     yield W(110);
   }
@@ -133,7 +133,7 @@ function* bucketSort() {
     while (b.stack.length) {
       const p = b.stack.shift();
       yield S(() => hint.setText('倒出 ' + p.value + ' → 输出 [' + outIdx + ']'));
-      yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: slotX(outIdx), y: -185, z: 0 }, { lift: 55, ms: 380 });
+      yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: slotX(outIdx), y: 90, z: 0 }, { lift: 55, ms: 380 });
       setSphColor(p, OK);
       outIdx++;
       yield W(90);

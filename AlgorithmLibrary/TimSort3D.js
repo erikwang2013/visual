@@ -7,7 +7,7 @@ import { VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('TimSort3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 120, 720], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [440, 500, 900], lookAt: [440, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
@@ -18,12 +18,12 @@ const blend = (a, b) => new THREE.Color(a).lerp(new THREE.Color(b), 0.5).getHex(
 const c01 = blend(RUN_COLORS[0], RUN_COLORS[1]);
 const c23 = blend(RUN_COLORS[2], RUN_COLORS[3]);
 
-const hint = new VText(scene, { text: 'TimSort：4 个 Run 色块 + 组内插入排序微光 + 归并碰撞波纹', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: 'TimSort：4 个 Run 色块 + 组内插入排序微光 + 归并碰撞波纹', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const N = 24, RUNLEN = 6, RUNS = 4;
 const DATA = [12, 4, 18, 7, 21, 3, 9, 16, 2, 14, 20, 5, 11, 8, 19, 6, 13, 1, 17, 10, 24, 15, 22, 23];
-const SP = 38, X0 = -(N - 1) * SP / 2, H = v => v * 5;
+const SP = 38, X0 = 15, H = v => v * 5;
 const slotX = i => X0 + i * SP;
 
 const bars = [];
@@ -31,11 +31,11 @@ for (let i = 0; i < N; i++) {
   const g = new THREE.Group();
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(26, 1, 20), glowMaterial(BASE, { emissive: BASE }));
   mesh.scale.y = DATA[i] * H(1);
-  mesh.position.y = DATA[i] * H(1) / 2;
+  mesh.position.y = DATA[i] * H(1) / 2 + 300;
   g.add(mesh);
   const lbl = new VText(scene, { text: String(DATA[i]), x: 0, y: 0, z: 0, color: '#ffffff', scale: 0.5 });
   scene.remove(lbl.sprite); g.add(lbl.sprite);
-  lbl.sprite.position.y = DATA[i] * H(1) + 16;
+  lbl.sprite.position.y = DATA[i] * H(1) + 316;
   g.position.x = slotX(i);
   scene.add(g);
   bars.push({ g, mesh, lbl, value: DATA[i] });
@@ -44,8 +44,8 @@ const setBarColor = (b, c) => { b.mesh.material.color.setHex(c); b.mesh.material
 function setV(i, v) {
   bars[i].value = v;
   bars[i].mesh.scale.y = v * H(1);
-  bars[i].mesh.position.y = v * H(1) / 2;
-  bars[i].lbl.sprite.position.y = v * H(1) + 16;
+  bars[i].mesh.position.y = v * H(1) / 2 + 300;
+  bars[i].lbl.sprite.position.y = v * H(1) + 316;
   bars[i].lbl.setText(String(v));
 }
 
@@ -53,7 +53,7 @@ function setV(i, v) {
 const slabs = [];
 for (let k = 0; k < RUNS; k++) {
   const slab = new THREE.Mesh(new THREE.BoxGeometry(216, 210, 8), new THREE.MeshBasicMaterial({ color: RUN_COLORS[k], transparent: true, opacity: 0.09 }));
-  slab.position.set(0, 110, -12);
+  slab.position.set(0, 405, -12);
   slab.visible = false;
   scene.add(slab);
   slabs.push(slab);
@@ -87,7 +87,7 @@ function* ripple(x, y, color, opts = {}) {
 function* dualRipple(x1, x2, color, ms = 560) {
   const mk = x => {
     const ring = new THREE.Mesh(new THREE.RingGeometry(26, 30, 40), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
-    ring.position.set(x, -12, -14);
+    ring.position.set(x, 288, -14);
     ring.rotation.x = -Math.PI / 2;
     fxGroup.add(ring);
     return ring;
@@ -136,9 +136,9 @@ function* mergeGen(lo, mid, hi, cA, cB, cM) {
     const b = col[src];
     const x = b.g.position.x;
     yield S(() => hint.setText('取 a[' + src + ']=' + b.value + '，落入临时区 [' + kk + ']'));
-    yield A(420, p => b.g.position.y = -150 * p + 90 * Math.sin(Math.PI * p));
+    yield A(420, p => b.g.position.y = 300 - 150 * p + 90 * Math.sin(Math.PI * p));
     picked.push(src);
-    if (kk === lo) yield* ripple(x, -160, cM, { ms: 300, maxR: 30 });
+    if (kk === lo) yield* ripple(x, 140, cM, { ms: 300, maxR: 30 });
     yield W(70);
   };
   while (li <= mid && ri <= hi) {
@@ -155,7 +155,7 @@ function* mergeGen(lo, mid, hi, cA, cB, cM) {
     const b = bars[lo + idx];
     setBarColor(b, cM);
     yield S(() => hint.setText('弹回：' + b.value + ' → a[' + (lo + idx) + ']'));
-    yield A(420, p => b.g.position.set(slotX(lo + idx), -150 + 150 * p + 60 * Math.sin(Math.PI * p), 0));
+    yield A(420, p => b.g.position.set(slotX(lo + idx), 150 + 150 * p + 60 * Math.sin(Math.PI * p), 0));
     yield W(70);
   }
 }

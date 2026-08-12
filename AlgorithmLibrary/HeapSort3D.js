@@ -7,19 +7,19 @@ import { VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('HeapSort3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 80, 660], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BASE = 0x60a5fa, WHITE = 0xf8fafc, GOLD = 0xfcd34d, ORANGE = 0xfb923c, OK = 0x4ade80;
 
-const hint = new VText(scene, { text: '堆排序：完全二叉树三维分层，橙色牵引光束 = 父子比较，火花 = 交换', x: 0, y: 275, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '堆排序：完全二叉树三维分层，橙色牵引光束 = 父子比较，火花 = 交换', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const N = 15;
 const depthOf = i => Math.floor(Math.log2(i + 1));
-const nodeX = i => { const d = depthOf(i), k = i - (2 ** d - 1), step = [0, 96, 100, 52][d]; return (k - (2 ** d - 1) / 2) * step; };
-const nodeY = d => 300 - d * 95;
+const nodeX = i => { const d = depthOf(i), k = i - (2 ** d - 1), step = [0, 96, 100, 52][d]; return 320 + (k - (2 ** d - 1) / 2) * step; };
+const nodeY = d => 460 - d * 95;
 const nodeZ = d => -d * 40;
 const pos = i => new THREE.Vector3(nodeX(i), nodeY(depthOf(i)), nodeZ(depthOf(i)));
 
@@ -94,11 +94,11 @@ function* swapSlots(i, j, opts = {}) {
 
 let outIdx = 0;
 function* flyOut(n, from) {
-  const outX = 270 - outIdx * 40;
+  const outX = 590 - outIdx * 40;
   outIdx++;
   yield S(() => hint.setText(n.value + ' 归位到有序输出区（金色）'));
   yield A(520, p => {
-    n.g.position.set(from.x + (outX - from.x) * p, from.y + (-200 - from.y) * p, from.z + (0 - from.z) * p);
+    n.g.position.set(from.x + (outX - from.x) * p, from.y + (100 - from.y) * p, from.z + (0 - from.z) * p);
     n.g.scale.setScalar(1.35 - 0.35 * p);
   });
   n.g.scale.setScalar(1);

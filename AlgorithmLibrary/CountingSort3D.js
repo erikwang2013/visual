@@ -7,19 +7,19 @@ import { VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('CountingSort3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 120, 680], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BASE = 0x60a5fa, GOLD = 0xfcd34d, OK = 0x4ade80, CYAN = 0x22d3ee;
 
-const hint = new VText(scene, { text: '计数排序：小球飞入圆柱计数桶，随计数增长按序弹出', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '计数排序：小球飞入圆柱计数桶，随计数增长按序弹出', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const VALUES = 5, N = 16;
-const SP = 46, X0 = -345;
+const SP = 46, X0 = 5;
 const slotX = i => X0 + i * SP;
-const BX = b => -300 + b * 150;
+const BX = b => 50 + b * 150;
 
 const spheres = [];
 for (let i = 0; i < N; i++) {
@@ -29,7 +29,7 @@ for (let i = 0; i < N; i++) {
   g.add(s);
   const lbl = new VText(scene, { text: String(v), x: 0, y: 0, z: 0, color: '#ffffff', scale: 0.6 });
   scene.remove(lbl.sprite); g.add(lbl.sprite);
-  g.position.set(slotX(i), 40, 0);
+  g.position.set(slotX(i), 320, 0);
   scene.add(g);
   spheres.push({ g, s, lbl, value: v });
 }
@@ -38,17 +38,17 @@ const setSphColor = (p, c) => { p.s.material.color.setHex(c); p.s.material.emiss
 const buckets = [];
 for (let b = 0; b < VALUES; b++) {
   const cyl = new THREE.Mesh(new THREE.CylinderGeometry(40, 40, 230, 24), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.14 }));
-  cyl.position.set(BX(b), 115, -50);
+  cyl.position.set(BX(b), 395, -50);
   scene.add(cyl);
   const rim = new THREE.Mesh(new THREE.TorusGeometry(40, 2.6, 8, 40), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.7 }));
-  rim.position.set(BX(b), 230, -50);
+  rim.position.set(BX(b), 510, -50);
   rim.rotation.x = Math.PI / 2;
   scene.add(rim);
   const fill = new THREE.Mesh(new THREE.CylinderGeometry(37, 37, 1, 24), new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.75 }));
-  fill.position.set(BX(b), 0.5, -50);
+  fill.position.set(BX(b), 280.5, -50);
   scene.add(fill);
-  const lbl = new VText(scene, { text: '0', x: BX(b), y: -52, z: -50, color: PALETTE.textDim, scale: 0.7 });
-  new VText(scene, { text: '桶 ' + (b + 1), x: BX(b), y: 262, z: -50, color: PALETTE.textDim, scale: 0.6 });
+  const lbl = new VText(scene, { text: '0', x: BX(b), y: 228, z: -50, color: PALETTE.textDim, scale: 0.7 });
+  new VText(scene, { text: '桶 ' + (b + 1), x: BX(b), y: 542, z: -50, color: PALETTE.textDim, scale: 0.6 });
   buckets.push({ b, fill, lbl, stack: [], count: 0 });
 }
 
@@ -63,13 +63,13 @@ function* fly(sph, from, to, opts = {}) {
 }
 function setFill(b, h) {
   b.fill.scale.y = Math.max(h, 0.01);
-  b.fill.position.y = h / 2;
+  b.fill.position.y = 280 + h / 2;
 }
 
 function resetAll() {
   for (let i = 0; i < N; i++) {
     const p = spheres[i];
-    p.g.position.set(slotX(i), 40, 0);
+    p.g.position.set(slotX(i), 320, 0);
     p.g.rotation.set(0, 0, 0);
     setSphColor(p, BASE);
   }
@@ -89,7 +89,7 @@ function* countingSort() {
     const b = buckets[p.value - 1];
     setSphColor(p, GOLD);
     yield S(() => hint.setText('a[' + i + ']=' + p.value + ' 飞入计数桶 ' + p.value + '（第 ' + (b.count + 1) + ' 个）'));
-    yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: BX(b.b), y: 28 + b.count * 30, z: -50 }, { lift: 95 });
+    yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: BX(b.b), y: 308 + b.count * 30, z: -50 }, { lift: 95 });
     b.stack.push(p);
     b.count++;
     yield A(280, p2 => setFill(b, (b.count - 1 + p2) * 30));
@@ -108,7 +108,7 @@ function* countingSort() {
       yield S(() => hint.setText('桶 ' + (b + 1) + ' 弹出 ' + p.value + ' → 输出 [' + outIdx + ']'));
       yield A(260, p2 => setFill(buckets[b], (c - 1 + (1 - p2)) * 30));
       yield S(() => buckets[b].lbl.setText(String(c - 1)));
-      yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: slotX(outIdx), y: -185, z: 0 }, { lift: 55, ms: 380 });
+      yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: slotX(outIdx), y: 95, z: 0 }, { lift: 55, ms: 380 });
       setSphColor(p, OK);
       outIdx++;
       yield W(90);

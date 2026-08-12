@@ -7,28 +7,28 @@ import { VNode, VText, VBox, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SimpleStack3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 140, 560], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [30, 648, 1100], lookAt: [30, 248, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：数组栈 push×6 + pop×5（top 指针移动）', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：数组栈 push×6 + pop×5（top 指针移动）', x: 650, y: 700, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 198, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -70, z: 0, color: PALETTE.textGlow, scale: 0.56 });
-const outT = new VText(scene, { text: '', x: 0, y: -155, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 650, y: 560, z: 0, color: GOLD, scale: 0.55, wrapChars: 8 });
+const eqT = new VText(scene, { text: '', x: 650, y: 450, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const outT = new VText(scene, { text: '', x: 650, y: 340, z: 0, color: PALETTE.textGlow, scale: 0.53, wrapChars: 8 });
 
 const SIZE = 10;
-const slotY = i => -200 + i * 52;
+const slotY = i => 50 + i * 44;
 const slots = [];
-for (let i = 0; i < SIZE; i++) slots.push(new VBox(scene, { w: 46, h: 46, d: 46, x: 0, y: slotY(i), z: 0, label: '', color: DIM, emissive: DIM }));
-const topInd = new VText(scene, { text: 'top=空', x: 80, y: slotY(-1) - 40, z: 0, color: GOLD, scale: 0.55 });
+for (let i = 0; i < SIZE; i++) slots.push(new VBox(scene, { w: 46, h: 46, d: 46, x: 30, y: slotY(i), z: 0, label: '', color: DIM, emissive: DIM }));
+const topInd = new VText(scene, { text: 'top=空', x: 110, y: slotY(-1) + 40, z: 0, color: GOLD, scale: 0.55 });
 
 let top = -1;
 
 function setSlot(i, v, c) { slots[i].setText(String(v)); slots[i].setColor(c, c); }
 function clearSlot(i) { slots[i].setText(''); slots[i].setColor(DIM, DIM); }
-function moveTop() { topInd.moveTo(80, slotY(top) - 40, 0, 350); topInd.setText(top === -1 ? 'top=空' : 'top=' + top); }
+function moveTop() { topInd.moveTo(110, slotY(top) + 40, 0, 350); topInd.setText(top === -1 ? 'top=空' : 'top=' + top); }
 function stackVals() { const a = []; for (let i = 0; i <= top; i++) a.push(slots[i].text); return a.join(' → ') || '空'; }
 
 function* push(v) {

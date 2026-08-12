@@ -2,6 +2,11 @@
 import * as THREE from 'three';
 import { glowMaterial, makeTextSprite, setSpriteText, PALETTE } from './Glow.js';
 
+// 构造即注册：Scene3D 每帧调用 tickVisuals 推进 moveTo/pulse 补间
+const registry = [];
+function register(o) { registry.push(o); }
+export function tickVisuals(dt) { for (const o of registry) o.update(dt); }
+
 // ---- 通用补间辅助 ----
 export function tween(obj, key, from, to, t, easing = easeInOut) {
   obj[key] = from + (to - from) * easing(t);
@@ -12,6 +17,7 @@ export function easeInOut(t) { return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/
 export class VNode {
   constructor(scene, opts = {}) {
     this.scene = scene;
+    register(this);
     this.radius = opts.radius || 22;
     const mat = glowMaterial(opts.color || PALETTE.node, { emissive: opts.emissive, emissiveIntensity: 0.5 });
     this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.radius, 24, 18), mat);
@@ -59,6 +65,7 @@ export class VNode {
 export class VBox {
   constructor(scene, opts = {}) {
     this.scene = scene;
+    register(this);
     this.w = opts.w || 50; this.h = opts.h || 50; this.d = opts.d || 50;
     const mat = glowMaterial(opts.color || PALETTE.node, { emissive: opts.emissive, emissiveIntensity: 0.35 });
     this.mesh = new THREE.Mesh(new THREE.BoxGeometry(this.w, this.h, this.d), mat);
@@ -147,6 +154,7 @@ export function tubeBetween(scene, a, b, opts = {}) {
 export class VTorus {
   constructor(scene, opts = {}) {
     this.scene = scene;
+    register(this);
     const mat = glowMaterial(opts.color || PALETTE.highlight, { emissive: PALETTE.highlightEmissive, emissiveIntensity: 0.7, transparent: true, opacity: 0.85 });
     this.mesh = new THREE.Mesh(new THREE.TorusGeometry(opts.radius || 30, 3, 8, 32), mat);
     this.mesh.position.set(opts.x ?? 0, opts.y ?? 0, opts.z ?? 0);
@@ -170,6 +178,7 @@ export class VTorus {
 export class VText {
   constructor(scene, opts = {}) {
     this.scene = scene;
+    register(this);
     this.baseOpts = { ...opts };
     this.sprite = makeTextSprite(opts.text || '', opts);
     this.sprite.position.set(opts.x ?? 0, opts.y ?? 0, opts.z ?? 0);
@@ -192,6 +201,7 @@ export class VText {
 export class VArrow {
   constructor(scene, opts = {}) {
     this.scene = scene;
+    register(this);
     this.group = new THREE.Group();
     const shaftMat = glowMaterial(opts.color || PALETTE.highlight, { emissive: PALETTE.highlightEmissive, emissiveIntensity: 0.7 });
     const shaft = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 26, 8), shaftMat);

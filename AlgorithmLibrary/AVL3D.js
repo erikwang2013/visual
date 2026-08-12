@@ -7,16 +7,16 @@ import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('AVL3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 560], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [345, 653, 1000], lookAt: [345, 233, 0], fov: 55 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：AVL 平衡因子标签 + 旋转修复', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：AVL 平衡因子标签 + 旋转修复', x: 760, y: 600, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 760, y: 470, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
-const ROOT_Y = 260, STEP_Y = 85, X_STEP = 80;
+const ROOT_Y = 300, STEP_Y = 70, X_STEP = 56;
 
 // ---- 纯数据 AVL ----
 let root = null; // { key, left, right, parent:key|null }
@@ -70,7 +70,7 @@ function layout() {
   const arr = collect(), pos = new Map();
   arr.forEach((n, i) => {
     const d = depthOf(n);
-    pos.set(n.key, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 10), ROOT_Y - d * STEP_Y, -d * 6));
+    pos.set(n.key, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 6) + 345, ROOT_Y - d * STEP_Y, -d * 6));
   });
   return pos;
 }

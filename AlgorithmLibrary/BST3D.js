@@ -7,16 +7,16 @@ import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('BST3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 560], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [344, 705, 1050], lookAt: [344, 285, 0], fov: 55 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：插入路径金色下钻，新节点从上方降落', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：插入路径金色下钻，新节点从上方降落', x: 760, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 760, y: 430, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
-const ROOT_Y = 260, STEP_Y = 85, X_STEP = 78;
+const ROOT_Y = 530, STEP_Y = 85, X_STEP = 78;
 
 // ---- 纯数据 BST ----
 let root = null; // { key, left, right, parent:key|null }
@@ -66,7 +66,7 @@ function layout() {
   const arr = collect(), pos = new Map();
   arr.forEach((n, i) => {
     const d = depthOf(n);
-    pos.set(n.key, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 10), ROOT_Y - d * STEP_Y, -d * 6));
+    pos.set(n.key, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 10) + 344, ROOT_Y - d * STEP_Y, -d * 6));
   });
   return pos;
 }
@@ -119,7 +119,7 @@ function* moveToLayout() {
     if (f.distanceTo(p) < 0.5) return;
     tasks.push({ vn, from: f, to: p });
   });
-  if (!tasks.length) return;
+  if (!tasks.length) { syncEdges(); return; }
   yield A(440, pp => tasks.forEach(t => t.vn.mesh.position.lerpVectors(t.from, t.to, pp)));
   syncEdges();
 }
@@ -153,9 +153,8 @@ function* insertGen(key) {
   const vn = addNodeMesh(n, new THREE.Vector3(pos.x, pos.y + 250, pos.z));
   yield S(() => outT.setText('新节点 ' + key + ' 从上方降落，边生长连接'));
   yield* dropIn(vn, pos);
-  yield* growEdge(n);
-  yield W(200);
   yield* moveToLayout();
+  yield* growEdge(n);
   resetNodeColors();
   yield W(180);
 }
@@ -197,10 +196,10 @@ function* deleteGen(key) {
   yield W(500);
   const two = !!(z.left && z.right);
   const predKey = two ? (function (m) { while (m.right) m = m.right; return m.key; })(z.left) : null;
+  const zpos = two ? layout().get(key) : null;
   removeModel(key);
   if (two) {
     const pv = nodeView.get(predKey);
-    const zpos = layout().get(key);
     yield S(() => outT.setText('双子删除：前驱 ' + predKey + ' 飞入节点 ' + key + '（中序前驱复制）'));
     yield A(450, pp => pv.mesh.position.lerpVectors(pv.mesh.position.clone(), zpos, pp));
     pv.mesh.position.copy(zpos);
@@ -229,7 +228,7 @@ function* inorderGen() {
   arr.forEach((n, i) => {
     const f = nodeView.get(n.key).mesh.position.clone();
     const t = new VText(scene, { text: String(n.key), x: f.x, y: f.y, z: f.z, color: GOLD, scale: 0.85 });
-    tmp.push({ t, from: f, to: new THREE.Vector3((i - (arr.length - 1) / 2) * 82, -230, 0) });
+    tmp.push({ t, from: f, to: new THREE.Vector3((i - (arr.length - 1) / 2) * 82 + 344, 40, 0) });
   });
   yield A(560, p => tmp.forEach(x => x.t.sprite.position.lerpVectors(x.from, x.to, p)));
   yield S(() => outT.setText('中序输出：' + arr.map(n => n.key).join(' → ')));

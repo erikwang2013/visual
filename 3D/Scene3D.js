@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../ThirdParty/three/examples/jsm/controls/OrbitControls.js';
 import { CURRENT_THEME } from './Glow.js';
+import { tickVisuals } from './VisualObject3D.js';
 
 export const BGCSS = { top: '#0a0f2e', bottom: '#030514' };
 
@@ -131,6 +132,7 @@ export class Scene3D {
       requestAnimationFrame(loop);
       const dt = Math.min(clock.getDelta(), 0.05);
       if (engine) engine.tick(dt);
+      tickVisuals(dt);
       this.followLight.position.copy(this.camera.position);
       this.controls.update();
       this.renderer.render(this.scene, this.camera);

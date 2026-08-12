@@ -7,23 +7,23 @@ import { VNode, VText, VBox, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('QueueArray3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 120, 560], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [300, 392, 900], lookAt: [300, 72, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：循环队列 入队×12 + 出队×5（tail 绕环回卷）', x: 0, y: 220, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：循环队列 入队×12 + 出队×5（tail 绕环回卷）', x: 760, y: 460, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 178, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -70, z: 0, color: PALETTE.textGlow, scale: 0.56 });
-const outT = new VText(scene, { text: '', x: 0, y: -155, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 760, y: 360, z: 0, color: GOLD, scale: 0.55, wrapChars: 8 });
+const eqT = new VText(scene, { text: '', x: 760, y: 270, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const outT = new VText(scene, { text: '', x: 760, y: 175, z: 0, color: PALETTE.textGlow, scale: 0.53, wrapChars: 8 });
 
 const SIZE = 12;
 const slots = [];
-for (let i = 0; i < SIZE; i++) slots.push(new VBox(scene, { w: 46, h: 46, d: 46, x: (i - (SIZE - 1) / 2) * 52, y: 0, z: 0, label: '', color: DIM, emissive: DIM }));
-const headInd = new VText(scene, { text: 'head=0', x: 0, y: 62, z: 0, color: CYAN, scale: 0.55 });
-const tailInd = new VText(scene, { text: 'tail=0', x: 0, y: -62, z: 0, color: GOLD, scale: 0.55 });
-const slotX = i => (i - (SIZE - 1) / 2) * 52;
+for (let i = 0; i < SIZE; i++) slots.push(new VBox(scene, { w: 40, h: 46, d: 46, x: 300 + (i - (SIZE - 1) / 2) * 44, y: 72, z: 0, label: '', color: DIM, emissive: DIM }));
+const headInd = new VText(scene, { text: 'head=0', x: 300, y: 134, z: 0, color: CYAN, scale: 0.55 });
+const tailInd = new VText(scene, { text: 'tail=0', x: 300, y: 30, z: 0, color: GOLD, scale: 0.55 });
+const slotX = i => 300 + (i - (SIZE - 1) / 2) * 44;
 
 let head = 0, tail = 0, count = 0;
 
@@ -37,7 +37,7 @@ function clearSlot(i) {
 }
 function setColorSlot(i, c) { slots[i].setColor(c, c); }
 function moveInd(ind, i) {
-  ind.moveTo(slotX(i), ind === headInd ? 62 : -62, 0, 350);
+  ind.moveTo(slotX(i), ind === headInd ? 134 : 30, 0, 350);
 }
 function qText() {
   const a = [];

@@ -7,23 +7,23 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Sieve3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 620], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [202, 505, 980], lookAt: [202, 155, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「运行埃氏筛」或「运行线性筛」开始：1..30 质数筛选', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「运行埃氏筛」或「运行线性筛」开始：1..30 质数筛选', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 200, z: 0, color: GOLD, scale: 0.7 });
-const outT = new VText(scene, { text: '', x: 0, y: -175, z: 0, color: PALETTE.textGlow, scale: 0.6 });
+const stageT = new VText(scene, { text: '', x: 700, y: 440, z: 0, color: GOLD, scale: 0.55, wrapChars: 8 });
+const outT = new VText(scene, { text: '', x: 700, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.53, wrapChars: 8 });
 
 const N = 30, COLS = 6;
 const boxes = new Map();
 for (let n = 1; n <= N; n++) {
   const c = (n - 1) % COLS, r = Math.floor((n - 1) / COLS);
-  boxes.set(n, new VBox(scene, { w: 44, h: 44, d: 44, x: -150 + c * 60, y: 130 - r * 65, z: 0, label: String(n), color: BLUE, emissive: BLUE }));
+  boxes.set(n, new VBox(scene, { w: 44, h: 44, d: 44, x: 52 + c * 60, y: 290 - r * 65, z: 0, label: String(n), color: BLUE, emissive: BLUE }));
 }
-new VText(scene, { text: '质数（绿色）不再被任何更小数整除；合数（暗灰）已被某质数标记。两种筛法目标相同，区别只在「一个合数被筛几次」', x: 0, y: -210, z: 0, color: WHITE, scale: 0.6 });
+new VText(scene, { text: '质数（绿色）不再被任何更小数整除；合数（暗灰）已被某质数标记。两种筛法目标相同，区别只在「一个合数被筛几次」', x: 700, y: 220, z: 0, color: WHITE, scale: 0.6, wrapChars: 8 });
 
 function clearView() {
   boxes.forEach(b => b.setColor(BLUE, BLUE));

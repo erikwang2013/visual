@@ -170,11 +170,12 @@ export class VTorus {
 export class VText {
   constructor(scene, opts = {}) {
     this.scene = scene;
-    this.sprite = makeTextSprite(opts.text || '', { color: opts.color, scale: opts.scale || 1 });
+    this.baseOpts = { ...opts };
+    this.sprite = makeTextSprite(opts.text || '', opts);
     this.sprite.position.set(opts.x ?? 0, opts.y ?? 0, opts.z ?? 0);
     scene.add(this.sprite);
   }
-  setText(text, opts) { setSpriteText(this.sprite, text, opts); }
+  setText(text, opts) { setSpriteText(this.sprite, text, { ...this.baseOpts, ...opts }); }
   moveTo(x, y, z, duration = 500) { this.tweenPos = { from: this.sprite.position.clone(), to: new THREE.Vector3(x, y, z), t: 0, d: duration, done: false }; }
   update(dt) {
     if (this.tweenPos) {

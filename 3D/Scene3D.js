@@ -45,9 +45,11 @@ export class Scene3D {
     this.scene.add(point);
     this.followLight = point;
 
-    // 控制器
+    // 控制器（target 与 lookAt 同步，否则 controls.update() 会把相机拉回原点）
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.target.set(...lookAt);
     this.controls.enableDamping = true;
+    window.__s3d = this; // QA 调试钩子
     this.controls.dampingFactor = 0.08;
     this.controls.minDistance = 80;
     this.controls.maxDistance = 1800;

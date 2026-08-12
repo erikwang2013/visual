@@ -20,10 +20,8 @@ const outT = new VText(scene, { text: '', x: 420, y: -235, z: 0, color: PALETTE.
 const S0 = 'ABCDE';
 const N = S0.length;
 const inChips = S0.split('').map((ch, i) => new VBox(scene, { w: 100, h: 50, d: 50, x: -330 + i * 132, y: 170, z: 0, label: ch, color: BLUE, emissive: BLUE }));
-new VText(scene, { text: '输入串：每帧取首字符 s[0]，其余递归', x: 520, y: 190, z: 0, color: PALETTE.textDim, scale: 0.34 });
 const frames = Array.from({ length: N }, (_, i) => new VBox(scene, { w: 320, h: 42, d: 42, x: 0, y: 75 - i * 46, z: 0, label: S0.slice(i), color: DIM, emissive: DIM }));
 const outChips = Array.from({ length: N }, (_, i) => new VBox(scene, { w: 100, h: 50, d: 50, x: -330 + i * 132, y: -165, z: 0, label: '?', color: DIM, emissive: DIM }));
-new VText(scene, { text: '输出串：回溯拼到尾部', x: 520, y: -150, z: 0, color: PALETTE.textDim, scale: 0.34 });
 
 function* recRevGen() {
   yield S(() => { hint.setText('递归逆转：把首字符不断推迟到最后，回溯时才知结果'); stageT.setText('拆串深入：rev("ABCDE") 挂起，等待右子串'); });

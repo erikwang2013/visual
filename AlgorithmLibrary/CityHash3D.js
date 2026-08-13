@@ -6,12 +6,12 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('CityHash3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, PUR = 0xc4b5fd, VIOLET = 0xa78bfa, ROSE = 0xfb7185;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：CityHash64', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：CityHash64', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const MSG = 'city hash demo!!';
@@ -51,15 +51,15 @@ const run2 = cityRun('city hash demo!a');
 const bytes = new TextEncoder().encode(MSG);
 const bt = [];
 bytes.forEach((v, i) => {
-  bt.push(new VBox(scene, { w: 26, h: 26, d: 26, x: (i - (bytes.length - 1) / 2) * 30, y: 165, z: 0, label: String.fromCharCode(v), color: VIOLET, emissive: VIOLET }));
+  bt.push(new VBox(scene, { w: 26, h: 26, d: 26, x: (i - (bytes.length - 1) / 2) * 30 + 320, y: 465, z: 0, label: String.fromCharCode(v), color: VIOLET, emissive: VIOLET }));
 });
 const states = ['a', 'c', 'd', '种子 x'].map((name, i) =>
-  new VBox(scene, { w: 150, h: 48, d: 48, x: -235 + i * 158, y: 45, z: 0, label: name + ' = 0', color: PUR, emissive: PUR }));
-const outBox = new VBox(scene, { w: 240, h: 55, d: 55, x: 0, y: -95, z: 0, label: 'hash = 0', color: DIM, emissive: DIM });
-new VText(scene, { text: '"city hash demo!!" = 16 字节 → 3 个 64bit 块并行载入 a/c/d', x: 0, y: 218, z: 0, color: PALETTE.textDim, scale: 0.7 });
-new VText(scene, { text: '特色：4 路流水线并行', x: 0, y: -138, z: 0, color: PALETTE.textDim, scale: 0.6 });
-const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: -190, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+  new VBox(scene, { w: 150, h: 48, d: 48, x: 85 + i * 158, y: 345, z: 0, label: name + ' = 0', color: PUR, emissive: PUR }));
+const outBox = new VBox(scene, { w: 240, h: 55, d: 55, x: 320, y: 205, z: 0, label: 'hash = 0', color: DIM, emissive: DIM });
+new VText(scene, { text: '"city hash demo!!" = 16 字节 → 3 个 64bit 块并行载入 a/c/d', x: 320, y: 518, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '特色：4 路流水线并行', x: 320, y: 162, z: 0, color: PALETTE.textDim, scale: 0.6 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 const SNAME = ['a', 'c', 'd', '种子 x'];
 
 function resetAll() {

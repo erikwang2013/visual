@@ -6,12 +6,12 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ELFHash3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, AMBER = 0xfbbf24;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：ELF 哈希', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：ELF 哈希', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const STR = 'helloworld';
@@ -35,19 +35,19 @@ const FINAL = elfSteps[elfSteps.length - 1].h;
 const overflows = elfSteps.filter(s => s.g !== 0).length;
 
 const BITS = 32;
-const CX = k => -270 + k * 60;
+const CX = k => 90 + k * 60;
 const charBoxes = STR.split('').map((ch, k) =>
-  new VBox(scene, { w: 50, h: 50, d: 50, x: CX(k), y: 170, z: 0, label: ch, color: DIM, emissive: DIM }));
+  new VBox(scene, { w: 50, h: 50, d: 50, x: CX(k), y: 470, z: 0, label: ch, color: DIM, emissive: DIM }));
 const codeT = STR.split('').map((ch, k) =>
-  new VText(scene, { text: '', x: CX(k), y: 210, z: 0, color: PALETTE.textDim, scale: 0.42 }));
-const eqT = new VText(scene, { text: '', x: 0, y: 115, z: 0, color: PALETTE.textGlow, scale: 0.6 });
-const hT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: GOLD, scale: 0.62 });
+  new VText(scene, { text: '', x: CX(k), y: 512, z: 0, color: PALETTE.textDim, scale: 0.42 }));
+const eqT = new VText(scene, { text: '', x: 320, y: 415, z: 0, color: PALETTE.textGlow, scale: 0.6 });
+const hT = new VText(scene, { text: '', x: 320, y: 372, z: 0, color: GOLD, scale: 0.62 });
 const bitBoxes = [...Array(BITS)].map((_, b) =>
-  new VBox(scene, { w: 10, h: 10, d: 10, x: -186 + b * 12, y: 5, z: 0, label: b % 4 === 0 ? String(BITS - 1 - b) : '', color: DIM, emissive: DIM }));
-new VText(scene, { text: 'ELF 哈希：字符先左移 4 位再加 —— 溢出时高 4 位 g 被「异或回低 8 位」再清零，信息不丢、分布更均匀', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '红色 = 发生溢出的字符（g ≠ 0）；下方 = 32 位寄存器，金色位 = 1 —— ELF 是 Unix 可执行文件符号表的哈希', x: 0, y: -70, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+  new VBox(scene, { w: 10, h: 10, d: 10, x: 134 + b * 12, y: 315, z: 0, label: b % 4 === 0 ? String(BITS - 1 - b) : '', color: DIM, emissive: DIM }));
+new VText(scene, { text: '溢出时高 4 位 g 异或回低 8 位再清零：信息不丢、分布更均匀（Unix ELF 符号表用）', x: 700, y: 320, z: 0, color: PALETTE.textDim, scale: 0.55, wrapChars: 8 });
+new VText(scene, { text: '红色 = 溢出字符（g ≠ 0）；32 位寄存器金色位 = 1', x: 700, y: 220, z: 0, color: PALETTE.textDim, scale: 0.55, wrapChars: 8 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 function setBits(h) { bitBoxes.forEach((b, i) => b.setColor(((h >>> (BITS - 1 - i)) & 1) === 1 ? GOLD : DIM, ((h >>> (BITS - 1 - i)) & 1) === 1 ? GOLD : DIM)); }
 function resetAll() {

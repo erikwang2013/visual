@@ -7,14 +7,14 @@ import { VText, VNode, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SPFA3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 260, 720], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：SPFA 从 0 出发（队列优化）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：SPFA 从 0 出发（队列优化）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const N = 5, R = 190;
 const EDGES = [[0, 1, 4], [0, 2, -2], [1, 2, 3], [1, 3, 2], [2, 3, 1], [2, 4, 5], [3, 4, -3]];
@@ -25,7 +25,7 @@ const distView = new Map();
 const queueBoxes = [];
 let dist = [];
 
-function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R, 0, Math.sin(a) * R); }
+function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R + 320, 300, Math.sin(a) * R); }
 function tube(a, b) {
   const curve = new THREE.CatmullRomCurve3([a, b]);
   return new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
@@ -62,8 +62,8 @@ function setEdgeColor(f, t, c, op) { const e = edgeView.get(f + '->' + t); if (e
 function setDist(i) { distView.get(i).setText(dist[i] === Infinity ? '∞' : String(dist[i])); }
 function resetEdgeColors() { edgeView.forEach(e => { e.tube.material.color.setHex(WHITE); e.tube.material.opacity = 0.55; }); }
 function* pushBox(id) {
-  const x = -165 + queueBoxes.length * 55;
-  const box = new VBox(scene, { w: 42, h: 42, d: 20, x, y: 175, z: 0, label: id, color: ORANGE, emissive: ORANGE });
+  const x = 170 + queueBoxes.length * 55;
+  const box = new VBox(scene, { w: 42, h: 42, d: 20, x, y: 475, z: 0, label: id, color: ORANGE, emissive: ORANGE });
   box.mesh.scale.setScalar(0.01);
   yield A(280, p => { box.mesh.scale.setScalar(0.01 + 0.99 * p); });
   queueBoxes.push({ id, box });

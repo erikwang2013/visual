@@ -7,18 +7,18 @@ import { VText, VNode, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('HopcroftKarp3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 760], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Hopcroft-Karp（BFS 分层 + DFS 批量增广）', x: 0, y: 310, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Hopcroft-Karp（BFS 分层 + DFS 批量增广）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -250, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const NL = 4, NR = 4;
-const LX = -140, RX = 140;
-const LY = [110, 35, -40, -115];
+const LX = 180, RX = 460;
+const LY = [410, 335, 260, 185];
 const EDGES = [[0, 0], [0, 1], [1, 0], [1, 2], [2, 2], [3, 1], [3, 3]];
 const adj = Array.from({ length: NL }, () => []);
 const nodeView = new Map();   // 'L0' / 'R1' -> VNode
@@ -76,8 +76,8 @@ function showDists() {
   for (let i = 0; i < NL; i++) distView.get('L' + i).setText(dist[i] === Infinity ? 'd=∞' : 'd=' + dist[i]);
 }
 function* pushBox(id) {
-  const x = -150 + queueBoxes.length * 55;
-  const box = new VBox(scene, { w: 42, h: 42, d: 20, x, y: 190, z: 0, label: id, color: ORANGE, emissive: ORANGE });
+  const x = 170 + queueBoxes.length * 55;
+  const box = new VBox(scene, { w: 42, h: 42, d: 20, x, y: 490, z: 0, label: id, color: ORANGE, emissive: ORANGE });
   box.mesh.scale.setScalar(0.01);
   yield A(280, p => { box.mesh.scale.setScalar(0.01 + 0.99 * p); });
   queueBoxes.push({ id, box });
@@ -141,7 +141,7 @@ function* bfsLayers() {
 
 function* dfsAug(u) {
   for (const v of adj[u]) {
-    if (dist[pairR[v] === -1 ? -1 : pairR[v]] === dist[u] + 1) {
+    if (pairR[v] === -1 || dist[pairR[v]] === dist[u] + 1) {
       setEdgeColor(u, v, GOLD, 1);
       setNodeColor('R' + v, ORANGE);
       yield S(() => outT.setText('DFS L' + u + ' → R' + v + '（满足 dist 层次 +1）' + (pairR[v] === -1 ? '，R 自由 → 翻转' : '，继续深入 L' + pairR[v])));

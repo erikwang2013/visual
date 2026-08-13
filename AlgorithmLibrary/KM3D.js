@@ -7,14 +7,14 @@ import { VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('KM3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：KM 最大权完美匹配（顶标 + 相等子图）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：KM 最大权完美匹配（顶标 + 相等子图）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -265, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const WM = [[4, 2, 3], [3, 2, 2], [1, 3, 4]];
 const N = 3;
@@ -32,16 +32,16 @@ function clearView() {
 function buildMatrix() {
   clearView();
   for (let i = 0; i < N; i++) {
-    const lT = new VText(scene, { text: '', x: -205, y: (1 - i) * 90, z: 0, color: ORANGE, scale: 0.65 });
+    const lT = new VText(scene, { text: '', x: 115, y: (1 - i) * 90 + 300, z: 0, color: ORANGE, scale: 0.65 });
     lxView.set(i, lT);
   }
   for (let j = 0; j < N; j++) {
-    const lT = new VText(scene, { text: '', x: (j - 1) * 90, y: 200, z: 0, color: ORANGE, scale: 0.65 });
+    const lT = new VText(scene, { text: '', x: (j - 1) * 90 + 320, y: 500, z: 0, color: ORANGE, scale: 0.65 });
     lyView.set(j, lT);
   }
   for (let i = 0; i < N; i++) {
     for (let j = 0; j < N; j++) {
-      const box = new VBox(scene, { w: 78, h: 78, d: 16, x: (j - 1) * 90, y: (1 - i) * 90, z: 0, label: String(WM[i][j]), color: BLUE, emissive: BLUE });
+      const box = new VBox(scene, { w: 78, h: 78, d: 16, x: (j - 1) * 90 + 320, y: (1 - i) * 90 + 300, z: 0, label: String(WM[i][j]), color: BLUE, emissive: BLUE });
       cellView.set(i + '-' + j, { box, w: WM[i][j] });
     }
   }

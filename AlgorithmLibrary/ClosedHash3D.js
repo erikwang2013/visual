@@ -7,22 +7,22 @@ import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ClosedHash3D');
 
 const SIZE = 10, TOMB = 0x64748b, TOMB_E = 0x334155;
-const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const CYAN = 0x67e8f9, GREEN = 0x4ade80, GOLD = 0xfcd34d;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：闭寻址（线性探测）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：闭寻址（线性探测）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const cells = [...Array(SIZE)].map((_, i) =>
-  new VBox(scene, { w: 50, h: 50, d: 30, x: (i - 4.5) * 78, y: 60, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-new VText(scene, { text: '闭寻址：冲突就往下一个槽放（线性探测）· 灰色 × = 墓碑', x: 0, y: 150, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const eqT = new VText(scene, { text: '', x: 0, y: 178, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const stepT = new VText(scene, { text: '', x: 0, y: -55, z: 0, color: PALETTE.textGlow, scale: 0.72 });
+  new VBox(scene, { w: 50, h: 50, d: 30, x: (i - 4.5) * 78 + 360, y: 360, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+new VText(scene, { text: '闭寻址：冲突就往下一个槽放（线性探测）· 灰色 × = 墓碑', x: 320, y: 450, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const eqT = new VText(scene, { text: '', x: 320, y: 478, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const stepT = new VText(scene, { text: '', x: 320, y: 245, z: 0, color: PALETTE.textGlow, scale: 0.72 });
 const slots = new Array(SIZE).fill('');
 const h = x => ((x % SIZE) + SIZE) % SIZE;
-const xOf = i => (i - 4.5) * 78;
+const xOf = i => (i - 4.5) * 78 + 360;
 let arrow = null, arrowX = null;
 
 function mark(i, c) { cells[i].setColor(c, c); }
@@ -32,7 +32,7 @@ function resetAll() {
   if (arrow) { arrow.remove(); arrow = null; arrowX = null; }
 }
 function* arrowTo(i) {
-  if (!arrow) { arrow = new VArrow(scene, { x: xOf(i), y: 100, z: 25, down: true, color: PALETTE.orange }); arrowX = xOf(i); }
+  if (!arrow) { arrow = new VArrow(scene, { x: xOf(i), y: 400, z: 25, down: true, color: PALETTE.orange }); arrowX = xOf(i); }
   const sx = arrowX, tx = xOf(i);
   yield A(150, p => { arrow.group.position.x = sx + (tx - sx) * easeInOut(p); });
   arrowX = tx;

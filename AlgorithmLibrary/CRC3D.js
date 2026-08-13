@@ -7,32 +7,32 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('CRC3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 620], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：CRC-32 —— 把数据当作多项式做除法，余数就是校验值', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：CRC-32 —— 把数据当作多项式做除法，余数就是校验值', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 215, z: 0, color: GOLD, scale: 0.7 });
-const eqT = new VText(scene, { text: '', x: 0, y: 160, z: 0, color: PALETTE.textGlow, scale: 0.44 });
+const stageT = new VText(scene, { text: '', x: 320, y: 515, z: 0, color: GOLD, scale: 0.7 });
+const eqT = new VText(scene, { text: '', x: 320, y: 460, z: 0, color: PALETTE.textGlow, scale: 0.44 });
 
 const IN = '123456789';
 const bytes = [...IN].map(ch => ch.charCodeAt(0));
-const SP = 62, X0 = -248;
+const SP = 62, X0 = 72;
 const inBoxes = [];
 for (let i = 0; i < IN.length; i++) {
-  inBoxes.push(new VBox(scene, { w: 50, h: 50, d: 50, x: X0 + i * SP, y: 80, z: 0, label: IN[i], color: BLUE, emissive: BLUE }));
-  new VText(scene, { text: '0x' + bytes[i].toString(16).padStart(2, '0'), x: X0 + i * SP, y: 28, z: 0, color: PALETTE.textDim, scale: 0.55 });
+  inBoxes.push(new VBox(scene, { w: 50, h: 50, d: 50, x: X0 + i * SP, y: 380, z: 0, label: IN[i], color: BLUE, emissive: BLUE }));
+  new VText(scene, { text: '0x' + bytes[i].toString(16).padStart(2, '0'), x: X0 + i * SP, y: 328, z: 0, color: PALETTE.textDim, scale: 0.55 });
 }
-new VText(scene, { text: '输入 9 字节', x: -340, y: 115, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const RSP = 100, RX0 = -150;
+new VText(scene, { text: '输入 9 字节', x: 52, y: 426, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const RSP = 100, RX0 = 170;
 const reg = [];
-for (let i = 0; i < 4; i++) reg.push(new VBox(scene, { w: 84, h: 52, d: 40, x: RX0 + i * RSP, y: -40, z: 0, label: 'FF', color: DIM, emissive: 0 }));
-new VText(scene, { text: '32 位移位寄存器（每格 8 位）', x: -280, y: -75, z: 0, color: PALETTE.textDim, scale: 0.6 });
-new VText(scene, { text: 'CRC-32 · 多项式 0xEDB88320（反射）· 初始 0xFFFFFFFF', x: 0, y: -115, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const stepT = new VText(scene, { text: '', x: 0, y: -160, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const resultT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+for (let i = 0; i < 4; i++) reg.push(new VBox(scene, { w: 84, h: 52, d: 40, x: RX0 + i * RSP, y: 260, z: 0, label: 'FF', color: DIM, emissive: 0 }));
+new VText(scene, { text: '32 位移位寄存器（每格 8 位）', x: 40, y: 225, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: 'CRC-32 · 多项式 0xEDB88320（反射）· 初始 0xFFFFFFFF', x: 320, y: 185, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const stepT = new VText(scene, { text: '', x: 320, y: 140, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const resultT = new VText(scene, { text: '', x: 320, y: 90, z: 0, color: PALETTE.textGlow, scale: 0.75 });
 
 const hex4 = v => [(v >>> 24) & 0xff, (v >>> 16) & 0xff, (v >>> 8) & 0xff, v & 0xff].map(x => x.toString(16).padStart(2, '0').toUpperCase());
 const setReg = (v, color = GOLD, em = GOLD) => {

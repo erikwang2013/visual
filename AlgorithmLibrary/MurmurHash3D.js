@@ -6,12 +6,12 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('MurmurHash3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, MAG = 0xf0abfc, CYAN = 0x67e8f9, ROSE = 0xfb7185;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：MurmurHash3', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：MurmurHash3', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const MSG = 'hello world';
@@ -51,14 +51,14 @@ const run2 = murmurRun('hello worle');
 const bytes = new TextEncoder().encode(MSG);
 const bt = [];
 bytes.forEach((v, i) => {
-  bt.push(new VBox(scene, { w: 26, h: 26, d: 26, x: (i - (bytes.length - 1) / 2) * 32, y: 155, z: 0, label: v.toString(16).padStart(2, '0'), color: CYAN, emissive: CYAN }));
+  bt.push(new VBox(scene, { w: 26, h: 26, d: 26, x: 320 + (i - 5) * 32, y: 455, z: 0, label: v.toString(16).padStart(2, '0'), color: CYAN, emissive: CYAN }));
 });
-const mixer = new VBox(scene, { w: 90, h: 70, d: 70, x: 0, y: 35, z: 0, label: '混合器', color: MAG, emissive: MAG });
-const hBox = new VBox(scene, { w: 180, h: 55, d: 55, x: 0, y: -95, z: 0, label: 'h = 00000000', color: DIM, emissive: DIM });
-new VText(scene, { text: '"hello world" = 11 字节（hex）→ 2 个完整 4 字节块 + 3 字节尾部', x: 0, y: 210, z: 0, color: PALETTE.textDim, scale: 0.7 });
-new VText(scene, { text: '阶段 1 逐块：k×c1 → 左旋 15 → ×c2 → h⊕k → 左旋 13 → ×5+常量', x: 0, y: -135, z: 0, color: PALETTE.textDim, scale: 0.6 });
-const stageT = new VText(scene, { text: '', x: 0, y: 250, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: -185, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const mixer = new VBox(scene, { w: 90, h: 70, d: 70, x: 320, y: 335, z: 0, label: '混合器', color: MAG, emissive: MAG });
+const hBox = new VBox(scene, { w: 180, h: 55, d: 55, x: 320, y: 205, z: 0, label: 'h = 00000000', color: DIM, emissive: DIM });
+new VText(scene, { text: '输入 11 字节：2 个完整 4 字节块 + 3 字节尾部', x: 700, y: 320, z: 0, color: PALETTE.textDim, scale: 0.55, wrapChars: 8 });
+new VText(scene, { text: '块混合：k×c1 → 左旋15 → ×c2 → h⊕k → 左旋13 → ×5+常量', x: 700, y: 220, z: 0, color: PALETTE.textDim, scale: 0.55, wrapChars: 8 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 function resetAll() {
   bt.forEach((b, i) => { b.setText(bytes[i].toString(16).padStart(2, '0')); b.setColor(CYAN, CYAN); });

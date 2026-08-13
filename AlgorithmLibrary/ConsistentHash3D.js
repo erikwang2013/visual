@@ -7,18 +7,18 @@ import { VNode, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ConsistentHash3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 480, 640], fov: 50 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const R = 250;
 const GREEN = 0x4ade80, ORANGE = 0xfb923c, YELLOW = 0xfacc15, RED = 0xf87171, DIM = 0x475569;
-const pos = h => [R * Math.cos(h * Math.PI / 180), 0, R * Math.sin(h * Math.PI / 180)];
+const pos = h => [R * Math.cos(h * Math.PI / 180) + 320, 300, R * Math.sin(h * Math.PI / 180)];
 const SERVERS = [['A', 130], ['B', 250], ['C', 390]];
 const KEYS = [['k1', 60, 'A'], ['k2', 170, 'B'], ['k3', 300, 'C'], ['k4', 40, 'A'], ['k5', 340, 'C']];
 const NEW_SERVER = ['D', 220];
 
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：一致性哈希', x: 0, y: 310, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：一致性哈希', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 const serverNodes = [], serverLbls = [], keyNodes = [], arcs = [], notes = [];
 
@@ -45,7 +45,7 @@ function clearAll() {
 }
 function addServer(name, hash, isNew) {
   const nd = new VNode(scene, { radius: 20, x: pos(hash)[0], y: pos(hash)[1], z: pos(hash)[2], label: name, color: isNew ? YELLOW : PALETTE.blue, emissive: isNew ? YELLOW : PALETTE.blue });
-  const lb = new VText(scene, { text: 'hash=' + hash, x: pos(hash)[0], y: -40, z: pos(hash)[2], color: PALETTE.textDim, scale: 0.65 });
+  const lb = new VText(scene, { text: 'hash=' + hash, x: pos(hash)[0], y: 260, z: pos(hash)[2], color: PALETTE.textDim, scale: 0.65 });
   serverNodes.push(nd); serverLbls.push(lb);
 }
 function addKey(name, hash, srvName) {
@@ -56,7 +56,7 @@ function addKey(name, hash, srvName) {
 
 function* chGen() {
   clearAll();
-  ringLine(0, 360, DIM, 0.35, R, 0);
+  ringLine(0, 360, DIM, 0.35, R, 300);
   yield S(() => hint.setText('把服务器和 key 都哈希到 [0,360) 的环上；key 沿顺时针遇到的第一台服务器即归属'));
   yield W(400);
   for (const [p, hash] of SERVERS) {
@@ -67,8 +67,8 @@ function* chGen() {
     yield S(() => {
       addKey(k, hash, srv);
       hint.setText('key ' + k + '：hash = ' + hash + '，顺时针遇到 ' + srv + ' → 归属 ' + srv);
-      ringLine(hash, SERVERS.find(s => s[0] === srv)[1], GREEN, 0.55, R, -6);
-      const nt = new VText(scene, { text: k + ' → ' + srv, x: (pos(hash)[0] + pos(SERVERS.find(s => s[0] === srv)[1])[0]) / 2, y: 18, z: (pos(hash)[2] + pos(SERVERS.find(s => s[0] === srv)[1])[2]) / 2, color: GREEN, scale: 0.7 });
+      ringLine(hash, SERVERS.find(s => s[0] === srv)[1], GREEN, 0.55, R, 294);
+      const nt = new VText(scene, { text: k + ' → ' + srv, x: (pos(hash)[0] + pos(SERVERS.find(s => s[0] === srv)[1])[0]) / 2, y: 318, z: (pos(hash)[2] + pos(SERVERS.find(s => s[0] === srv)[1])[2]) / 2, color: GREEN, scale: 0.7 });
       notes.push(nt);
       keyNodes[keyNodes.length - 1].setColor(GREEN, GREEN);
     });
@@ -79,17 +79,17 @@ function* chGen() {
   yield S(() => {
     const nd = addKey('k2', 170, 'D');
     nd.setColor(RED, RED);
-    const kt = new VText(scene, { text: 'k2 → B → D', x: pos(170)[0], y: -65, z: pos(170)[2], color: RED, scale: 0.7 });
+    const kt = new VText(scene, { text: 'k2 → B → D', x: pos(170)[0], y: 235, z: pos(170)[2], color: RED, scale: 0.7 });
     notes.push(kt);
     hint.setText('k2(170) 在 A(130) 与 D(220) 之间：原来顺时针遇到 B，现在先遇到 D → 只有它需要迁移');
   });
   yield W(650);
   yield S(() => {
-    ringLine(170, 220, GREEN, 0.7, R, -6);
+    ringLine(170, 220, GREEN, 0.7, R, 294);
     keyNodes[keyNodes.length - 1].setColor(GREEN, GREEN);
     status.textContent = '一致性哈希完成：加入 D 只迁移 1/5 的 key（k2），其余映射不变';
     hint.setText('总结：普通取模需重映射全部 key；一致性哈希只迁移环上相邻区间 — 分布式缓存扩容的标配');
-    const nt = new VText(scene, { text: '加入新节点 D，仅 k2 需要迁移（20%），k1/k3/k4/k5 不动', x: 0, y: -260, z: 0, color: GREEN, scale: 0.85 });
+    const nt = new VText(scene, { text: '加入新节点 D，仅 k2 需要迁移（20%），k1/k3/k4/k5 不动', x: 320, y: 100, z: 0, color: GREEN, scale: 0.85 });
     notes.push(nt);
   });
   yield W(900);

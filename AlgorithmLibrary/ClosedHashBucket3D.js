@@ -8,23 +8,23 @@ import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ClosedHashBucket3D');
 
 const BUCKETS = 10, CAP = 4, STEP = -56, OX = 30;
-const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const CYAN = 0x67e8f9, GREEN = 0x4ade80, ROSE = 0xfb7185, GOLD = 0xfcd34d;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：桶内链闭哈希', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：桶内链闭哈希', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const buckets = [...Array(BUCKETS)].map((_, i) =>
-  new VBox(scene, { w: 50, h: 50, d: 30, x: (i - 4.5) * 78, y: 60, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-const bx = i => (i - 4.5) * 78;
+  new VBox(scene, { w: 50, h: 50, d: 30, x: (i - 4.5) * 78 + 360, y: 360, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+const bx = i => (i - 4.5) * 78 + 360;
 const chainX = k => bx(k) + OX;
 const h = x => ((x % BUCKETS) + BUCKETS) % BUCKETS;
 const chains = Array.from({ length: BUCKETS }, () => []);
-new VText(scene, { text: '桶内链：每桶容量固定 CAP = 4，桶满时新 key 被拒绝（需扩容/二次散列）', x: 0, y: 150, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const eqT = new VText(scene, { text: '', x: 0, y: 178, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const stepT = new VText(scene, { text: '', x: 0, y: -140, z: 0, color: PALETTE.textGlow, scale: 0.72 });
+new VText(scene, { text: '桶内链：每桶容量固定 CAP = 4，桶满时新 key 被拒绝（需扩容/二次散列）', x: 320, y: 450, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const eqT = new VText(scene, { text: '', x: 320, y: 478, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const stepT = new VText(scene, { text: '', x: 320, y: 130, z: 0, color: PALETTE.textGlow, scale: 0.72 });
 
 function makeTube(x1, y1, x2, y2) {
   return tubeBetween(scene, new THREE.Vector3(x1, y1, 0), new THREE.Vector3(x2, y2, 0), { color: PALETTE.edge });
@@ -37,7 +37,7 @@ function dropTube(m) {
 }
 function chainTube(k, prev, next) {
   const x = chainX(k);
-  const y1 = prev ? prev.mesh.position.y - 20 : 35;
+  const y1 = prev ? prev.mesh.position.y - 20 : 335;
   const x1 = prev ? x : bx(k);
   return makeTube(x1, y1, x, next.mesh.position.y + 20);
 }
@@ -51,7 +51,7 @@ function resetAll() {
 }
 function* addNode(k, x) {
   const idx = chains[k].length;
-  const node = new VBox(scene, { w: 44, h: 40, d: 30, x: chainX(k), y: 60 + idx * STEP, z: 0, label: x, color: PALETTE.node, emissive: PALETTE.nodeEmissive });
+  const node = new VBox(scene, { w: 44, h: 40, d: 30, x: chainX(k), y: 360 + idx * STEP, z: 0, label: x, color: PALETTE.node, emissive: PALETTE.nodeEmissive });
   node.mesh.scale.setScalar(0.01);
   yield A(200, p => node.mesh.scale.setScalar(0.01 + 0.99 * easeInOut(p)));
   node.tube = chainTube(k, idx ? chains[k][idx - 1] : null, node);

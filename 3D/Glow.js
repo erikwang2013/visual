@@ -94,6 +94,7 @@ export function makeTextSprite(text, opts = {}) {
   // depthTest:false 保证文字标注始终显示在最上层，不被柱子/节点/方块遮挡
   const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false });
   const sprite = new THREE.Sprite(mat);
+  sprite.userData.text = text;
   // renderOrder 最大：文字在透明通道最后绘制，不被管状连线/高亮环/交换光束等透明几何盖住
   sprite.renderOrder = 999;
   const scale = layoutScale(text, opts);
@@ -103,6 +104,7 @@ export function makeTextSprite(text, opts = {}) {
 }
 
 export function setSpriteText(sprite, text, opts = {}) {
+  sprite.userData.text = text;
   const tex = textTexture(text, { ...opts, wrapChars: opts.wrapChars ?? (String(text).length > 14 ? 14 : 0) });
   const old = sprite.material.map; if (old) old.dispose();
   sprite.material.map = tex;

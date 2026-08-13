@@ -43,7 +43,7 @@ function buildGraph(edges) {
   for (let i = 0; i < N; i++) adj[i].length = 0;
   for (let i = 0; i < N; i++) {
     const p = posOf(i);
-    const vn = new VNode(scene, { radius: 28, x: p.x, y: p.y, z: p.z, label: String(i), color: BLUE, emissive: BLUE });
+    const vn = new VNode(scene, { radius: 28, x: p.x, y: p.y, z: p.z, color: BLUE, emissive: BLUE });
     nodeView.set(i, vn);
   }
   for (const [a, b] of edges) {
@@ -58,12 +58,12 @@ function setEdgeColor(a, b, c, op) { const e = edgeView.get(a + '-' + b); if (e)
 function resetEdgeColors() { edgeView.forEach(e => { e.material.color.setHex(WHITE); e.material.opacity = 0.5; }); }
 
 // ---- 队列可视化 ----
-function* pushBox(id) {
+function* pushBox() {
   const x = 130 + queueBoxes.length * 60;
-  const box = new VBox(scene, { w: 48, h: 48, d: 24, x, y: 475, z: 0, label: id, color: ORANGE, emissive: ORANGE });
+  const box = new VBox(scene, { w: 48, h: 48, d: 24, x, y: 475, z: 0, color: ORANGE, emissive: ORANGE });
   box.mesh.scale.setScalar(0.01);
   yield A(280, p => { box.mesh.scale.setScalar(0.01 + 0.99 * p); });
-  queueBoxes.push({ id, box });
+  queueBoxes.push({ box });
 }
 function* popBox() {
   const e = queueBoxes.shift();
@@ -87,7 +87,7 @@ function* bfsGen() {
     orderT.setText('遍历顺序: 0');
     setNodeColor(0, ORANGE);
   });
-  yield* pushBox('0');
+  yield* pushBox();
   yield W(800);
   yield S(() => stageT.setText('② 逐层遍历：队列先进先出，按层扩展'));
   yield W(600);
@@ -124,7 +124,7 @@ function* bfsGen() {
         outT.setText('未访问邻居 ' + nb + '：边点亮、入队（橙）');
         eqT.setText('队列: [' + queue.slice(head).join(', ') + ']');
       });
-      yield* pushBox(String(nb));
+      yield* pushBox();
       yield W(340);
     }
     setNodeColor(cur, GREEN);

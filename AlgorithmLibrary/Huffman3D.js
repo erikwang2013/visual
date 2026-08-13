@@ -30,9 +30,8 @@ const root = items[0];
 let leafIdx = 0;
 (function inx(n) { if (!n) return; inx(n.l); if (n.ch) { n.x = 80 + leafIdx * 96; leafIdx++; } inx(n.r); })(root);
 (function parx(n) { if (!n) return; parx(n.l); parx(n.r); if (!n.ch) n.x = (n.l.x + n.r.x) / 2; n.y = n.ch ? 535 : Math.max(n.l.y, n.r.y) + 72; })(root);
-const codeMap = {};
 const revealOrder = [];
-(function collect(n, code) { if (!n) return; n.code = code; if (n.ch) { codeMap[n.ch] = code; revealOrder.push(n); } collect(n.l, code + '0'); collect(n.r, code + '1'); })(root, '');
+(function collect(n, code) { if (!n) return; n.code = code; if (n.ch) revealOrder.push(n); collect(n.l, code + '0'); collect(n.r, code + '1'); })(root, '');
 
 // ---- 视觉：叶子初始可见（默认演示体），内部节点合并时生长 ----
 const nodeView = new Map();
@@ -82,7 +81,12 @@ function resetAll() {
     vn.mesh.scale.setScalar(isLeaf ? 1 : 0.01);
     vn.setColor(isLeaf ? BLUE : YELLOW, isLeaf ? BLUE : YELLOW);
   });
-  edgeView.forEach(e => { e.mesh.material.opacity = 0; e.lbl.sprite.visible = false; });
+  edgeView.forEach(e => {
+    scene.remove(e.mesh);
+    e.mesh.geometry.dispose();
+    e.mesh.material.dispose();
+    scene.remove(e.lbl.sprite);
+  });
   edgeView.clear();
 }
 

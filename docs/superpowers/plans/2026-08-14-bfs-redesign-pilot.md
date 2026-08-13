@@ -13,7 +13,7 @@
 **关键算法事实（供研究/设计/检查核对）：**
 - 图：8 节点环形图，边 `(0-1, 0-6, 0-7, 1-2, 1-5, 2-3, 3-4, 4-5, 5-6, 6-7)`
 - BFS 遍历顺序（从 0 出发）：`0 → 1 → 6 → 7 → 2 → 5 → 3 → 4`
-- 分层：L0={0}，L1={1,6,7}，L2={2,5,3}，L3={4}；层号表 `LEVEL=[0,1,1,2,2,2,3,1]`
+- 分层：L0={0}，L1={1,6,7}，L2={2,5}，L3={3,4}；层号表 `LEVEL=[0,1,2,3,3,2,1,1]`（距起点的边数：3 经 0-1-2-3、4 经 0-1-5-4，均 3 步；研究环节已修正原错误分层 L2={2,5,3}）
 - 复杂度 O(V+E)；队列 FIFO 保证按层扩展；BFS 可求无权图最短步数/可达性
 
 ---
@@ -92,7 +92,7 @@ git add 3D/Glow.js && git commit -m "feat: sprite 暴露 userData.text 供叙事
 派发 `general-purpose` 代理，简报：
 > 设计检查：审阅 BFS 动画分镜设计（Task 2 产出）与目标实现规格（本计划 Task 5 的代码），核对：
 > 1. 叙事步骤顺序与 BFS 算法定义一致（队列 FIFO、visited 标记在入队时、按层扩展）
-> 2. 示例数据正确：遍历顺序 0→1→6→7→2→5→3→4；层划分 L0={0} L1={1,6,7} L2={2,5,3} L3={4}
+> 2. 示例数据正确：遍历顺序 0→1→6→7→2→5→3→4；层划分（距起点边数）L0={0} L1={1,6,7} L2={2,5} L3={3,4}
 > 3. 文案/公式无错误（复杂度 O(V+E)、无权最短路应用）
 > 4. 分镜的层完成逻辑：boundary 检测在弹出「下一层首个节点」时触发，levelCount 语义为「当前层已弹出节点数」，初始 0、跨层重置 1、同层 +1
 > 输出：PASS 或逐条问题清单（问题必须可执行，如「第 3 行 levelCount 初始值应为 0」）。
@@ -209,8 +209,8 @@ cd /home/project/visual && (python3 -m http.server 8000 >/tmp/httpserver.log 2>&
 >   if (tasks.length) yield A(300, p => tasks.forEach(t => t.box.mesh.position.x = t.from - 55 * p));
 > }
 >
-> // 层号表：节点 i 所在层（L0={0}, L1={1,6,7}, L2={2,5,3}, L3={4}）
-> const LEVEL = [0, 1, 1, 2, 2, 2, 3, 1];
+> // 层号表：节点 i 距起点的边数（L0={0}, L1={1,6,7}, L2={2,5}, L3={3,4}）
+> const LEVEL = [0, 1, 2, 3, 3, 2, 1, 1];
 >
 > function* bfsGen() {
 >   const visited = new Set(), order = [], queue = [0];
@@ -264,7 +264,7 @@ cd /home/project/visual && (python3 -m http.server 8000 >/tmp/httpserver.log 2>&
 >   resetEdgeColors();
 >   yield S(() => {
 >     outT.setText('BFS 完成：按距离分层，队列先进先出');
->     stageT.setText('③ 完成：全部节点按层访问（第 3 层完成：共 1 个节点）');
+>     stageT.setText('③ 完成：全部节点按层访问（第 3 层完成：共 2 个节点）');
 >     eqT.setText('遍历顺序 0 → 1 → 6 → 7 → 2 → 5 → 3 → 4：先访问距起点 1 层，再 2 层、3 层');
 >     status.textContent = 'BFS 顺序: ' + order.join(' → ');
 >   });
@@ -275,7 +275,7 @@ cd /home/project/visual && (python3 -m http.server 8000 >/tmp/httpserver.log 2>&
 >   buildGraph([[0, 1], [0, 6], [0, 7], [1, 2], [1, 5], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7]]);
 >   hint.setText('BFS：队列先进先出，按层扩展');
 >   orderT.setText('遍历顺序: ');
->   eqT.setText('起点 0 位于第 0 层；其邻居 1/6/7 在第 1 层；2/5/3 在第 2 层；4 在第 3 层');
+>   eqT.setText('起点 0 在第 0 层；邻居 1/6/7 在第 1 层；2/5 在第 2 层；3/4 在第 3 层');
 >   yield W(900);
 >   yield* bfsGen();
 >   yield S(() => {

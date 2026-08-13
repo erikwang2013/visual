@@ -81,10 +81,11 @@ function* bfsGen() {
   const visited = new Set(), order = [], queue = [0];
   visited.add(0);
   yield S(() => {
-    hint.setText('BFS 从节点 0 出发：入队并标记已访问（绿）');
+    hint.setText('BFS 从节点 0 出发：入队（橙）并标记已访问');
     stageT.setText('① 初始化：起点 0 入队');
     eqT.setText('队列 = 先进先出（FIFO）→ 先入队的先出队，保证按层扩展');
     orderT.setText('遍历顺序: 0');
+    setNodeColor(0, ORANGE);
   });
   yield* pushBox('0');
   yield W(800);

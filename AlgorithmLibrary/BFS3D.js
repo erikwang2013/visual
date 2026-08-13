@@ -11,13 +11,13 @@ const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 5
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：BFS 从节点 0 出发', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
+const BLUE = 0x38bdf8, GOLD = 0xfde047, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfdba74, WHITE = 0xffffff;
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：BFS 从节点 0 出发', x: 700, y: 560, z: 0, color: WHITE, scale: 0.8, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.44 });
-const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
-const orderT = new VText(scene, { text: '遍历顺序: ', x: 700, y: 300, z: 0, color: PALETTE.green, scale: 0.55, wrapChars: 8 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: WHITE, scale: 0.82 });
+const eqT = new VText(scene, { text: '', x: 0, y: 230, z: 0, color: WHITE, scale: 0.56 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: WHITE, scale: 0.72, wrapChars: 8 });
+const orderT = new VText(scene, { text: '遍历顺序: ', x: 700, y: 300, z: 0, color: WHITE, scale: 0.72, wrapChars: 8 });
 
 const N = 8, R = 200;
 const adj = Array.from({ length: N }, () => []);
@@ -28,7 +28,7 @@ const queueBoxes = [];       // 队列盒
 function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R + 320, 300, Math.sin(a) * R); }
 function tube(a, b) {
   const curve = new THREE.CatmullRomCurve3([a, b]);
-  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.5 }));
+  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 3.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.5 }));
   scene.add(m);
   return m;
 }
@@ -43,7 +43,7 @@ function buildGraph(edges) {
   for (let i = 0; i < N; i++) adj[i].length = 0;
   for (let i = 0; i < N; i++) {
     const p = posOf(i);
-    const vn = new VNode(scene, { radius: 21, x: p.x, y: p.y, z: p.z, label: String(i), color: BLUE, emissive: BLUE });
+    const vn = new VNode(scene, { radius: 28, x: p.x, y: p.y, z: p.z, label: String(i), color: BLUE, emissive: BLUE });
     nodeView.set(i, vn);
   }
   for (const [a, b] of edges) {
@@ -59,8 +59,8 @@ function resetEdgeColors() { edgeView.forEach(e => { e.material.color.setHex(WHI
 
 // ---- 队列可视化 ----
 function* pushBox(id) {
-  const x = 130 + queueBoxes.length * 55;
-  const box = new VBox(scene, { w: 42, h: 42, d: 20, x, y: 475, z: 0, label: id, color: ORANGE, emissive: ORANGE });
+  const x = 130 + queueBoxes.length * 60;
+  const box = new VBox(scene, { w: 48, h: 48, d: 24, x, y: 475, z: 0, label: id, color: ORANGE, emissive: ORANGE });
   box.mesh.scale.setScalar(0.01);
   yield A(280, p => { box.mesh.scale.setScalar(0.01 + 0.99 * p); });
   queueBoxes.push({ id, box });
@@ -71,7 +71,7 @@ function* popBox() {
   yield A(240, p => { e.box.mesh.scale.setScalar(1 - p); });
   scene.remove(e.box.mesh);
   const tasks = queueBoxes.map(b => ({ box: b.box, from: b.box.mesh.position.x }));
-  if (tasks.length) yield A(300, p => tasks.forEach(t => t.box.mesh.position.x = t.from - 55 * p));
+  if (tasks.length) yield A(300, p => tasks.forEach(t => t.box.mesh.position.x = t.from - 60 * p));
 }
 
 // 层号表：节点 i 距起点的边数（L0={0}, L1={1,6,7}, L2={2,5}, L3={3,4}）
@@ -99,11 +99,13 @@ function* bfsGen() {
         stageT.setText('第 ' + curLevel + ' 层完成：共 ' + levelCount + ' 个节点，按入队顺序全部访问');
         hint.setText('BFS 逐层推进：先访问完整一层，再进入下一层');
       });
-      yield W(700);
+      yield W(900);
       curLevel = LEVEL[cur]; levelCount = 1;
     } else levelCount++;
     setNodeColor(cur, GOLD);
+    nodeView.get(cur).pulse(0.3);
     yield S(() => {
+      hint.setText('出队 ' + cur + '（金）：探索其未访问邻居');
       outT.setText('出队 ' + cur + '（队首），探索其未访问邻居');
       eqT.setText('队列: [' + queue.slice(head).join(', ') + ']');
     });
@@ -115,8 +117,10 @@ function* bfsGen() {
       visited.add(nb);
       queue.push(nb);
       setNodeColor(nb, ORANGE);
+      nodeView.get(nb).pulse(0.18);
       setEdgeColor(cur, nb, GREEN, 0.95);
       yield S(() => {
+        hint.setText('邻居 ' + nb + ' 入队（橙）、边点亮（绿）');
         outT.setText('未访问邻居 ' + nb + '：边点亮、入队（橙）');
         eqT.setText('队列: [' + queue.slice(head).join(', ') + ']');
       });

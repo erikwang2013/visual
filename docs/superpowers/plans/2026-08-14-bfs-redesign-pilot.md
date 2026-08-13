@@ -258,10 +258,8 @@ cd /home/project/visual && (python3 -m http.server 8000 >/tmp/httpserver.log 2>&
 >       yield W(340);
 >     }
 >     setNodeColor(cur, GREEN);
->     yield S(() => { orderT.setText('遍历顺序: ' + order.concat(cur).join(' → ')); });
+>     yield S(() => { orderT.setText('遍历顺序: ' + order.join(' → ')); });
 >   }
->   resetNodeColors();
->   resetEdgeColors();
 >   yield S(() => {
 >     outT.setText('BFS 完成：按距离分层，队列先进先出');
 >     stageT.setText('③ 完成：全部节点按层访问（第 3 层完成：共 2 个节点）');

@@ -12,12 +12,12 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x38bdf8, GOLD = 0xfde047, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfdba74, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：BFS 从节点 0 出发', x: 700, y: 560, z: 0, color: WHITE, scale: 0.9, wrapChars: 7 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：BFS 从节点 0 出发', x: 700, y: 560, z: 0, color: WHITE, scale: 1.1, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: WHITE, scale: 0.9 });
-const eqT = new VText(scene, { text: '', x: 0, y: 230, z: 0, color: WHITE, scale: 0.85 });
-const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: WHITE, scale: 1.0, wrapChars: 8 });
-const orderT = new VText(scene, { text: '遍历顺序: ', x: 700, y: 300, z: 0, color: WHITE, scale: 1.0, wrapChars: 8 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: WHITE, scale: 1.1 });
+const eqT = new VText(scene, { text: '', x: 0, y: 230, z: 0, color: WHITE, scale: 1.0 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: WHITE, scale: 1.3, wrapChars: 8 });
+const orderT = new VText(scene, { text: '遍历顺序: ', x: 700, y: 300, z: 0, color: WHITE, scale: 1.3, wrapChars: 8 });
 
 const N = 8, R = 200;
 const adj = Array.from({ length: N }, () => []);

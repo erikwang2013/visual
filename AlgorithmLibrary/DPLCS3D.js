@@ -7,15 +7,15 @@ import { VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('DPLCS3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 680], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：最长公共子序列 LCS', x: 0, y: 285, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：最长公共子序列 LCS', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -260, z: 0, color: PALETTE.textGlow, scale: 0.7 });
-const resultT = new VText(scene, { text: 'LCS: ', x: -330, y: 225, z: 0, color: GOLD, scale: 0.9 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const resultT = new VText(scene, { text: 'LCS: ', x: 160, y: 640, z: 0, color: GOLD, scale: 0.9 });
 
 const SA = 'ABCBDAB', B = 'BDCABA';
 const NR = B.length + 1, NC = SA.length + 1;
@@ -30,11 +30,11 @@ function clearView() {
 }
 function buildTable() {
   clearView();
-  for (let j = 1; j < NC; j++) new VText(scene, { text: SA[j - 1], x: -208 + j * 52, y: 118, z: 0, color: CYAN, scale: 0.6 });
-  for (let i = 1; i < NR; i++) new VText(scene, { text: B[i - 1], x: -235, y: 95 - (i - 1) * 46, z: 0, color: CYAN, scale: 0.6 });
+  for (let j = 1; j < NC; j++) new VText(scene, { text: SA[j - 1], x: 152 + j * 52, y: 613, z: 0, color: CYAN, scale: 0.6 });
+  for (let i = 1; i < NR; i++) new VText(scene, { text: B[i - 1], x: 110, y: 590 - (i - 1) * 46, z: 0, color: CYAN, scale: 0.6 });
   for (let i = 0; i < NR; i++) {
     for (let j = 0; j < NC; j++) {
-      const box = new VBox(scene, { w: 48, h: 42, d: 14, x: -208 + j * 52, y: 95 - i * 46, z: 0, label: String(dp[i][j]), color: BLUE, emissive: BLUE });
+      const box = new VBox(scene, { w: 48, h: 42, d: 14, x: 152 + j * 52, y: 590 - i * 46, z: 0, label: String(dp[i][j]), color: BLUE, emissive: BLUE });
       cellView.set(i + '-' + j, { box });
     }
   }
@@ -49,7 +49,7 @@ function setCellColor(i, j, c) { const e = cellView.get(i + '-' + j); if (e) e.b
 function* spawnChar(ch, i, j) {
   const p = cellView.get(i + '-' + j).box.mesh.position;
   const from = { x: p.x, y: p.y + 40, z: p.z };
-  const to = { x: -330 + (4 + flyTexts.length) * 42, y: 225, z: 0 };
+  const to = { x: 160 + (4 + flyTexts.length) * 42, y: 640, z: 0 };
   const vt = new VText(scene, { text: ch, x: from.x, y: from.y, z: from.z, color: GOLD, scale: 0.9 });
   flyTexts.push(vt);
   yield* A(600, p => { vt.sprite.position.set(from.x + (to.x - from.x) * p, from.y + (to.y - from.y) * p, from.z + (to.z - from.z) * p); });

@@ -7,17 +7,17 @@ import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Hungarian3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 700], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：匈牙利算法（Kuhn 增广）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：匈牙利算法（Kuhn 增广）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -265, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.62, wrapChars: 8 });
 
 const LEFT = 3, RIGHT = 3;
-const LX = -300, RX = 300, GAP = 180, Y0 = 180;
+const LX = 200, RX = 470, GAP = 130, Y0 = 490;
 const adjL = [[0, 1], [0, 2], [1, 2]];
 const nodeView = new Map();   // 'L0' / 'R1' -> VNode
 const edgeView = new Map();   // 'u-v' -> tube

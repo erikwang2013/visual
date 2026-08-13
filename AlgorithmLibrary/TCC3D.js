@@ -8,12 +8,12 @@ import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('TCC3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155, GOLD = 0xfcd34d;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：TCC 事务', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：TCC 事务', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 // draw.io 风格节点：机架 + 正面 3 槽
@@ -43,27 +43,27 @@ function makeNode(x, y, w, h) {
 }
 
 // 协调者（上） + 账户 A/B（下）
-const coord = makeNode(0, 195, 150, 74);
-const coordLabel = new VText(scene, { text: '协调者', x: 0, y: 195, z: 22, color: PALETTE.textGlow, scale: 0.62 });
-const AX = [-210, 210];
-const accs = AX.map(x => makeNode(x, -55, 110, 96));
-const accLabel = AX.map((x, i) => new VText(scene, { text: '账户 ' + (i ? 'B' : 'A') + '（余额 200）', x, y: -55, z: 22, color: PALETTE.textGlow, scale: 0.55 }));
+const coord = makeNode(320, 495, 150, 74);
+const coordLabel = new VText(scene, { text: '协调者', x: 320, y: 495, z: 22, color: PALETTE.textGlow, scale: 0.62 });
+const AX = [110, 530];
+const accs = AX.map(x => makeNode(x, 245, 110, 96));
+const accLabel = AX.map((x, i) => new VText(scene, { text: '账户 ' + (i ? 'B' : 'A') + '（余额 200）', x, y: 245, z: 22, color: PALETTE.textGlow, scale: 0.55 }));
 
 // 消息连线（协调者 ↔ 账户）
-const msgLine = new VBox(scene, { w: 210, h: 3, d: 3, x: 0, y: 70, z: 0, label: '', color: YELLOW, emissive: YELLOW });
+const msgLine = new VBox(scene, { w: 210, h: 3, d: 3, x: 320, y: 370, z: 0, label: '', color: YELLOW, emissive: YELLOW });
 msgLine.mesh.visible = false;
 function lineTo(aIdx, sx, ex) {
   const x1 = sx, x2 = AX[aIdx];
-  msgLine.mesh.position.set((x1 + x2) / 2, 70, 0);
+  msgLine.mesh.position.set((x1 + x2) / 2, 370, 0);
   msgLine.mesh.rotation.z = 0;
   msgLine.mesh.scale.set(Math.abs(x2 - x1) / 210, 1, 1);
   msgLine.mesh.visible = true;
 }
 
 // 资金方块（100 元）
-const money = new VBox(scene, { w: 44, h: 30, d: 30, x: AX[0], y: -140, z: 0, label: '100', color: GOLD, emissive: GOLD });
-const stepT = new VText(scene, { text: '', x: 0, y: -160, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const eqT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textDim, scale: 0.66 });
+const money = new VBox(scene, { w: 44, h: 30, d: 30, x: AX[0], y: 160, z: 0, label: '100', color: GOLD, emissive: GOLD });
+const stepT = new VText(scene, { text: '', x: 0, y: 140, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const eqT = new VText(scene, { text: '', x: 0, y: 85, z: 0, color: PALETTE.textDim, scale: 0.66 });
 
 function resetScene() {
   coord.setColor(PALETTE.node, false);
@@ -105,7 +105,7 @@ function* tccGen() {
   });
   yield W(500);
   yield A(900, (p) => {
-    money.mesh.position.set(AX[0] + (AX[1] - AX[0]) * p, -140 - 40 * Math.sin(p * Math.PI), 0);
+    money.mesh.position.set(AX[0] + (AX[1] - AX[0]) * p, 160 - 40 * Math.sin(p * Math.PI), 0);
   });
   yield S(() => {
     accLabel[0].setText('账户 A（余额 100）');

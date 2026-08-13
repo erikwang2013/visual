@@ -7,14 +7,14 @@ import { VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Knapsack3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 920], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：0/1 背包（容量 8）', x: 0, y: 395, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：0/1 背包（容量 8）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -150, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.62, wrapChars: 8 });
 
 const ITEMS = [{ w: 2, v: 3 }, { w: 3, v: 4 }, { w: 4, v: 5 }, { w: 5, v: 6 }];
 const N = ITEMS.length, CAP = 8;
@@ -30,23 +30,23 @@ function clearView() {
 function buildView() {
   clearView();
   for (let i = 0; i < N; i++) {
-    const x = -150 + i * 88;
-    const b = new VBox(scene, { w: 56, h: 56, d: 24, x, y: 280, z: 0, label: 'w' + ITEMS[i].w, color: BLUE, emissive: BLUE });
+    const x = 170 + i * 88;
+    const b = new VBox(scene, { w: 56, h: 56, d: 24, x, y: 580, z: 0, label: 'w' + ITEMS[i].w, color: BLUE, emissive: BLUE });
     itemBox.set(i, b);
-    new VText(scene, { text: '物品' + (i + 1) + ' v' + ITEMS[i].v, x, y: 330, z: 0, color: WHITE, scale: 0.5 });
+    new VText(scene, { text: '物品' + (i + 1) + ' v' + ITEMS[i].v, x, y: 630, z: 0, color: WHITE, scale: 0.5 });
   }
-  const capBox = new VBox(scene, { w: 72, h: 72, d: 28, x: 250, y: 280, z: 0, label: 'C=' + CAP, color: ORANGE, emissive: ORANGE });
-  new VText(scene, { text: '0', x: -216, y: 190, z: 0, color: WHITE, scale: 0.42 });
+  const capBox = new VBox(scene, { w: 72, h: 72, d: 28, x: 570, y: 580, z: 0, label: 'C=' + CAP, color: ORANGE, emissive: ORANGE });
+  new VText(scene, { text: '0', x: 104, y: 490, z: 0, color: WHITE, scale: 0.42 });
   for (let c = 1; c <= CAP; c++) {
-    new VText(scene, { text: String(c), x: -216 + c * 54, y: 190, z: 0, color: WHITE, scale: 0.42 });
+    new VText(scene, { text: String(c), x: 104 + c * 54, y: 490, z: 0, color: WHITE, scale: 0.42 });
   }
-  new VText(scene, { text: '无', x: -270, y: 135, z: 0, color: WHITE, scale: 0.46 });
+  new VText(scene, { text: '无', x: 50, y: 435, z: 0, color: WHITE, scale: 0.46 });
   for (let r = 1; r <= N; r++) {
-    new VText(scene, { text: '物品' + r, x: -270, y: 135 - r * 48, z: 0, color: WHITE, scale: 0.46 });
+    new VText(scene, { text: '物品' + r, x: 50, y: 435 - r * 48, z: 0, color: WHITE, scale: 0.46 });
   }
   for (let r = 0; r <= N; r++) {
     for (let c = 0; c <= CAP; c++) {
-      const box = new VBox(scene, { w: 50, h: 42, d: 14, x: -216 + c * 54, y: 135 - r * 48, z: 0, label: String(dp[r][c]), color: BLUE, emissive: BLUE });
+      const box = new VBox(scene, { w: 50, h: 42, d: 14, x: 104 + c * 54, y: 435 - r * 48, z: 0, label: String(dp[r][c]), color: BLUE, emissive: BLUE });
       cellView.set(r + '-' + c, { box, val: dp[r][c] });
     }
   }

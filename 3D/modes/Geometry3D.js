@@ -11,6 +11,7 @@ export class Geometry3D {
     this.axisLen = opts.axisLen || 220;
     this.shape = null;
     this.axes = new THREE.Group();
+    this.axes.position.set(opts.x ?? 0, opts.y ?? 0, opts.z ?? 0);
     this.scene.add(this.axes);
     this.addAxes();
   }

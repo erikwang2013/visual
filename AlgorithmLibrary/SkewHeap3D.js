@@ -7,16 +7,16 @@ import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SkewHeap3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 210, 620], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155, ROSE = 0xfb7185, VIOLET = 0xa78bfa, AMBER = 0xfbbf24;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：斜堆 插入×5 + 删除最小', x: 0, y: 290, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：斜堆 插入×5 + 删除最小', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 258, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textGlow, scale: 0.56 });
-const outT = new VText(scene, { text: '', x: 0, y: -205, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 558, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 180, z: 0, color: PALETTE.textGlow, scale: 0.56 });
+const outT = new VText(scene, { text: '', x: 0, y: 95, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const ins = [5, 3, 8, 1, 7];
 let root = null;
@@ -24,7 +24,7 @@ const allNodes = new Set();
 let edgeMeshes = new Map();
 
 function newNode(v) {
-  const n = { v, left: null, right: null, mesh: new VNode(scene, { radius: 22, x: 330, y: 150, z: 0, label: String(v), color: BLUE, emissive: BLUE }) };
+  const n = { v, left: null, right: null, mesh: new VNode(scene, { radius: 22, x: 330, y: 450, z: 0, label: String(v), color: BLUE, emissive: BLUE }) };
   allNodes.add(n);
   return n;
 }
@@ -36,7 +36,7 @@ function layoutTree(r) {
   (function walk(n, d) {
     if (!n) return;
     walk(n.left, d + 1);
-    pos.set(n, { x: (x - (cnt - 1) / 2) * 72, y: 165 - d * 68 });
+    pos.set(n, { x: (x - (cnt - 1) / 2) * 72, y: 465 - d * 68 });
     x++;
     walk(n.right, d + 1);
   })(r, 0);

@@ -9,25 +9,26 @@ import { PALETTE, applyTheme } from '../3D/Glow.js';
 import { ripple } from '../3D/effects/Fx.js';
 applyTheme('ChangingCoordinates3D3D');
 
-const scene = new Scene3D('scene', { cameraPos: [260, 280, 560], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const geo = new Geometry3D(scene, { axisLen: 200 });
+const geo = new Geometry3D(scene, { axisLen: 200, x: 320, y: 360 });
 const P0 = { x: 60, y: 70, z: 50 };
 const T = { x: 30, y: 20, z: -40 };
-const point = new VNode(scene, { label: 'P', x: P0.x, y: P0.y, z: P0.z, radius: 15, color: PALETTE.highlight, emissive: PALETTE.highlightEmissive });
+const OFF = { x: 320, y: 360 };
+const point = new VNode(scene, { label: 'P', x: P0.x + OFF.x, y: P0.y + OFF.y, z: P0.z, radius: 15, color: PALETTE.highlight, emissive: PALETTE.highlightEmissive });
 const ico = new THREE.Mesh(new THREE.IcosahedronGeometry(30, 0), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0x581c87, emissiveIntensity: 0.5, transparent: true, opacity: 0.9 }));
-ico.position.set(P0.x, P0.y, P0.z);
+ico.position.set(P0.x + OFF.x, P0.y + OFF.y, P0.z);
 scene.add(ico);
 
-const matrixText = new VText(scene, { text: '', x: 0, y: -140, z: 0, color: PALETTE.textDim, scale: 0.68 });
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：3D 坐标变换 —— 绕 Z 轴 90° → 绕 X 轴 90° → 平移', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const matrixText = new VText(scene, { text: '', x: 0, y: 160, z: 0, color: PALETTE.textDim, scale: 0.68 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：3D 坐标变换 —— 绕 Z 轴 90° → 绕 X 轴 90° → 平移', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
-const FROM = new THREE.Vector3(P0.x, P0.y, P0.z);
-const K1 = new THREE.Vector3(-FROM.y, FROM.x, FROM.z);
-const K2 = new THREE.Vector3(K1.x, K1.z, -K1.y);
+const FROM = new THREE.Vector3(P0.x + OFF.x, P0.y + OFF.y, P0.z);
+const K1 = new THREE.Vector3(-P0.y + OFF.x, P0.x + OFF.y, P0.z);
+const K2 = new THREE.Vector3(-P0.y + OFF.x, P0.z + OFF.y, -P0.x);
 const TO = new THREE.Vector3(K2.x + T.x, K2.y + T.y, K2.z + T.z);
 
 function* cc3dGen() {

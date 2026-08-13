@@ -7,16 +7,16 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ECDSA3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：ECDSA —— 数字签名', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：ECDSA —— 数字签名', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 148, z: 0, color: PALETTE.textGlow, scale: 0.44 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 700, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.44, wrapChars: 8 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 // —— 椭圆曲线核心：mod 17 点运算 + 模逆（运行时计算）——
 const P = 17, CA = 2, N = 19;
@@ -46,21 +46,21 @@ const PP = ecAdd(ecMul(U1, G0), ecMul(U2, Q0));
 const fmt = (pt) => pt ? '(' + pt.x + ', ' + pt.y + ')' : '∞';
 
 const box = (v, x, y, w = 92, color = DIM) => new VBox(scene, { w, h: 44, d: 44, x, y, z: 0, label: String(v), color, emissive: color });
-const dBox = box('', -340, 175, 74);
-const qBox = box('', -250, 175, 92);
-const kBox = box('', -140, 175, 74);
-const kgBox = box('', -50, 175, 92);
-const rBox = box('', 80, 175, 62);
-const sBox = box('', 175, 175, 62);
-const wBox = box('', -340, 25, 74);
-const u1Box = box('', -250, 25, 74);
-const u2Box = box('', -140, 25, 74);
-const pBox = box('', -50, 25, 92);
-const ckBox = box('', 80, 25, 158);
-new VText(scene, { text: '签名', x: -395, y: 175, z: 0, color: CYAN, scale: 0.46 });
-new VText(scene, { text: '验签', x: -395, y: 25, z: 0, color: GOLD, scale: 0.46 });
-new VText(scene, { text: 'ECDSA：私钥 dA，公钥 Q=dA·G', x: 0, y: 235, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '签名 r = x₁ mod n（x₁ 来自 kG），s = k⁻¹(e + r·dA) mod n。验签 w = s⁻¹：u1G + u2Q 还原 kG，x₁ 对得上即通过', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
+const dBox = box('', 40, 400, 74);
+const qBox = box('', 130, 400, 92);
+const kBox = box('', 240, 400, 74);
+const kgBox = box('', 330, 400, 92);
+const rBox = box('', 460, 400, 62);
+const sBox = box('', 555, 400, 62);
+const wBox = box('', 40, 260, 74);
+const u1Box = box('', 130, 260, 74);
+const u2Box = box('', 240, 260, 74);
+const pBox = box('', 330, 260, 92);
+const ckBox = box('', 460, 260, 158);
+new VText(scene, { text: '签名', x: 330, y: 445, z: 0, color: CYAN, scale: 0.46 });
+new VText(scene, { text: '验签', x: 330, y: 305, z: 0, color: GOLD, scale: 0.46 });
+new VText(scene, { text: 'ECDSA：私钥 dA，公钥 Q=dA·G', x: 700, y: 620, z: 0, color: PALETTE.textDim, scale: 0.55, wrapChars: 8 });
+new VText(scene, { text: '签名 r = x₁ mod n（x₁ 来自 kG），s = k⁻¹(e + r·dA) mod n。验签 w = s⁻¹：u1G + u2Q 还原 kG，x₁ 对得上即通过', x: 700, y: 250, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 const setCell = (obj, v, color) => { obj.setText(String(v)); if (color) obj.setColor(color, color); };
 
 function* ecdsaGen() {

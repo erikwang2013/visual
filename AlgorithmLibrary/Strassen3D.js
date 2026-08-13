@@ -7,16 +7,16 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Strassen3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155, ROSE = 0xfb7185, VIOLET = 0xa78bfa, AMBER = 0xfbbf24;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Strassen 矩阵乘法 A×B', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Strassen 矩阵乘法 A×B', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 110, z: 0, color: PALETTE.textGlow, scale: 0.58 });
-const outT = new VText(scene, { text: '', x: 0, y: -245, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 410, z: 0, color: PALETTE.textGlow, scale: 0.58 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const MA = [[1, 2], [3, 4]];
 const B = [[5, 6], [7, 8]];
@@ -43,23 +43,23 @@ function strassenData(A, B) {
 }
 const { P, Cm } = strassenData(MA, B);
 
-const AX = j => -200 + 50 * j;
-const ARY = i => 200 - 50 * i;
-const BX = j => 150 + 50 * j;
-const PX = t => -270 + 90 * t;
-const CX = j => -200 + 50 * j;
-const CY = i => -80 - 50 * i;
+const AX = j => 120 + 50 * j;
+const ARY = i => 500 - 50 * i;
+const BX = j => 470 + 50 * j;
+const PX = t => 50 + 90 * t;
+const CX = j => 120 + 50 * j;
+const CY = i => 220 - 50 * i;
 
 const cell = (v, x, y, sz = 40) => new VBox(scene, { w: sz, h: sz, d: sz, x, y, z: 0, label: String(v), color: DIM, emissive: DIM });
 const aCells = MA.map((row, i) => row.map((v, j) => cell(v, AX(j), ARY(i))));
 const bCells = B.map((row, i) => row.map((v, j) => cell(v, BX(j), ARY(i))));
 const pCards = P.map((p, t) => ({
-  box: new VBox(scene, { w: 56, h: 40, d: 40, x: PX(t), y: 40, z: 0, label: p.name, color: DIM, emissive: DIM }),
-  valT: new VText(scene, { text: '', x: PX(t), y: 15, z: 0, color: GOLD, scale: 0.5 })
+  box: new VBox(scene, { w: 56, h: 40, d: 40, x: PX(t), y: 340, z: 0, label: p.name, color: DIM, emissive: DIM }),
+  valT: new VText(scene, { text: '', x: PX(t), y: 315, z: 0, color: GOLD, scale: 0.5 })
 }));
 const cCells = Cm.map(c => cell(0, CX(c.j), CY(c.i)));
-new VText(scene, { text: 'Strassen：7 个 P 乘积（每卡一次乘法）拼出 C 的 4 块 —— 用加法换乘法，递归起来复杂度就从 O(n³) 掉下来', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '左上 = A，右上 = B，中间 7 张 P 卡 = 唯一做乘法的地方；左下 = C = A×B —— 紫色 = 当前 P，玫瑰 = 参与拼装的 P', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
+new VText(scene, { text: 'Strassen：7 个 P 乘积（每卡一次乘法）拼出 C 的 4 块 —— 用加法换乘法，递归起来复杂度就从 O(n³) 掉下来', x: 0, y: 525, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: '左上 = A，右上 = B，中间 7 张 P 卡 = 唯一做乘法的地方；左下 = C = A×B —— 紫色 = 当前 P，玫瑰 = 参与拼装的 P', x: 0, y: 95, z: 0, color: PALETTE.textDim, scale: 0.62 });
 
 function setCell(obj, v, color) { obj.setText(String(v)); if (color) obj.setColor(color, color); }
 function clearView() {

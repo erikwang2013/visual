@@ -37,7 +37,7 @@ const cells = SA.map((start, j) => {
 });
 SA.map((start, j) => new VText(scene, { text: `SA[${j}]=${start}`, x: COL_X(j), y: 596, z: 0, color: PALETTE.textDim, scale: 0.42 }));
 const bar = LCP.map((v, j) => { const b = new VBar(scene, { w: 30, d: 30, x: BAR_X(j), color: SLATE, emissive: SLATE }); b.mesh.scale.y = 0.5; b.mesh.position.y = BAR_BASE + 0.25; b.h = 1 + v * 34; return b; });
-const barT = LCP.map((v, j) => new VText(scene, { text: '', x: BAR_X(j), y: 0, z: 0, color: GOLD, scale: 0.5 }));
+const barT = LCP.map((v, j) => new VText(scene, { text: '', x: BAR_X(j), y: BAR_BASE + 0.25, z: 0, color: GOLD, scale: 0.5 }));
 new VText(scene, { text: 'LCP 立柱（高 = 公共前缀长度）', x: 700, y: 330, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 12 });
 const ring = new VTorus(scene, { radius: 24, x: 0, y: 0, color: GOLD });
 ring.mesh.visible = false;

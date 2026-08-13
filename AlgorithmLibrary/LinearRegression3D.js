@@ -7,22 +7,22 @@ import { VBox, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('LinearRegression3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 720], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, DIM = 0x334155, RED = 0xf87171;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：线性回归', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：线性回归', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const PTS = [[-240, -100], [-180, -60], [-120, -50], [-60, -5], [0, 25], [60, 55], [120, 70], [180, 115], [240, 145]];
-const pts = PTS.map(p => new VBox(scene, { w: 24, h: 24, d: 24, x: p[0], y: p[1], z: 0, label: '', color: GREEN, emissive: GREEN }));
-const line = new VBox(scene, { w: 560, h: 6, d: 6, x: 0, y: 0, z: 0, label: '', color: PALETTE.highlight, emissive: PALETTE.highlightEmissive });
-const lossT = new VText(scene, { text: '', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const eqT = new VText(scene, { text: '', x: 0, y: -250, z: 0, color: PALETTE.textDim, scale: 0.75 });
+const pts = PTS.map(p => new VBox(scene, { w: 24, h: 24, d: 24, x: p[0] + 320, y: p[1] + 330, z: 0, label: '', color: GREEN, emissive: GREEN }));
+const line = new VBox(scene, { w: 560, h: 6, d: 6, x: 320, y: 330, z: 0, label: '', color: PALETTE.highlight, emissive: PALETTE.highlightEmissive });
+const lossT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const eqT = new VText(scene, { text: '', x: 700, y: 360, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 
 function setLine(w, b) {
-  const x1 = -270, x2 = 270, y1 = w * x1 + b, y2 = w * x2 + b;
+  const x1 = 50, x2 = 590, y1 = w * (x1 - 320) + b + 330, y2 = w * (x2 - 320) + b + 330;
   const L = Math.hypot(x2 - x1, y2 - y1);
   line.mesh.scale.x = L / 560;
   line.mesh.rotation.z = Math.atan2(y2 - y1, x2 - x1);
@@ -54,7 +54,7 @@ function clearResiduals() {
 function drawResiduals(ww, bb) {
   clearResiduals();
   for (const [x, y] of PTS) {
-    residuals.push(tubeBetween(scene, new THREE.Vector3(x, y, 0), new THREE.Vector3(x, ww * x + bb, 0), { color: RED, opacity: 0.45, radius: 1.2 }));
+    residuals.push(tubeBetween(scene, new THREE.Vector3(x + 320, y + 330, 0), new THREE.Vector3(x + 320, ww * x + bb + 330, 0), { color: RED, opacity: 0.45, radius: 1.2 }));
   }
 }
 

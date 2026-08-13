@@ -8,12 +8,12 @@ import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ZAB3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：ZAB 协议', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：ZAB 协议', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 // draw.io 风格节点：机架 + 正面 2 槽
@@ -42,19 +42,19 @@ function makeNode(x, y) {
   };
 }
 
-const NX = [-240, -120, 0, 120, 240];
-const nodes = NX.map((x, i) => makeNode(x, 110));
-const nodeLabel = NX.map((x, i) => new VText(scene, { text: 'F' + (i + 1), x, y: 110, z: 22, color: PALETTE.textGlow, scale: 0.58 }));
-new VText(scene, { text: '5 节点集群：F1 当选 Leader（epoch 2）', x: 0, y: 185, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const NX = [80, 200, 320, 440, 560];
+const nodes = NX.map((x, i) => makeNode(x, 300));
+const nodeLabel = NX.map((x, i) => new VText(scene, { text: 'F' + (i + 1), x, y: 300, z: 22, color: PALETTE.textGlow, scale: 0.58 }));
+new VText(scene, { text: '5 节点集群：F1 当选 Leader（epoch 2）', x: 0, y: 385, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
-const logT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.7 });
-const stepT = new VText(scene, { text: '', x: 0, y: -40, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const eqT = new VText(scene, { text: '', x: 0, y: -90, z: 0, color: PALETTE.textDim, scale: 0.68 });
-const ackT = new VText(scene, { text: '', x: 0, y: -140, z: 0, color: PALETTE.textDim, scale: 0.68 });
+const logT = new VText(scene, { text: '', x: 0, y: 200, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const stepT = new VText(scene, { text: '', x: 0, y: 160, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const eqT = new VText(scene, { text: '', x: 0, y: 120, z: 0, color: PALETTE.textDim, scale: 0.68 });
+const ackT = new VText(scene, { text: '', x: 0, y: 80, z: 0, color: PALETTE.textDim, scale: 0.68 });
 
 // 广播连线（Leader → 每个 follower）
 const bcast = NX.slice(1).map((x, i) => {
-  const b = new VBox(scene, { w: 200, h: 3, d: 3, x: (NX[0] + x) / 2, y: 70, z: 0, label: '', color: BLUE, emissive: BLUE });
+  const b = new VBox(scene, { w: 200, h: 3, d: 3, x: (NX[0] + x) / 2, y: 230, z: 0, label: '', color: BLUE, emissive: BLUE });
   b.mesh.rotation.z = 0;
   b.mesh.scale.set(Math.abs(x - NX[0]) / 200, 1, 1);
   b.mesh.visible = false;

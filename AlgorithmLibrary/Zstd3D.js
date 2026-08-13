@@ -7,37 +7,37 @@ import { VBox, VText, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Zstd3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 680], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, DIM = 0x334155, GOLD = 0xfcd34d;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 275, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
 
 const INPUT = 'mississippi mississippi mississippi';
 const SP = 32, BOX = 30;
-const pos = i => i < 18 ? { x: -272 + i * SP, y: 175 } : { x: -272 + (i - 18) * SP, y: 100 };
+const pos = i => i < 18 ? { x: -272 + i * SP + 320, y: 470 } : { x: -272 + (i - 18) * SP + 320, y: 395 };
 const boxes = [];
 for (let i = 0; i < INPUT.length; i++) {
   const p = pos(i);
   boxes.push(new VBox(scene, { w: BOX, h: BOX, d: BOX, x: p.x, y: p.y, z: 0, label: INPUT[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 }
-new VText(scene, { text: '输入（35 字符）', x: -350, y: 230, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '输入（35 字符）', x: 60, y: 510, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
-const HSP = 38, HX0 = -304;
+const HSP = 38, HX0 = 16;
 const slots = [];
 for (let i = 0; i < 16; i++) {
-  slots.push(new VBox(scene, { w: 34, h: 34, d: 34, x: HX0 + i * HSP, y: -50, z: 0, label: '', color: DIM, emissive: 0 }));
+  slots.push(new VBox(scene, { w: 34, h: 34, d: 34, x: HX0 + i * HSP, y: 250, z: 0, label: '', color: DIM, emissive: 0 }));
 }
-new VText(scene, { text: '哈希表（3 字节 → 16 槽，xxHash 简化）', x: -330, y: -15, z: 0, color: PALETTE.textDim, scale: 0.6 });
-const outText = new VText(scene, { text: '', x: 0, y: -140, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const statT = new VText(scene, { text: '', x: 0, y: -195, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '哈希表（3 字节 → 16 槽，xxHash 简化）', x: 60, y: 285, z: 0, color: PALETTE.textDim, scale: 0.6 });
+const outText = new VText(scene, { text: '', x: 320, y: 160, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const statT = new VText(scene, { text: '', x: 320, y: 105, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
 const INS = [{ i: 0, slot: 3 }, { i: 1, slot: 3 }, { i: 2, slot: 9 }, { i: 3, slot: 3 }, { i: 7, slot: 0 }, { i: 9, slot: 9 }];
 const slotHead = new Array(16).fill(null);
 
-const ring = new VTorus(scene, { radius: 20, x: 0, y: 175, color: GOLD });
+const ring = new VTorus(scene, { radius: 20, x: 0, y: 470, color: GOLD });
 ring.mesh.visible = false;
 
 function resetAll() {

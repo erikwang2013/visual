@@ -7,27 +7,27 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('RSA3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 680], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：RSA —— 生成密钥 → 平方-乘快速幂加密 → 解密还原', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：RSA —— 生成密钥 → 平方-乘快速幂加密 → 解密还原', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textGlow, scale: 0.48 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 450, z: 0, color: PALETTE.textGlow, scale: 0.48 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-const pqChips = [-200, -80].map((x, i) => new VBox(scene, { w: 110, h: 52, d: 52, x, y: 195, z: 0, label: i === 0 ? 'p=61' : 'q=53', color: PUR, emissive: PUR }));
-const nChip = new VBox(scene, { w: 110, h: 52, d: 52, x: 60, y: 195, z: 0, label: 'n=?', color: CYAN, emissive: CYAN });
-const phiChip = new VBox(scene, { w: 110, h: 52, d: 52, x: 210, y: 195, z: 0, label: 'φ=?', color: CYAN, emissive: CYAN });
-const eChip = new VBox(scene, { w: 130, h: 52, d: 52, x: -150, y: 100, z: 0, label: 'e=17（公钥）', color: GOLD, emissive: GOLD });
-const dChip = new VBox(scene, { w: 130, h: 52, d: 52, x: 150, y: 100, z: 0, label: 'd=?（私钥）', color: RED, emissive: RED });
-const mChip = new VBox(scene, { w: 100, h: 52, d: 52, x: -250, y: 0, z: 0, label: 'm=65', color: BLUE, emissive: BLUE });
-const cChip = new VBox(scene, { w: 100, h: 52, d: 52, x: 0, y: 0, z: 0, label: 'c=?', color: GOLD, emissive: GOLD });
-const m2Chip = new VBox(scene, { w: 100, h: 52, d: 52, x: 250, y: 0, z: 0, label: 'm′=?', color: GREEN, emissive: GREEN });
-const binChips = [-240, -120, 0, 120, 240].map((x, i) => new VBox(scene, { w: 70, h: 50, d: 50, x, y: -110, z: 0, label: '?', color: DIM, emissive: DIM }));
-new VText(scene, { text: '指数 17 的二进制位（高位→低位）—— 平方-乘：每移一位先平方，位是 1 再乘一次底数', x: 0, y: -160, z: 0, color: PALETTE.textDim, scale: 0.38 });
+const pqChips = [120, 240].map((x, i) => new VBox(scene, { w: 110, h: 52, d: 52, x, y: 495, z: 0, label: i === 0 ? 'p=61' : 'q=53', color: PUR, emissive: PUR }));
+const nChip = new VBox(scene, { w: 110, h: 52, d: 52, x: 380, y: 495, z: 0, label: 'n=?', color: CYAN, emissive: CYAN });
+const phiChip = new VBox(scene, { w: 110, h: 52, d: 52, x: 530, y: 495, z: 0, label: 'φ=?', color: CYAN, emissive: CYAN });
+const eChip = new VBox(scene, { w: 130, h: 52, d: 52, x: 170, y: 400, z: 0, label: 'e=17（公钥）', color: GOLD, emissive: GOLD });
+const dChip = new VBox(scene, { w: 130, h: 52, d: 52, x: 470, y: 400, z: 0, label: 'd=?（私钥）', color: RED, emissive: RED });
+const mChip = new VBox(scene, { w: 100, h: 52, d: 52, x: 70, y: 300, z: 0, label: 'm=65', color: BLUE, emissive: BLUE });
+const cChip = new VBox(scene, { w: 100, h: 52, d: 52, x: 320, y: 300, z: 0, label: 'c=?', color: GOLD, emissive: GOLD });
+const m2Chip = new VBox(scene, { w: 100, h: 52, d: 52, x: 570, y: 300, z: 0, label: 'm′=?', color: GREEN, emissive: GREEN });
+const binChips = [80, 200, 320, 440, 560].map((x, i) => new VBox(scene, { w: 70, h: 50, d: 50, x, y: 190, z: 0, label: '?', color: DIM, emissive: DIM }));
+new VText(scene, { text: '指数 17 的二进制位（高位→低位）—— 平方-乘：每移一位先平方，位是 1 再乘一次底数', x: 0, y: 140, z: 0, color: PALETTE.textDim, scale: 0.38 });
 
 function* rsaGen() {
   yield S(() => { hint.setText('RSA：公钥加密 (e,n) 公开，私钥 (d,n) 保密；安全基石 = 大整数分解是困难问题'); stageT.setText('教材小参数：p=61, q=53 —— 先算出模数与欧拉函数'); });

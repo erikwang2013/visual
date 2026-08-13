@@ -6,12 +6,12 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Shor3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 720], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, GOLD = 0xfcd34d, BLUE = 0x60a5fa, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Shor —— 用量子周期性分解大数', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Shor —— 用量子周期性分解大数', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const NV = 15, A0 = 7, CNT = 8, SPX = 70;
@@ -24,17 +24,17 @@ const G1 = gcd(Math.pow(A0, R / 2) - 1, NV), G2 = gcd(Math.pow(A0, R / 2) + 1, N
 
 const xboxes = [], fboxes = [];
 for (let i = 0; i < CNT; i++) {
-  xboxes.push(new VBox(scene, { w: 40, h: 28, d: 28, x: (i - 3.5) * SPX, y: 150, z: 0, label: 'x=' + i, color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-  fboxes.push(new VBox(scene, { w: 40, h: 36, d: 36, x: (i - 3.5) * SPX, y: 40, z: 0, label: '' + fvals[i], color: DIM, emissive: DIM }));
+  xboxes.push(new VBox(scene, { w: 40, h: 28, d: 28, x: (i - 3.5) * SPX + 320, y: 450, z: 0, label: 'x=' + i, color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+  fboxes.push(new VBox(scene, { w: 40, h: 36, d: 36, x: (i - 3.5) * SPX + 320, y: 340, z: 0, label: '' + fvals[i], color: DIM, emissive: DIM }));
 }
-new VText(scene, { text: '量子并行计算 f(x) = 7ˣ mod 15：8 个 x 一次算出', x: 0, y: 240, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const cycleT = new VText(scene, { text: '', x: 0, y: -50, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const gcdT1 = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textDim, scale: 0.65 });
-const gcdT2 = new VText(scene, { text: '', x: 0, y: -155, z: 0, color: PALETTE.textDim, scale: 0.65 });
-const f3 = new VBox(scene, { w: 60, h: 44, d: 30, x: -80, y: -240, z: 0, label: '3', color: DIM, emissive: DIM });
-const f5 = new VBox(scene, { w: 60, h: 44, d: 30, x: 80, y: -240, z: 0, label: '5', color: DIM, emissive: DIM });
-new VText(scene, { text: '提取出的因子', x: 0, y: -190, z: 0, color: PALETTE.textDim, scale: 0.6 });
-const resT = new VText(scene, { text: '', x: 0, y: -320, z: 0, color: PALETTE.textGlow, scale: 0.9 });
+new VText(scene, { text: '量子并行计算 f(x) = 7ˣ mod 15：8 个 x 一次算出', x: 0, y: 540, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const cycleT = new VText(scene, { text: '', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const gcdT1 = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: PALETTE.textDim, scale: 0.65 });
+const gcdT2 = new VText(scene, { text: '', x: 0, y: 215, z: 0, color: PALETTE.textDim, scale: 0.65 });
+const f3 = new VBox(scene, { w: 60, h: 44, d: 30, x: 240, y: 128, z: 0, label: '3', color: DIM, emissive: DIM });
+const f5 = new VBox(scene, { w: 60, h: 44, d: 30, x: 400, y: 128, z: 0, label: '5', color: DIM, emissive: DIM });
+new VText(scene, { text: '提取出的因子', x: 0, y: 174, z: 0, color: PALETTE.textDim, scale: 0.6 });
+const resT = new VText(scene, { text: '', x: 0, y: 80, z: 0, color: PALETTE.textGlow, scale: 0.9 });
 
 function* shorGen() {
   yield S(() => { hint.setText('RSA 的安全性依赖大数分解的困难性：经典算法需要指数级时间'); });

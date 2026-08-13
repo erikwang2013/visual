@@ -7,20 +7,20 @@ import { VNode, VText, VBox, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Deadlock3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：死锁 —— 资源分配图逐边画出，找环', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：死锁 —— 资源分配图逐边画出，找环', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -140, z: 0, color: PALETTE.textGlow, scale: 0.56 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 700, y: 440, z: 0, color: GOLD, scale: 0.5, wrapChars: 8 });
+const eqT = new VText(scene, { text: '', x: 700, y: 345, z: 0, color: PALETTE.textGlow, scale: 0.45, wrapChars: 8 });
+const outT = new VText(scene, { text: '', x: 700, y: 345, z: 0, color: PALETTE.textGlow, scale: 0.45, wrapChars: 8 });
 
 // 布局：3 资源方框（上排）+ 3 进程球（下排）
-const RPOS = [[-200, 70], [0, 130], [200, 70]];
-const PPOS = [[-200, -70], [0, -130], [200, -70]];
+const RPOS = [[-200, 400], [0, 445], [200, 400]].map(([x, y]) => [x + 320, y]);
+const PPOS = [[-200, 265], [0, 235], [200, 265]].map(([x, y]) => [x + 320, y]);
 const resBoxes = RPOS.map(([x, y], i) => new VBox(scene, { w: 90, h: 60, d: 60, x, y, z: 0, label: 'R' + i, color: DIM, emissive: DIM }));
 const procNodes = PPOS.map(([x, y], i) => new VNode(scene, { x, y, z: 0, radius: 30, label: 'P' + i, color: BLUE, emissive: BLUE }));
 const edges = new Map();
@@ -29,29 +29,29 @@ function addEdge(key, a, b, color, radius) { edges.set(key, tubeBetween(scene, P
 function clearEdges() { edges.forEach(m => scene.remove(m)); edges.clear(); }
 
 function* deadlockGen() {
-  yield S(() => { hint.setText('死锁 = 一组进程互相等待对方持有的资源 —— 资源分配图里出现环'); stageT.setText('三进程三资源：先画「持有」边（蓝，P→R），再画「请求」边（红，R→P）'); });
+  yield S(() => { hint.setText('死锁：互相等待对方持有的资源 —— 图里成环'); stageT.setText('三进程三资源：先画持有边（蓝 P→R），再画请求边（红 R→P）'); });
   yield W(800);
   for (let i = 0; i < 3; i++) {
     addEdge('hold' + i, PPOS[i], RPOS[i], BLUE, 4);
-    yield S(() => { stageT.setText('P' + i + ' 持有 R' + i + '（蓝边 P' + i + '→R' + i + '）—— 资源不共享，拿了不放手'); });
+    yield S(() => { stageT.setText('P' + i + ' 持有 R' + i + '（蓝边）—— 不共享、不放手'); });
     yield W(650);
   }
-  yield S(() => { stageT.setText('持有关系就绪：P0→R0、P1→R1、P2→R2 —— 现在每个进程都还缺一个资源'); eqT.setText('死锁条件①②：互斥 + 持有并等待'); });
+  yield S(() => { stageT.setText('持有就绪：三进程各持一资源，还各缺一个'); eqT.setText('死锁条件①②：互斥 + 持有并等待'); });
   yield W(700);
   for (let i = 0; i < 3; i++) {
     const req = (i + 1) % 3;
     addEdge('req' + i, RPOS[req], PPOS[i], RED, 3.5);
-    yield S(() => { stageT.setText('P' + i + ' 请求 R' + req + '（红边）—— 但 R' + req + ' 正被 P' + req + ' 持有'); eqT.setText('死锁条件③④：不可剥夺 + 循环等待'); });
+    yield S(() => { stageT.setText('P' + i + ' 请求 R' + req + '（红边）—— 被 P' + req + ' 持有'); eqT.setText('死锁条件③④：不可剥夺 + 循环等待'); });
     yield W(650);
   }
-  yield S(() => { stageT.setText('看这张图：从 P0 出发 → R1 → P1 → R2 → P2 → R0 → 回到 P0 —— 一个完整的环！'); eqT.setText('环：P0 → R1 → P1 → R2 → P2 → R0 → P0'); });
+  yield S(() => { stageT.setText('从 P0 → R1 → P1 → R2 → P2 → R0 → P0 —— 完整环！'); eqT.setText('环：P0 → R1 → P1 → R2 → P2 → R0 → P0'); });
   yield W(800);
   [0, 1, 2].forEach(i => { procNodes[i].setColor(GOLD, GOLD); resBoxes[i].setColor(GOLD, GOLD); });
-  yield S(() => { outT.setText('检测到死锁：环上每个进程都等下一个进程手里的资源 —— 谁也不会让路'); status.textContent = '死锁：环 P0→R1→P1→R2→P2→R0→P0'; hint.setText('死锁四条件（缺一不可）：①互斥 ②持有并等待 ③不可剥夺 ④循环等待 —— 破坏任一即可预防'); });
+  yield S(() => { eqT.setText(''); outT.setText('检测到死锁：环上进程互等，谁都不让路'); status.textContent = '死锁：环 P0→R1→P1→R2→P2→R0→P0'; hint.setText('四条件缺一不可：互斥/持有并等待/不可剥夺/循环等待，破任一即预防'); });
   yield W(1100);
-  yield S(() => { hint.setText('解除：杀一个进程（P2）收回资源，或回滚事务 —— 数据库常用「超时 + 回滚」'); outT.setText('检测手段：资源分配图找环 O(V+E)；分布式用等待图 + 中心化检测（如 2PC/锁超时）'); });
+  yield S(() => { hint.setText('解除：杀进程收回资源或回滚；DB 常用超时+回滚'); outT.setText('找环 O(V+E)；分布式用等待图 + 中心检测'); });
   yield W(1100);
-  yield S(() => { hint.setText('死锁演示完成：资源分配图成环 → 死锁判定成立，四条条件可逐条拆解'); outT.setText(''); });
+  yield S(() => { hint.setText('死锁完成：资源图成环 → 死锁成立'); outT.setText(''); });
   yield W(400);
 }
 

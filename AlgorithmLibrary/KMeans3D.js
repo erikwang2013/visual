@@ -7,21 +7,21 @@ import { VBox, VText, tubeBetween, easeInOut } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('KMeans3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 720], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, BLUE = 0x60a5fa, ORANGE = 0xfb923c, DIM = 0x334155, YELLOW = 0xfacc15;
 const CCOL = [GREEN, BLUE, ORANGE];
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：K-Means 聚类', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：K-Means 聚类', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const PTS = [
-  [150, 80], [210, 50], [180, 130], [250, 110],
-  [-180, 90], [-230, 140], [-160, 160], [-250, 40],
-  [-30, -120], [40, -150], [-90, -170], [70, -80],
+  [402.5, 419], [435.5, 402.5], [419, 446.5], [457.5, 435.5],
+  [221, 424.5], [193.5, 452], [232, 463], [182.5, 397],
+  [303.5, 309], [342, 292.5], [270.5, 281.5], [358.5, 331],
 ];
-const INIT = [[-300, 240], [300, 240], [0, -260]];
+const INIT = [[155, 507], [485, 507], [320, 232]];
 
 // 预计算迭代：分配 → 质心更新，直到收敛
 const centroids = INIT.map(p => [...p]);
@@ -49,8 +49,8 @@ for (let r = 0; r < 3; r++) {
 const pts = PTS.map(p => new VBox(scene, { w: 22, h: 22, d: 22, x: p[0], y: p[1], z: 0, label: '', color: DIM, emissive: DIM }));
 const cents = INIT.map((c, k) => new VBox(scene, { w: 48, h: 48, d: 48, x: c[0], y: c[1], z: 0, label: 'C' + (k + 1), color: CCOL[k], emissive: CCOL[k] }));
 let tubes = PTS.map(() => tubeBetween(scene, new THREE.Vector3(), new THREE.Vector3(), { color: YELLOW, opacity: 0.25, radius: 1.5 }));
-const roundT = new VText(scene, { text: '', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const legend = new VText(scene, { text: '绿=簇1 蓝=簇2 橙=簇3（连线=归属）', x: 0, y: -265, z: 0, color: PALETTE.textDim, scale: 0.6 });
+const roundT = new VText(scene, { text: '', x: 700, y: 430, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const legend = new VText(scene, { text: '绿=簇1 蓝=簇2 橙=簇3（连线=归属）', x: 700, y: 340, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 
 function dropTubes() {
   tubes.forEach(t => { scene.remove(t); if (t.geometry) t.geometry.dispose(); if (t.material) t.material.dispose(); });

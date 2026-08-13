@@ -7,16 +7,16 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('FCFS3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：FCFS —— 4 个进程按到达顺序排队', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：FCFS —— 4 个进程按到达顺序排队', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -60, z: 0, color: PALETTE.textGlow, scale: 0.56 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 700, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.56, wrapChars: 8 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.62, wrapChars: 8 });
 
 // 进程：到达时间 / 运行时间
 const PROCS = [
@@ -25,17 +25,17 @@ const PROCS = [
   { name: 'P3', arrive: 2, burst: 9 },
   { name: 'P4', arrive: 3, burst: 5 }
 ];
-const UNIT = 28;
+const UNIT = 24;
 const TOTAL = PROCS.reduce((s, p) => s + p.burst, 0);
-const startX = -TOTAL * UNIT / 2;
+const startX = 320 - TOTAL * UNIT / 2;
 let acc = 0;
 const blocks = PROCS.map(p => {
-  const b = new VBox(scene, { w: p.burst * UNIT - 6, h: 52, d: 40, x: startX + acc * UNIT + (p.burst * UNIT - 6) / 2, y: 40, z: 0, label: p.name + ' (到达 ' + p.arrive + ', ' + p.burst + ')', color: BLUE, emissive: BLUE });
+  const b = new VBox(scene, { w: p.burst * UNIT - 6, h: 52, d: 40, x: startX + acc * UNIT + (p.burst * UNIT - 6) / 2, y: 400, z: 0, label: p.name + ' (到达 ' + p.arrive + ', ' + p.burst + ')', color: BLUE, emissive: BLUE });
   acc += p.burst;
   return { p, b, tStart: acc - p.burst };
 });
-const timeT = new VText(scene, { text: '', x: 0, y: 100, z: 0, color: PALETTE.textGlow, scale: 0.5 });
-const doneT = new VText(scene, { text: '', x: 0, y: -10, z: 0, color: GOLD, scale: 0.6 });
+const timeT = new VText(scene, { text: '', x: 320, y: 470, z: 0, color: PALETTE.textGlow, scale: 0.5 });
+const doneT = new VText(scene, { text: '', x: 320, y: 330, z: 0, color: GOLD, scale: 0.6 });
 
 function* fcfsGen() {
   yield S(() => { hint.setText('FCFS（先来先服务）：就绪队列 FIFO —— 先到的进程先执行完，执行期间不被打断'); stageT.setText('4 个进程按到达顺序：P1(0) → P2(1) → P3(2) → P4(3) —— 到达时间 = 入队时间'); });

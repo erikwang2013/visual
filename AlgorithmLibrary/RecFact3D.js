@@ -7,20 +7,20 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('RecFact3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：递归阶乘 —— 展开到基线，再逐层回溯', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：递归阶乘 —— 展开到基线，再逐层回溯', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textGlow, scale: 0.44 });
-const resultT = new VText(scene, { text: '6! = ?', x: 0, y: -140, z: 0, color: GOLD, scale: 1.4 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 450, z: 0, color: PALETTE.textGlow, scale: 0.44 });
+const resultT = new VText(scene, { text: '6! = ?', x: 0, y: 160, z: 0, color: GOLD, scale: 1.4 });
 
 const N = 6;
-const frames = Array.from({ length: N }, (_, i) => new VBox(scene, { w: 340, h: 44, d: 44, x: 0, y: 200 - i * 52, z: 0, label: 'f(' + (N - i) + ') = ' + (N - i) + ' × f(' + (N - i - 1) + ')', color: DIM, emissive: DIM }));
-new VText(scene, { text: '调用栈：新帧压在旧帧之上（深入），返回时从栈顶逐层弹出（回溯）', x: 0, y: 235, z: 0, color: PALETTE.textDim, scale: 0.34 });
+const frames = Array.from({ length: N }, (_, i) => new VBox(scene, { w: 340, h: 44, d: 44, x: 320, y: 500 - i * 52, z: 0, label: 'f(' + (N - i) + ') = ' + (N - i) + ' × f(' + (N - i - 1) + ')', color: DIM, emissive: DIM }));
+new VText(scene, { text: '调用栈：新帧压在旧帧之上（深入），返回时从栈顶逐层弹出（回溯）', x: 0, y: 535, z: 0, color: PALETTE.textDim, scale: 0.34 });
 
 function* recFactGen() {
   yield S(() => { hint.setText('递归：函数调用自己。阶乘 f(n) = n × f(n−1)，f(1) = 1 —— 递归必须有一个「不再递归」的基线'); stageT.setText('f(6) = 6 × f(5) —— 但 f(5) 还不知道，先「挂起」当前帧，去算 f(5)'); });

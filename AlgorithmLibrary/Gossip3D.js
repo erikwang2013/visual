@@ -8,12 +8,12 @@ import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Gossip3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Gossip 传播', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Gossip 传播', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 // draw.io 风格节点：机架 + 正面 2 槽
@@ -43,10 +43,10 @@ function makeNode(x, y) {
 }
 
 // 6 节点环形排列
-const R = 175;
+const R = 150;
 const pos = (i) => {
   const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
-  return { x: Math.cos(a) * R, y: Math.sin(a) * R * 0.75 };
+  return { x: Math.cos(a) * R + 320, y: Math.sin(a) * R * 0.75 + 355 };
 };
 const nodes = [0, 1, 2, 3, 4, 5].map((i) => {
   const p = pos(i);
@@ -56,14 +56,14 @@ const nodeLabel = [0, 1, 2, 3, 4, 5].map((i) => {
   const p = pos(i);
   return new VText(scene, { text: 'N' + i, x: p.x, y: p.y, z: 20, color: PALETTE.textGlow, scale: 0.55 });
 });
-new VText(scene, { text: '6 个节点，每轮随机闲聊 2 人（fanout=2）', x: 0, y: 195, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: '6 个节点，每轮随机闲聊 2 人（fanout=2）', x: 700, y: 480, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 
 // 聊天连线（每轮显示）
-const line = new VBox(scene, { w: 200, h: 2.5, d: 2.5, x: 0, y: 0, z: 0, label: '', color: YELLOW, emissive: YELLOW });
+const line = new VBox(scene, { w: 200, h: 2.5, d: 2.5, x: 320, y: 355, z: 0, label: '', color: YELLOW, emissive: YELLOW });
 line.mesh.visible = false;
 
-const roundT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.7 });
-const stepT = new VText(scene, { text: '', x: 0, y: -175, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const roundT = new VText(scene, { text: '', x: 320, y: 385, z: 0, color: PALETTE.textGlow, scale: 0.6, wrapChars: 7 });
+const stepT = new VText(scene, { text: '', x: 700, y: 430, z: 0, color: PALETTE.textGlow, scale: 0.6, wrapChars: 8 });
 
 // 每轮聊天对（从 N0 出发模拟）与知情数
 const ROUNDS = [

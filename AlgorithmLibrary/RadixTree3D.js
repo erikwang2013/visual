@@ -7,16 +7,16 @@ import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('RadixTree3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 660], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：基数树边分裂插入', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：基数树边分裂插入', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -170, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 0, y: 130, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
-const ROOT_Y = 220, STEP_Y = 75, X_GAP = 90;
+const ROOT_Y = 520, STEP_Y = 75, X_GAP = 90;
 let nextId = 0;
 const model = new Map();  // id -> { id, end, parent, children: Map(label->node) }
 const root = { id: 'root', end: false, parent: null, children: new Map() };
@@ -41,7 +41,7 @@ function layout() {
   const pos = new Map();
   for (const d in byDepth) {
     const arr = byDepth[d];
-    arr.forEach((n, i) => pos.set(n.id, new THREE.Vector3((i - (arr.length - 1) / 2) * X_GAP, ROOT_Y - STEP_Y * n.depth, 0)));
+    arr.forEach((n, i) => pos.set(n.id, new THREE.Vector3(320 + (i - (arr.length - 1) / 2) * X_GAP, ROOT_Y - STEP_Y * n.depth, 0)));
   }
   return pos;
 }
@@ -72,6 +72,7 @@ function syncEdges() {
   edgeView.clear();
   (function walk(n) {
     for (const [label, c] of n.children) {
+      if (!nodeView.has(c.id)) continue;
       const a = nodeView.get(n.id).mesh.position, b = nodeView.get(c.id).mesh.position;
       const m = tube(a, b);
       const midP = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2 - 16, (a.z + b.z) / 2);
@@ -163,7 +164,11 @@ function insertModel(word) {
 function* insertGen(word) {
   yield S(() => outT.setText('插入 "' + word + '"'));
   const { lit, splits, created, targetId } = insertModel(word);
-  for (const [a, b] of lit) { setNodeColor(a, GOLD); setNodeColor(b, GOLD); yield W(200); }
+  for (const [a, b] of lit) {
+    if (nodeView.has(a)) setNodeColor(a, GOLD);
+    if (nodeView.has(b)) setNodeColor(b, GOLD);
+    yield W(200);
+  }
   yield W(200);
   const pos = layout();
   for (const s of splits) {
@@ -285,10 +290,10 @@ function* printGen() {
   yield S(() => outT.setText('共 ' + words.length + ' 个单词：' + words.join('、')));
   const tmp = [];
   words.forEach((w, i) => {
-    const t = new VText(scene, { text: w, x: 0, y: 230, z: 0, color: GOLD, scale: 0.9 });
-    tmp.push({ t, to: new THREE.Vector3((i - (words.length - 1) / 2) * 150, -240, 0) });
+    const t = new VText(scene, { text: w, x: 0, y: 530, z: 0, color: GOLD, scale: 0.9 });
+    tmp.push({ t, to: new THREE.Vector3(320 + (i - (words.length - 1) / 2) * 150, 80, 0) });
   });
-  yield A(500, p => tmp.forEach(x => x.t.sprite.position.lerpVectors(new THREE.Vector3(0, 230, 0), x.to, p)));
+  yield A(500, p => tmp.forEach(x => x.t.sprite.position.lerpVectors(new THREE.Vector3(0, 530, 0), x.to, p)));
   yield W(800);
   tmp.forEach(x => scene.remove(x.t.sprite));
 }
@@ -298,7 +303,7 @@ function* runRadix() {
   root.children.clear();
   model.clear(); model.set(root.id, root);
   nextId = 0;
-  addNodeVis(root.id, new THREE.Vector3(0, ROOT_Y, 0));
+  addNodeVis(root.id, new THREE.Vector3(320, ROOT_Y, 0));
   hint.setText('基数树：边标签 = 公共前缀串；插入触发边分裂');
   yield W(300);
   for (const w of ['romane', 'romulus', 'romanus', 'romani', 'romanesco', 'robin']) yield* insertGen(w);

@@ -8,25 +8,25 @@ import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('OpenHash3D');
 
 const BUCKETS = 10, STEP = -56, OX = 30;
-const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const CYAN = 0x67e8f9, GREEN = 0x4ade80, GOLD = 0xfcd34d, ROSE = 0xfb7185;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：链地址哈希', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：链地址哈希', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const buckets = [...Array(BUCKETS)].map((_, i) =>
-  new VBox(scene, { w: 50, h: 50, d: 30, x: (i - 4.5) * 78, y: 60, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-const bx = i => (i - 4.5) * 78;
+  new VBox(scene, { w: 50, h: 50, d: 30, x: (i - 4.5) * 78 + 360, y: 360, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+const bx = i => (i - 4.5) * 78 + 360;
 const chainX = k => bx(k) + OX;
 const h = x => ((x % BUCKETS) + BUCKETS) % BUCKETS;
 const chains = Array.from({ length: BUCKETS }, () => []);
 const nullTexts = [...Array(BUCKETS)].map((_, k) =>
-  new VText(scene, { text: '/', x: bx(k), y: 0, z: 0, color: PALETTE.textDim, scale: 0.8 }));
-new VText(scene, { text: '链地址：冲突的元素在同一桶下挂成链表 — 查找只在链内线性走 O(1+α)', x: 0, y: 150, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const eqT = new VText(scene, { text: '', x: 0, y: 178, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const stepT = new VText(scene, { text: '', x: 0, y: -140, z: 0, color: PALETTE.textGlow, scale: 0.72 });
+  new VText(scene, { text: '/', x: bx(k), y: 300, z: 0, color: PALETTE.textDim, scale: 0.8 }));
+new VText(scene, { text: '链地址：冲突元素同桶挂链，查找只走链内 O(1+α)；删除直接摘节点无需墓碑', x: 700, y: 320, z: 0, color: PALETTE.textDim, scale: 0.55, wrapChars: 8 });
+const eqT = new VText(scene, { text: '', x: 320, y: 405, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const stepT = new VText(scene, { text: '', x: 320, y: 200, z: 0, color: PALETTE.textGlow, scale: 0.72 });
 
 function makeTube(x1, y1, x2, y2) {
   return tubeBetween(scene, new THREE.Vector3(x1, y1, 0), new THREE.Vector3(x2, y2, 0), { color: PALETTE.edge });
@@ -39,7 +39,7 @@ function dropTube(m) {
 }
 function chainTube(k, prev, next) {
   const x = chainX(k);
-  const y1 = prev ? prev.mesh.position.y - 20 : 35;
+  const y1 = prev ? prev.mesh.position.y - 20 : 335;
   const x1 = prev ? x : bx(k);
   return makeTube(x1, y1, x, next.mesh.position.y + 20);
 }
@@ -51,14 +51,14 @@ function resetAll() {
   for (let k = 0; k < BUCKETS; k++) {
     buckets[k].setText(''); buckets[k].setColor(PALETTE.node, PALETTE.nodeEmissive);
     if (!nullTexts[k].sprite) {
-      nullTexts[k] = new VText(scene, { text: '/', x: bx(k), y: 0, z: 0, color: PALETTE.textDim, scale: 0.8 });
+      nullTexts[k] = new VText(scene, { text: '/', x: bx(k), y: 300, z: 0, color: PALETTE.textDim, scale: 0.8 });
     }
   }
   eqT.setText(''); stepT.setText('');
 }
 function* addNode(k, x) {
   const idx = chains[k].length;
-  const node = new VBox(scene, { w: 44, h: 40, d: 30, x: chainX(k), y: 60 + idx * STEP, z: 0, label: x, color: PALETTE.node, emissive: PALETTE.nodeEmissive });
+  const node = new VBox(scene, { w: 44, h: 40, d: 30, x: chainX(k), y: 360 + idx * STEP, z: 0, label: x, color: PALETTE.node, emissive: PALETTE.nodeEmissive });
   node.mesh.scale.setScalar(0.01);
   yield A(200, p => node.mesh.scale.setScalar(0.01 + 0.99 * easeInOut(p)));
   node.tube = chainTube(k, idx ? chains[k][idx - 1] : null, node);
@@ -123,7 +123,7 @@ function* openHashGen() {
     }
     node.remove();
     chains[5].splice(di, 1);
-    if (chains[5].length === 0 && !nullTexts[5].sprite) nullTexts[5] = new VText(scene, { text: '/', x: bx(5), y: 0, z: 0, color: PALETTE.textDim, scale: 0.8 });
+    if (chains[5].length === 0 && !nullTexts[5].sprite) nullTexts[5] = new VText(scene, { text: '/', x: bx(5), y: 300, z: 0, color: PALETTE.textDim, scale: 0.8 });
     buckets[5].setColor(PALETTE.node, PALETTE.nodeEmissive);
     stepT.setText('45 已摘除：链重连为 25 → 35 — 删除是局部操作，其余节点不受影响');
   });

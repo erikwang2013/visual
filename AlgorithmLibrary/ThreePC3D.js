@@ -8,12 +8,12 @@ import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ThreePC3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：3PC 事务', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：3PC 事务', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 // draw.io 风格节点：机架 + 正面 2 槽
@@ -42,27 +42,27 @@ function makeNode(x, y, w, h) {
   };
 }
 
-const coord = makeNode(0, 195, 120, 70);
-const coordLabel = new VText(scene, { text: '协调者', x: 0, y: 195, z: 22, color: PALETTE.textGlow, scale: 0.62 });
-const PX = [-210, 0, 210];
-const parts = PX.map(x => makeNode(x, -55, 86, 86));
-const partLabel = PX.map((x, i) => new VText(scene, { text: 'P' + (i + 1), x, y: -55, z: 22, color: PALETTE.textGlow, scale: 0.55 }));
-new VText(scene, { text: '3 个参与方（A/B/C 代表多个副本）', x: 0, y: -145, z: 0, color: PALETTE.textDim, scale: 0.62 });
+const coord = makeNode(0, 640, 120, 70);
+const coordLabel = new VText(scene, { text: '协调者', x: 0, y: 640, z: 22, color: PALETTE.textGlow, scale: 0.62 });
+const PX = [110, 320, 530];
+const parts = PX.map(x => makeNode(x, 280, 86, 86));
+const partLabel = PX.map((x, i) => new VText(scene, { text: 'P' + (i + 1), x, y: 280, z: 22, color: PALETTE.textGlow, scale: 0.55 }));
+new VText(scene, { text: '3 个参与方（A/B/C 代表多个副本）', x: 0, y: 180, z: 0, color: PALETTE.textDim, scale: 0.62 });
 
 // 消息线：协调者 → 参与方
 const msgLine = new VBox(scene, { w: 200, h: 3.5, d: 3.5, x: 0, y: 0, z: 0, label: '', color: YELLOW, emissive: YELLOW });
 msgLine.mesh.visible = false;
 function lineTo(dstX) {
-  const x1 = 0, y1 = 195, x2 = dstX, y2 = -55;
+  const x1 = 0, y1 = 640, x2 = dstX, y2 = 280;
   msgLine.mesh.position.set((x1 + x2) / 2, (y1 + y2) / 2, 0);
   msgLine.mesh.rotation.z = Math.atan2(y2 - y1, x2 - x1);
   msgLine.mesh.scale.set(Math.hypot(x2 - x1, y2 - y1) / 200, 1, 1);
   msgLine.mesh.visible = true;
 }
 
-const phaseT = new VText(scene, { text: '', x: 0, y: 95, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const stepT = new VText(scene, { text: '', x: 0, y: 45, z: 0, color: PALETTE.textGlow, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -200, z: 0, color: PALETTE.textDim, scale: 0.68 });
+const phaseT = new VText(scene, { text: '', x: 0, y: 540, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const stepT = new VText(scene, { text: '', x: 0, y: 455, z: 0, color: PALETTE.textGlow, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 130, z: 0, color: PALETTE.textDim, scale: 0.68 });
 
 function resetScene() {
   coord.setColor(PALETTE.node, false); coordLabel.setText('协调者');

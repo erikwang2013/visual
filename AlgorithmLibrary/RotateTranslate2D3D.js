@@ -9,18 +9,19 @@ import { PALETTE, applyTheme } from '../3D/Glow.js';
 import { ripple, spark } from '../3D/effects/Fx.js';
 applyTheme('RotateTranslate2D3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const geo = new Geometry3D(scene, { axisLen: 190 });
+const geo = new Geometry3D(scene, { axisLen: 150, x: 320, y: 360 });
 const ANGLE = 45, DX = 60, DY = 30, RAD = ANGLE * Math.PI / 180;
 const tri = new THREE.Shape();
 tri.moveTo(0, 40); tri.lineTo(-46, -30); tri.lineTo(46, -30); tri.closePath();
 geo.addShape(new THREE.ShapeGeometry(tri), { color: 0x22c55e, opacity: 0.92 });
+geo.shape.position.set(320, 360, 0);
 
-const matrixText = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：2D 旋转 + 平移', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const matrixText = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：2D 旋转 + 平移', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const m = v => v.toFixed(2);
@@ -42,14 +43,14 @@ function* rt2dGen() {
     const t = easeInOut(p);
     geo.shape.rotation.z = RAD * t;
   });
-  yield S(() => { ripple(scene, 0, 0, 0, PALETTE.highlight, 80); hint.setText('旋转完成 —— 现在平移 (' + DX + ', ' + DY + ')'); updateMatrix(ANGLE, DX, DY); });
+  yield S(() => { ripple(scene, 320, 360, 0, PALETTE.highlight, 80); hint.setText('旋转完成 —— 现在平移 (' + DX + ', ' + DY + ')'); updateMatrix(ANGLE, DX, DY); });
   yield W(700);
   yield A(600, p => {
     const t = easeInOut(p);
-    geo.shape.position.lerpVectors(new THREE.Vector3(0, 0, 0), new THREE.Vector3(DX, DY, 0), t);
+    geo.shape.position.lerpVectors(new THREE.Vector3(320, 360, 0), new THREE.Vector3(320 + DX, 360 + DY, 0), t);
   });
   yield S(() => {
-    spark(scene, DX, DY, 0, PALETTE.highlight, 5);
+    spark(scene, 320 + DX, 360 + DY, 0, PALETTE.highlight, 5);
     hint.setText('变换完成：(1,0) → (' + e1.x.toFixed(2) + ', ' + e1.y.toFixed(2) + ') —— 旋转+平移复合');
     status.textContent = '复合矩阵 M = T·R = [ ' + m(Math.cos(RAD)) + ' ' + m(-Math.sin(RAD)) + ' ' + DX + ' ; ' + m(Math.sin(RAD)) + ' ' + m(Math.cos(RAD)) + ' ' + DY + ' ; 0 0 1 ]';
   });
@@ -62,7 +63,7 @@ engine.queue(() => rt2dGen());
 panel.addButton('清空', () => {
   engine.clear();
   geo.shape.rotation.z = 0;
-  geo.shape.position.set(0, 0, 0);
+  geo.shape.position.set(320, 360, 0);
   updateMatrix(0, 0, 0);
   hint.setText('已清空，可重新运行'); status.textContent = '';
 });

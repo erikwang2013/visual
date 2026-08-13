@@ -7,14 +7,14 @@ import { VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('BTree3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 220, 680], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, WHITE = 0xffffff, RED = 0xfb7185, GREEN = 0x4ade80;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：B 树多键节点 + 分裂/借键/合并', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：B 树多键节点 + 分裂/借键/合并', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const MAX = 2, MIN = 1;  // 3 阶：节点最多 2 键，非根最少 1 键
 
@@ -48,9 +48,9 @@ function layout() {
     for (const c of n.children) { depth.set(c.id, depth.get(n.id) + 1); q.push(c); }
   }
   for (const [id, xs] of keyIdx) {
-    pos.set(id, new THREE.Vector3(xs.reduce((a, b) => a + b, 0) / xs.length, 250 - depth.get(id) * 95, 0));
+    pos.set(id, new THREE.Vector3(xs.reduce((a, b) => a + b, 0) / xs.length + 360, 525 - depth.get(id) * 95, 0));
   }
-  if (root.keys.length === 0 && !pos.has(root.id)) pos.set(root.id, new THREE.Vector3(0, 250, 0));
+  if (root.keys.length === 0 && !pos.has(root.id)) pos.set(root.id, new THREE.Vector3(360, 525, 0));
   return pos;
 }
 

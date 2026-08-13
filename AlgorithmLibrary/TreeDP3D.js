@@ -7,24 +7,24 @@ import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('TreeDP3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：树形DP（没有上司的舞会）', x: 0, y: 305, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：树形DP（没有上司的舞会）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 265, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: -245, z: 0, color: PALETTE.textGlow, scale: 0.62 });
-const totalT = new VText(scene, { text: '', x: 0, y: -130, z: 0, color: GOLD, scale: 0.8 });
+const stageT = new VText(scene, { text: '', x: 0, y: 565, z: 0, color: GOLD, scale: 0.72 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const totalT = new VText(scene, { text: '', x: 0, y: 170, z: 0, color: GOLD, scale: 0.8 });
 
 const NODES = [
-  { key: 0, h: 5, kids: [1, 2], pos: [0, 170] },
-  { key: 1, h: 3, kids: [3, 4], pos: [-150, 80] },
-  { key: 2, h: 7, kids: [5], pos: [150, 80] },
-  { key: 3, h: 2, kids: [], pos: [-210, -10] },
-  { key: 4, h: 4, kids: [], pos: [-90, -10] },
-  { key: 5, h: 6, kids: [], pos: [210, -10] }
+  { key: 0, h: 5, kids: [1, 2], pos: [320, 470] },
+  { key: 1, h: 3, kids: [3, 4], pos: [170, 380] },
+  { key: 2, h: 7, kids: [5], pos: [470, 380] },
+  { key: 3, h: 2, kids: [], pos: [110, 290] },
+  { key: 4, h: 4, kids: [], pos: [230, 290] },
+  { key: 5, h: 6, kids: [], pos: [530, 290] }
 ];
 const f0 = {}, f1 = {}, pick = {};
 const steps = [];
@@ -54,8 +54,8 @@ const f0T = NODES.map(n => new VText(scene, { text: '', x: n.pos[0] + 40, y: n.p
 NODES.forEach(n => n.kids.forEach(k => {
   tubeBetween(scene, { x: n.pos[0], y: n.pos[1] - 20, z: 0 }, { x: NODES[k].pos[0], y: NODES[k].pos[1] + 20, z: 0 }, { color: PALETTE.edge, opacity: 0.3, radius: 2 });
 }));
-new VText(scene, { text: '公司年会：员工与上司不能同时出席，求最大快乐值', x: 0, y: 248, z: 0, color: WHITE, scale: 0.68 });
-new VText(scene, { text: '树上两种状态：f1[u] = 出席 = h[u] + Σ f0[v]；f0[u] = 缺席 = Σ max(f0[v], f1[v]) —— 后序遍历自底向上', x: 0, y: -205, z: 0, color: WHITE, scale: 0.62 });
+new VText(scene, { text: '公司年会：员工与上司不能同时出席，求最大快乐值', x: 0, y: 548, z: 0, color: WHITE, scale: 0.68 });
+new VText(scene, { text: '树上两种状态：f1[u] = 出席 = h[u] + Σ f0[v]；f0[u] = 缺席 = Σ max(f0[v], f1[v]) —— 后序遍历自底向上', x: 0, y: 95, z: 0, color: WHITE, scale: 0.62 });
 
 function clearView() {
   nodes.forEach(n => n.setColor(BLUE, BLUE));

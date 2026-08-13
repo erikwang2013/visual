@@ -7,20 +7,20 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('StoneMerge3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：石子合并（4 堆：4、1、2、7）', x: 0, y: 308, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：石子合并（4 堆：4、1、2、7）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 265, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: -238, z: 0, color: PALETTE.textGlow, scale: 0.62 });
-const totalT = new VText(scene, { text: '', x: 0, y: -182, z: 0, color: GOLD, scale: 0.8 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72, wrapChars: 7 });
+const outT = new VText(scene, { text: '', x: 700, y: 385, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const totalT = new VText(scene, { text: '', x: 700, y: 310, z: 0, color: GOLD, scale: 0.6, wrapChars: 8 });
 
 const ST = [4, 1, 2, 7];
 const N = 4;
-const PX = [-180, -60, 60, 180];
+const PX = [140, 260, 380, 500];
 const ps = [0];
 ST.forEach(s => ps.push(ps[ps.length - 1] + s));
 const dp = Array.from({ length: N }, () => new Array(N).fill(0));
@@ -39,16 +39,16 @@ for (let len = 2; len <= N; len++) {
   }
 }
 
-const nodes = [0, 1, 2, 3].map(i => new VNode(scene, { radius: 26, x: PX[i], y: 130, z: 0, label: String(ST[i]), color: BLUE, emissive: BLUE }));
-const sumT = [0, 1, 2, 3].map(i => new VText(scene, { text: '石子 ' + ST[i], x: PX[i], y: 172, z: 0, color: WHITE, scale: 0.5 }));
+const nodes = [0, 1, 2, 3].map(i => new VNode(scene, { radius: 26, x: PX[i], y: 470, z: 0, label: String(ST[i]), color: BLUE, emissive: BLUE }));
+const sumT = [0, 1, 2, 3].map(i => new VText(scene, { text: '石子 ' + ST[i], x: PX[i], y: 512, z: 0, color: WHITE, scale: 0.5 }));
 const dpCells = [];
 for (let len = 2; len <= N; len++) for (let i = 0; i + len <= N; i++) {
   const j = i + len - 1;
-  const box = new VBox(scene, { w: 64, h: 34, d: 34, x: -90 + (i + j) * 60, y: 40 - (len - 2) * 55, z: 0, label: '', color: BLUE, emissive: BLUE });
+  const box = new VBox(scene, { w: 64, h: 34, d: 34, x: 230 + (i + j) * 60, y: 330 - (len - 2) * 55, z: 0, label: '', color: BLUE, emissive: BLUE });
   dpCells.push({ i, j, box });
 }
-new VText(scene, { text: '一圈石子排成行，相邻两堆才能合并，代价 = 两堆重量之和 —— 求合并成一堆的最小总代价', x: 0, y: 225, z: 0, color: WHITE, scale: 0.68 });
-new VText(scene, { text: '区间 DP：dp[i][j] = min(dp[i][k] + dp[k+1][j]) + sum(i..j) —— 枚举最后一次合并的分界点 k', x: 0, y: -205, z: 0, color: WHITE, scale: 0.62 });
+new VText(scene, { text: '一圈石子排成行，相邻两堆才能合并，代价 = 两堆重量之和 —— 求合并成一堆的最小总代价', x: 700, y: 500, z: 0, color: PALETTE.textDim, scale: 0.45, wrapChars: 8 });
+new VText(scene, { text: '区间 DP：dp[i][j] = min(dp[i][k] + dp[k+1][j]) + sum(i..j) —— 枚举最后一次合并的分界点 k', x: 700, y: 455, z: 0, color: PALETTE.textDim, scale: 0.45, wrapChars: 8 });
 
 function cellOf(i, j) { return dpCells.find(c => c.i === i && c.j === j); }
 function clearView() {

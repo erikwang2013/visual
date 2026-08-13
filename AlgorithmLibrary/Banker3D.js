@@ -7,16 +7,16 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Banker3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 260, 700], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：银行家 —— 试算安全序列 <P1,P3,P4,P0,P2>', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：银行家 —— 试算安全序列 <P1,P3,P4,P0,P2>', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textGlow, scale: 0.54 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 320, y: 200, z: 0, color: PALETTE.textGlow, scale: 0.54 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 // 经典例：资源 A=10 B=5 C=7
 const ALLOC = [[0, 1, 0], [2, 0, 0], [3, 0, 2], [2, 1, 1], [0, 0, 2]];
@@ -25,19 +25,19 @@ const AVAIL0 = [3, 3, 2];
 const NEED = MAXM.map((m, i) => m.map((v, j) => v - ALLOC[i][j]));
 // 检查顺序：先试 P0（不满足，红）→ 然后安全序列 P1→P3→P4→P0→P2
 const ORDER = [0, 1, 3, 4, 0, 2];
-const rowY = [130, 85, 40, -5, -50];
-const cellX = [-170, -40, 90];
+const rowY = [130, 85, 40, -5, -50].map(v => v + 360);
+const cellX = [-170, -40, 90].map(v => v + 360);
 const needCells = {}, allocCells = {};
 for (let i = 0; i < 5; i++) {
-  new VText(scene, { text: 'P' + i, x: -330, y: rowY[i], z: 0, color: PALETTE.textGlow, scale: 0.5 });
+  new VText(scene, { text: 'P' + i, x: 30, y: rowY[i], z: 0, color: PALETTE.textGlow, scale: 0.5 });
   needCells[i] = NEED[i].map((v, j) => new VBox(scene, { w: 74, h: 36, d: 36, x: cellX[j], y: rowY[i], z: 0, label: v, color: DIM, emissive: DIM }));
   allocCells[i] = ALLOC[i].map((v, j) => new VBox(scene, { w: 74, h: 36, d: 36, x: cellX[j] + 195, y: rowY[i], z: 0, label: v, color: DIM, emissive: DIM }));
 }
-new VText(scene, { text: 'Need（还需）', x: -40, y: 175, z: 0, color: PALETTE.textDim, scale: 0.4 });
-new VText(scene, { text: 'Allocation（已占）', x: 155, y: 175, z: 0, color: PALETTE.textDim, scale: 0.4 });
-const availCells = AVAIL0.map((v, j) => new VBox(scene, { w: 74, h: 40, d: 40, x: cellX[j], y: -100, z: 0, label: v, color: CYAN, emissive: CYAN }));
-new VText(scene, { text: 'Available（可用）', x: -40, y: -65, z: 0, color: PALETTE.textDim, scale: 0.4 });
-const seqT = new VText(scene, { text: '', x: 0, y: -170, z: 0, color: GOLD, scale: 0.56 });
+new VText(scene, { text: 'Need（还需）', x: 320, y: 525, z: 0, color: PALETTE.textDim, scale: 0.4 });
+new VText(scene, { text: 'Allocation（已占）', x: 515, y: 525, z: 0, color: PALETTE.textDim, scale: 0.4 });
+const availCells = AVAIL0.map((v, j) => new VBox(scene, { w: 74, h: 40, d: 40, x: cellX[j], y: 260, z: 0, label: v, color: CYAN, emissive: CYAN }));
+new VText(scene, { text: 'Available（可用）', x: 320, y: 295, z: 0, color: PALETTE.textDim, scale: 0.4 });
+const seqT = new VText(scene, { text: '', x: 700, y: 500, z: 0, color: GOLD, scale: 0.56, wrapChars: 8 });
 let avail = [...AVAIL0];
 
 function leq(a, b) { return a.every((v, i) => v <= b[i]); }

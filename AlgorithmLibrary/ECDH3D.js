@@ -7,16 +7,16 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ECDH3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：ECDH —— 椭圆曲线 DH', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：ECDH —— 椭圆曲线 DH', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 148, z: 0, color: PALETTE.textGlow, scale: 0.44 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 410, z: 0, color: PALETTE.textGlow, scale: 0.44 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 // —— 椭圆曲线核心：mod 17 点运算（运行时计算）——
 const P = 17, CA = 2;
@@ -43,20 +43,20 @@ const shrA = ecMul(AA, pubB), shrB = ecMul(AB, pubA), SHR = ecMul(12, G0);
 const fmt = (pt) => pt ? '(' + pt.x + ', ' + pt.y + ')' : '∞';
 
 const box = (v, x, y, w = 92, color = DIM) => new VBox(scene, { w, h: 44, d: 44, x, y, z: 0, label: String(v), color, emissive: color });
-const aPri = box('', -330, 175, 78);
-const aPub = box('', -330, 45, 88);
-const aShr = box('', -330, -95, 88);
-const bPri = box('', 330, 175, 78);
-const bPub = box('', 330, 45, 88);
-const bShr = box('', 330, -95, 88);
-const midBox = box('', 0, -95, 150);
-new VText(scene, { text: '爱丽丝', x: -330, y: 230, z: 0, color: CYAN, scale: 0.5 });
-new VText(scene, { text: '鲍勃', x: 330, y: 230, z: 0, color: ORANGE, scale: 0.5 });
-new VText(scene, { text: '私钥', x: -385, y: 175, z: 0, color: RED, scale: 0.42 });
-new VText(scene, { text: '公钥', x: -385, y: 45, z: 0, color: PUR, scale: 0.42 });
-new VText(scene, { text: '共享秘密', x: -385, y: -95, z: 0, color: GREEN, scale: 0.42 });
-new VText(scene, { text: '曲线 y²=x³+2x+2，G=(5,1)，n=19', x: 0, y: 235, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '核心等式：aA·(aB·G) = aB·(aA·G) —— 点乘交换律让两边殊途同归', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
+const aPri = box('', -10, 475, 78);
+const aPub = box('', -10, 345, 88);
+const aShr = box('', -10, 205, 88);
+const bPri = box('', 650, 475, 78);
+const bPub = box('', 650, 345, 88);
+const bShr = box('', 650, 205, 88);
+const midBox = box('', 320, 205, 150);
+new VText(scene, { text: '爱丽丝', x: -10, y: 520, z: 0, color: CYAN, scale: 0.5 });
+new VText(scene, { text: '鲍勃', x: 650, y: 520, z: 0, color: ORANGE, scale: 0.5 });
+new VText(scene, { text: '私钥', x: -65, y: 475, z: 0, color: RED, scale: 0.42 });
+new VText(scene, { text: '公钥', x: -65, y: 345, z: 0, color: PUR, scale: 0.42 });
+new VText(scene, { text: '共享秘密', x: -65, y: 205, z: 0, color: GREEN, scale: 0.42 });
+new VText(scene, { text: '曲线 y²=x³+2x+2，G=(5,1)，n=19', x: 0, y: 538, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: '核心等式：aA·(aB·G) = aB·(aA·G) —— 点乘交换律让两边殊途同归', x: 0, y: 160, z: 0, color: PALETTE.textDim, scale: 0.62 });
 const setCell = (obj, v, color) => { obj.setText(String(v)); if (color) obj.setColor(color, color); };
 
 function* ecdhGen() {

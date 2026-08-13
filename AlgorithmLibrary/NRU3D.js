@@ -7,16 +7,16 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('NRU3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：NRU —— R/M 位分四类，先淘汰最便宜的类', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：NRU —— R/M 位分四类，先淘汰最便宜的类', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 145, z: 0, color: PALETTE.textGlow, scale: 0.48 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 700, y: 350, z: 0, color: PALETTE.textGlow, scale: 0.48, wrapChars: 8 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.62, wrapChars: 8 });
 
 // 4 个淘汰优先级类：类0 最优淘汰 → 类3 最后淘汰
 const CLS = [
@@ -25,15 +25,15 @@ const CLS = [
   { name: '类2 (R=1,M=0)', color: ORANGE, note: '已读未写' },
   { name: '类3 (R=1,M=1)', color: RED, note: '又读又写 · 最后动' }
 ];
-const clsBoxes = CLS.map((c, i) => new VBox(scene, { w: 172, h: 46, d: 46, x: -360 + i * 240, y: 205, z: 0, label: c.name, color: c.color, emissive: c.color }));
-CLS.forEach((c, i) => new VText(scene, { text: c.note, x: -360 + i * 240, y: 170, z: 0, color: PALETTE.textDim, scale: 0.34 }));
+const clsBoxes = CLS.map((c, i) => new VBox(scene, { w: 156, h: 46, d: 46, x: 90 + i * 160, y: 490, z: 0, label: c.name, color: c.color, emissive: c.color }));
+CLS.forEach((c, i) => new VText(scene, { text: c.note, x: 90 + i * 160, y: 455, z: 0, color: PALETTE.textDim, scale: 0.34 }));
 
 // 5 帧：页面 + R/M 位芯片
-const FX = [-360, -180, 0, 180, 360];
-const frames = FX.map(x => new VBox(scene, { w: 110, h: 60, d: 60, x, y: 55, z: 0, label: '', color: BLUE, emissive: BLUE }));
-const rChips = FX.map(x => new VBox(scene, { w: 44, h: 24, d: 24, x: x + 70, y: 55, z: 0, label: 'R=0', color: DIM, emissive: DIM }));
-const mChips = FX.map(x => new VBox(scene, { w: 44, h: 24, d: 24, x: x + 122, y: 55, z: 0, label: 'M=0', color: DIM, emissive: DIM }));
-new VText(scene, { text: 'R = 近期被引用过？ M = 被写过（脏页）？ —— 换出后要写回磁盘的页更贵', x: 0, y: -10, z: 0, color: PALETTE.textDim, scale: 0.4 });
+const FX = [70, 200, 330, 460, 590];
+const frames = FX.map(x => new VBox(scene, { w: 90, h: 60, d: 60, x, y: 300, z: 0, label: '', color: BLUE, emissive: BLUE }));
+const rChips = FX.map(x => new VBox(scene, { w: 40, h: 24, d: 24, x: x + 58, y: 300, z: 0, label: 'R=0', color: DIM, emissive: DIM }));
+const mChips = FX.map(x => new VBox(scene, { w: 40, h: 24, d: 24, x: x + 104, y: 300, z: 0, label: 'M=0', color: DIM, emissive: DIM }));
+new VText(scene, { text: 'R = 近期被引用过？ M = 被写过（脏页）？ —— 换出后要写回磁盘的页更贵', x: 700, y: 260, z: 0, color: PALETTE.textDim, scale: 0.45, wrapChars: 8 });
 
 // 事件：{ref, type: hit|fault|reset, idx, txt}
 const EVENTS = [
@@ -86,12 +86,12 @@ function* nruGen() {
       yield W(900);
       clsBoxes[ci].setColor(CLS[ci].color, CLS[ci].color);
       frames[ev.idx].setColor(RED, RED);
-      frames[ev.idx].moveTo(FX[ev.idx], 10, 0, 320);
+      frames[ev.idx].moveTo(FX[ev.idx], 255, 0, 320);
       yield S(() => { stageT.setText('帧 ' + ev.idx + ' 被淘汰（' + pages[ev.idx] + ' 出局）—— 若 M=1 还得先写回磁盘'); });
       yield W(320);
       pages[ev.idx] = ev.ref;
       r[ev.idx] = 1;
-      frames[ev.idx].moveTo(FX[ev.idx], 55, 0, 320);
+      frames[ev.idx].moveTo(FX[ev.idx], 300, 0, 320);
       frames[ev.idx].setText(String(ev.ref));
       frames[ev.idx].setColor(GOLD, GOLD);
       rChips[ev.idx].setText('R=1');

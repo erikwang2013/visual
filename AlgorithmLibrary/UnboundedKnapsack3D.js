@@ -7,14 +7,14 @@ import { VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('UnboundedKnapsack3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 260, 680], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：完全背包（容量 10，物品无限件）', x: 0, y: 310, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：完全背包（容量 10，物品无限件）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -185, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 0, y: 115, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const ITEMS = [{ id: 'A', w: 3, v: 4 }, { id: 'B', w: 5, v: 8 }, { id: 'C', w: 4, v: 6 }];
 const CAP = 10;
@@ -32,15 +32,15 @@ function buildView() {
   clearView();
   for (let i = 0; i < ITEMS.length; i++) {
     const it = ITEMS[i];
-    const y = 120 - i * 110;
-    const b = new VBox(scene, { w: 96, h: 48, d: 40, x: -360, y, z: 0, label: it.id, color: BLUE, emissive: BLUE });
+    const y = 420 - i * 110;
+    const b = new VBox(scene, { w: 96, h: 48, d: 40, x: -40, y, z: 0, label: it.id, color: BLUE, emissive: BLUE });
     itemBox.set(it.id, b);
-    new VText(scene, { text: '重量 ' + it.w + ' · 价值 ' + it.v, x: -360, y: y + 42, z: 0, color: WHITE, scale: 0.5 });
+    new VText(scene, { text: '重量 ' + it.w + ' · 价值 ' + it.v, x: -40, y: y + 42, z: 0, color: WHITE, scale: 0.5 });
   }
   for (let w = 1; w <= CAP; w++) {
-    const b = new VBox(scene, { w: 44, h: 40, d: 36, x: -270 + (w - 1) * 60, y: 190, z: 0, label: String(w), color: BLUE, emissive: BLUE });
+    const b = new VBox(scene, { w: 44, h: 40, d: 36, x: 50 + (w - 1) * 60, y: 490, z: 0, label: String(w), color: BLUE, emissive: BLUE });
     slotView.set(w, b);
-    new VText(scene, { text: '容量' + w, x: -270 + (w - 1) * 60, y: 228, z: 0, color: WHITE, scale: 0.42 });
+    new VText(scene, { text: '容量' + w, x: 50 + (w - 1) * 60, y: 528, z: 0, color: WHITE, scale: 0.42 });
   }
 }
 function setSlot(w, v, c) {

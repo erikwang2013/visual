@@ -7,21 +7,21 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('MD53D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 660], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：MD5 —— 填充 + 4 轮 64 步压缩，输出 128 位摘要', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：MD5 —— 填充 + 4 轮 64 步压缩，输出 128 位摘要', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 140, z: 0, color: PALETTE.textGlow, scale: 0.48 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 440, z: 0, color: PALETTE.textGlow, scale: 0.48 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-const padChips = [-330, -110, 110].map((x, i) => new VBox(scene, { w: 200, h: 52, d: 52, x, y: 190, z: 0, label: ['消息 "abc"', '填充：补 1 + 补 0 + 64 位长度', '512 位分组'], color: [BLUE, CYAN, PUR][i], emissive: [BLUE, CYAN, PUR][i] }));
-const roundBoxes = [-270, -90, 90, 270].map((x, i) => new VBox(scene, { w: 160, h: 58, d: 58, x, y: 105, z: 0, label: ['F：轮 1~16', 'G：轮 17~32', 'H：轮 33~48', 'I：轮 49~64'][i], color: DIM, emissive: DIM }));
-const regChips = [-270, -90, 90, 270].map((x, i) => new VBox(scene, { w: 110, h: 56, d: 56, x, y: 20, z: 0, label: ['A','B','C','D'][i], color: GOLD, emissive: GOLD }));
-new VText(scene, { text: 'A/B/C/D = 4 个 32 位寄存器（初值 IV：67452301 efcdab89 98badcfe 10325476）—— 每轮轮流被更新', x: 0, y: -28, z: 0, color: PALETTE.textDim, scale: 0.38 });
+const padChips = [-10, 210, 430].map((x, i) => new VBox(scene, { w: 200, h: 52, d: 52, x, y: 490, z: 0, label: ['消息 "abc"', '填充：补 1 + 补 0 + 64 位长度', '512 位分组'], color: [BLUE, CYAN, PUR][i], emissive: [BLUE, CYAN, PUR][i] }));
+const roundBoxes = [50, 230, 410, 590].map((x, i) => new VBox(scene, { w: 160, h: 58, d: 58, x, y: 405, z: 0, label: ['F：轮 1~16', 'G：轮 17~32', 'H：轮 33~48', 'I：轮 49~64'][i], color: DIM, emissive: DIM }));
+const regChips = [50, 230, 410, 590].map((x, i) => new VBox(scene, { w: 110, h: 56, d: 56, x, y: 320, z: 0, label: ['A','B','C','D'][i], color: GOLD, emissive: GOLD }));
+new VText(scene, { text: 'A/B/C/D = 4 个 32 位寄存器（初值 IV：67452301 efcdab89 98badcfe 10325476）—— 每轮轮流被更新', x: 0, y: 272, z: 0, color: PALETTE.textDim, scale: 0.38 });
 
 const FN = [
   'F(x,y,z) = (x∧y)∨(¬x∧z)',

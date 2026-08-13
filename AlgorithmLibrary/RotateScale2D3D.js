@@ -9,19 +9,20 @@ import { PALETTE, applyTheme } from '../3D/Glow.js';
 import { ripple } from '../3D/effects/Fx.js';
 applyTheme('RotateScale2D3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const geo = new Geometry3D(scene, { axisLen: 190 });
+const geo = new Geometry3D(scene, { axisLen: 150, x: 320, y: 360 });
 const ANGLE = 45, SCALE = 1.5, RAD = ANGLE * Math.PI / 180;
 const penta = new THREE.Shape();
 for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2 - Math.PI / 2; const x = Math.cos(a) * 48, y = Math.sin(a) * 48; i === 0 ? penta.moveTo(x, y) : penta.lineTo(x, y); }
 penta.closePath();
 geo.addShape(new THREE.ShapeGeometry(penta), { color: 0xa855f7, opacity: 0.92 });
+geo.shape.position.set(320, 360, 0);
 
-const matrixText = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textDim, scale: 0.75 });
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：2D 旋转 + 缩放', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const matrixText = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textDim, scale: 0.75 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：2D 旋转 + 缩放', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const m = v => v.toFixed(2);
@@ -42,7 +43,7 @@ function* rs2dGen() {
     const s = 1 + (SCALE - 1) * t;
     geo.shape.scale.set(s, s, 1);
   });
-  yield S(() => { ripple(scene, 0, 0, 0, PALETTE.highlight, 90); updateMatrix(ANGLE, SCALE); });
+  yield S(() => { ripple(scene, 320, 360, 0, PALETTE.highlight, 90); updateMatrix(ANGLE, SCALE); });
   yield W(700);
   yield S(() => {
     hint.setText('变换完成：(1,0) → (' + e1.x.toFixed(2) + ', ' + e1.y.toFixed(2) + ') —— 旋转+缩放同时作用');

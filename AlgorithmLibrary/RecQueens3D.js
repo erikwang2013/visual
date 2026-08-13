@@ -7,25 +7,25 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('RecQueens3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 320, 620], fov: 50 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：N 皇后回溯 —— 4×4 棋盘上放 4 个互不攻击的皇后', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：N 皇后回溯 —— 4×4 棋盘上放 4 个互不攻击的皇后', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -135, z: 0, color: PALETTE.textGlow, scale: 0.42 });
-const outT = new VText(scene, { text: '', x: 0, y: -222, z: 0, color: PALETTE.textGlow, scale: 0.6 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 165, z: 0, color: PALETTE.textGlow, scale: 0.42 });
+const outT = new VText(scene, { text: '', x: 0, y: 78, z: 0, color: PALETTE.textGlow, scale: 0.6 });
 
 const NQ = 4;
 const grid = [];
 for (let r = 0; r < NQ; r++) {
   for (let c = 0; c < NQ; c++) {
-    grid.push(new VBox(scene, { w: 76, h: 76, d: 76, x: -132 + c * 88, y: 205 - r * 88, z: 0, label: '', color: DIM, emissive: DIM }));
+    grid.push(new VBox(scene, { w: 76, h: 76, d: 76, x: 188 + c * 88, y: 505 - r * 88, z: 0, label: '', color: DIM, emissive: DIM }));
   }
 }
-new VText(scene, { text: '行坐标自上而下 0~3；冲突 = 同列或同对角线（|Δ行| = |Δ列|）', x: 0, y: -100, z: 0, color: PALETTE.textDim, scale: 0.34 });
+new VText(scene, { text: '行坐标自上而下 0~3；冲突 = 同列或同对角线（|Δ行| = |Δ列|）', x: 0, y: 200, z: 0, color: PALETTE.textDim, scale: 0.34 });
 
 function* queensGen() {
   const board = new Array(NQ).fill(-1);

@@ -6,25 +6,25 @@ import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Search3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, ORANGE = 0xfb923c, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：查找', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：查找', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const N = 12, SPX = 70;
 const data = [3, 7, 12, 18, 25, 33, 41, 56, 62, 70, 81, 95];
 const cells = data.map((v, i) =>
-  new VBox(scene, { w: 56, h: 56, d: 40, x: (i - 5.5) * SPX, y: 0, z: 0, label: String(v), color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-const xOf = i => (i - 5.5) * SPX;
+  new VBox(scene, { w: 56, h: 56, d: 40, x: (i - 5.5) * SPX + 320, y: 300, z: 0, label: String(v), color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+const xOf = i => (i - 5.5) * SPX + 320;
 
-const loT = new VText(scene, { text: '', x: 0, y: 78, z: 0, color: ORANGE, scale: 0.9 });
-const hiT = new VText(scene, { text: '', x: 0, y: 78, z: 0, color: ORANGE, scale: 0.9 });
-const midT = new VText(scene, { text: '', x: 0, y: -78, z: 0, color: YELLOW, scale: 0.9 });
-const stepT = new VText(scene, { text: '', x: 0, y: -150, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const eqT = new VText(scene, { text: '', x: 0, y: -200, z: 0, color: PALETTE.textDim, scale: 0.66 });
+const loT = new VText(scene, { text: '', x: 0, y: 378, z: 0, color: ORANGE, scale: 0.9 });
+const hiT = new VText(scene, { text: '', x: 0, y: 378, z: 0, color: ORANGE, scale: 0.9 });
+const midT = new VText(scene, { text: '', x: 0, y: 222, z: 0, color: YELLOW, scale: 0.9 });
+const stepT = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const eqT = new VText(scene, { text: '', x: 0, y: 100, z: 0, color: PALETTE.textDim, scale: 0.66 });
 
 function resetAll() {
   cells.forEach(c => c.setColor(PALETTE.node, PALETTE.nodeEmissive));
@@ -39,7 +39,7 @@ function* searchGen() {
   let lo = 0, hi = N - 1;
   loT.setText('lo'); hiT.setText('hi');
   yield S(() => {
-    loT.sprite.position.set(xOf(lo), 78, 0); hiT.sprite.position.set(xOf(hi), 78, 0);
+    loT.sprite.position.set(xOf(lo), 378, 0); hiT.sprite.position.set(xOf(hi), 378, 0);
     stepT.setText('初始：lo = 0，hi = 11 — 查找区间 [0, 11]');
   });
   yield W(600);
@@ -47,7 +47,7 @@ function* searchGen() {
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
     yield S(() => {
-      midT.setText('mid'); midT.sprite.position.set(xOf(mid), -78, 0);
+      midT.setText('mid'); midT.sprite.position.set(xOf(mid), 222, 0);
       cells[mid].setColor(YELLOW, YELLOW);
       stepT.setText('mid = (lo+hi)/2 = ' + mid + ' → data[' + mid + '] = ' + data[mid]);
     });

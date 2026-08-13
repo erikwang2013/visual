@@ -7,22 +7,22 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SM23D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 680], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：SM2 签名 —— toy 曲线上的国密签名与验签', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：SM2 签名 —— toy 曲线上的国密签名与验签', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 145, z: 0, color: PALETTE.textGlow, scale: 0.44 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 445, z: 0, color: PALETTE.textGlow, scale: 0.44 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-new VText(scene, { text: 'E: y² = x³ + 2x + 3 (mod 97)   G = (3,6)   阶 n = 5（5G = 无穷远点）', x: 0, y: 205, z: 0, color: PALETTE.textGlow, scale: 0.5 });
-const ptChips = [-330, -110, 110, 330].map((x, i) => new VBox(scene, { w: 200, h: 50, d: 50, x, y: 140, z: 0, label: ['G = (3,6)', '2G = ?', 'P = d·G = ?', '阶 n = 5'], color: [BLUE, DIM, DIM, PUR][i], emissive: [BLUE, DIM, DIM, PUR][i] }));
-const keyChips = [-330, 0, 330].map((x, i) => new VBox(scene, { w: 200, h: 50, d: 50, x, y: 55, z: 0, label: ['私钥 d = 3', '消息哈希 z = 4', '随机数 k = 1'], color: [RED, CYAN, ORANGE][i], emissive: [RED, CYAN, ORANGE][i] }));
-const sigChips = [-165, 165].map((x, i) => new VBox(scene, { w: 200, h: 50, d: 50, x, y: -35, z: 0, label: ['r = ?', 's = ?'], color: [GOLD, GOLD][i], emissive: [GOLD, GOLD][i] }));
-const verChips = [-330, 0, 330].map((x, i) => new VBox(scene, { w: 200, h: 50, d: 50, x, y: -125, z: 0, label: ['t = (r+s) mod n', 'sG + tP = ?', '验签结果'], color: [DIM, DIM, DIM][i], emissive: [DIM, DIM, DIM][i] }));
+new VText(scene, { text: 'E: y² = x³ + 2x + 3 (mod 97)   G = (3,6)   阶 n = 5（5G = 无穷远点）', x: 0, y: 505, z: 0, color: PALETTE.textGlow, scale: 0.5 });
+const ptChips = [-10, 210, 430, 650].map((x, i) => new VBox(scene, { w: 200, h: 50, d: 50, x, y: 440, z: 0, label: ['G = (3,6)', '2G = ?', 'P = d·G = ?', '阶 n = 5'], color: [BLUE, DIM, DIM, PUR][i], emissive: [BLUE, DIM, DIM, PUR][i] }));
+const keyChips = [-10, 320, 650].map((x, i) => new VBox(scene, { w: 200, h: 50, d: 50, x, y: 355, z: 0, label: ['私钥 d = 3', '消息哈希 z = 4', '随机数 k = 1'], color: [RED, CYAN, ORANGE][i], emissive: [RED, CYAN, ORANGE][i] }));
+const sigChips = [155, 485].map((x, i) => new VBox(scene, { w: 200, h: 50, d: 50, x, y: 265, z: 0, label: ['r = ?', 's = ?'], color: [GOLD, GOLD][i], emissive: [GOLD, GOLD][i] }));
+const verChips = [-10, 320, 650].map((x, i) => new VBox(scene, { w: 200, h: 50, d: 50, x, y: 175, z: 0, label: ['t = (r+s) mod n', 'sG + tP = ?', '验签结果'], color: [DIM, DIM, DIM][i], emissive: [DIM, DIM, DIM][i] }));
 
 const P_MOD = 97, CA = 2, GX = 3, GY = 6, N = 5;
 function invMod(a, p) {

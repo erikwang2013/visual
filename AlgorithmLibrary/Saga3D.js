@@ -8,12 +8,12 @@ import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Saga3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Saga 事务', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Saga 事务', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 // draw.io 风格节点：机架 + 正面 2 槽
@@ -44,29 +44,29 @@ function makeNode(x, y) {
 
 // 4 个业务步骤
 const STEP = [
-  { name: '下单', x: -270 },
-  { name: '扣库存', x: -90 },
-  { name: '支付', x: 90 },
-  { name: '发货', x: 270 },
+  { name: '下单', x: 120 },
+  { name: '扣库存', x: 260 },
+  { name: '支付', x: 400 },
+  { name: '发货', x: 540 },
 ];
-const stepBoxes = STEP.map(s => makeNode(s.x, 55));
-const stepLabel = STEP.map((s, i) => new VText(scene, { text: (i + 1) + ' ' + s.name, x: s.x, y: 55, z: 22, color: PALETTE.textGlow, scale: 0.6 }));
+const stepBoxes = STEP.map(s => makeNode(s.x, 370));
+const stepLabel = STEP.map((s, i) => new VText(scene, { text: (i + 1) + ' ' + s.name, x: s.x, y: 370, z: 22, color: PALETTE.textGlow, scale: 0.6 }));
 
 // 正向箭头（步骤间）与反向补偿箭头
 const fwdArrows = [];
 const revArrows = [];
 for (let i = 0; i < 3; i++) {
   const cx = (STEP[i].x + STEP[i + 1].x) / 2;
-  fwdArrows.push(new VBox(scene, { w: 70, h: 4, d: 4, x: cx, y: 55, z: 0, label: '', color: BLUE, emissive: BLUE }));
-  revArrows.push(new VBox(scene, { w: 70, h: 4, d: 4, x: cx, y: 5, z: 0, label: '', color: ROSE, emissive: ROSE }));
+  fwdArrows.push(new VBox(scene, { w: 70, h: 4, d: 4, x: cx, y: 370, z: 0, label: '', color: BLUE, emissive: BLUE }));
+  revArrows.push(new VBox(scene, { w: 70, h: 4, d: 4, x: cx, y: 320, z: 0, label: '', color: ROSE, emissive: ROSE }));
 }
 fwdArrows.forEach(a => (a.mesh.visible = false));
 revArrows.forEach(a => (a.mesh.visible = false));
-new VText(scene, { text: '正向执行 →', x: 0, y: 95, z: 0, color: PALETTE.textDim, scale: 0.6 });
-new VText(scene, { text: '← 反向补偿', x: 0, y: -18, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '正向执行 →', x: 700, y: 470, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
+new VText(scene, { text: '← 反向补偿', x: 700, y: 290, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 
-const stepT = new VText(scene, { text: '', x: 0, y: -95, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const eqT = new VText(scene, { text: '', x: 0, y: -150, z: 0, color: PALETTE.textDim, scale: 0.68 });
+const stepT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: PALETTE.textGlow, scale: 0.72, wrapChars: 7 });
+const eqT = new VText(scene, { text: '', x: 700, y: 350, z: 0, color: PALETTE.textDim, scale: 0.55, wrapChars: 8 });
 
 function resetAll() {
   stepBoxes.forEach(b => b.setColor(PALETTE.node, false));

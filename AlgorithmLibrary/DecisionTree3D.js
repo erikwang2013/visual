@@ -6,12 +6,12 @@ import { VBox, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('DecisionTree3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 720], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, RED = 0xf87171, YELLOW = 0xfacc15, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：决策树（ID3）', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：决策树（ID3）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 // 8 个样本：天气/温度/湿度/风 → 是否打球
@@ -27,11 +27,11 @@ const DATA = [
 ];
 const FEATS = [['w', '天气'], ['t', '温度'], ['h', '湿度'], ['wnd', '风']];
 
-const SP = 70, X0 = -3.5 * SP;
-const sboxes = DATA.map((d, i) => new VBox(scene, { w: 40, h: 40, d: 40, x: X0 + i * SP, y: 235, z: 0, label: 'S' + (i + 1), color: d.play === '是' ? GREEN : RED, emissive: d.play === '是' ? GREEN : RED }));
-const sfeat = DATA.map((d, i) => new VText(scene, { text: d.w + d.t + d.h + d.wnd, x: X0 + i * SP, y: 200, z: 0, color: PALETTE.textDim, scale: 0.55 }));
-new VText(scene, { text: '样本（绿=打球 红=不打）', x: 0, y: 288, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const calcT = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textGlow, scale: 0.72 });
+const SP = 70, X0 = -3.5 * SP + 320;
+const sboxes = DATA.map((d, i) => new VBox(scene, { w: 40, h: 40, d: 40, x: X0 + i * SP, y: 240, z: 0, label: 'S' + (i + 1), color: d.play === '是' ? GREEN : RED, emissive: d.play === '是' ? GREEN : RED }));
+const sfeat = DATA.map((d, i) => new VText(scene, { text: d.w + d.t + d.h + d.wnd, x: X0 + i * SP, y: 275, z: 0, color: PALETTE.textDim, scale: 0.55 }));
+new VText(scene, { text: '样本（绿=打球 红=不打）', x: 10, y: 310, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const calcT = new VText(scene, { text: '', x: 700, y: 440, z: 0, color: PALETTE.textGlow, scale: 0.5, wrapChars: 8 });
 
 const nodeObjs = [];
 const edgeObjs = [];
@@ -74,7 +74,7 @@ function id3(rows, depth, px, py, label) {
     c++;
   }
 }
-id3(DATA, 0, 0, 120, '根');
+id3(DATA, 0, 320, 500, '根');
 
 function resetAll() {
   for (const o of nodeObjs) o.remove();

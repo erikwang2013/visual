@@ -7,16 +7,16 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('RodCutting3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 660], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：钢条切割（长 8，价格表已知）', x: 0, y: 308, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：钢条切割（长 8，价格表已知）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 260, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: -232, z: 0, color: PALETTE.textGlow, scale: 0.62 });
-const totalT = new VText(scene, { text: '', x: 90, y: -120, z: 0, color: GOLD, scale: 0.8 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72, wrapChars: 7 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.62, wrapChars: 8 });
+const totalT = new VText(scene, { text: '', x: 700, y: 260, z: 0, color: GOLD, scale: 0.6, wrapChars: 8 });
 
 const P = [0, 1, 5, 8, 9, 10, 17, 17, 20];
 const N = 8;
@@ -38,14 +38,14 @@ const pieces = [];
 let nn = N;
 while (nn > 0) { pieces.push(cut[nn]); nn -= cut[nn]; }
 
-const X = (i) => -240 + (i - 0.5) * 60;
-const rod = [1, 2, 3, 4, 5, 6, 7, 8].map(i => new VBox(scene, { w: 56, h: 46, d: 46, x: X(i), y: 150, z: 0, label: String(i), color: BLUE, emissive: BLUE }));
-const priceT = [1, 2, 3, 4, 5, 6, 7, 8].map(i => new VText(scene, { text: '价' + P[i], x: X(i), y: 192, z: 0, color: WHITE, scale: 0.55 }));
-const dpT = [1, 2, 3, 4, 5, 6, 7, 8].map(i => new VText(scene, { text: 'dp' + i + ':0', x: X(i), y: 60, z: 0, color: WHITE, scale: 0.5 }));
-const bin1 = new VBox(scene, { w: 90, h: 56, d: 56, x: -110, y: -120, z: 0, label: '', color: BLUE, emissive: BLUE });
-const bin2 = new VBox(scene, { w: 90, h: 56, d: 56, x: -10, y: -120, z: 0, label: '', color: BLUE, emissive: BLUE });
-new VText(scene, { text: '一根长 8 的钢条可整卖或切割 —— 怎么切最赚？', x: 0, y: 228, z: 0, color: WHITE, scale: 0.68 });
-new VText(scene, { text: 'dp[i] = max(p[j] + dp[i−j])：第一刀切 j，剩下 i−j 交给子问题；小问题先算 → 大问题直接查', x: 0, y: -192, z: 0, color: WHITE, scale: 0.62 });
+const X = (i) => 340 + (i - 4.5) * 60;
+const rod = [1, 2, 3, 4, 5, 6, 7, 8].map(i => new VBox(scene, { w: 56, h: 46, d: 46, x: X(i), y: 370, z: 0, label: String(i), color: BLUE, emissive: BLUE }));
+const priceT = [1, 2, 3, 4, 5, 6, 7, 8].map(i => new VText(scene, { text: '价' + P[i], x: X(i), y: 415, z: 0, color: WHITE, scale: 0.55 }));
+const dpT = [1, 2, 3, 4, 5, 6, 7, 8].map(i => new VText(scene, { text: 'dp' + i + ':0', x: X(i), y: 305, z: 0, color: WHITE, scale: 0.5 }));
+const bin1 = new VBox(scene, { w: 90, h: 56, d: 56, x: 240, y: 235, z: 0, label: '', color: BLUE, emissive: BLUE });
+const bin2 = new VBox(scene, { w: 90, h: 56, d: 56, x: 330, y: 235, z: 0, label: '', color: BLUE, emissive: BLUE });
+new VText(scene, { text: '一根长 8 的钢条可整卖或切割 —— 怎么切最赚？', x: 700, y: 330, z: 0, color: WHITE, scale: 0.5, wrapChars: 8 });
+new VText(scene, { text: 'dp[i] = max(p[j] + dp[i−j])：第一刀切 j，剩下 i−j 交给子问题；小问题先算 → 大问题直接查', x: 700, y: 300, z: 0, color: WHITE, scale: 0.5, wrapChars: 8 });
 
 function clearView() {
   rod.forEach((r, i) => { r.setColor(BLUE, BLUE); r.setText(String(i + 1)); });

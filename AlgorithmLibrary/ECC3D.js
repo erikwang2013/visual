@@ -7,16 +7,16 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ECC3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：ECC —— 椭圆曲线加法群', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：ECC —— 椭圆曲线加法群', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 148, z: 0, color: PALETTE.textGlow, scale: 0.44 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 400, z: 0, color: PALETTE.textGlow, scale: 0.44 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 // —— 椭圆曲线核心：mod 17 上的点加法 / 倍点 / 点乘（全部运行时计算）——
 const P = 17, CA = 2;
@@ -43,14 +43,14 @@ const G2 = MUL[0], G3 = MUL[1], G19 = MUL[17];
 const fmt = (pt) => pt ? '(' + pt.x + ', ' + pt.y + ')' : '∞';
 
 const box = (v, x, y, w = 66, color = DIM) => new VBox(scene, { w, h: 44, d: 44, x, y, z: 0, label: String(v), color, emissive: color });
-const gBox = box(fmt(G0), -290, 175, 70);
-const row1 = [0, 1, 2, 3, 4, 5].map(i => box('', -180 + i * 70, 175, 62));
-const row2 = [0, 1, 2, 3, 4, 5].map(i => box('', -180 + i * 70, 75, 62));
-const row3 = [0, 1, 2, 3, 4, 5].map(i => box('', -180 + i * 70, -25, 62));
-new VText(scene, { text: 'G', x: -290, y: 228, z: 0, color: CYAN, scale: 0.46 });
-new VText(scene, { text: 'kG 循环群（k = 2..18）', x: 0, y: 192, z: 0, color: GOLD, scale: 0.46 });
-new VText(scene, { text: '曲线 y²=x³+2x+2，G=(5,1)，n=19', x: 0, y: 235, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '点加法：λ = (y₂−y₁)/(x₂−x₁)，x₃ = λ²−x₁−x₂，y₃ = λ(x₁−x₃)−y₁ —— 除法 = 模逆元，全部在 mod 17 里做', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
+const gBox = box(fmt(G0), 30, 475, 70);
+const row1 = [0, 1, 2, 3, 4, 5].map(i => box('', 140 + i * 70, 475, 62));
+const row2 = [0, 1, 2, 3, 4, 5].map(i => box('', 140 + i * 70, 375, 62));
+const row3 = [0, 1, 2, 3, 4, 5].map(i => box('', 140 + i * 70, 275, 62));
+new VText(scene, { text: 'G', x: -40, y: 475, z: 0, color: CYAN, scale: 0.46 });
+new VText(scene, { text: 'kG 循环群（k = 2..18）', x: 0, y: 440, z: 0, color: GOLD, scale: 0.46 });
+new VText(scene, { text: '曲线 y²=x³+2x+2，G=(5,1)，n=19', x: 0, y: 520, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: '点加法：λ = (y₂−y₁)/(x₂−x₁)，x₃ = λ²−x₁−x₂，y₃ = λ(x₁−x₃)−y₁ —— 除法 = 模逆元，全部在 mod 17 里做', x: 0, y: 180, z: 0, color: PALETTE.textDim, scale: 0.62 });
 const setCell = (obj, v, color) => { obj.setText(String(v)); if (color) obj.setColor(color, color); };
 
 function* eccGen() {

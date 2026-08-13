@@ -9,17 +9,18 @@ import { PALETTE, applyTheme } from '../3D/Glow.js';
 import { ripple } from '../3D/effects/Fx.js';
 applyTheme('RotateScale3D3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 260, 620], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const geo = new Geometry3D(scene, { axisLen: 200 });
+const geo = new Geometry3D(scene, { axisLen: 150, x: 320, y: 360 });
 geo.addShape([new THREE.BoxGeometry(100, 64, 64), new THREE.ConeGeometry(70, 56, 4)], { color: 0xa855f7, opacity: 0.92 });
+geo.shape.position.set(320, 360, 0);
 geo.shape.children[1].position.y = 32 + 28;
 geo.shape.children[1].rotation.y = Math.PI / 4;
 
-const matrixText = new VText(scene, { text: '', x: 0, y: -130, z: 0, color: PALETTE.textDim, scale: 0.72 });
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：3D 旋转 + 非均匀缩放', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const matrixText = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textDim, scale: 0.72 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：3D 旋转 + 非均匀缩放', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const ANG = 45, SX = 1.5, SY = 0.8, RAD = ANG * Math.PI / 180;
@@ -38,7 +39,7 @@ function* rs3dGen() {
     geo.shape.rotation.z = RAD * t;
     geo.shape.scale.set(1 + (SX - 1) * t, 1 + (SY - 1) * t, 1);
   });
-  yield S(() => { ripple(scene, 0, 0, 0, PALETTE.highlight, 90); updateMatrix(RAD, SX, SY); });
+  yield S(() => { ripple(scene, 320, 360, 0, PALETTE.highlight, 90); updateMatrix(RAD, SX, SY); });
   yield W(700);
   yield S(() => {
     hint.setText('变换完成：45° 旋转 × (1.5, 0.8) 缩放 —— X 拉伸 Y 压缩，房子形状不再对称');

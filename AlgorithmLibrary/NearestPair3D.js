@@ -6,17 +6,17 @@ import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('NearestPair3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, VIOLET = 0xa78bfa, AMBER = 0xfbbf24;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：最近点对（分治）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：最近点对（分治）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const PTS = [[0, 2], [1, 5], [2, 3], [3, 4], [5, 1], [6, 6], [7, 3], [8, 5]];
 const SC = 55;
-const pos = p => [(p[0] - 4) * SC, -(p[1] - 3.5) * SC];
+const pos = p => [(p[0] - 4) * SC + 320, -(p[1] - 3.5) * SC + 300];
 const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]);
 const f2 = v => Math.round(v * 1000) / 1000;
 const left = PTS.slice(0, 4), right = PTS.slice(4);
@@ -38,11 +38,11 @@ function clearExtras() { extras.forEach(o => { try { o.remove(); } catch (e) {} 
 const mkNode = (p, color, label) => addTemp(new VNode(scene, { x: pos(p)[0], y: pos(p)[1], z: 0, radius: 11, label, color, emissive: color }));
 const mkLine = (a, b, color, opacity = 0.5, radius = 2) => addTemp(tubeBetween(scene, pos(a), pos(b), { color, opacity, radius }));
 
-new VText(scene, { text: '最近点对（分治）：8 个点找距离最小的点对。竖线 = 分界 x=4；左右各自找最近，合并只查中线附近的 δ 带', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '紫 = 左半，琥珀 = 右半，金 = 各自的最优对；青色 = δ 带（|x−4| < δ 的点才有资格跨半配对）', x: 0, y: -245, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 272, z: 0, color: PALETTE.textGlow, scale: 0.5 });
-const outT = new VText(scene, { text: '', x: 0, y: -265, z: 0, color: PALETTE.textGlow, scale: 0.5 });
+new VText(scene, { text: '最近点对（分治）：8 个点找距离最小的点对。竖线 = 分界 x=4；左右各自找最近，合并只查中线附近的 δ 带', x: 0, y: 525, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: '紫 = 左半，琥珀 = 右半，金 = 各自的最优对；青色 = δ 带（|x−4| < δ 的点才有资格跨半配对）', x: 0, y: 95, z: 0, color: PALETTE.textDim, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 572, z: 0, color: PALETTE.textGlow, scale: 0.5 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.5 });
 
 function resetAll() {
   clearExtras();
@@ -54,8 +54,8 @@ function* nearestPairGen() {
   yield S(() => hint.setText('暴力要 C(8,2)=28 次距离计算。分治：一分为二，各自递归，最后合并 —— 数学的美在于「合并很便宜」'));
   yield S(() => {
     PTS.forEach((p, i) => mkNode(p, DIM, `(${p[0]},${p[1]})`));
-    addTemp(tubeBetween(scene, [0, 150, 0], [0, -150, 0], { color: CYAN, opacity: 0.35, radius: 2 }));
-    addTemp(new VText(scene, { text: '分界线 x = 4', x: 20, y: 150, z: 0, color: CYAN, scale: 0.42 }));
+    addTemp(tubeBetween(scene, [320, 450, 0], [320, 150, 0], { color: CYAN, opacity: 0.35, radius: 2 }));
+    addTemp(new VText(scene, { text: '分界线 x = 4', x: 340, y: 450, z: 0, color: CYAN, scale: 0.42 }));
     stageT.setText('全部 8 个点就位，中线把平面劈成左右两半 —— 每个点都是带坐标的小球');
   });
   yield W(600);
@@ -94,8 +94,8 @@ function* nearestPairGen() {
   yield S(() => {
     clearExtras();
     const d = DELTA * SC;
-    addTemp(tubeBetween(scene, [-d, 150, 0], [-d, -150, 0], { color: CYAN, opacity: 0.4, radius: 2 }));
-    addTemp(tubeBetween(scene, [d, 150, 0], [d, -150, 0], { color: CYAN, opacity: 0.4, radius: 2 }));
+    addTemp(tubeBetween(scene, [-d + 320, 450, 0], [-d + 320, 150, 0], { color: CYAN, opacity: 0.4, radius: 2 }));
+    addTemp(tubeBetween(scene, [d + 320, 450, 0], [d + 320, 150, 0], { color: CYAN, opacity: 0.4, radius: 2 }));
     PTS.forEach((p, i) => mkNode(p, DIM, `(${p[0]},${p[1]})`));
     strip.forEach(p => mkNode(p, CYAN, `(${p[0]},${p[1]})`));
     stageT.setText(`合并：跨半的点对只可能出现在 δ 带内 —— 只有 (3,4) 和 (5,1) 两个点（青色）在带里`);

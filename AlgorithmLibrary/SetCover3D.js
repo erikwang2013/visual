@@ -6,18 +6,18 @@ import { VNode, VBox, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SetCover3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, WHITE = 0xe2e8f0;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：集合覆盖', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：集合覆盖', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const SETS = [
-  { id: 'S1', elems: [1, 2, 3, 4], y: 100 },
-  { id: 'S2', elems: [4, 5], y: 0 },
-  { id: 'S3', elems: [5, 6], y: -100 }
+  { id: 'S1', elems: [1, 2, 3, 4], y: 400 },
+  { id: 'S2', elems: [4, 5], y: 300 },
+  { id: 'S3', elems: [5, 6], y: 200 }
 ];
 const U = [1, 2, 3, 4, 5, 6];
 
@@ -45,29 +45,29 @@ const scSteps = (() => {
 })();
 const FIN = scSteps[scSteps.length - 1];
 
-const ELEM_X = [-150, -90, -30, 30, 90, 150];
+const ELEM_X = [170, 230, 290, 350, 410, 470];
 const elems = U.map(i =>
-  new VNode(scene, { radius: 22, x: ELEM_X[i - 1], y: 170, z: 0, label: String(i), color: DIM, emissive: DIM }));
+  new VNode(scene, { radius: 22, x: ELEM_X[i - 1], y: 470, z: 0, label: String(i), color: DIM, emissive: DIM }));
 const elemT = U.map(i =>
-  new VText(scene, { text: '元素' + i, x: ELEM_X[i - 1], y: 206, z: 0, color: PALETTE.textDim, scale: 0.45 }));
+  new VText(scene, { text: '元素' + i, x: ELEM_X[i - 1], y: 506, z: 0, color: PALETTE.textDim, scale: 0.45 }));
 const cards = SETS.map(s => ({
-  box: new VBox(scene, { w: 110, h: 46, d: 46, x: -350, y: s.y, z: 0, label: s.id, color: DIM, emissive: DIM }),
-  info: new VText(scene, { text: '{' + s.elems.join(',') + '}', x: -350, y: s.y + 40, z: 0, color: PALETTE.textDim, scale: 0.5 }),
-  gain: new VText(scene, { text: '', x: -350, y: s.y - 40, z: 0, color: CYAN, scale: 0.55 })
+  box: new VBox(scene, { w: 110, h: 46, d: 46, x: -30, y: s.y, z: 0, label: s.id, color: DIM, emissive: DIM }),
+  info: new VText(scene, { text: '{' + s.elems.join(',') + '}', x: -30, y: s.y + 40, z: 0, color: PALETTE.textDim, scale: 0.5 }),
+  gain: new VText(scene, { text: '', x: -30, y: s.y - 40, z: 0, color: CYAN, scale: 0.55 })
 }));
 const tubes = {};
 SETS.forEach(s => s.elems.forEach(e => {
   const t = tubeBetween(scene,
-    { x: -350, y: s.y, z: 0 }, { x: ELEM_X[e - 1], y: 170, z: 0 },
+    { x: -30, y: s.y, z: 0 }, { x: ELEM_X[e - 1], y: 470, z: 0 },
     { color: PALETTE.edge, opacity: 0.12, radius: 1.5 });
   tubes[s.id + '-' + e] = t;
 }));
 const setTube = (sid, e, color, op) => { const t = tubes[sid + '-' + e]; t.material.color.setHex(color); t.material.opacity = op; };
-new VText(scene, { text: '全集 U = {1..6}，三个候选集合', x: 0, y: 246, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '贪心策略：每轮选「能覆盖最多未覆盖元素」的集合 —— 局部最大覆盖，希望全局集合数最少', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const coverT = new VText(scene, { text: '', x: 0, y: -130, z: 0, color: GOLD, scale: 0.8 });
-const stageT = new VText(scene, { text: '', x: 0, y: 265, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: -245, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+new VText(scene, { text: '全集 U = {1..6}，三个候选集合', x: 0, y: 546, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: '贪心策略：每轮选「能覆盖最多未覆盖元素」的集合 —— 局部最大覆盖，希望全局集合数最少', x: 0, y: 95, z: 0, color: PALETTE.textDim, scale: 0.62 });
+const coverT = new VText(scene, { text: '', x: 0, y: 170, z: 0, color: GOLD, scale: 0.8 });
+const stageT = new VText(scene, { text: '', x: 0, y: 565, z: 0, color: GOLD, scale: 0.72 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 function* scGen() {
   yield S(() => { hint.setText('集合覆盖是经典 NP-难问题：最优解要靠暴力尝试所有组合 —— 贪心是 ln n 近似比的工业标准'); });

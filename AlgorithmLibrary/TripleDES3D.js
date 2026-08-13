@@ -7,23 +7,23 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('TripleDES3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 680], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：3DES —— 三次 DES 接力，密钥长度翻三倍', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：3DES —— 三次 DES 接力，密钥长度翻三倍', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 132, z: 0, color: PALETTE.textGlow, scale: 0.44 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 390, z: 0, color: PALETTE.textGlow, scale: 0.44 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-const stageChips = [-330, -110, 110, 330].map((x, i) => new VBox(scene, { w: 210, h: 54, d: 54, x, y: 150, z: 0, label: ['PT 明文', '中间态①', '中间态②', 'CT 密文'], color: [BLUE, DIM, DIM, PUR][i], emissive: [BLUE, DIM, DIM, PUR][i] }));
-const stageBoxes = [-330, -110, 110].map((x, i) => new VBox(scene, { w: 210, h: 66, d: 66, x, y: 40, z: 0, label: ['① E(K1) 加密', '② D(K2) 解密', '③ E(K3) 加密'][i], color: GOLD, emissive: GOLD }));
-new VText(scene, { text: 'PT → E(K1) → D(K2) → E(K3) → CT（EDE 之字形流水线）；中间态不对外暴露', x: 0, y: 5, z: 0, color: PALETTE.textDim, scale: 0.36 });
-const fBoxes = [-330, -110, 110, 330].map((x, i) => new VBox(scene, { w: 210, h: 54, d: 54, x, y: -60, z: 0, label: ['Feistel 网络 ×16 轮', 'S 盒 ×8（6→4 位）', 'P 置换 + 扩展 E', '16 轮子密钥编排'][i], color: DIM, emissive: DIM }));
-new VText(scene, { text: '每段 DES：初始置换 IP → 16 轮 Feistel（L_i = R_{i−1}，R_i = L_{i−1} ⊕ f(R_{i−1}, K_i)）→ 逆置换 FP', x: 0, y: -105, z: 0, color: PALETTE.textDim, scale: 0.36 });
-new VText(scene, { text: '密钥：K1|K2|K3 各 56 位有效（含奇偶校验位共 64 位）；3-key 有效强度 112 位，2-key（K1=K3）80 位', x: 0, y: -140, z: 0, color: PALETTE.textDim, scale: 0.36 });
+const stageChips = [-10, 210, 430, 650].map((x, i) => new VBox(scene, { w: 210, h: 54, d: 54, x, y: 450, z: 0, label: ['PT 明文', '中间态①', '中间态②', 'CT 密文'], color: [BLUE, DIM, DIM, PUR][i], emissive: [BLUE, DIM, DIM, PUR][i] }));
+const stageBoxes = [-10, 210, 430].map((x, i) => new VBox(scene, { w: 210, h: 66, d: 66, x, y: 340, z: 0, label: ['① E(K1) 加密', '② D(K2) 解密', '③ E(K3) 加密'][i], color: GOLD, emissive: GOLD }));
+new VText(scene, { text: 'PT → E(K1) → D(K2) → E(K3) → CT（EDE 之字形流水线）；中间态不对外暴露', x: 0, y: 305, z: 0, color: PALETTE.textDim, scale: 0.36 });
+const fBoxes = [-10, 210, 430, 650].map((x, i) => new VBox(scene, { w: 210, h: 54, d: 54, x, y: 240, z: 0, label: ['Feistel 网络 ×16 轮', 'S 盒 ×8（6→4 位）', 'P 置换 + 扩展 E', '16 轮子密钥编排'][i], color: DIM, emissive: DIM }));
+new VText(scene, { text: '每段 DES：初始置换 IP → 16 轮 Feistel（L_i = R_{i−1}，R_i = L_{i−1} ⊕ f(R_{i−1}, K_i)）→ 逆置换 FP', x: 0, y: 195, z: 0, color: PALETTE.textDim, scale: 0.36 });
+new VText(scene, { text: '密钥：K1|K2|K3 各 56 位有效（含奇偶校验位共 64 位）；3-key 有效强度 112 位，2-key（K1=K3）80 位', x: 0, y: 160, z: 0, color: PALETTE.textDim, scale: 0.36 });
 
 function* tripleDesGen() {
   yield S(() => { hint.setText('3DES：DES 三重接力 —— 应对 1990 年代 DES 56 位密钥过短与中间相遇攻击（2^56 穷举成为现实威胁）'); stageT.setText('为什么三次接力？密钥 56×3 = 168 位，但有效强度只有 112 位 —— 中间相遇攻击把它削掉一半'); });

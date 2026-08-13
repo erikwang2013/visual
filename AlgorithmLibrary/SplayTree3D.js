@@ -7,16 +7,16 @@ import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SplayTree3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 560], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, ORANGE = 0xfb923c, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Splay 伸展到根（zig/zig-zig/zig-zag）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Splay 伸展到根（zig/zig-zig/zig-zag）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-const ROOT_Y = 260, STEP_Y = 85, X_STEP = 80;
+const ROOT_Y = 560, STEP_Y = 85, X_STEP = 80;
 
 // ---- 纯数据模型（parent 键引用） ----
 let root = null;
@@ -182,7 +182,7 @@ function* splayGen(x) {
       yield W(220);
     }
   }
-  resetColors();
+  resetNodeColors();
   yield* pulse(x.key);
 }
 
@@ -222,7 +222,7 @@ function* searchGen(key) {
     yield S(() => outT.setText(key + ' 不存在（红闪，无伸展）'));
     yield W(500);
   }
-  resetColors();
+  resetNodeColors();
 }
 
 // ---- 删除：目标伸展到根 → 收缩移除 → 左子树最大伸展为根挂接右子树 ----
@@ -261,7 +261,7 @@ function* deleteGen(key) {
   }
   yield S(() => outT.setText('合并：左子树最大 ' + (L ? (function (r) { while (r.right) r = r.right; return r.key; })(L) : '—') + ' 为新根，右子树挂接'));
   yield* moveToLayout();
-  resetColors();
+  resetNodeColors();
   yield W(300);
 }
 
@@ -273,7 +273,7 @@ function* inorderGen() {
   arr.forEach((n, i) => {
     const f = nodeView.get(n.key).mesh.position.clone();
     const t = new VText(scene, { text: String(n.key), x: f.x, y: f.y, z: f.z, color: GOLD, scale: 0.85 });
-    tmp.push({ t, from: f, to: new THREE.Vector3((i - (arr.length - 1) / 2) * 82, -230, 0) });
+    tmp.push({ t, from: f, to: new THREE.Vector3((i - (arr.length - 1) / 2) * 82, 70, 0) });
   });
   yield A(560, p => tmp.forEach(x => x.t.sprite.position.lerpVectors(x.from, x.to, p)));
   yield W(900);

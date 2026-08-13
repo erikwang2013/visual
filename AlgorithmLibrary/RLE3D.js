@@ -7,23 +7,23 @@ import { VBox, VText, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('RLE3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, GOLD = 0xfcd34d, YELLOW = 0xfacc15;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 260, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
 
 const TXT = 'AAAABBBCCDAA';
-const SP = 54, X0 = -TXT.length * SP / 2 + SP / 2;
+const SP = 54, X0 = -TXT.length * SP / 2 + SP / 2 + 320;
 const boxes = [];
 for (let i = 0; i < TXT.length; i++) {
-  boxes.push(new VBox(scene, { w: 44, h: 44, d: 44, x: X0 + i * SP, y: 90, z: 0, label: TXT[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+  boxes.push(new VBox(scene, { w: 44, h: 44, d: 44, x: X0 + i * SP, y: 390, z: 0, label: TXT[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 }
-new VText(scene, { text: '输入（12 字符）', x: X0 - 240, y: 90, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const outText = new VText(scene, { text: '', x: 0, y: -60, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const ratioT = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '输入（12 字符）', x: X0 - 240, y: 390, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const outText = new VText(scene, { text: '', x: 320, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const ratioT = new VText(scene, { text: '', x: 320, y: 180, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
 const runs = [];
 for (let i = 0; i < TXT.length; ) {
@@ -33,9 +33,9 @@ for (let i = 0; i < TXT.length; ) {
   i = j;
 }
 
-const ring = new VTorus(scene, { radius: 32, x: X0, y: 90, color: GOLD });
+const ring = new VTorus(scene, { radius: 32, x: X0, y: 390, color: GOLD });
 ring.mesh.visible = false;
-const countTexts = runs.map(r => new VText(scene, { text: '', x: X0 + (r.start + (r.len - 1) / 2) * SP, y: 175, z: 0, color: GREEN, scale: 0.9 }));
+const countTexts = runs.map(r => new VText(scene, { text: '', x: X0 + (r.start + (r.len - 1) / 2) * SP, y: 475, z: 0, color: GREEN, scale: 0.9 }));
 
 let fxGroup = new THREE.Group();
 scene.add(fxGroup);
@@ -77,8 +77,8 @@ function* runCompress() {
       for (let i = r.start; i < r.start + r.len; i++) boxes[i].setColor(YELLOW, YELLOW);
       hint.setText('连续 ' + r.len + ' 个「' + r.ch + '」→ 记作 ' + r.ch + r.len);
     });
-    const pA = new THREE.Vector3(X0 + r.start * SP, 90, 20);
-    const pB = new THREE.Vector3(X0 + (r.start + r.len - 1) * SP, 90, 20);
+    const pA = new THREE.Vector3(X0 + r.start * SP, 390, 20);
+    const pB = new THREE.Vector3(X0 + (r.start + r.len - 1) * SP, 390, 20);
     yield* flowLine(pA, pB);
     yield A(300, p => { ring.mesh.scale.setScalar(1 + 0.18 * Math.sin(p * Math.PI * 2)); });
     yield S(() => {

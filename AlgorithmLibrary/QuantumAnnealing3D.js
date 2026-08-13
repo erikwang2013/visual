@@ -6,29 +6,29 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('QuantumAnnealing3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：量子退火 —— 隧穿 vs 爬坡', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：量子退火 —— 隧穿 vs 爬坡', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 const ENERGY = [8, 5, 3, 6, 2, 1, 4, 7, 5, 9];
 const GLOBAL = 5, LOCAL = 2;
 const bars = ENERGY.map((e, i) => {
   const color = i === GLOBAL ? GREEN : i === LOCAL ? YELLOW : BLUE;
-  const b = new VBox(scene, { w: 44, h: 12, d: 12, x: -270 + i * 60, y: -90, z: 0, label: String(e), color, emissive: color });
-  b.mesh.scale.y = (e * 20) / 12; b.mesh.position.y = -90 + (e * 20) / 2;
+  const b = new VBox(scene, { w: 44, h: 12, d: 12, x: 50 + i * 60, y: 300, z: 0, label: String(e), color, emissive: color });
+  b.mesh.scale.y = (e * 20) / 12; b.mesh.position.y = 300 + (e * 20) / 2;
   return b;
 });
-new VText(scene, { text: '能量景观：越低越优。x=5 是全局最优（绿），x=2 是局部陷阱（黄）', x: 0, y: 175, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const ball = new VBox(scene, { w: 30, h: 30, d: 30, x: -270, y: 100, z: 20, label: '', color: ROSE, emissive: ROSE });
-const ballX = i => -270 + i * 60;
-const ballY = i => -90 + (ENERGY[i] * 20) / 2 + 22;
-const gammaT = new VText(scene, { text: '', x: 280, y: 60, z: 0, color: PALETTE.textGlow, scale: 0.7 });
-const gammaBar = new VBox(scene, { w: 40, h: 4, d: 4, x: 280, y: 45, z: 0, label: '', color: ROSE, emissive: ROSE });
+new VText(scene, { text: '能量景观：越低越优。x=5 是全局最优（绿），x=2 是局部陷阱（黄）', x: 0, y: 520, z: 0, color: PALETTE.textDim, scale: 0.62 });
+const ball = new VBox(scene, { w: 30, h: 30, d: 30, x: 50, y: 402, z: 20, label: '', color: ROSE, emissive: ROSE });
+const ballX = i => 50 + i * 60;
+const ballY = i => 300 + (ENERGY[i] * 20) / 2 + 22;
+const gammaT = new VText(scene, { text: '', x: 700, y: 200, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const gammaBar = new VBox(scene, { w: 40, h: 4, d: 4, x: 700, y: 185, z: 0, label: '', color: ROSE, emissive: ROSE });
 const setGamma = g => { gammaT.setText('量子涨落 Γ = ' + g.toFixed(1)); gammaBar.mesh.scale.y = 1 + g * 3; };
-const stepT = new VText(scene, { text: '', x: 0, y: -170, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const stepT = new VText(scene, { text: '', x: 0, y: 90, z: 0, color: PALETTE.textGlow, scale: 0.75 });
 const resetBars = () => bars.forEach((b, i) => { const c = i === GLOBAL ? GREEN : i === LOCAL ? YELLOW : BLUE; b.setColor(c, c); });
 
 function* qaGen() {
@@ -58,7 +58,7 @@ function* qaGen() {
 engine.queue(() => qaGen());
 panel.addButton('清空', () => {
   engine.clear();
-  ball.mesh.position.set(-270, 100, 20);
+  ball.mesh.position.set(50, 402, 20);
   setGamma(0); gammaBar.mesh.scale.y = 1;
   stepT.setText(''); resetBars();
   hint.setText('已清空，可重新运行'); status.textContent = '';

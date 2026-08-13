@@ -7,22 +7,22 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('LFU3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 260, 700], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：LFU —— 换掉被访问次数最少的页面', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：LFU —— 换掉被访问次数最少的页面', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textGlow, scale: 0.5 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 700, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.5, wrapChars: 8 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.62, wrapChars: 8 });
 
 const REF = [7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2, 1, 2, 0, 1, 7, 0, 1];
-const FRAME_X = [-220, 0, 220];
-const chips = REF.map((v, i) => new VBox(scene, { w: 40, h: 26, d: 26, x: -400 + i * 48, y: 220, z: 0, label: String(v), color: DIM, emissive: DIM }));
-const frames = FRAME_X.map(x => new VBox(scene, { w: 100, h: 70, d: 70, x, y: 70, z: 0, label: '空', color: BLUE, emissive: BLUE }));
-const cntChips = FRAME_X.map(x => new VText(scene, { text: '', x, y: 22, z: 0, color: PALETTE.textDim, scale: 0.42 }));
+const FRAME_X = [220, 320, 420];
+const chips = REF.map((v, i) => new VBox(scene, { w: 30, h: 26, d: 26, x: 16 + i * 32, y: 380, z: 0, label: String(v), color: DIM, emissive: DIM }));
+const frames = FRAME_X.map(x => new VBox(scene, { w: 100, h: 70, d: 70, x, y: 260, z: 0, label: '空', color: BLUE, emissive: BLUE }));
+const cntChips = FRAME_X.map(x => new VText(scene, { text: '', x, y: 212, z: 0, color: PALETTE.textDim, scale: 0.42 }));
 let slots = [-1, -1, -1];
 
 function* lfuGen() {
@@ -59,7 +59,7 @@ function* lfuGen() {
       }
       if (victim >= 0) {
         frames[vi].setColor(RED, RED);
-        frames[vi].moveTo(FRAME_X[vi], 25, 0, 320);
+        frames[vi].moveTo(FRAME_X[vi], 222, 0, 320);
         yield S(() => { stageT.setText('t=' + (i + 1) + '：引用 ' + v + ' —— 缺页！淘汰次数最少的 ' + victim + '（×' + cnt[victim] + '，帧 ' + vi + '）'); eqT.setText('缺页 ' + faults + ' 次；次数：' + slots.map(p => p < 0 ? '空' : p + '×' + cnt[p]).join('  ')); });
         yield W(320);
       } else {
@@ -69,7 +69,7 @@ function* lfuGen() {
       born[vi] = i;
       cnt[v] = 1;
       cntChips[vi].setText('次数 1');
-      frames[vi].moveTo(FRAME_X[vi], 70, 0, 320);
+      frames[vi].moveTo(FRAME_X[vi], 260, 0, 320);
       frames[vi].setText(String(v));
       frames[vi].setColor(GOLD, GOLD);
       yield W(320);
@@ -93,7 +93,7 @@ function* runLFU() {
 }
 
 engine.queue(() => runLFU());
-panel.addButton('清空', () => { engine.clear(); stageT.setText(''); eqT.setText(''); outT.setText(''); slots = [-1, -1, -1]; chips.forEach(c => c.setColor(DIM, DIM)); frames.forEach((f, i) => { f.setText('空'); f.setColor(BLUE, BLUE); f.moveTo(FRAME_X[i], 70, 0, 10); }); cntChips.forEach(c => c.setText('')); hint.setText('已清空，可重新运行'); status.textContent = ''; });
+panel.addButton('清空', () => { engine.clear(); stageT.setText(''); eqT.setText(''); outT.setText(''); slots = [-1, -1, -1]; chips.forEach(c => c.setColor(DIM, DIM)); frames.forEach((f, i) => { f.setText('空'); f.setColor(BLUE, BLUE); f.moveTo(FRAME_X[i], 260, 0, 10); }); cntChips.forEach(c => c.setText('')); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；金 = 当前引用/换入瞬间，红 = 被淘汰的次数最少页；帧下方文字实时显示访问次数）');
 
 scene.start(engine);

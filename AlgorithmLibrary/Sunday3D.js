@@ -7,30 +7,30 @@ import { VBox, VText, VNode, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Sunday3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 430, 780], fov: 60 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, RED = 0xfb7185, GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x67e8f9, ORANGE = 0xfb923c;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
 
 const TXT = 'ABCABAB', P = 'BAB';
 const SP = 46;
 const lerp = (a, b, p) => a + (b - a) * p;
-const mx = k => (k - (TXT.length - 1) / 2) * SP;
-const sBox = [...TXT].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 150, label: ch, color: BLUE, emissive: BLUE }));
-const pBox = [...P].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 430, label: ch, color: RED, emissive: RED }));
-const iBall = new VNode(scene, { radius: 11, x: mx(0), y: 70, color: CYAN, emissive: CYAN });
-const jBall = new VNode(scene, { radius: 11, x: mx(0), y: 520, color: GOLD, emissive: GOLD });
-const ring = new VTorus(scene, { radius: 36, x: 0, y: 150, color: GOLD });
+const mx = k => (k - (TXT.length - 1) / 2) * SP + 320;
+const sBox = [...TXT].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 290, label: ch, color: BLUE, emissive: BLUE }));
+const pBox = [...P].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 620, label: ch, color: RED, emissive: RED }));
+const iBall = new VNode(scene, { radius: 11, x: mx(0), y: 210, color: CYAN, emissive: CYAN });
+const jBall = new VNode(scene, { radius: 11, x: mx(0), y: 710, color: GOLD, emissive: GOLD });
+const ring = new VTorus(scene, { radius: 36, x: 0, y: 290, color: GOLD });
 ring.mesh.visible = false;
-const nextBall = new VNode(scene, { radius: 10, x: 0, y: 210, color: ORANGE, emissive: ORANGE });
+const nextBall = new VNode(scene, { radius: 10, x: 0, y: 350, color: ORANGE, emissive: ORANGE });
 nextBall.mesh.visible = false;
-const shiftT = new VText(scene, { text: '', x: 0, y: 252, z: 0, color: ORANGE, scale: 0.62 });
-const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-new VText(scene, { text: '主串 S', x: -330, y: 150, z: 0, color: PALETTE.textDim, scale: 0.6 });
-new VText(scene, { text: '模式串 P', x: -330, y: 430, z: 0, color: PALETTE.textDim, scale: 0.6 });
+const shiftT = new VText(scene, { text: '', x: 0, y: 390, z: 0, color: ORANGE, scale: 0.62 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+new VText(scene, { text: '主串 S', x: 60, y: 290, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '模式串 P', x: 60, y: 620, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
 let fxGroup = new THREE.Group();
 scene.add(fxGroup);
@@ -78,8 +78,8 @@ function resetAll() {
   clearFx();
   sBox.forEach(b => b.setColor(BLUE, BLUE));
   pBox.forEach(b => b.setColor(RED, RED));
-  iBall.mesh.position.set(mx(0), 70, 0);
-  jBall.mesh.position.set(mx(0), 520, 0);
+  iBall.mesh.position.set(mx(0), 210, 0);
+  jBall.mesh.position.set(mx(0), 710, 0);
   ring.mesh.visible = false;
   nextBall.mesh.visible = false;
   shiftT.setText('');
@@ -94,7 +94,7 @@ function* runSunday() {
     yield flyWindow(i);
     let j = 0, full = true;
     while (j < P.length) {
-      yield fly(jBall, mx(i + j), 520);
+      yield fly(jBall, mx(i + j), 710);
       yield S(() => { sBox[i + j].setColor(GOLD, GOLD); pBox[j].setColor(GOLD, GOLD); });
       yield W(300);
       if (TXT[i + j] === P[j]) {
@@ -105,7 +105,7 @@ function* runSunday() {
         const last = lastIndex(nx);
         const shift = last >= 0 ? P.length - last : P.length + 1;
         yield S(() => {
-          nextBall.mesh.position.set(mx(i + P.length), 210, 0);
+          nextBall.mesh.position.set(mx(i + P.length), 350, 0);
           nextBall.mesh.visible = true;
           sBox[i + j].setColor(RED, RED); pBox[j].setColor(RED, RED);
           shiftT.setText(`S[${i + P.length}]='${nx}' ${last >= 0 ? `在 P 中最后出现于 ${last}` : '不在 P 中'} → 偏移 ${shift} 格`);
@@ -113,7 +113,7 @@ function* runSunday() {
         });
         yield W(800);
         yield S(() => hint.setText(`Sunday 偏移 ${shift}：窗口右移 ${shift} 格（橙色球 = 窗口右侧字符，橙色数字 = 偏移量）`));
-        yield stretchArrow(mx(i), mx(i + shift), 300, 700);
+        yield stretchArrow(mx(i), mx(i + shift), 440, 700);
         yield flyWindow(i + shift, 550);
         yield W(300);
         yield S(() => {
@@ -131,7 +131,7 @@ function* runSunday() {
     if (full) {
       yield S(() => {
         for (let k = 0; k < P.length; k++) sBox[i + k].setColor(GREEN, GREEN);
-        ring.mesh.position.set(mx(i), 150, 0);
+        ring.mesh.position.set(mx(i), 290, 0);
         ring.mesh.visible = true;
         outT.setText(`匹配成功：S[${i}..${i + P.length - 1}] == P —— 第 ${i + 1} 次对齐命中`);
         status.textContent = `Sunday 结果：主串 "${TXT}" 中 "${P}" 出现在位置 ${i}（偏移 2 次）`;

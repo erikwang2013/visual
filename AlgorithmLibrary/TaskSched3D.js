@@ -6,19 +6,19 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('TaskSched3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, WHITE = 0xe2e8f0;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：任务调度 —— 单机排程，截止前做完任务拿利润', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：任务调度 —— 单机排程，截止前做完任务拿利润', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const TASKS = [
-  { id: 'A', p: 25, d: 1, y: 120 },
-  { id: 'B', p: 40, d: 3, y: 45 },
-  { id: 'C', p: 35, d: 3, y: -30 },
-  { id: 'D', p: 20, d: 2, y: -105 }
+  { id: 'A', p: 25, d: 1, y: 420 },
+  { id: 'B', p: 40, d: 3, y: 345 },
+  { id: 'C', p: 35, d: 3, y: 270 },
+  { id: 'D', p: 20, d: 2, y: 195 }
 ];
 
 const tsSteps = (() => {
@@ -39,17 +39,17 @@ const tsSteps = (() => {
 const FIN = tsSteps[tsSteps.length - 1];
 
 const tasksV = TASKS.map(t => ({
-  box: new VBox(scene, { w: 130, h: 56, d: 40, x: -330, y: t.y, z: 0, label: t.id, color: DIM, emissive: DIM }),
-  info: new VText(scene, { text: '利润 ' + t.p + ' · 截止 ' + t.d, x: -330, y: t.y - 42, z: 0, color: PALETTE.textDim, scale: 0.5 })
+  box: new VBox(scene, { w: 130, h: 56, d: 40, x: -10, y: t.y, z: 0, label: t.id, color: DIM, emissive: DIM }),
+  info: new VText(scene, { text: '利润 ' + t.p + ' · 截止 ' + t.d, x: -10, y: t.y - 42, z: 0, color: PALETTE.textDim, scale: 0.5 })
 }));
 const slotBox = [1, 2, 3].map(i =>
-  new VBox(scene, { w: 90, h: 60, d: 60, x: 80 + (i - 1) * 110, y: 30, z: 0, label: '槽' + i, color: DIM, emissive: DIM }));
-new VText(scene, { text: '时间槽 1…3（每个槽最多一个任务，必须在截止前完成）', x: 80, y: 88, z: 0, color: PALETTE.textDim, scale: 0.6 });
-new VText(scene, { text: '4 个任务各带利润 p 和截止 d —— 总利润最大', x: 0, y: 228, z: 0, color: PALETTE.textDim, scale: 0.62 });
-new VText(scene, { text: '贪心策略：按利润降序处理，每个任务放入「不超过截止的最晚空槽」—— 并查集快速找槽', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.68 });
-const totalT = new VText(scene, { text: '', x: 0, y: -130, z: 0, color: GREEN, scale: 0.8 });
-const outT = new VText(scene, { text: '', x: 0, y: -245, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+  new VBox(scene, { w: 90, h: 60, d: 60, x: 400 + (i - 1) * 110, y: 330, z: 0, label: '槽' + i, color: DIM, emissive: DIM }));
+new VText(scene, { text: '时间槽 1…3（每个槽最多一个任务，必须在截止前完成）', x: 400, y: 388, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '4 个任务各带利润 p 和截止 d —— 总利润最大', x: 0, y: 528, z: 0, color: PALETTE.textDim, scale: 0.62 });
+new VText(scene, { text: '贪心策略：按利润降序处理，每个任务放入「不超过截止的最晚空槽」—— 并查集快速找槽', x: 0, y: 95, z: 0, color: PALETTE.textDim, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.68 });
+const totalT = new VText(scene, { text: '', x: 0, y: 170, z: 0, color: GREEN, scale: 0.8 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 function* tsGen() {
   yield S(() => { hint.setText('排序是贪心的灵魂：先处理利润最高的任务，剩下的槽位留给低利润任务「捡漏」'); });

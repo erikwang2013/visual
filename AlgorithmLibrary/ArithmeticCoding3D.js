@@ -7,21 +7,21 @@ import { VBox, VText, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ArithmeticCoding3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x60a5fa, GOLD = 0xfcd34d;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
 
 const PROB = { A: 0.5, B: 0.25, C: 0.25 };
 const MSG = 'AAB';
 const BAR = 620, BAR_H = 34;
-const barBox = new VBox(scene, { w: BAR, h: BAR_H, d: 26, x: 0, y: 140, z: 0, color: PALETTE.edge, emissive: PALETTE.edgeEmissive });
+const barBox = new VBox(scene, { w: BAR, h: BAR_H, d: 26, x: 320, y: 340, z: 0, color: PALETTE.edge, emissive: PALETTE.edgeEmissive });
 barBox.mesh.material.transparent = true;
 barBox.mesh.material.opacity = 0.15;
-new VText(scene, { text: '概率区间 [0, 1)', x: 0, y: 185, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '概率区间 [0, 1)', x: 700, y: 430, z: 0, color: PALETTE.textDim, scale: 0.45, wrapChars: 8 });
 
 // 三段分段：A=[0,0.5) 绿 / B=[0.5,0.75) 黄 / C=[0.75,1) 蓝
 const SEG_COLOR = { A: GREEN, B: YELLOW, C: BLUE };
@@ -37,17 +37,17 @@ function placeSegs(L, H) {
     const w = (H - L) * PROB[ch];
     const c = segs[ch];
     c.mesh.scale.x = w / (BAR * PROB[ch]);
-    c.mesh.position.x = (x - 0.5) * BAR + w / 2;
+    c.mesh.position.x = (x - 0.5) * BAR + 320 + w / 2;
     x += w;
   }
 }
 placeSegs(0, 1);
 
-const ring = new VTorus(scene, { radius: 14, x: -BAR / 2, y: 30, color: GOLD });
+const ring = new VTorus(scene, { radius: 14, x: 320 - BAR / 2, y: 225, color: GOLD });
 ring.mesh.visible = false;
-const rangeText = new VText(scene, { text: '', x: 0, y: 60, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const outText = new VText(scene, { text: '', x: 0, y: -10, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const codeText = new VText(scene, { text: '', x: 0, y: -80, z: 0, color: PALETTE.textDim, scale: 0.75 });
+const rangeText = new VText(scene, { text: '', x: 700, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.5, wrapChars: 8 });
+const outText = new VText(scene, { text: '', x: 700, y: 380, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const codeText = new VText(scene, { text: '', x: 700, y: 330, z: 0, color: PALETTE.textDim, scale: 0.55, wrapChars: 8 });
 
 // 预计算区间序列
 const L = [0], H = [1];
@@ -81,7 +81,7 @@ function* runEncode() {
     const nL = L[done + 1], nH = H[done + 1];
     const x = (nL + nH) / 2;
     yield S(() => ring.mesh.visible = true);
-    yield A(450, p => { ring.mesh.position.x = (x - 0.5) * BAR; });
+    yield A(450, p => { ring.mesh.position.x = (x - 0.5) * BAR + 320; });
     yield S(() => {
       rangeText.setText('区间 [' + l.toFixed(4) + ', ' + h.toFixed(4) + ')，读到「' + ch + '」');
       placeSegs(l, h);

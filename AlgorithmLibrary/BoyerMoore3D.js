@@ -7,29 +7,29 @@ import { VBox, VText, VNode, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('BoyerMoore3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 430, 780], fov: 60 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, RED = 0xfb7185, GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x67e8f9, ORANGE = 0xfb923c;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
 
 const TXT = 'ABCBABAB', P = 'ABAB';
 const SP = 46;
 const lerp = (a, b, p) => a + (b - a) * p;
-const mx = k => (k - (TXT.length - 1) / 2) * SP;
-const sBox = [...TXT].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 150, label: ch, color: BLUE, emissive: BLUE }));
-const pBox = [...P].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 430, label: ch, color: RED, emissive: RED }));
-const iBall = new VNode(scene, { radius: 11, x: mx(0), y: 70, color: CYAN, emissive: CYAN });
-const jBall = new VNode(scene, { radius: 11, x: mx(0), y: 520, color: GOLD, emissive: GOLD });
-const ring = new VTorus(scene, { radius: 36, x: 0, y: 150, color: GOLD });
+const mx = k => (k - (TXT.length - 1) / 2) * SP + 400;
+const sBox = [...TXT].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 569, label: ch, color: BLUE, emissive: BLUE }));
+const pBox = [...P].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 289, label: ch, color: RED, emissive: RED }));
+const iBall = new VNode(scene, { radius: 11, x: mx(0), y: 489, color: CYAN, emissive: CYAN });
+const jBall = new VNode(scene, { radius: 11, x: mx(0), y: 199, color: GOLD, emissive: GOLD });
+const ring = new VTorus(scene, { radius: 36, x: 0, y: 569, color: GOLD });
 ring.mesh.visible = false;
-const xMark = new VText(scene, { text: '✕', x: 0, y: 150, z: 40, color: RED, scale: 1.35 });
+const xMark = new VText(scene, { text: '✕', x: 0, y: 569, z: 40, color: RED, scale: 1.35 });
 xMark.sprite.visible = false;
-const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-new VText(scene, { text: '主串 S', x: -330, y: 150, z: 0, color: PALETTE.textDim, scale: 0.6 });
-new VText(scene, { text: '模式串 P', x: -330, y: 430, z: 0, color: PALETTE.textDim, scale: 0.6 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+new VText(scene, { text: '主串 S', x: 70, y: 569, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '模式串 P', x: 70, y: 289, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
 let fxGroup = new THREE.Group();
 scene.add(fxGroup);
@@ -77,8 +77,8 @@ function resetAll() {
   clearFx();
   sBox.forEach(b => b.setColor(BLUE, BLUE));
   pBox.forEach(b => b.setColor(RED, RED));
-  iBall.mesh.position.set(mx(0), 70, 0);
-  jBall.mesh.position.set(mx(0), 520, 0);
+  iBall.mesh.position.set(mx(0), 489, 0);
+  jBall.mesh.position.set(mx(0), 199, 0);
   ring.mesh.visible = false;
   xMark.sprite.visible = false;
   outT.setText('');
@@ -93,7 +93,7 @@ function* runBM() {
     let j = P.length - 1;
     let full = true;
     while (j >= 0) {
-      yield fly(jBall, mx(i + j), 520);
+      yield fly(jBall, mx(i + j), 199);
       yield S(() => { sBox[i + j].setColor(GOLD, GOLD); pBox[j].setColor(GOLD, GOLD); });
       yield W(300);
       if (TXT[i + j] === P[j]) {
@@ -108,14 +108,14 @@ function* runBM() {
         const shift = last >= 0 ? j - last : j + 1;
         const gs = P.slice(j + 1);
         yield S(() => {
-          xMark.sprite.position.set(mx(i + j), 150, 40);
+          xMark.sprite.position.set(mx(i + j), 569, 40);
           xMark.sprite.visible = true;
           sBox[i + j].setColor(RED, RED); pBox[j].setColor(RED, RED);
           outT.setText(`坏字符 S[${i + j}]='${bad}' ≠ P[${j}]='${P[j]}'：'${bad}' ${last >= 0 ? `最后出现在 P[${last}]` : '在 P 中未出现'} → 平移 ${shift} 格${gs ? `；好后缀 '${gs}' 已确认绿色` : ''}`);
         });
         yield W(800);
         yield S(() => hint.setText(`坏字符跳转：窗口右移 ${shift} 格（橙色拉伸箭头 = 步长，指向新窗口位置）`));
-        yield stretchArrow(mx(i), mx(i + shift), 300, 700);
+        yield stretchArrow(mx(i), mx(i + shift), 429, 700);
         yield flyWindow(i + shift, 550);
         yield W(350);
         yield S(() => {
@@ -132,7 +132,7 @@ function* runBM() {
     if (full) {
       yield S(() => {
         for (let k = 0; k < P.length; k++) sBox[i + k].setColor(GREEN, GREEN);
-        ring.mesh.position.set(mx(i), 150, 0);
+        ring.mesh.position.set(mx(i), 569, 0);
         ring.mesh.visible = true;
         outT.setText(`匹配成功：S[${i}..${i + P.length - 1}] == P —— 第 ${i + 1} 次对齐命中`);
         status.textContent = `BM 结果：主串 "${TXT}" 中 "${P}" 出现在位置 ${i}（坏字符跳转 2 次）`;

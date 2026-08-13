@@ -7,25 +7,25 @@ import { VBox, VText, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('DEFLATE3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 660], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, DIM = 0x334155, GOLD = 0xfcd34d;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
 
 const INPUT = 'abracadabra abracadabra abracadabra';
 const SP = 32, BOX = 30;
-const pos = i => i < 18 ? { x: -272 + i * SP, y: 165 } : { x: -272 + (i - 18) * SP, y: 90 };
+const pos = i => i < 18 ? { x: 68 + i * SP, y: 475 } : { x: 68 + (i - 18) * SP, y: 400 };
 const boxes = [];
 for (let i = 0; i < INPUT.length; i++) {
   const p = pos(i);
   boxes.push(new VBox(scene, { w: BOX, h: BOX, d: BOX, x: p.x, y: p.y, z: 0, label: INPUT[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 }
-new VText(scene, { text: '输入（35 字符）', x: -350, y: 215, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const outText = new VText(scene, { text: '', x: 0, y: -30, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const statT = new VText(scene, { text: '', x: 0, y: -95, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '输入（35 字符）—— 两行，第一行 18 个，第二行 17 个', x: 700, y: 495, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
+const outText = new VText(scene, { text: '', x: 700, y: 430, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const statT = new VText(scene, { text: '', x: 700, y: 370, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 
 const tokens = [
   { type: 'lit', n: 7, start: 0 },
@@ -36,7 +36,7 @@ const tokens = [
   { type: 'match', off: 12, len: 23, src: [0, 22], dst: [12, 34] },
 ];
 
-const ring = new VTorus(scene, { radius: 20, x: 0, y: 165, color: GOLD });
+const ring = new VTorus(scene, { radius: 20, x: 68, y: 475, color: GOLD });
 ring.mesh.visible = false;
 
 function huffman(freqs) {
@@ -62,13 +62,13 @@ const { codes, merges } = huffman(FREQS);
 const bars = [];
 for (let i = 0; i < FREQS.length; i++) {
   const [ch, f] = FREQS[i];
-  const h = f * 12;
-  bars.push({ ch, f, done: false, tmp: false, box: new VBox(scene, { w: 54, h: h, d: 30, x: -175 + i * 70, y: -100 + h / 2, z: 0, label: '', color: DIM, emissive: 0 }) });
-  bars[i].freqT = new VText(scene, { text: '', x: -175 + i * 70, y: -100 + h + 24, z: 0, color: PALETTE.textDim, scale: 0.55 });
+  const h = f * 8;
+  bars.push({ ch, f, done: false, tmp: false, box: new VBox(scene, { w: 54, h: h, d: 30, x: 165 + i * 70, y: 215 + h / 2, z: 0, label: '', color: DIM, emissive: 0 }) });
+  bars[i].freqT = new VText(scene, { text: '', x: 165 + i * 70, y: 215 + h + 20, z: 0, color: PALETTE.textDim, scale: 0.55 });
 }
 const codeTexts = [];
 for (let i = 0; i < 6; i++) {
-  codeTexts.push(new VText(scene, { text: '', x: i < 3 ? -330 : -90, y: -205 + (i % 3) * 42, z: 0, color: PALETTE.textGlow, scale: 0.65 }));
+  codeTexts.push(new VText(scene, { text: '', x: i < 3 ? 690 : 760, y: 255 + (i % 3) * 38, z: 0, color: PALETTE.textGlow, scale: 0.5 }));
 }
 
 function resetAll() {
@@ -145,15 +145,15 @@ function* runCompress() {
     const yI = bars.findIndex((b, i) => i !== xI && (b.ch === m.y || b.f === m.yf) && !b.done);
     yield S(() => { bars[xI].box.setColor(YELLOW, YELLOW); bars[yI].box.setColor(YELLOW, YELLOW); });
     yield W(650);
-    const h = m.f * 12;
+    const h = m.f * 8;
     const nx = (bars[xI].box.x + bars[yI].box.x) / 2;
-    const nb = new VBox(scene, { w: 54, h: h, d: 30, x: nx, y: -100 + h / 2, z: 0, label: m.f, color: GREEN, emissive: GREEN });
+    const nb = new VBox(scene, { w: 54, h: h, d: 30, x: nx, y: 215 + h / 2, z: 0, label: m.f, color: GREEN, emissive: GREEN });
     nb.mesh.scale.y = 0.01;
     yield S(() => {
       hint.setText('合并：' + (m.x === m.xf ? m.xf : m.x) + '(' + m.xf + ') + ' + (m.y === m.yf ? m.yf : m.y) + '(' + m.yf + ') → ' + m.f);
       bars[xI].box.setColor(DIM, 0); bars[yI].box.setColor(DIM, 0);
       bars[xI].done = true; bars[yI].done = true;
-      bars.push({ ch: m.f, f: m.f, done: false, tmp: true, box: nb, freqT: new VText(scene, { text: '', x: nx, y: -100 + h + 24, z: 0, color: PALETTE.textDim, scale: 0.55 }) });
+      bars.push({ ch: m.f, f: m.f, done: false, tmp: true, box: nb, freqT: new VText(scene, { text: '', x: nx, y: 215 + h + 20, z: 0, color: PALETTE.textDim, scale: 0.55 }) });
     });
     yield A(400, p => { nb.mesh.scale.y = 0.01 + 0.99 * p; });
     yield W(400);

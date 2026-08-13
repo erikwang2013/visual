@@ -7,23 +7,23 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SM33D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 680], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：SM3 —— 国密哈希，结构与 SHA-256 同族，64 轮输出 256 位', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：SM3 —— 国密哈希，结构与 SHA-256 同族，64 轮输出 256 位', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 132, z: 0, color: PALETTE.textGlow, scale: 0.44 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 432, z: 0, color: PALETTE.textGlow, scale: 0.44 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-const padChips = [-330, -110, 110].map((x, i) => new VBox(scene, { w: 200, h: 50, d: 50, x, y: 190, z: 0, label: ['消息 "abc"', '填充 + 64 位长度', '512 位分组'], color: [BLUE, CYAN, PUR][i], emissive: [BLUE, CYAN, PUR][i] }));
-const wChip = new VBox(scene, { w: 300, h: 50, d: 50, x: 280, y: 190, z: 0, label: 'W[0..67] + W′[0..63]', color: ORANGE, emissive: ORANGE });
-const regChips = [-336, -240, -144, -48, 48, 144, 240, 336].map((x, i) => new VBox(scene, { w: 84, h: 50, d: 50, x, y: 100, z: 0, label: ['V0','V1','V2','V3','V4','V5','V6','V7'][i], color: GOLD, emissive: GOLD }));
-new VText(scene, { text: 'V0~V7 = 8 个 32 位寄存器。每轮：SS1 = ((V0<<<12) + V4 + (T_j<<<j)) <<< 7；SS2 = SS1 ⊕ (V0<<<12)；TT1 = FF + V3 + SS2 + W′[j]；TT2 = GG + V7 + SS1 + W[j]；链式左移并做 P0/P1 置换', x: 0, y: 55, z: 0, color: PALETTE.textDim, scale: 0.36 });
-const fBoxes = [-330, -110, 110, 330].map((x, i) => new VBox(scene, { w: 200, h: 54, d: 54, x, y: -10, z: 0, label: ['FF_j：轮 0~15 XOR / 16~63 多数', 'GG_j：轮 0~15 XOR / 16~63 选择', 'P0(X) = X⊕(X<<<9)⊕(X<<<17)', 'P1(X) = X⊕(X<<<15)⊕(X<<<23)'][i], color: DIM, emissive: DIM }));
-new VText(scene, { text: '常数 T_j：轮 0~15 = 79cc4519，轮 16~63 = 7a879d8a；W′[j] = W[j] ⊕ W[j+4]', x: 0, y: -45, z: 0, color: PALETTE.textDim, scale: 0.36 });
+const padChips = [-10, 210, 430].map((x, i) => new VBox(scene, { w: 200, h: 50, d: 50, x, y: 490, z: 0, label: ['消息 "abc"', '填充 + 64 位长度', '512 位分组'], color: [BLUE, CYAN, PUR][i], emissive: [BLUE, CYAN, PUR][i] }));
+const wChip = new VBox(scene, { w: 300, h: 50, d: 50, x: 600, y: 490, z: 0, label: 'W[0..67] + W′[0..63]', color: ORANGE, emissive: ORANGE });
+const regChips = [-16, 80, 176, 272, 368, 464, 560, 656].map((x, i) => new VBox(scene, { w: 84, h: 50, d: 50, x, y: 400, z: 0, label: ['V0','V1','V2','V3','V4','V5','V6','V7'][i], color: GOLD, emissive: GOLD }));
+new VText(scene, { text: 'V0~V7 = 8 个 32 位寄存器。每轮：SS1 = ((V0<<<12) + V4 + (T_j<<<j)) <<< 7；SS2 = SS1 ⊕ (V0<<<12)；TT1 = FF + V3 + SS2 + W′[j]；TT2 = GG + V7 + SS1 + W[j]；链式左移并做 P0/P1 置换', x: 0, y: 355, z: 0, color: PALETTE.textDim, scale: 0.36 });
+const fBoxes = [-10, 210, 430, 650].map((x, i) => new VBox(scene, { w: 200, h: 54, d: 54, x, y: 290, z: 0, label: ['FF_j：轮 0~15 XOR / 16~63 多数', 'GG_j：轮 0~15 XOR / 16~63 选择', 'P0(X) = X⊕(X<<<9)⊕(X<<<17)', 'P1(X) = X⊕(X<<<15)⊕(X<<<23)'][i], color: DIM, emissive: DIM }));
+new VText(scene, { text: '常数 T_j：轮 0~15 = 79cc4519，轮 16~63 = 7a879d8a；W′[j] = W[j] ⊕ W[j+4]', x: 0, y: 255, z: 0, color: PALETTE.textDim, scale: 0.36 });
 
 function* sm3Gen() {
   yield S(() => { hint.setText('SM3：国标 GB/T 32905 商用密码哈希 —— 国内合规场景（SM2 签名、证书）的标配'); stageT.setText('消息 "abc"：填充（补 1 + 补 0 + 64 位长度）→ 512 位分组 → 扩展出 W[0..67] 与 W′[0..63]'); });

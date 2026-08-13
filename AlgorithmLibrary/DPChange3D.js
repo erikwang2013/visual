@@ -7,20 +7,20 @@ import { VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('DPChange3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 320, 900], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：找零钱（凑 26）', x: 0, y: 308, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：找零钱（凑 26）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 265, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: -260, z: 0, color: PALETTE.textGlow, scale: 0.6 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const COINS = [1, 5, 10, 25];
 const AMT = 26;
 const R = COINS.length;
-const CW = 30, CH = 36, TY = 85;
+const CW = 21, CH = 36, TY = 450;
 const dp = Array.from({ length: R + 1 }, () => Array(AMT + 1).fill(Infinity));
 for (let r = 0; r <= R; r++) dp[r][0] = 0;
 const steps = [];
@@ -39,13 +39,13 @@ while (c > 0 && r > 0) {
 
 const cellView = new Map();
 for (let r = 0; r <= R; r++) for (let c = 0; c <= AMT; c++) {
-  const box = new VBox(scene, { w: CW - 6, h: CH - 6, d: 10, x: -405 + c * CW, y: TY - r * CH, z: 0, label: c === 0 ? '0' : (r === 0 ? '∞' : ''), color: BLUE, emissive: BLUE });
+  const box = new VBox(scene, { w: CW - 6, h: CH - 6, d: 10, x: 50 + c * CW, y: TY - r * CH, z: 0, label: c === 0 ? '0' : (r === 0 ? '∞' : ''), color: BLUE, emissive: BLUE });
   cellView.set(r + '-' + c, { box });
 }
-for (let r = 1; r <= R; r++) new VText(scene, { text: COINS[r - 1] + '币', x: -405 - 40, y: TY - r * CH, z: 0, color: WHITE, scale: 0.45 });
-new VText(scene, { text: 'dp[r][c] = 用前 r 种币凑 c 分的最少枚数；dp[r][c] = min(不含第 r 种, 含一枚第 r 种) —— 每格只依赖左/上', x: 0, y: -232, z: 0, color: WHITE, scale: 0.62 });
-new VText(scene, { text: '凑零钱：给定币种无限量，求凑出 26 分的最少硬币数（无限背包变体）', x: 0, y: 235, z: 0, color: WHITE, scale: 0.68 });
-const ansT = new VText(scene, { text: '', x: 0, y: -178, z: 0, color: GOLD, scale: 0.8 });
+for (let r = 1; r <= R; r++) new VText(scene, { text: COINS[r - 1] + '币', x: 10, y: TY - r * CH, z: 0, color: WHITE, scale: 0.45 });
+new VText(scene, { text: 'dp[r][c] = 用前 r 种币凑 c 分的最少枚数；dp[r][c] = min(不含第 r 种, 含一枚第 r 种) —— 每格只依赖左/上', x: 700, y: 250, z: 0, color: WHITE, scale: 0.5, wrapChars: 8 });
+new VText(scene, { text: '凑零钱：给定币种无限量，求凑出 26 分的最少硬币数（无限背包变体）', x: 700, y: 620, z: 0, color: WHITE, scale: 0.55, wrapChars: 8 });
+const ansT = new VText(scene, { text: '', x: 700, y: 360, z: 0, color: GOLD, scale: 0.6, wrapChars: 8 });
 
 function cell(r, c) { return cellView.get(r + '-' + c); }
 function setCell(r, c, v, col) {

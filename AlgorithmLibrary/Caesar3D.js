@@ -7,38 +7,38 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Caesar3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 320, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：凯撒密码 —— 每个字母右移 3 位，C = (P + k) mod 26', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：凯撒密码 —— 每个字母右移 3 位，C = (P + k) mod 26', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 148, z: 0, color: PALETTE.textGlow, scale: 0.44 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 320, y: 390, z: 0, color: PALETTE.textGlow, scale: 0.44 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const K = 3;
-const SP = 34, X0 = -26 * SP / 2 + SP / 2;
+const SP = 26, X0 = -26 * SP / 2 + SP / 2 + 345;
 const plainBoxes = [], cipherBoxes = [];
 for (let i = 0; i < 26; i++) {
-  plainBoxes.push(new VBox(scene, { w: 26, h: 26, d: 26, x: X0 + i * SP, y: 165, z: 0, label: String.fromCharCode(65 + i), color: BLUE, emissive: BLUE }));
-  cipherBoxes.push(new VBox(scene, { w: 26, h: 26, d: 26, x: X0 + i * SP, y: 85, z: 0, label: '·', color: DIM, emissive: DIM }));
+  plainBoxes.push(new VBox(scene, { w: 26, h: 26, d: 26, x: X0 + i * SP, y: 525, z: 0, label: String.fromCharCode(65 + i), color: BLUE, emissive: BLUE }));
+  cipherBoxes.push(new VBox(scene, { w: 26, h: 26, d: 26, x: X0 + i * SP, y: 445, z: 0, label: '·', color: DIM, emissive: DIM }));
 }
-new VText(scene, { text: '明文字母表', x: 0, y: 202, z: 0, color: PALETTE.textDim, scale: 0.7 });
-new VText(scene, { text: '密文字母表（右移 ' + K + ' 位）', x: 0, y: 122, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '明文字母表', x: 780, y: 510, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '密文字母表（右移 ' + K + ' 位）', x: 780, y: 470, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
 const MSG = 'HELLO WORLD';
-const mX = -440 + 44, mSP = 88;
+const mX = 28, mSP = 70;
 const msgBoxes = [], outBoxes = [];
 for (let i = 0; i < MSG.length; i++) {
   const c = MSG[i];
-  msgBoxes.push(new VBox(scene, { w: 56, h: 56, d: 56, x: mX + i * mSP, y: -60, z: 0, label: c === ' ' ? '␣' : c, color: c === ' ' ? DIM : BLUE, emissive: c === ' ' ? DIM : BLUE }));
-  outBoxes.push(new VBox(scene, { w: 56, h: 56, d: 56, x: mX + i * mSP, y: -160, z: 0, label: '', color: DIM, emissive: DIM }));
+  msgBoxes.push(new VBox(scene, { w: 56, h: 56, d: 56, x: mX + i * mSP, y: 300, z: 0, label: c === ' ' ? '␣' : c, color: c === ' ' ? DIM : BLUE, emissive: c === ' ' ? DIM : BLUE }));
+  outBoxes.push(new VBox(scene, { w: 56, h: 56, d: 56, x: mX + i * mSP, y: 235, z: 0, label: '', color: DIM, emissive: DIM }));
 }
-new VText(scene, { text: '明文', x: -400, y: -60, z: 0, color: PALETTE.textDim, scale: 0.7 });
-new VText(scene, { text: '密文', x: -400, y: -160, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const arrowT = new VText(scene, { text: '↓', x: mX, y: 8, z: 0, color: GOLD, scale: 0.8 });
+new VText(scene, { text: '明文', x: 780, y: 300, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '密文', x: 780, y: 220, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const arrowT = new VText(scene, { text: '↓', x: mX, y: 368, z: 0, color: GOLD, scale: 0.8 });
 
 function* caesarGen() {
   yield S(() => { hint.setText('凯撒密码：把字母表做成一个环，每个字母向后移动 k 位；' + MSG.replace(/ /g, '') + ' → ?'); stageT.setText('密钥 k = ' + K + '；字母表从 A(0) 到 Z(25)，越界从另一头绕回'); });
@@ -57,7 +57,7 @@ function* caesarGen() {
   for (let i = 0; i < MSG.length; i++) {
     const ch = MSG[i];
     const bx = mX + i * mSP;
-    arrowT.moveTo(bx, 8, 0, 300);
+    arrowT.moveTo(bx, 368, 0, 300);
     if (ch === ' ') {
       outBoxes[i].setText('␣'); outBoxes[i].setColor(DIM, DIM);
       yield S(() => { stageT.setText('空格不参与加密，原样保留'); });

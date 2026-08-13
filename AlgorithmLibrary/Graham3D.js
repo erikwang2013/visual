@@ -7,18 +7,18 @@ import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Graham3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 620], fov: 50 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Graham 扫描求 12 点凸包', x: 0, y: 260, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Graham 扫描求 12 点凸包', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 222, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -70, z: 0, color: PALETTE.textGlow, scale: 0.56 });
-const outT = new VText(scene, { text: '', x: 0, y: -150, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 522, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.56 });
+const outT = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-const PTS = [[-180, 40], [120, 90], [220, -30], [60, -120], [-60, -160], [-200, -90], [-260, 0], [160, 150], [20, 170], [-120, 120], [0, -40], [-40, 60]];
+const PTS = [[140, 340], [440, 390], [540, 270], [380, 180], [260, 140], [120, 210], [60, 300], [480, 450], [340, 470], [200, 420], [320, 260], [280, 360]];
 const nodes = PTS.map((p, i) => new VNode(scene, { radius: 13, x: p[0], y: p[1], z: 0, label: String(i), color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 let edgeMeshes = new Map();
 const P = i => ({ x: PTS[i][0], y: PTS[i][1], z: 0 });

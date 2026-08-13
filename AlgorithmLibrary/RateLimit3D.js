@@ -8,12 +8,12 @@ import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('RateLimit3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：令牌桶限流', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：令牌桶限流', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 // —— draw.io 风格令牌桶：圆柱桶身（无盖看内部）+ 顶部箍环 + 提手 ——
@@ -27,7 +27,7 @@ const handle = new THREE.Mesh(new THREE.TorusGeometry(25, 3.5, 8, 26, Math.PI),
   glowMaterial(0x93c5fd, { emissive: 0x3b82f6, emissiveIntensity: 0.55 }));
 handle.position.y = 82;
 bucket.add(body, rim, handle);
-bucket.position.set(-270, -35, 0);
+bucket.position.set(340, 330, 0);
 scene.add(bucket);
 
 // 金色令牌：10 枚圆片堆在桶内，取走一枚上层自动下移
@@ -40,22 +40,22 @@ for (let i = 0; i < 10; i++) {
   stack.add(d);
   discs.push(d);
 }
-stack.position.set(-270, -35, 0);
+stack.position.set(340, 330, 0);
 scene.add(stack);
 let stackCount = 10;
 function setStack(n) {
   stackCount = n;
   discs.forEach((d, i) => { d.visible = i < n; d.position.y = -40 + i * 8.2; });
 }
-new VText(scene, { text: '令牌桶', x: -270, y: 128, z: 0, color: PALETTE.textGlow, scale: 0.7 });
-new VText(scene, { text: '容量 10 · 补充速率 5/s', x: -270, y: -140, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: '令牌桶', x: 340, y: 458, z: 0, color: PALETTE.textGlow, scale: 0.55 });
+new VText(scene, { text: '容量 10 · 补充速率 5/s', x: 700, y: 340, z: 0, color: PALETTE.textDim, scale: 0.45, wrapChars: 8 });
 
 // 请求盒子 + 放行/拒绝区（文字在落点上方，互不遮挡）
-const reqBox = new VBox(scene, { w: 56, h: 40, d: 40, x: -400, y: 185, z: 0, label: 'R1', color: YELLOW, emissive: YELLOW });
+const reqBox = new VBox(scene, { w: 56, h: 40, d: 40, x: 60, y: 415, z: 0, label: 'R1', color: YELLOW, emissive: YELLOW });
 reqBox.mesh.visible = false;
-new VText(scene, { text: '放行 ✓', x: 110, y: 118, z: 0, color: GREEN, scale: 0.62 });
-new VText(scene, { text: '拒绝 ✗ 429', x: 330, y: 118, z: 0, color: ROSE, scale: 0.62 });
-const stepT = new VText(scene, { text: '', x: 0, y: -185, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+new VText(scene, { text: '放行 ✓', x: 500, y: 395, z: 0, color: GREEN, scale: 0.62 });
+new VText(scene, { text: '拒绝 ✗ 429', x: 500, y: 305, z: 0, color: ROSE, scale: 0.62 });
+const stepT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: PALETTE.textGlow, scale: 0.72, wrapChars: 7 });
 
 function resetAll() {
   setStack(10);
@@ -74,21 +74,21 @@ function* rlGen() {
     const ok = i < 10;
     yield S(() => {
       reqBox.setText('R' + (i + 1));
-      reqBox.mesh.position.set(-400, 185, 0);
+      reqBox.mesh.position.set(60, 415, 0);
       reqBox.mesh.visible = true;
       reqBox.setColor(YELLOW, YELLOW);
       stepT.setText('R' + (i + 1) + ' 到达 → 向桶里取令牌');
     });
     yield W(200);
     yield A(240, (p) => {
-      reqBox.mesh.position.set(-400 + 130 * p, 185 + (55 - 185) * p, 0);
+      reqBox.mesh.position.set(60 + 280 * p, 415 + (420 - 415) * p, 0);
       rim.material.color.setHex(ok ? YELLOW : ROSE);
       rim.material.emissiveIntensity = 0.9;
     });
     yield S(() => { rim.material.color.setHex(0x93c5fd); rim.material.emissiveIntensity = 0.55; });
     yield A(240, (p) => {
-      if (ok) reqBox.mesh.position.set(-270 + 380 * p, 55 + (35 - 55) * p, 10 * (i % 3) * p);
-      else reqBox.mesh.position.set(-270 + 600 * p, 55 + (35 - 55) * p, 10 * (i - 10) * p);
+      if (ok) reqBox.mesh.position.set(340 + 160 * p, 420 + (330 - 420) * p, 0);
+      else reqBox.mesh.position.set(340 + 160 * p, 420 + (240 - 420) * p, 0);
     });
     yield S(() => {
       if (ok) {

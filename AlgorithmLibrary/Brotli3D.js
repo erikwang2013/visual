@@ -7,27 +7,27 @@ import { VBox, VText, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Brotli3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 660], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, DIM = 0x334155, GOLD = 0xfcd34d;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
 
 const INPUT = 'hello hello hello hello hello world';
 const SP = 32, BOX = 30;
-const pos = i => i < 18 ? { x: -272 + i * SP, y: 165 } : { x: -272 + (i - 18) * SP, y: 90 };
+const pos = i => i < 18 ? { x: 68 + i * SP, y: 475 } : { x: 68 + (i - 18) * SP, y: 400 };
 const boxes = [];
 for (let i = 0; i < INPUT.length; i++) {
   const p = pos(i);
   boxes.push(new VBox(scene, { w: BOX, h: BOX, d: BOX, x: p.x, y: p.y, z: 0, label: INPUT[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 }
-new VText(scene, { text: '输入（35 字符）', x: -350, y: 215, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const outText = new VText(scene, { text: '', x: 0, y: -30, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const hexT1 = new VText(scene, { text: '', x: 0, y: -100, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const hexT2 = new VText(scene, { text: '', x: 0, y: -145, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const statT = new VText(scene, { text: '', x: 0, y: -195, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+new VText(scene, { text: '输入（35 字符）', x: 700, y: 495, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
+const outText = new VText(scene, { text: '', x: 700, y: 430, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const hexT1 = new VText(scene, { text: '', x: 700, y: 385, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
+const hexT2 = new VText(scene, { text: '', x: 700, y: 345, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
+const statT = new VText(scene, { text: '', x: 700, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const tokens = [
   { type: 'lit', n: 6, start: 0 },
@@ -43,13 +43,13 @@ const ctxGroup = [];
 for (let i = 0; i < CTX.length; i++) {
   const g = [];
   for (let j = 0; j < 3; j++) {
-    g.push(new VBox(scene, { w: 36, h: 36, d: 36, x: -300 + i * 160 + j * 48, y: -40, z: 0, label: CTX[i][j], color: DIM, emissive: 0 }));
+    g.push(new VBox(scene, { w: 36, h: 36, d: 36, x: 40 + i * 160 + j * 48, y: 270, z: 0, label: CTX[i][j], color: DIM, emissive: 0 }));
   }
   ctxGroup.push(g);
 }
-const ctxT = new VText(scene, { text: '', x: 0, y: -10, z: 0, color: PALETTE.textDim, scale: 0.6 });
+const ctxT = new VText(scene, { text: '', x: 700, y: 265, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 
-const ring = new VTorus(scene, { radius: 20, x: 0, y: 165, color: GOLD });
+const ring = new VTorus(scene, { radius: 20, x: 68, y: 475, color: GOLD });
 ring.mesh.visible = false;
 
 function resetAll() {

@@ -7,16 +7,16 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Euclidean3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155, ROSE = 0xfb7185, VIOLET = 0xa78bfa, AMBER = 0xfbbf24;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：欧几里得 gcd(252, 105)', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：欧几里得 gcd(252, 105)', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 55, z: 0, color: PALETTE.textGlow, scale: 0.58 });
-const outT = new VText(scene, { text: '', x: 0, y: -245, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 575, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 375, z: 0, color: PALETTE.textGlow, scale: 0.58 });
+const outT = new VText(scene, { text: '', x: 0, y: 75, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const A0 = 252, B0 = 105;
 function euclid(a, b) {
@@ -27,13 +27,13 @@ function euclid(a, b) {
 const { gcd, steps } = euclid(A0, B0);
 
 const SCALE = 1.15;
-const barA = new VBox(scene, { w: A0 * SCALE, h: 40, d: 40, x: 40, y: 165, z: 0, label: '252', color: VIOLET, emissive: VIOLET });
-const barB = new VBox(scene, { w: B0 * SCALE, h: 40, d: 40, x: 40, y: 110, z: 0, label: '105', color: AMBER, emissive: AMBER });
-new VText(scene, { text: 'a = 252', x: -240, y: 165, z: 0, color: VIOLET, scale: 0.5 });
-new VText(scene, { text: 'b = 105', x: -240, y: 110, z: 0, color: AMBER, scale: 0.5 });
-new VText(scene, { text: '欧几里得：gcd(a,b) = gcd(b, a mod b) —— 每次把大数换成「除以小数的余数」，余数严格变小，直到 0', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '两条色带 = 252 与 105 的长度。每轮：琥珀段 = 整数倍（整段减去），玫瑰 = 余数（留下的部分）—— 最后剩的玫瑰就是 gcd', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const gcdBox = new VBox(scene, { w: 90, h: 44, d: 44, x: 0, y: -20, z: 0, label: '', color: DIM, emissive: DIM });
+const barA = new VBox(scene, { w: A0 * SCALE, h: 40, d: 40, x: 360, y: 485, z: 0, label: '252', color: VIOLET, emissive: VIOLET });
+const barB = new VBox(scene, { w: B0 * SCALE, h: 40, d: 40, x: 360, y: 430, z: 0, label: '105', color: AMBER, emissive: AMBER });
+new VText(scene, { text: 'a = 252', x: 60, y: 485, z: 0, color: VIOLET, scale: 0.5 });
+new VText(scene, { text: 'b = 105', x: 60, y: 430, z: 0, color: AMBER, scale: 0.5 });
+new VText(scene, { text: '欧几里得：gcd(a,b) = gcd(b, a mod b) —— 每次把大数换成「除以小数的余数」，余数严格变小，直到 0', x: 320, y: 545, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: '两条色带 = 252 与 105 的长度。每轮：琥珀段 = 整数倍（整段减去），玫瑰 = 余数（留下的部分）—— 最后剩的玫瑰就是 gcd', x: 320, y: 115, z: 0, color: PALETTE.textDim, scale: 0.62 });
+const gcdBox = new VBox(scene, { w: 90, h: 44, d: 44, x: 320, y: 300, z: 0, label: '', color: DIM, emissive: DIM });
 
 const tempBoxes = [];
 function addTemp(o) { tempBoxes.push(o); return o; }
@@ -42,9 +42,9 @@ function rebuild(a, b) {
   clearTemp();
   const q = Math.floor(a / b), r = a % b;
   const segW = b * SCALE;
-  addTemp(new VBox(scene, { w: segW - 4, h: 36, d: 36, x: 40 + segW / 2, y: 15, z: 0, label: q + '×' + b, color: AMBER, emissive: AMBER }));
+  addTemp(new VBox(scene, { w: segW - 4, h: 36, d: 36, x: 360 + segW / 2, y: 335, z: 0, label: q + '×' + b, color: AMBER, emissive: AMBER }));
   if (r > 0) {
-    addTemp(new VBox(scene, { w: r * SCALE - 4, h: 36, d: 36, x: 40 + segW + r * SCALE / 2, y: 15, z: 0, label: '余 ' + r, color: ROSE, emissive: ROSE }));
+    addTemp(new VBox(scene, { w: r * SCALE - 4, h: 36, d: 36, x: 360 + segW + r * SCALE / 2, y: 335, z: 0, label: '余 ' + r, color: ROSE, emissive: ROSE }));
   }
 }
 function setCell(obj, v, color) { obj.setText(String(v)); if (color) obj.setColor(color, color); }

@@ -6,27 +6,27 @@ import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('AdaBoost3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, ROSE = 0xfb7185;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：AdaBoost 加权提升', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：AdaBoost 加权提升', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 // 6 个二维样本 (x₁, x₂, 标签)：绿=1，红=0
 const PTS = [[0, 0, 0], [1, 1, 0], [1, 0, 1], [2, 0, 0], [2, 1, 1], [3, 1, 1]];
-const WX = v => v * 70 - 105, WY = v => -v * 70;
+const WX = v => v * 70 + 215, WY = v => -v * 70 + 320;
 const boxes = [], wTxt = [];
 PTS.forEach((p, i) => {
   boxes.push(new VBox(scene, { w: 36, h: 36, d: 36, x: WX(p[0]), y: WY(p[1]), z: 0, label: '', color: p[2] ? GREEN : ROSE, emissive: p[2] ? GREEN : ROSE }));
   wTxt.push(new VText(scene, { text: '0.167', x: WX(p[0]), y: WY(p[1]) - 32, z: 0, color: PALETTE.textDim, scale: 0.45 }));
 });
-new VText(scene, { text: '6 个样本，初始权重均等 1/6', x: 0, y: 200, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '6 个样本，初始权重均等 1/6', x: 700, y: 470, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 
 // 弱学习器分界线：① x₁=1.5 竖线；② x₂=0.5 横线
-const vLine = new VBox(scene, { w: 3, h: 200, d: 3, x: 0, y: -35, z: 0, label: '', color: YELLOW, emissive: YELLOW });
-const hLine = new VBox(scene, { w: 250, h: 3, d: 3, x: 0, y: -35, z: 0, label: '', color: YELLOW, emissive: YELLOW });
+const vLine = new VBox(scene, { w: 3, h: 200, d: 3, x: 320, y: 300, z: 0, label: '', color: YELLOW, emissive: YELLOW });
+const hLine = new VBox(scene, { w: 250, h: 3, d: 3, x: 320, y: 285, z: 0, label: '', color: YELLOW, emissive: YELLOW });
 [vLine, hLine].forEach(b => (b.mesh.visible = false));
 
 const markA = new VText(scene, { text: '', x: WX(PTS[2][0]), y: WY(PTS[2][1]) + 30, z: 0, color: ROSE, scale: 0.8 });
@@ -36,8 +36,8 @@ const markD = new VText(scene, { text: '', x: WX(PTS[2][0]), y: WY(PTS[2][1]) + 
 
 const R1W = [0.125, 0.125, 0.25, 0.25, 0.125, 0.125];
 const R2W = [0.1, 0.1667, 0.3333, 0.2, 0.1, 0.1];
-const stepT = new VText(scene, { text: '', x: 0, y: -130, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const eqT = new VText(scene, { text: '', x: 0, y: -175, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const stepT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.6, wrapChars: 8 });
+const eqT = new VText(scene, { text: '', x: 700, y: 360, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 
 const resetColor = () => PTS.forEach((p, i) => boxes[i].setColor(p[2] ? GREEN : ROSE, p[2] ? GREEN : ROSE));
 function applyWeights(ws) {

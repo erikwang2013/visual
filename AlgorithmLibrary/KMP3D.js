@@ -7,26 +7,26 @@ import { VBox, VText, VNode, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('KMP3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 430, 780], fov: 60 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, RED = 0xfb7185, GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x67e8f9;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
 
 const TXT = 'ABABABACABAB', P = 'BABAC';
 const pmt = (() => { const n = P.length, t = Array(n).fill(0); let k = 0; for (let j = 1; j < n; j++) { while (k > 0 && P[j] !== P[k]) k = t[k - 1]; if (P[j] === P[k]) k++; t[j] = k; } return t; })();
 const SP = 46;
 const lerp = (a, b, p) => a + (b - a) * p;
-const mx = k => (k - (TXT.length - 1) / 2) * SP;
-const px = k => (k - (P.length - 1) / 2) * SP;
-const BAR_BASE = 560;
-const sBox = [...TXT].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 150, label: ch, color: BLUE, emissive: BLUE }));
-const pBox = [...P].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: px(k), y: 430, label: ch, color: RED, emissive: RED }));
-const iBall = new VNode(scene, { radius: 11, x: mx(0), y: 70, color: CYAN, emissive: CYAN });
-const jBall = new VNode(scene, { radius: 11, x: px(0), y: 520, color: GOLD, emissive: GOLD });
-const ring = new VTorus(scene, { radius: 36, x: 0, y: 150, color: GREEN });
+const mx = k => (k - (TXT.length - 1) / 2) * SP + 320;
+const px = k => (k - (P.length - 1) / 2) * SP + 320;
+const BAR_BASE = 710;
+const sBox = [...TXT].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 300, label: ch, color: BLUE, emissive: BLUE }));
+const pBox = [...P].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: px(k), y: 580, label: ch, color: RED, emissive: RED }));
+const iBall = new VNode(scene, { radius: 11, x: mx(0), y: 220, color: CYAN, emissive: CYAN });
+const jBall = new VNode(scene, { radius: 11, x: px(0), y: 670, color: GOLD, emissive: GOLD });
+const ring = new VTorus(scene, { radius: 36, x: 0, y: 300, color: GREEN });
 ring.mesh.visible = false;
 const bars = pmt.map((v, k) => {
   const m = new THREE.Mesh(new THREE.BoxGeometry(30, 1, 30), new THREE.MeshBasicMaterial({ color: GOLD }));
@@ -36,8 +36,8 @@ const bars = pmt.map((v, k) => {
   return m;
 });
 const barVals = pmt.map((v, k) => new VText(scene, { text: String(v), x: px(k), y: BAR_BASE + (v + 0.6) * 26 + 22, z: 0, color: GOLD, scale: 0.5 }));
-new VText(scene, { text: 'PMT 前缀表（柱高 = 最长相同前后缀长度）', x: 0, y: 250, z: 0, color: PALETTE.textDim, scale: 0.6 });
-const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+new VText(scene, { text: 'PMT 前缀表（柱高 = 最长相同前后缀长度）', x: 320, y: 400, z: 0, color: PALETTE.textDim, scale: 0.6 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 let fxGroup = new THREE.Group();
 scene.add(fxGroup);
@@ -58,16 +58,16 @@ function resetAll() {
   pBox.forEach(b => b.setColor(RED, RED));
   bars.forEach((m, k) => { const h = (pmt[k] + 0.6) * 26; m.scale.y = h; m.position.y = BAR_BASE + h / 2; });
   barVals.forEach((t, k) => t.setText(String(pmt[k]), { color: GOLD }));
-  iBall.mesh.position.set(mx(0), 70, 0);
-  jBall.mesh.position.set(px(0), 520, 0);
+  iBall.mesh.position.set(mx(0), 220, 0);
+  jBall.mesh.position.set(px(0), 670, 0);
   ring.mesh.visible = false;
   outT.setText('');
 }
 
 function* drawJump(fromJ, toJ) {
   clearFx();
-  const a = new THREE.Vector3(px(fromJ), 485, 60);
-  const b = new THREE.Vector3(px(toJ), 485, 60);
+  const a = new THREE.Vector3(px(fromJ), 635, 60);
+  const b = new THREE.Vector3(px(toJ), 635, 60);
   const line = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([a, b]),
     new THREE.LineDashedMaterial({ color: CYAN, dashSize: 9, gapSize: 5, transparent: true, opacity: 0.95 }));
@@ -115,11 +115,11 @@ function* runKMP() {
   let i = 0, j = 0, jumps = 0;
   while (i < TXT.length) {
     if (j === 0) {
-      yield fly(iBall, mx(i), 70);
-      yield fly(jBall, px(0), 520);
+      yield fly(iBall, mx(i), 220);
+      yield fly(jBall, px(0), 670);
       yield W(200);
     }
-    yield fly(jBall, px(j), 520);
+    yield fly(jBall, px(j), 670);
     yield S(() => { sBox[i].setColor(GOLD, GOLD); pBox[j].setColor(GOLD, GOLD); });
     yield W(280);
     if (TXT[i] === P[j]) {
@@ -153,7 +153,7 @@ function* runKMP() {
       const at = i - P.length;
       yield S(() => {
         for (let k = 0; k < P.length; k++) sBox[at + k].setColor(GREEN, GREEN);
-        ring.mesh.position.set(mx(at), 150, 0);
+        ring.mesh.position.set(mx(at), 300, 0);
         ring.mesh.visible = true;
         outT.setText(`匹配成功：S[${at}..${at + P.length - 1}] == P —— i 全程未回溯`);
         status.textContent = `KMP 结果：主串 "${TXT}" 中 "${P}" 出现在位置 ${at}（PMT 跳转 ${jumps} 次，i 移动 ${i} 次）`;

@@ -6,40 +6,40 @@ import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Transformer3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：自注意力', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：自注意力', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
-const TX = [-160, 0, 160];
-const tk = TX.map((x, i) => new VBox(scene, { w: 60, h: 60, d: 60, x, y: 205, z: 0, label: '词' + (i + 1), color: BLUE, emissive: BLUE }));
-new VText(scene, { text: '词向量', x: -260, y: 205, z: 0, color: PALETTE.textDim, scale: 0.5 });
+const TX = [160, 320, 480];
+const tk = TX.map((x, i) => new VBox(scene, { w: 60, h: 60, d: 60, x, y: 485, z: 0, label: '词' + (i + 1), color: BLUE, emissive: BLUE }));
+new VText(scene, { text: '词向量', x: 40, y: 485, z: 0, color: PALETTE.textDim, scale: 0.5 });
 
 // Q / K / V 三行：q₁=(1,0)；k₁=(1,0) k₂=(0,1) k₃=(2,1)；v 与 k 相同
 const KV = [['(1,0)', '(0,1)', '(2,1)']];
-const YROWS = [135, 75, 15];
+const YROWS = [430, 375, 320];
 const qkv = [
   ['(1,0)', '(?,?)', '(?,?)'].map((lab, c) => new VBox(scene, { w: 52, h: 52, d: 30, x: TX[c], y: YROWS[0], z: 0, label: lab, color: DIM, emissive: 0 })),
   KV[0].map((lab, c) => new VBox(scene, { w: 52, h: 52, d: 30, x: TX[c], y: YROWS[1], z: 0, label: lab, color: DIM, emissive: 0 })),
   KV[0].map((lab, c) => new VBox(scene, { w: 52, h: 52, d: 30, x: TX[c], y: YROWS[2], z: 0, label: lab, color: DIM, emissive: 0 }))
 ];
-new VText(scene, { text: 'Q 查询', x: -260, y: 135, z: 0, color: PALETTE.textDim, scale: 0.5 });
-new VText(scene, { text: 'K 键', x: -260, y: 75, z: 0, color: PALETTE.textDim, scale: 0.5 });
-new VText(scene, { text: 'V 值', x: -260, y: 15, z: 0, color: PALETTE.textDim, scale: 0.5 });
+new VText(scene, { text: 'Q 查询', x: 40, y: 430, z: 0, color: PALETTE.textDim, scale: 0.5 });
+new VText(scene, { text: 'K 键', x: 40, y: 375, z: 0, color: PALETTE.textDim, scale: 0.5 });
+new VText(scene, { text: 'V 值', x: 40, y: 320, z: 0, color: PALETTE.textDim, scale: 0.5 });
 
-const scoreBoxes = [0.71, 0, 1.41].map((v, i) => new VBox(scene, { w: 52, h: 52, d: 30, x: TX[i], y: -55, z: 0, label: '?', color: DIM, emissive: 0 }));
-const attBoxes = [0.284, 0.14, 0.576].map((v, i) => new VBox(scene, { w: 52, h: 52, d: 30, x: TX[i], y: -115, z: 0, label: '?', color: DIM, emissive: 0 }));
-new VText(scene, { text: '得分 s₁（缩放后）', x: -260, y: -55, z: 0, color: PALETTE.textDim, scale: 0.5 });
-new VText(scene, { text: 'softmax 权重', x: -260, y: -115, z: 0, color: PALETTE.textDim, scale: 0.5 });
+const scoreBoxes = [0.71, 0, 1.41].map((v, i) => new VBox(scene, { w: 52, h: 36, d: 30, x: TX[i], y: 272, z: 0, label: '?', color: DIM, emissive: 0 }));
+const attBoxes = [0.284, 0.14, 0.576].map((v, i) => new VBox(scene, { w: 52, h: 36, d: 30, x: TX[i], y: 226, z: 0, label: '?', color: DIM, emissive: 0 }));
+new VText(scene, { text: '得分 s₁（缩放后）', x: 40, y: 272, z: 0, color: PALETTE.textDim, scale: 0.5 });
+new VText(scene, { text: 'softmax 权重', x: 40, y: 226, z: 0, color: PALETTE.textDim, scale: 0.5 });
 
-const ctx = new VBox(scene, { w: 64, h: 64, d: 64, x: 0, y: -185, z: 0, label: '输出₁ = (1.436, 0.716)', color: GREEN, emissive: GREEN });
+const ctx = new VBox(scene, { w: 90, h: 40, d: 40, x: 320, y: 220, z: 0, label: '输出₁ = (1.436, 0.716)', color: GREEN, emissive: GREEN });
 ctx.mesh.visible = false;
-new VText(scene, { text: '加权聚合 → 上下文向量', x: -260, y: -185, z: 0, color: PALETTE.textDim, scale: 0.5 });
+new VText(scene, { text: '加权聚合 → 上下文向量', x: 40, y: 220, z: 0, color: PALETTE.textDim, scale: 0.5 });
 
-const stepT = new VText(scene, { text: '', x: 0, y: -250, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const stepT = new VText(scene, { text: '', x: 700, y: 430, z: 0, color: PALETTE.textGlow, scale: 0.6, wrapChars: 8 });
 
 const sT = [0.71, 0, 1.41], aT = [0.284, 0.14, 0.576];
 

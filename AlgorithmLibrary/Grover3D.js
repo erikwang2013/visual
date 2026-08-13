@@ -6,31 +6,31 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Grover3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 720], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, RED = 0xfb7185, GOLD = 0xfcd34d, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Grover —— 用量子叠加同时搜索 8 项，目标 x=5', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Grover —— 用量子叠加同时搜索 8 项，目标 x=5', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.68 });
-const probT = new VText(scene, { text: '', x: 0, y: -200, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.68, wrapChars: 7 });
+const probT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.62, wrapChars: 8 });
 
 const N = 8, TARGET = 5, SPX = 70, SZ = 9;
 const amps = Array(N).fill(1 / Math.sqrt(N));
 const bars = [], ampT = [];
 for (let i = 0; i < N; i++) {
-  bars.push(new VBox(scene, { w: 46, h: 40, d: 40, x: (i - 3.5) * SPX, y: 0, z: 0, label: 'x=' + i, color: GREEN, emissive: GREEN }));
-  ampT.push(new VText(scene, { text: '', x: (i - 3.5) * SPX, y: 175, z: 0, color: PALETTE.textDim, scale: 0.55 }));
+  bars.push(new VBox(scene, { w: 46, h: 40, d: 40, x: 340 + (i - 3.5) * SPX, y: 380, z: 0, label: 'x=' + i, color: GREEN, emissive: GREEN }));
+  ampT.push(new VText(scene, { text: '', x: 340 + (i - 3.5) * SPX, y: 445, z: 0, color: PALETTE.textDim, scale: 0.5 }));
 }
-new VText(scene, { text: '★ 目标 x=5（金色文本）', x: 0, y: 232, z: 0, color: GOLD, scale: 0.65 });
-new VText(scene, { text: '数据集 8 项 —— 柱高 = |振幅|，绿=正 红=负', x: 0, y: 175, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '★ 目标 x=5（金色文本）', x: 340, y: 480, z: 0, color: GOLD, scale: 0.6 });
+new VText(scene, { text: '数据集 8 项 —— 柱高 = |振幅|，绿=正 红=负', x: 700, y: 330, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 
 function renderAmps() {
   amps.forEach((a, i) => {
     const sh = Math.max(Math.abs(a) * SZ, 0.04);
     bars[i].mesh.scale.y = sh;
-    bars[i].mesh.position.y = 20 * sh - 20;
+    bars[i].mesh.position.y = 360 + 20 * sh;
     bars[i].setColor(a < 0 ? RED : GREEN, a < 0 ? RED : GREEN);
     ampT[i].setText((a * a * 100).toFixed(1) + '%');
   });

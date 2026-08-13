@@ -6,26 +6,26 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SVM3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：SVM 支持向量机', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：SVM 支持向量机', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const POS = [[1, 1], [2, 2], [2, 1.5]], NEG = [[-1, -1], [-2, -2], [-1.5, -2]];
-const PX = v => v * 55, PY = v => -v * 55;
+const PX = v => v * 55 + 320, PY = v => -v * 55 + 300;
 const posBoxes = POS.map(([x, y]) => new VBox(scene, { w: 38, h: 38, d: 38, x: PX(x), y: PY(y), z: 0, label: '', color: GREEN, emissive: GREEN }));
 const negBoxes = NEG.map(([x, y]) => new VBox(scene, { w: 38, h: 38, d: 38, x: PX(x), y: PY(y), z: 0, label: '', color: ROSE, emissive: ROSE }));
-new VText(scene, { text: '训练集：正例 3 个（绿）+ 负例 3 个（红）', x: 0, y: 200, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '训练集：正例 3 个（绿）+ 负例 3 个（红）', x: 0, y: 500, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
-const line = new VBox(scene, { w: 200, h: 4, d: 4, x: 0, y: 0, z: 0, label: '', color: YELLOW, emissive: YELLOW });
-const m1 = new VBox(scene, { w: 200, h: 3, d: 3, x: 0, y: 0, z: 0, label: '', color: DIM, emissive: DIM });
-const m2 = new VBox(scene, { w: 200, h: 3, d: 3, x: 0, y: 0, z: 0, label: '', color: DIM, emissive: DIM });
+const line = new VBox(scene, { w: 200, h: 4, d: 4, x: 320, y: 300, z: 0, label: '', color: YELLOW, emissive: YELLOW });
+const m1 = new VBox(scene, { w: 200, h: 3, d: 3, x: 320, y: 300, z: 0, label: '', color: DIM, emissive: DIM });
+const m2 = new VBox(scene, { w: 200, h: 3, d: 3, x: 320, y: 300, z: 0, label: '', color: DIM, emissive: DIM });
 [line, m1, m2].forEach(b => (b.mesh.visible = false));
-const stepT = new VText(scene, { text: '', x: 0, y: -140, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const eqT = new VText(scene, { text: '', x: 0, y: -185, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const stepT = new VText(scene, { text: '', x: 0, y: 160, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const eqT = new VText(scene, { text: '', x: 0, y: 115, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
 function placeLine(c, box) {
   const p1 = { x: PX(-2), y: PY(c + 2) }, p2 = { x: PX(2), y: PY(c - 2) };

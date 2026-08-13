@@ -7,30 +7,30 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('FWT3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155, ROSE = 0xfb7185, VIOLET = 0xa78bfa, AMBER = 0xfbbf24;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：FWT 沃尔什-哈达玛变换', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：FWT 沃尔什-哈达玛变换', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 105, z: 0, color: PALETTE.textGlow, scale: 0.58 });
-const outT = new VText(scene, { text: '', x: 0, y: -245, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72, wrapChars: 7 });
+const eqT = new VText(scene, { text: '', x: 700, y: 380, z: 0, color: PALETTE.textGlow, scale: 0.58, wrapChars: 8 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.62, wrapChars: 8 });
 
 const a = [1, 2, 3, 4];
 const L1 = [3, -1, 7, -1];
 const out = ['10', '−2', '−4', '0'];
 
 const box = (v, x, y, w = 74, color = DIM) => new VBox(scene, { w, h: 44, d: 44, x, y, z: 0, label: String(v), color, emissive: color });
-const inBoxes = a.map((v, i) => box(v, -150 + i * 85, 160));
-const l1Boxes = L1.map((v, i) => box('', -150 + i * 85, 55));
-const outBoxes = out.map((v, i) => box('', -150 + i * 85, -120));
-new VText(scene, { text: '输入 a', x: -310, y: 160, z: 0, color: CYAN, scale: 0.46 });
-new VText(scene, { text: '层 1 蝶形', x: -310, y: 55, z: 0, color: VIOLET, scale: 0.46 });
-new VText(scene, { text: '输出 FWT(a)', x: -310, y: -120, z: 0, color: GOLD, scale: 0.46 });
-new VText(scene, { text: 'FWT（沃尔什-哈达玛）：每一层把相邻两数变成 (u+v, u−v) —— 没有复数 ω，只有最纯的加减', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '输入 [1,2,3,4] → 层 1 两对蝶形 → 层 2 两对蝶形 → [10, −2, −4, 0]。异或卷积 C[k] = Σ A[i]·B[k⊕i] 用它能做到 O(n log n)', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
+const inBoxes = a.map((v, i) => box(v, 340 + (i - 1.5) * 85, 420));
+const l1Boxes = L1.map((v, i) => box('', 340 + (i - 1.5) * 85, 320));
+const outBoxes = out.map((v, i) => box('', 340 + (i - 1.5) * 85, 225));
+new VText(scene, { text: '输入 a', x: 55, y: 420, z: 0, color: CYAN, scale: 0.46 });
+new VText(scene, { text: '层 1 蝶形', x: 55, y: 320, z: 0, color: VIOLET, scale: 0.46 });
+new VText(scene, { text: '输出 FWT(a)', x: 55, y: 225, z: 0, color: GOLD, scale: 0.46 });
+new VText(scene, { text: 'FWT（沃尔什-哈达玛）：每一层把相邻两数变成 (u+v, u−v) —— 没有复数 ω，只有最纯的加减', x: 700, y: 480, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
+new VText(scene, { text: '输入 [1,2,3,4] → 层 1 两对蝶形 → 层 2 两对蝶形 → [10, −2, −4, 0]。异或卷积 C[k] = Σ A[i]·B[k⊕i] 用它能做到 O(n log n)', x: 700, y: 300, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 
 function setCell(obj, v, color) { obj.setText(String(v)); if (color) obj.setColor(color, color); }
 function clearView() {

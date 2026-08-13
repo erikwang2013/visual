@@ -117,13 +117,14 @@ export class VBar {
     const mat = glowMaterial(opts.color || PALETTE.node, { emissive: opts.emissive, emissiveIntensity: 0.5 });
     this.mesh = new THREE.Mesh(new THREE.BoxGeometry(this.w, 1, this.d), mat);
     this.baseX = opts.x ?? 0; this.baseZ = opts.z ?? 0;
+    this.baseY = opts.y ?? 0;
     this.setHeight(opts.height ?? 1);
     scene.add(this.mesh);
   }
   setHeight(h) {
     this.height = h;
     this.mesh.scale.y = Math.max(h, 0.5);
-    this.mesh.position.set(this.baseX, (this.mesh.scale.y) / 2, this.baseZ);
+    this.mesh.position.set(this.baseX, this.baseY + (this.mesh.scale.y) / 2, this.baseZ);
   }
   setColor(color, emissive) {
     const m = this.mesh.material;

@@ -6,27 +6,27 @@ import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('LogisticRegression3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 360, 680], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, ROSE = 0xfb7185;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：逻辑回归训练', x: 0, y: 260, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：逻辑回归训练', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const PTS = [[-3, 1, 1], [-2, 2, 1], [-1, 0.5, 1], [1, -1, 0], [2, -2, 0], [3, -0.5, 0]];
-const PX = v => v * 62, PY = v => -v * 55;
+const PX = v => v * 62 + 320, PY = v => -v * 55 + 300;
 const ptBoxes = [];
 for (let i = 0; i < PTS.length; i++) {
   const [x, y, lab] = PTS[i];
   ptBoxes.push(new VBox(scene, { w: 34, h: 34, d: 34, x: PX(x), y: PY(y), z: 0, label: '', color: lab ? GREEN : ROSE, emissive: lab ? GREEN : ROSE }));
 }
-new VText(scene, { text: '训练集：6 个样本（绿=正例 1，红=负例 0）', x: 0, y: 195, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const line = new VBox(scene, { w: 200, h: 4, d: 4, x: 0, y: 0, z: 0, label: '', color: YELLOW, emissive: YELLOW });
+new VText(scene, { text: '训练集：6 个样本（绿=正例 1，红=负例 0）', x: 0, y: 495, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const line = new VBox(scene, { w: 200, h: 4, d: 4, x: 320, y: 300, z: 0, label: '', color: YELLOW, emissive: YELLOW });
 line.mesh.visible = false;
-const stepT = new VText(scene, { text: '', x: 0, y: 60, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const lossT = new VText(scene, { text: '', x: 0, y: -40, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const eqT = new VText(scene, { text: '', x: 0, y: -110, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const stepT = new VText(scene, { text: '', x: 0, y: 450, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const lossT = new VText(scene, { text: '', x: 0, y: 155, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const eqT = new VText(scene, { text: '', x: 0, y: 110, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
 const W_ROUNDS = [[0, -0.6, 0.35], [0.002, -0.779, 0.462], [0.005, -0.898, 0.538]];
 const LOSS = [0.204, 0.143, 0.114];

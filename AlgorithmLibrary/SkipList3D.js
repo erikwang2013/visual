@@ -7,20 +7,20 @@ import { VNode, VText, VBox, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SkipList3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 640], fov: 50 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：跳表搜索 19（找到）+ 搜索 10（未找到）', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：跳表搜索 19（找到）+ 搜索 10（未找到）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -70, z: 0, color: PALETTE.textGlow, scale: 0.56 });
-const outT = new VText(scene, { text: '', x: 0, y: -130, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.56 });
+const outT = new VText(scene, { text: '', x: 0, y: 170, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const LANES = [[3, 17, 25], [3, 9, 17, 25], [3, 6, 9, 12, 17, 19, 22, 25], [3, 6, 9, 12, 17, 19, 22, 25, 28]];
-const LAYER_Y = [190, 130, 70, 10];
-const vx = v => -300 + v * 20;
+const LAYER_Y = [490, 430, 370, 310];
+const vx = v => 20 + v * 20;
 
 const nodes = new Map();
 let edgeMeshes = new Map();
@@ -29,8 +29,8 @@ LANES.forEach((lane, li) => {
     nodes.set(li + '-' + v, new VNode(scene, { radius: 18, x: vx(v), y: LAYER_Y[li], z: 0, label: String(v), color: BLUE, emissive: BLUE }));
   });
 });
-new VText(scene, { text: 'L3 顶层（稀疏）', x: -360, y: 190, z: 0, color: PALETTE.textDim, scale: 0.45 });
-new VText(scene, { text: 'L0 底层（全量）', x: -360, y: 10, z: 0, color: PALETTE.textDim, scale: 0.45 });
+new VText(scene, { text: 'L3 顶层（稀疏）', x: -40, y: 490, z: 0, color: PALETTE.textDim, scale: 0.45 });
+new VText(scene, { text: 'L0 底层（全量）', x: -40, y: 310, z: 0, color: PALETTE.textDim, scale: 0.45 });
 
 function buildEdges() {
   edgeMeshes.forEach(m => scene.remove(m));

@@ -7,26 +7,26 @@ import { VBox, VText, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('LZ773D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, GOLD = 0xfcd34d, YELLOW = 0xfacc15, BLUE = 0x60a5fa, CYAN = 0x67e8f9;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 260, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
 
 const TXT = 'ABABABABC', WIN = 5;
-const SP = 50, X0 = -TXT.length * SP / 2 + SP / 2;
+const SP = 50, X0 = 240;
 const boxes = [];
 for (let i = 0; i < TXT.length; i++) {
-  boxes.push(new VBox(scene, { w: 40, h: 40, d: 40, x: X0 + i * SP, y: 60, z: 0, label: TXT[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+  boxes.push(new VBox(scene, { w: 40, h: 40, d: 40, x: X0 + i * SP, y: 420, z: 0, label: TXT[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 }
-const frame = new VBox(scene, { w: WIN * SP + 30, h: 66, d: 56, x: X0, y: 60, z: 0, color: PALETTE.edge, emissive: PALETTE.edgeEmissive });
+const frame = new VBox(scene, { w: WIN * SP + 30, h: 66, d: 56, x: X0, y: 420, z: 0, color: PALETTE.edge, emissive: PALETTE.edgeEmissive });
 frame.mesh.material.transparent = true;
 frame.mesh.material.opacity = 0.12;
-new VText(scene, { text: '输入序列（窗口大小 = ' + WIN + '）', x: X0 - 250, y: 60, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const outText = new VText(scene, { text: '', x: 0, y: -70, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const winText = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '输入序列（窗口大小 = ' + WIN + '）', x: 700, y: 505, z: 0, color: PALETTE.textDim, scale: 0.55, wrapChars: 8 });
+const outText = new VText(scene, { text: '', x: 700, y: 430, z: 0, color: PALETTE.textGlow, scale: 0.62, wrapChars: 8 });
+const winText = new VText(scene, { text: '', x: 700, y: 345, z: 0, color: PALETTE.textDim, scale: 0.55, wrapChars: 8 });
 
 // 预计算 tokens：(偏移, 长度, 下一字符) — 长度 0 表示字面量
 const tokens = [];
@@ -42,9 +42,9 @@ for (let i = 0; i < TXT.length; ) {
   else { tokens.push({ off: bestOff, len: bestLen, next: TXT[i + bestLen], pos: i }); i += bestLen + 1; }
 }
 
-const ring = new VTorus(scene, { radius: 30, x: X0, y: 60, color: GOLD });
+const ring = new VTorus(scene, { radius: 30, x: X0, y: 420, color: GOLD });
 ring.mesh.visible = false;
-const tokenText = new VText(scene, { text: '', x: 0, y: 185, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const tokenText = new VText(scene, { text: '', x: 700, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 8 });
 
 let fxGroup = new THREE.Group();
 scene.add(fxGroup);
@@ -61,8 +61,8 @@ function flowLine(pA, pB, count = 3, ms = 380) {
 }
 
 function matchArc(srcI, dstI) {
-  const pA = new THREE.Vector3(X0 + srcI * SP, 60, 30);
-  const pB = new THREE.Vector3(X0 + dstI * SP, 60, 30);
+  const pA = new THREE.Vector3(X0 + srcI * SP, 420, 30);
+  const pB = new THREE.Vector3(X0 + dstI * SP, 420, 30);
   const mid = new THREE.Vector3((pA.x + pB.x) / 2, (pA.y + pB.y) / 2, 52);
   const curve = new THREE.QuadraticBezierCurve3(pA, mid, pB);
   const mat = new THREE.LineDashedMaterial({ color: CYAN, dashSize: 5, gapSize: 3, transparent: true, opacity: 0.9 });
@@ -103,7 +103,7 @@ function* runCompress() {
         tokenText.setText('字符「' + t.next + '」在窗口中无匹配 → 字面量输出 ' + t.next);
         hint.setText('字面量：' + t.next);
       });
-      yield* flowLine(new THREE.Vector3(X0 + (t.pos - (TXT.length - 1) / 2) * SP, 60, 20), new THREE.Vector3(X0 + (t.pos - (TXT.length - 1) / 2) * SP, 60, 20), 2, 300);
+      yield* flowLine(new THREE.Vector3(X0 + (t.pos - (TXT.length - 1) / 2) * SP, 420, 20), new THREE.Vector3(X0 + (t.pos - (TXT.length - 1) / 2) * SP, 420, 20), 2, 300);
       yield W(500);
     } else {
       yield S(() => {
@@ -113,7 +113,7 @@ function* runCompress() {
         hint.setText('窗口 [' + winStart + ', ' + winEnd + ')：向前 ' + t.off + ' 位匹配 ' + t.len + ' 个字符');
       });
       matchArc(t.pos - t.off, t.pos);
-      yield* flowLine(new THREE.Vector3(X0 + (t.pos - t.off) * SP, 60, 30), new THREE.Vector3(X0 + t.pos * SP, 60, 30), 3, 450);
+      yield* flowLine(new THREE.Vector3(X0 + (t.pos - t.off) * SP, 420, 30), new THREE.Vector3(X0 + t.pos * SP, 420, 30), 3, 450);
       yield W(550);
     }
     yield S(() => {

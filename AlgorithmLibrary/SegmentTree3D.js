@@ -7,14 +7,14 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SegmentTree3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 350, 790], fov: 58 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, WHITE = 0xffffff, GREEN = 0x4ade80, GOLD = 0xfcd34d;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：建树 → 区间查询 → 点更新', x: 0, y: 318, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：建树 → 区间查询 → 点更新', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -150, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const ARR = [5, 3, 8, 1, 9, 4, 7, 2];
 const N = ARR.length, TREE = 2 * N - 1;
@@ -25,7 +25,7 @@ function posOf(id) {
   const depth = Math.floor(Math.log2(id));
   const idxInRow = id - (1 << depth);
   const x = ((idxInRow + 0.5) / (1 << depth) - 0.5) * 560;
-  return [x, 215 - depth * 70];
+  return [x, 515 - depth * 70];
 }
 function sumOf(id) {
   const t = boxes.get(id).text;

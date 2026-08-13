@@ -7,16 +7,16 @@ import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('PairingHeap3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 210, 620], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：配对堆 插入×6 + 删除最小', x: 0, y: 290, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：配对堆 插入×6 + 删除最小', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 258, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textGlow, scale: 0.56 });
-const outT = new VText(scene, { text: '', x: 0, y: -205, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 700, y: 440, z: 0, color: GOLD, scale: 0.5, wrapChars: 8 });
+const eqT = new VText(scene, { text: '', x: 700, y: 345, z: 0, color: PALETTE.textGlow, scale: 0.45, wrapChars: 8 });
+const outT = new VText(scene, { text: '', x: 700, y: 345, z: 0, color: PALETTE.textGlow, scale: 0.45, wrapChars: 8 });
 
 const ins = [5, 3, 8, 1, 7, 4];
 let root = null;
@@ -24,7 +24,7 @@ const allNodes = new Set();
 let edgeMeshes = new Map();
 
 function newNode(v) {
-  const n = { v, first: null, next: null, mesh: new VNode(scene, { radius: 22, x: 330, y: 150, z: 0, label: String(v), color: BLUE, emissive: BLUE }) };
+  const n = { v, first: null, next: null, mesh: new VNode(scene, { radius: 22, x: 320, y: 250, z: 0, label: String(v), color: BLUE, emissive: BLUE }) };
   allNodes.add(n);
   return n;
 }
@@ -48,7 +48,7 @@ function layoutTree(n, cx0, cx1, y, pos) {
 function layoutRoot(r) {
   const pos = new Map();
   const total = widthOf(r);
-  layoutTree(r, -total * GAP / 2, total * GAP / 2, 165, pos);
+  layoutTree(r, -total * GAP / 2 + 320, total * GAP / 2 + 320, 430, pos);
   return pos;
 }
 function applyLayout() {
@@ -79,24 +79,24 @@ function* linkGen(a, b) {
   if (!a) return b;
   if (!b) return a;
   if (a.v > b.v) {
-    yield S(() => stageT.setText('link(' + a.v + ', ' + b.v + ')：' + b.v + ' 更小 → 两堆互换，以 ' + b.v + ' 为根'));
+    yield S(() => stageT.setText('link(' + a.v + ',' + b.v + ')：' + b.v + ' 更小 → 互换为根'));
     yield W(500);
     const t = a; a = b; b = t;
   }
   setCol(a, ORANGE); setCol(b, CYAN);
-  yield S(() => stageT.setText('link(' + a.v + ', ' + b.v + ')：根 ' + a.v + '（橙）把 ' + b.v + '（青）挂上兄弟链头'));
+  yield S(() => stageT.setText('link(' + a.v + ',' + b.v + ')：根 ' + a.v + ' 挂 ' + b.v + ' 上兄弟链头'));
   yield W(550);
   b.next = a.first;
   a.first = b;
   applyLayout();
-  yield S(() => stageT.setText(a.v + ' 吸收 ' + b.v + '：配对堆无任何结构约束 —— first-child/next-sibling 表示「孩子 = 一条兄弟链」'));
+  yield S(() => stageT.setText(a.v + ' 吸收 ' + b.v + '：孩子 = 一条兄弟链，无结构约束'));
   yield W(600);
   return a;
 }
 
 function* extractMin() {
   setCol(root, RED);
-  yield S(() => stageT.setText('删除最小：根 ' + root.v + ' 弹出（红）—— 它的孩子链全部成为独立根'));
+  yield S(() => stageT.setText('删除最小：根 ' + root.v + ' 弹出（红），孩子链成独立根'));
   yield W(550);
   const kids = [];
   for (let c = root.first; c; c = c.next) kids.push(c);
@@ -106,26 +106,26 @@ function* extractMin() {
   root.mesh.remove();
   allNodes.delete(root);
   applyLayout();
-  yield S(() => stageT.setText('两遍合并 · 第一遍：从左到右两两 link（奇数落单的直接留下）'));
+  yield S(() => stageT.setText('第一遍合并：左→右两两 link（落单者留下）'));
   yield W(600);
   const stack = [];
   for (let i = 0; i < kids.length; i += 2) {
     if (i + 1 < kids.length) stack.push(yield* linkGen(kids[i], kids[i + 1]));
     else stack.push(kids[i]);
   }
-  yield S(() => stageT.setText('两遍合并 · 第二遍：从右到左依次 link，收拢成一棵'));
+  yield S(() => stageT.setText('第二遍合并：右→左依次 link 收拢成一棵'));
   yield W(600);
   let r = stack.pop();
   while (stack.length) r = yield* linkGen(stack.pop(), r);
   root = r;
   eqT.setText('');
   applyLayout();
-  yield S(() => { outT.setText('删除完成：堆 = ' + vals().join(' → ') + '（旧根 1 已弹出）✓'); status.textContent = '配对堆最终：[4,3,5,7]（两遍合并摊还 O(log n)）'; });
+  yield S(() => { eqT.setText(''); outT.setText('删除完成：堆 = ' + vals().join(' → ') + ' ✓（旧根弹出）'); status.textContent = '配对堆最终：[4,3,5,7]（两遍合并摊还 O(log n)）'; });
   yield W(900);
 }
 
 function* pairingGen() {
-  yield S(() => { hint.setText('配对堆：最简单的可并堆 —— 插入 = link，删除 = 两遍合并。无平衡约束，摊还 O(log n)'); stageT.setText('演示：插入 5, 3, 8, 1, 7, 4（每次 = 与根 link），再删除最小'); });
+  yield S(() => { hint.setText('配对堆：插入 = link，删除 = 两遍合并；无平衡约束，摊还 O(log n)'); stageT.setText('插入 5,3,8,1,7,4（每次与根 link），再删除最小'); });
   yield W(700);
   for (let k = 0; k < ins.length; k++) {
     const v = ins[k];
@@ -134,14 +134,14 @@ function* pairingGen() {
     yield W(500);
     root = yield* linkGen(root, nn);
     if (k === ins.length - 1) {
-      yield S(() => { outT.setText('插入完成：堆 = ' + vals().join(' → ') + '（根最小）—— 兄弟链不排序，只保证父 ≤ 子'); status.textContent = '配对堆：[1,4,7,3,5]（6 次插入 link）'; });
+      yield S(() => { eqT.setText(''); outT.setText('插入完成：堆 = ' + vals().join(' → ') + '（根最小）'); status.textContent = '配对堆：[1,4,7,3,5]（6 次插入 link）'; });
       yield W(900);
     }
   }
   yield* extractMin();
-  yield S(() => { hint.setText('复杂度：link 摊还 O(log n)（势能论证）；插入 O(1) 摊还、取最小 O(1) —— 实践常数远小于斐波那契堆'); outT.setText('应用：Dijkstra/Prim 优先队列首选、可并堆竞赛题 —— 教科书说「更简单，往往也更快」'); });
+  yield S(() => { hint.setText('复杂度：link 摊还 O(log n)；实践常数小于斐波那契堆'); outT.setText('应用：Dijkstra/Prim 优先队列、可并堆竞赛题'); });
   yield W(1100);
-  yield S(() => { hint.setText('配对堆演示完成：插入 ×6 → 根 1；删除最小 → 根 4（两遍合并收拢）'); outT.setText(''); });
+  yield S(() => { hint.setText('配对堆完成：插入 ×6 → 删除最小 → 根 4'); outT.setText(''); });
   yield W(400);
 }
 

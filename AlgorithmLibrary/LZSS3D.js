@@ -7,25 +7,25 @@ import { VBox, VText, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('LZSS3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 360, 620], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, CYAN = 0x67e8f9, GOLD = 0xfcd34d;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 260, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
 
 const INPUT = 'the cat sat on the mat';
 const SP = 26, BOX = 24;
-const pos = i => i < 11 ? { x: (i - 5) * SP, y: 170 } : { x: (i - 16) * SP, y: 95 };
+const pos = i => i < 11 ? { x: (i - 5) * SP + 320, y: 470 } : { x: (i - 16) * SP + 320, y: 395 };
 const boxes = [];
 for (let i = 0; i < INPUT.length; i++) {
   const p = pos(i);
   boxes.push(new VBox(scene, { w: BOX, h: BOX, d: BOX, x: p.x, y: p.y, z: 0, label: INPUT[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 }
-new VText(scene, { text: '输入（22 字符）', x: -280, y: 210, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const outText = new VText(scene, { text: '', x: 0, y: -40, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const ratioT = new VText(scene, { text: '', x: 0, y: -105, z: 0, color: PALETTE.textDim, scale: 0.7 });
+new VText(scene, { text: '输入（22 字符）', x: 60, y: 510, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const outText = new VText(scene, { text: '', x: 320, y: 260, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const ratioT = new VText(scene, { text: '', x: 320, y: 195, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
 const tokens = [
   { type: 'lit', n: 9 },
@@ -36,7 +36,7 @@ const tokens = [
 ];
 const LIT_STARTS = [0, 12, 19];
 
-const ring = new VTorus(scene, { radius: 17, x: 0, y: 170, color: GOLD });
+const ring = new VTorus(scene, { radius: 17, x: 0, y: 470, color: GOLD });
 ring.mesh.visible = false;
 
 let fxGroup = new THREE.Group();

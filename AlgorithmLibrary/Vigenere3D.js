@@ -7,29 +7,29 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Vigenere3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 660], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：维吉尼亚密码 —— 密钥循环的多表替换', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：维吉尼亚密码 —— 密钥循环的多表替换', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 140, z: 0, color: PALETTE.textGlow, scale: 0.48 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 440, z: 0, color: PALETTE.textGlow, scale: 0.48 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const PT = 'ATTACKATDAWN';
 const KEY = 'LEMON';
 const N = PT.length;
-const X0 = -385;
+const X0 = -65;
 const pxChips = [], keyChips = [], cxChips = [];
 for (let i = 0; i < N; i++) {
   const x = X0 + i * 70;
-  pxChips.push(new VBox(scene, { w: 56, h: 48, d: 48, x, y: 60, z: 0, label: '?', color: BLUE, emissive: BLUE }));
-  keyChips.push(new VBox(scene, { w: 56, h: 48, d: 48, x, y: 0, z: 0, label: '?', color: PUR, emissive: PUR }));
-  cxChips.push(new VBox(scene, { w: 56, h: 48, d: 48, x, y: -60, z: 0, label: '?', color: GOLD, emissive: GOLD }));
+  pxChips.push(new VBox(scene, { w: 56, h: 48, d: 48, x, y: 360, z: 0, label: '?', color: BLUE, emissive: BLUE }));
+  keyChips.push(new VBox(scene, { w: 56, h: 48, d: 48, x, y: 300, z: 0, label: '?', color: PUR, emissive: PUR }));
+  cxChips.push(new VBox(scene, { w: 56, h: 48, d: 48, x, y: 240, z: 0, label: '?', color: GOLD, emissive: GOLD }));
 }
-new VText(scene, { text: '上排 = 明文（蓝）  中排 = 密钥循环（紫）  下排 = 密文（金）    C = (P + K) mod 26，A=0 … Z=25', x: 0, y: -110, z: 0, color: PALETTE.textDim, scale: 0.4 });
+new VText(scene, { text: '上排 = 明文（蓝）  中排 = 密钥循环（紫）  下排 = 密文（金）    C = (P + K) mod 26，A=0 … Z=25', x: 0, y: 190, z: 0, color: PALETTE.textDim, scale: 0.4 });
 
 const C2I = c => c.charCodeAt(0) - 65;
 const I2C = n => String.fromCharCode(65 + n);

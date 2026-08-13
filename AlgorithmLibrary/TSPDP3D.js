@@ -7,16 +7,16 @@ import { VNode, VText, VBox, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('TSPDP3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：旅行商 TSP（4 城，求最短环）', x: 0, y: 305, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：旅行商 TSP（4 城，求最短环）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 265, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: -245, z: 0, color: PALETTE.textGlow, scale: 0.62 });
-const ansT = new VText(scene, { text: '', x: 0, y: -160, z: 0, color: GOLD, scale: 0.8 });
+const stageT = new VText(scene, { text: '', x: 0, y: 565, z: 0, color: GOLD, scale: 0.72 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const ansT = new VText(scene, { text: '', x: 0, y: 140, z: 0, color: GOLD, scale: 0.8 });
 
 const D = [[0, 10, 25, 15], [10, 0, 40, 35], [25, 40, 0, 20], [15, 35, 20, 0]];
 const N = 4;
@@ -57,7 +57,7 @@ while (true) {
 }
 const ftour = [0, ...tour.reverse(), 0];
 
-const POS = [[-110, 150], [110, 150], [110, 40], [-110, 40]];
+const POS = [[210, 450], [430, 450], [430, 340], [210, 340]];
 const cities = [0, 1, 2, 3].map(i => new VNode(scene, { radius: 26, x: POS[i][0], y: POS[i][1], z: 0, label: String(i), color: BLUE, emissive: BLUE }));
 const cityT = [0, 1, 2, 3].map(i => new VText(scene, { text: '城' + i, x: POS[i][0], y: POS[i][1] + 42, z: 0, color: WHITE, scale: 0.5 }));
 const EDGES = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]];
@@ -65,24 +65,24 @@ const edgeT = {};
 EDGES.forEach(([a, b]) => {
   edgeT[a + '-' + b] = tubeBetween(scene, { x: POS[a][0], y: POS[a][1], z: 0 }, { x: POS[b][0], y: POS[b][1], z: 0 }, { color: PALETTE.edge, opacity: 0.35, radius: 2 });
 });
-[[0, 1, 0, 163], [2, 3, 0, 22], [0, 3, -140, 95], [1, 2, 140, 95], [0, 2, -45, 80], [1, 3, 45, 80]]
+[[0, 1, 320, 463], [2, 3, 320, 322], [0, 3, 180, 395], [1, 2, 460, 395], [0, 2, 275, 380], [1, 3, 365, 380]]
   .forEach(([a, b, x, y]) => new VText(scene, { text: String(D[a][b]), x, y, z: 0, color: WHITE, scale: 0.5 }));
 function setEdge(a, b, color, op) { const t = edgeT[a < b ? a + '-' + b : b + '-' + a]; t.material.color.setHex(color); t.material.opacity = op; }
 
 const cells = [];
-const yRow = { 1: 5, 2: -50, 3: -105 };
+const yRow = { 1: 305, 2: 250, 3: 195 };
 for (let size = 1; size <= 3; size++) {
   let list;
   if (size === 1) list = [[2, 1], [4, 2], [8, 3]];
   if (size === 2) list = [[6, 1], [6, 2], [10, 1], [10, 3], [12, 2], [12, 3]];
   if (size === 3) list = [[14, 1], [14, 2], [14, 3]];
   list.forEach(([mask, i], idx) => {
-    const cx = size === 2 ? -165 + idx * 66 : -120 + (i - 1) * 120;
+    const cx = size === 2 ? 155 + idx * 66 : 200 + (i - 1) * 120;
     cells.push({ mask, i, box: new VBox(scene, { w: 52, h: 32, d: 32, x: cx, y: yRow[size], z: 0, label: '', color: BLUE, emissive: BLUE }) });
   });
 }
-new VText(scene, { text: '旅行商问题：从城 0 出发回到 0，求最短环', x: 0, y: 248, z: 0, color: WHITE, scale: 0.68 });
-new VText(scene, { text: '状态压缩 DP：dp[mask][i] = 走过 mask 集合、停在 i 的最短路；答案 = min(dp[全][i] + d[i][0])', x: 0, y: -205, z: 0, color: WHITE, scale: 0.62 });
+new VText(scene, { text: '旅行商问题：从城 0 出发回到 0，求最短环', x: 0, y: 548, z: 0, color: WHITE, scale: 0.68 });
+new VText(scene, { text: '状态压缩 DP：dp[mask][i] = 走过 mask 集合、停在 i 的最短路；答案 = min(dp[全][i] + d[i][0])', x: 0, y: 95, z: 0, color: WHITE, scale: 0.62 });
 
 function cellOf(mask, i) { return cells.find(c => c.mask === mask && c.i === i); }
 function clearView() {

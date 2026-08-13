@@ -7,23 +7,23 @@ import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('FibonacciHeap3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 210, 620], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：斐波那契堆 插入×6 + 删最小×2 + 减小键×3', x: 0, y: 290, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：斐波那契堆 插入×6 + 删最小×2 + 减小键×3', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 258, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textGlow, scale: 0.56 });
-const outT = new VText(scene, { text: '', x: 0, y: -205, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 558, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 180, z: 0, color: PALETTE.textGlow, scale: 0.56 });
+const outT = new VText(scene, { text: '', x: 0, y: 95, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 let roots = [];
 const allNodes = new Set();
 let edgeMeshes = new Map();
 
 function newNode(v) {
-  const n = { v, parent: null, children: [], marked: false, mesh: new VNode(scene, { radius: 24, x: 330, y: 150, z: 0, label: String(v), color: BLUE, emissive: BLUE }), badge: new VText(scene, { text: '', x: 330, y: 112, z: 0, color: PUR, scale: 0.45 }) };
+  const n = { v, parent: null, children: [], marked: false, mesh: new VNode(scene, { radius: 24, x: 330, y: 450, z: 0, label: String(v), color: BLUE, emissive: BLUE }), badge: new VText(scene, { text: '', x: 330, y: 412, z: 0, color: PUR, scale: 0.45 }) };
   allNodes.add(n);
   return n;
 }
@@ -35,7 +35,7 @@ function computeLayout() {
     n.children.forEach((c, j) => place(c, x + (j - (k - 1) / 2) * 110, y - 95));
   }
   const k = roots.length;
-  roots.forEach((r, i) => place(r, (i - (k - 1) / 2) * 120, 210));
+  roots.forEach((r, i) => place(r, (i - (k - 1) / 2) * 120, 510));
   return pos;
 }
 function applyLayout() {

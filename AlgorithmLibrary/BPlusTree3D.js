@@ -7,14 +7,14 @@ import { VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('BPlusTree3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 200, 700], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, INDIGO = 0x818cf8, GOLD = 0xfcd34d, WHITE = 0xffffff, GREEN = 0x4ade80;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：B+ 树内部节点 + 叶层链 + 分裂复制键上移', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：B+ 树内部节点 + 叶层链 + 分裂复制键上移', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 700, y: 430, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const MAX = 2, MIN = 1, LMAX = 3, LMIN = 1;  // 内部最多 2 键；叶最多 3 键
 const LEAF_Y = -140;
@@ -39,7 +39,7 @@ function layout() {
     }
   })(root);
   if (all.length) {
-    const keyX = all.map((e, i) => (i - (all.length - 1) / 2) * 66);
+    const keyX = all.map((e, i) => (i - (all.length - 1) / 2) * 66 * 0.9 + 320);
     const keyIdx = new Map();
     all.forEach((e, i) => {
       const arr = keyIdx.get(e.n.id) || []; arr.push(keyX[i]); keyIdx.set(e.n.id, arr);
@@ -52,7 +52,7 @@ function layout() {
       for (const c of n.children) { if (!c.isLeaf) { depth.set(c.id, depth.get(n.id) + 1); q.push(c); } }
     }
     for (const [id, xs] of keyIdx) {
-      pos.set(id, new THREE.Vector3(xs.reduce((a, b) => a + b, 0) / xs.length, 250 - depth.get(id) * 95, 0));
+      pos.set(id, new THREE.Vector3(xs.reduce((a, b) => a + b, 0) / xs.length, (250 - depth.get(id) * 95 + 140) * 0.75 + 215, 0));
     }
   }
   // 叶层：链序中所有键 → 每叶中心 = 键均值，y = LEAF_Y
@@ -61,11 +61,11 @@ function layout() {
   const allK = [];
   for (const l of leaves) for (const k of l.keys) allK.push(k);
   const xMap = new Map();
-  allK.forEach((k, i) => xMap.set(k, (i - (allK.length - 1) / 2) * 66));
+  allK.forEach((k, i) => xMap.set(k, (i - (allK.length - 1) / 2) * 66 * 0.9 + 320));
   for (const l of leaves) {
     let sum = 0;
     for (const k of l.keys) sum += xMap.get(k);
-    pos.set(l.id, new THREE.Vector3(l.keys.length ? sum / l.keys.length : 0, LEAF_Y, 0));
+    pos.set(l.id, new THREE.Vector3(l.keys.length ? sum / l.keys.length : 0, 215, 0));
   }
   return pos;
 }
@@ -82,7 +82,7 @@ function addNodeVis(n, p) {
   const g = new THREE.Group();
   const c = n.isLeaf ? INDIGO : BLUE;
   const box = new THREE.Mesh(new THREE.BoxGeometry(34, 44, 14), glowMaterial(c, { emissive: c }));
-  box.scale.x = Math.max(n.keys.length, 1);
+  box.scale.x = Math.max(n.keys.length, 1) * 0.9;
   g.add(box);
   const lbl = new VText(scene, { text: n.keys.join('|'), x: 0, y: 0, z: 10, color: '#ffffff', scale: 0.62 });
   scene.remove(lbl.sprite); g.add(lbl.sprite);
@@ -99,7 +99,7 @@ function addNodeVis(n, p) {
 function refreshNodeVisual(n) {
   const v = nodeView.get(n.id);
   if (!v) return;
-  v.box.scale.x = Math.max(n.keys.length, 1);
+  v.box.scale.x = Math.max(n.keys.length, 1) * 0.9;
   v.lbl.setText(n.keys.join('|'));
 }
 function setNodeColor(id, c) {

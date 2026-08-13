@@ -7,22 +7,22 @@ import { VNode, VText, VBox, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('BinomialQueue3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 210, 620], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：二项队列插入 1~5 + 删最小×3', x: 0, y: 290, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：二项队列插入 1~5 + 删最小×3', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 238, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -160, z: 0, color: PALETTE.textGlow, scale: 0.56 });
-const outT = new VText(scene, { text: '', x: 0, y: -215, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 320, y: 200, z: 0, color: PALETTE.textGlow, scale: 0.56 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 let forest = [];
 const allNodes = new Set();
 let edgeMeshes = new Map();
-const slots = [0, 1, 2, 3].map(r => new VBox(scene, { w: 64, h: 26, d: 26, x: -200 + r * 105, y: 245, z: 0, label: 'B' + r, color: DIM, emissive: DIM }));
-new VText(scene, { text: '秩槽位：B_r 有 2^r 个节点（二进制表示）', x: 0, y: 200, z: 0, color: PALETTE.textDim, scale: 0.55 });
+const slots = [0, 1, 2, 3].map(r => new VBox(scene, { w: 64, h: 26, d: 26, x: -200 + r * 105 + 360, y: 510, z: 0, label: 'B' + r, color: DIM, emissive: DIM }));
+new VText(scene, { text: '秩槽位：B_r 有 2^r 个节点（二进制表示）', x: 700, y: 320, z: 0, color: PALETTE.textDim, scale: 0.55, wrapChars: 8 });
 
 function newNode(v) {
   const n = { v, children: [], mesh: new VNode(scene, { radius: 22, x: 330, y: 150, z: 0, label: String(v), color: BLUE, emissive: BLUE }) };
@@ -30,7 +30,7 @@ function newNode(v) {
   return n;
 }
 const rankOf = n => n.children.length;
-const subtreeSpan = n => (1 + n.children.reduce((s, c) => s + subtreeSpan(c), 0)) * 46;
+const subtreeSpan = n => 46 + n.children.reduce((s, c) => s + subtreeSpan(c), 0);
 function computeLayout() {
   const pos = new Map();
   const roots = forest.filter(Boolean);
@@ -47,7 +47,7 @@ function computeLayout() {
       cacc += cw;
     });
   }
-  roots.forEach(r => { place(r, acc + subtreeSpan(r) / 2, 205); acc += subtreeSpan(r) + 110; });
+  roots.forEach(r => { place(r, acc + subtreeSpan(r) / 2, 490); acc += subtreeSpan(r) + 110; });
   return pos;
 }
 function applyLayout() {

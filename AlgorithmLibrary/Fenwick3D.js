@@ -7,15 +7,15 @@ import { VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('Fenwick3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 170, 720], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, WHITE = 0xffffff, GOLD = 0xfcd34d, RED = 0xfb7185;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：建 BIT → 前缀查询 → 更新', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：建 BIT → 前缀查询 → 更新', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -170, z: 0, color: PALETTE.textGlow, scale: 0.7 });
-const result = new VText(scene, { text: '前缀和: —', x: 0, y: 280, z: 0, color: PALETTE.yellow, scale: 1 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const result = new VText(scene, { text: '前缀和: —', x: 320, y: 555, z: 0, color: PALETTE.yellow, scale: 0.72, wrapChars: 7 });
 
 const N = 12;
 const lowbit = i => i & -i;
@@ -25,8 +25,8 @@ const bitVals = new Array(N + 1).fill(0);
 const bars = [];   // i(0..N-1) -> { mesh, lbl }
 const boxes = [];  // i(1..N) -> { mesh, lbl }
 const edges = new Map();  // 'i-j' -> tube
-function boxX(i) { const half = (N - 1) / 2; return (i - 1 - half) * 62; }
-function barPos(i) { const half = (N - 1) / 2; return new THREE.Vector3((i - half) * 62, 0, 0); }
+function boxX(i) { const half = (N - 1) / 2; return 340 + (i - 1 - half) * 48; }
+function barPos(i) { const half = (N - 1) / 2; return new THREE.Vector3(340 + (i - half) * 48, 0, 0); }
 
 function rebuildModel() {
   bitVals.fill(0);
@@ -58,9 +58,9 @@ function* buildGen() {
     const p = barPos(i);
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(34, 60, 10), glowMaterial(BLUE, { emissive: BLUE }));
     mesh.scale.y = h / 60;
-    mesh.position.set(p.x, h / 2, -40);
+    mesh.position.set(p.x, 240 + h / 2, -40);
     mesh.scale.setScalar(0.01);
-    const lbl = new VText(scene, { text: String(v), x: p.x, y: h + 16, z: -40, color: '#ffffff', scale: 0.6 });
+    const lbl = new VText(scene, { text: String(v), x: p.x, y: 256 + h, z: -40, color: '#ffffff', scale: 0.6 });
     scene.add(mesh);
     bars.push({ mesh, lbl });
     todo.push({ mesh, sx: 1, sy: h / 60, sz: 1 });
@@ -68,10 +68,10 @@ function* buildGen() {
   for (let i = 1; i <= N; i++) {
     const x = boxX(i);
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(46, 46, 30), glowMaterial(WHITE, { emissive: WHITE }));
-    mesh.position.set(x, 210, 0);
+    mesh.position.set(x, 380, 0);
     mesh.scale.setScalar(0.01);
-    const lbl = new VText(scene, { text: String(bitVals[i]), x, y: 210, z: 18, color: '#ffffff', scale: 0.62 });
-    const idxLbl = new VText(scene, { text: String(i), x, y: 168, z: 0, color: PALETTE.textDim, scale: 0.55 });
+    const lbl = new VText(scene, { text: String(bitVals[i]), x, y: 380, z: 18, color: '#ffffff', scale: 0.62 });
+    const idxLbl = new VText(scene, { text: String(i), x, y: 338, z: 0, color: PALETTE.textDim, scale: 0.55 });
     scene.add(mesh);
     boxes.push({ mesh, lbl, idxLbl });
     todo.push({ mesh, sx: 1, sy: 1, sz: 1 });
@@ -79,7 +79,7 @@ function* buildGen() {
   yield A(420, p => todo.forEach(t => t.mesh.scale.setScalar(0.01 + 0.99 * p)));
   for (let i = 1; i <= N; i++) {
     const j = i + lowbit(i);
-    if (j <= N) edges.set(i + '-' + j, tube(new THREE.Vector3(boxX(i), 210, 0), new THREE.Vector3(boxX(j), 210, 0)));
+    if (j <= N) edges.set(i + '-' + j, tube(new THREE.Vector3(boxX(i), 380, 0), new THREE.Vector3(boxX(j), 380, 0)));
   }
   yield W(300);
   for (let i = 1; i <= N; i++) {
@@ -120,14 +120,14 @@ function* updateGen(idx, delta) {
   ARR[idx - 1] += delta;
   const bar = bars[idx - 1];
   const oldH = bar.mesh.scale.y, newH = (ARR[idx - 1] * 6) / 60;
-  const oldY = bar.mesh.position.y, newY = (ARR[idx - 1] * 6) / 2;
+  const oldY = bar.mesh.position.y, newY = 240 + (ARR[idx - 1] * 6) / 2;
   bar.mesh.material.color.setHex(RED); bar.mesh.material.emissive.setHex(RED);
   yield A(360, p => {
     bar.mesh.scale.y = oldH + (newH - oldH) * p;
     bar.mesh.position.y = oldY + (newY - oldY) * p;
   });
   bar.lbl.setText(String(ARR[idx - 1]));
-  bar.lbl.sprite.position.y = ARR[idx - 1] * 6 + 16;
+  bar.lbl.sprite.position.y = 256 + ARR[idx - 1] * 6;
   bar.mesh.material.color.setHex(BLUE); bar.mesh.material.emissive.setHex(BLUE);
   yield W(300);
   let j = idx;

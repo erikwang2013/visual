@@ -7,16 +7,16 @@ import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('RedBlack3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 560], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLACK = 0x60a5fa, REDC = 0xfb923c, GOLD = 0xfcd34d, WHITE = 0xffffff, GREEN = 0x4ade80;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：红黑树变色 + 旋转修复', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：红黑树变色 + 旋转修复', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: 30, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 700, y: 345, z: 0, color: PALETTE.textGlow, scale: 0.45, wrapChars: 8 });
 
-const ROOT_Y = 260, STEP_Y = 85, X_STEP = 80;
+const ROOT_Y = 440, STEP_Y = 50, X_STEP = 80;
 
 // ---- 纯数据红黑树（parent 为键引用，color: 'R'|'B'） ----
 let root = null;
@@ -35,7 +35,7 @@ function layout() {
   const arr = collect(), pos = new Map();
   arr.forEach((n, i) => {
     const d = depthOf(n);
-    pos.set(n.key, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 10), ROOT_Y - d * STEP_Y, -d * 6));
+    pos.set(n.key, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 10) + 320, ROOT_Y - d * STEP_Y, -d * 6));
   });
   return pos;
 }
@@ -163,7 +163,7 @@ function* insertGen(key) {
     const u = g.left === p ? g.right : g.left;
     if (colorOf(u) === 'R') {
       setNodeColor(p.key, WHITE); setNodeColor(u.key, WHITE); setNodeColor(g.key, REDC);
-      yield S(() => outT.setText('case1 叔 ' + u.key + ' 为红：父/叔变黑，祖父 ' + g.key + ' 变红'));
+      yield S(() => outT.setText('case1 叔 ' + u.key + ' 红：父/叔变黑，祖 ' + g.key + ' 变红'));
       yield W(550);
       p.color = 'B'; u.color = 'B'; g.color = 'R';
       syncColor(p.key); syncColor(u.key); syncColor(g.key);
@@ -179,7 +179,7 @@ function* insertGen(key) {
         syncAllColors();
       }
       setNodeColor(g.key, WHITE); setNodeColor(p.key, WHITE);
-      yield S(() => outT.setText('case3：父 ' + p.key + ' 变黑，祖 ' + g.key + ' 变红，右旋 ' + g.key));
+      yield S(() => outT.setText('case3：父 ' + p.key + ' 黑、祖 ' + g.key + ' 红，右旋 ' + g.key));
       yield W(500);
       const tmp = p.color; p.color = g.color; g.color = tmp;
       rotateRight(g);
@@ -196,7 +196,7 @@ function* insertGen(key) {
         syncAllColors();
       }
       setNodeColor(g.key, WHITE); setNodeColor(p.key, WHITE);
-      yield S(() => outT.setText('case3：父 ' + p.key + ' 变黑，祖 ' + g.key + ' 变红，左旋 ' + g.key));
+      yield S(() => outT.setText('case3：父 ' + p.key + ' 黑、祖 ' + g.key + ' 红，左旋 ' + g.key));
       yield W(500);
       const tmp = p.color; p.color = g.color; g.color = tmp;
       rotateLeft(g);
@@ -299,7 +299,7 @@ function* deleteGen(key) {
 
 function* runRBT() {
   clearView(); root = null;
-  hint.setText('红黑树：红节点橙色 / 黑节点蓝色，插入修复分 case1 变色 / case2/3 旋转');
+  hint.setText('红黑树：橙=红节点、蓝=黑节点；case1 变色 / case2/3 旋转');
   yield W(400);
   for (const k of [41, 38, 31, 12, 19, 8]) yield* insertGen(k);
   yield S(() => outT.setText('6 节点插入完成，红黑性质保持'));

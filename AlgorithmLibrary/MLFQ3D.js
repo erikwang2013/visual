@@ -7,24 +7,24 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('MLFQ3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 660], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：MLFQ —— 顶层秒回，用完时间片降级', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：MLFQ —— 顶层秒回，用完时间片降级', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 168, z: 0, color: PALETTE.textGlow, scale: 0.5 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 468, z: 0, color: PALETTE.textGlow, scale: 0.5 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 // 三层队列：Q0 时间片 1 / Q1 时间片 2 / Q2 FCFS（时间片 5+）
 const LAYERS = [
-  { name: 'Q0', y: 130, q: 1, note: '时间片 1 · 最高优先' },
-  { name: 'Q1', y: 55, q: 2, note: '时间片 2' },
-  { name: 'Q2', y: -20, q: 99, note: 'FCFS · 长片' }
+  { name: 'Q0', y: 430, q: 1, note: '时间片 1 · 最高优先' },
+  { name: 'Q1', y: 355, q: 2, note: '时间片 2' },
+  { name: 'Q2', y: 280, q: 99, note: 'FCFS · 长片' }
 ];
-const slotX = [-310, -210, -110, -10];
+const slotX = [10, 110, 210, 310];
 const PROCS = [
   { name: 'P1', arrive: 0, burst: 8 },
   { name: 'P2', arrive: 1, burst: 4 },
@@ -44,12 +44,12 @@ const blockOf = {};
 const left = {};
 PROCS.forEach(p => {
   left[p.name] = p.burst;
-  blockOf[p.name] = new VBox(scene, { w: 84, h: 38, d: 38, x: 350, y: 55, z: 0, label: p.name + ' ' + p.burst, color: BLUE, emissive: BLUE });
+  blockOf[p.name] = new VBox(scene, { w: 84, h: 38, d: 38, x: 670, y: 355, z: 0, label: p.name + ' ' + p.burst, color: BLUE, emissive: BLUE });
 });
 LAYERS.forEach((L, i) => {
-  new VText(scene, { text: L.name + '（' + L.note + '）', x: -400, y: L.y + 30, z: 0, color: i === 0 ? GOLD : PALETTE.textDim, scale: 0.44 });
+  new VText(scene, { text: L.name + '（' + L.note + '）', x: -80, y: L.y + 30, z: 0, color: i === 0 ? GOLD : PALETTE.textDim, scale: 0.44 });
 });
-const timelineT = new VText(scene, { text: '', x: 0, y: -105, z: 0, color: PALETTE.textGlow, scale: 0.5 });
+const timelineT = new VText(scene, { text: '', x: 0, y: 195, z: 0, color: PALETTE.textGlow, scale: 0.5 });
 
 function* mlfqGen() {
   yield S(() => { hint.setText('MLFQ：新进程一律进 Q0 跑 1 个时间片 —— 用完没跑完就降级；Q0 非空时下层一律靠后'); stageT.setText('规则①：新进程进最高层；②：用满时间片 → 降级；③：上层非空先跑上层'); });
@@ -92,7 +92,7 @@ function* runMLFQ() {
 }
 
 engine.queue(() => runMLFQ());
-panel.addButton('清空', () => { engine.clear(); stageT.setText(''); eqT.setText(''); outT.setText(''); timelineT.setText(''); PROCS.forEach(p => { blockOf[p.name].setColor(BLUE, BLUE); blockOf[p.name].setText(p.name + ' ' + p.burst); blockOf[p.name].moveTo(400, 55, 0, 300); left[p.name] = p.burst; }); hint.setText('已清空，可重新运行'); status.textContent = ''; });
+panel.addButton('清空', () => { engine.clear(); stageT.setText(''); eqT.setText(''); outT.setText(''); timelineT.setText(''); PROCS.forEach(p => { blockOf[p.name].setColor(BLUE, BLUE); blockOf[p.name].setText(p.name + ' ' + p.burst); blockOf[p.name].moveTo(720, 355, 0, 300); left[p.name] = p.burst; }); hint.setText('已清空，可重新运行'); status.textContent = ''; });
 panel.addLabel('（拖拽旋转视角，滚轮缩放；金 = 运行中，蓝 = 队列中，绿 = 完成；进程块随降级逐层下移，Q0 新进程永远最先跑）');
 
 scene.start(engine);

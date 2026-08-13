@@ -7,23 +7,23 @@ import { VBox, VText, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('LZ783D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x60a5fa, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 0, y: 260, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
 
 const INPUT = 'ABABABABAB';
-const SP = 48, X0 = -INPUT.length * SP / 2 + SP / 2;
+const SP = 48, X0 = -INPUT.length * SP / 2 + SP / 2 + 320;
 const boxes = [];
 for (let i = 0; i < INPUT.length; i++) {
-  boxes.push(new VBox(scene, { w: 38, h: 38, d: 38, x: X0 + i * SP, y: 120, z: 0, label: INPUT[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+  boxes.push(new VBox(scene, { w: 38, h: 38, d: 38, x: X0 + i * SP, y: 450, z: 0, label: INPUT[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 }
-new VText(scene, { text: '输入：' + INPUT, x: X0 - 230, y: 120, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const dictTitle = new VText(scene, { text: '字典（编码时动态构建）', x: 0, y: -10, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const outText = new VText(scene, { text: '', x: 0, y: -110, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+new VText(scene, { text: '输入：' + INPUT, x: 700, y: 500, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
+const dictTitle = new VText(scene, { text: '字典（编码时动态构建）', x: 320, y: 340, z: 0, color: PALETTE.textDim, scale: 0.6 });
+const outText = new VText(scene, { text: '', x: 700, y: 430, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 // 预计算 tokens 与字典增长
 const tokens = [];
@@ -39,7 +39,7 @@ for (let i = 0; i < INPUT.length; ) {
   i += len + (next ? 1 : 0);
 }
 
-const ring = new VTorus(scene, { radius: 25, x: X0, y: 120, color: YELLOW });
+const ring = new VTorus(scene, { radius: 25, x: X0, y: 450, color: YELLOW });
 ring.mesh.visible = false;
 const dictBoxes = [];
 
@@ -72,9 +72,9 @@ function* runCompress() {
       outText.setText('输出：' + tokens.slice(0, d + 1).map(x => '(' + x.idx + ',' + (x.next || '∅') + ')').join(' '));
     });
     const n = dictBoxes.length;
-    const dx = -260 + n * 150;
-    const ib = new VBox(scene, { w: 56, h: 40, d: 30, x: dx, y: -40, z: 0, label: String(t.dictIdx), color: DIM, emissive: DIM });
-    const pb = new VBox(scene, { w: 70, h: 40, d: 30, x: dx + 72, y: -40, z: 0, label: dict[t.dictIdx], color: GREEN, emissive: GREEN });
+    const dx = 90 + (n % 5) * 105, dy = 300 - Math.floor(n / 5) * 60;
+    const ib = new VBox(scene, { w: 50, h: 40, d: 30, x: dx, y: dy, z: 0, label: String(t.dictIdx), color: DIM, emissive: DIM });
+    const pb = new VBox(scene, { w: 62, h: 40, d: 30, x: dx + 70, y: dy, z: 0, label: dict[t.dictIdx], color: GREEN, emissive: GREEN });
     ib.mesh.scale.setScalar(0.01);
     pb.mesh.scale.setScalar(0.01);
     dictBoxes.push([ib, pb]);

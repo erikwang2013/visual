@@ -7,12 +7,12 @@ import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Huffman3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 260, 700], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, GOLD = 0xfcd34d, BLUE = 0x60a5fa, YELLOW = 0xfacc15;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：构造最优前缀编码', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：构造最优前缀编码', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('');
 
 const FREQ = [['a', 5], ['b', 9], ['c', 12], ['d', 13], ['e', 16], ['f', 45]];
@@ -30,8 +30,8 @@ while (items.length > 1) {
 const root = items[0];
 (function mark(n, d) { if (!n) return; n.depth = d; mark(n.l, d + 1); mark(n.r, d + 1); })(root, 0);
 let leafIdx = 0;
-(function inx(n) { if (!n) return; inx(n.l); if (n.ch) { n.x = -260 + leafIdx * 104; leafIdx++; } inx(n.r); })(root);
-(function parx(n) { if (!n) return; parx(n.l); parx(n.r); if (!n.ch) n.x = (n.l.x + n.r.x) / 2; n.y = 190 - n.depth * 78; })(root);
+(function inx(n) { if (!n) return; inx(n.l); if (n.ch) { n.x = 60 + leafIdx * 104; leafIdx++; } inx(n.r); })(root);
+(function parx(n) { if (!n) return; parx(n.l); parx(n.r); if (!n.ch) n.x = (n.l.x + n.r.x) / 2; n.y = 552 - n.depth * 78; })(root);
 const codeMap = {};
 const revealOrder = [];
 (function collect(n, code) { if (!n) return; n.code = code; if (n.ch) { codeMap[n.ch] = code; revealOrder.push(n); } collect(n.l, code + '0'); collect(n.r, code + '1'); })(root, '');
@@ -62,11 +62,11 @@ function makeEdge(n, parent) {
 }
 
 const codeTexts = revealOrder.map((n, k) => {
-  const t = new VText(scene, { text: n.ch + ' = ' + n.code, x: 345, y: 255 - k * 46, z: 0, color: GREEN, scale: 0.75 });
+  const t = new VText(scene, { text: n.ch + ' = ' + n.code, x: 700, y: 460 - k * 46, z: 0, color: GREEN, scale: 0.75 });
   t.sprite.visible = false;
   return t;
 });
-const sample = new VText(scene, { text: 'cafe → ' + 'cafe'.split('').map(ch => codeMap[ch]).join(' '), x: 345, y: -30, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const sample = new VText(scene, { text: 'cafe → ' + 'cafe'.split('').map(ch => codeMap[ch]).join(' '), x: 700, y: 210, z: 0, color: PALETTE.textGlow, scale: 0.85 });
 sample.sprite.visible = false;
 
 let fxGroup = new THREE.Group();

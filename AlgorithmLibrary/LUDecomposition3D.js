@@ -7,15 +7,15 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('LUDecomposition3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155, VIOLET = 0xa78bfa, AMBER = 0xfbbf24;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：LU 分解 A = L·U', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：LU 分解 A = L·U', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: -245, z: 0, color: PALETTE.textGlow, scale: 0.6 });
+const stageT = new VText(scene, { text: '', x: 0, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.6 });
 
 const A0 = [[2, 3, 1], [4, 7, 0], [-2, 4, 5]];
 const N = 3;
@@ -39,13 +39,13 @@ function luDecompose(A) {
 const { L, U, steps } = luDecompose(A0);
 
 const cell = (v, x, y, sz = 44) => new VBox(scene, { w: sz, h: sz, d: sz, x, y, z: 0, label: String(v), color: DIM, emissive: DIM });
-const AX = j => -52 + j * 52;
-const ARY = i => 200 - i * 52;
+const AX = j => 268 + j * 52;
+const ARY = i => 500 - i * 52;
 const uCells = A0.map((row, i) => row.map((v, j) => cell(v, AX(j), ARY(i))));
-const lCells = A0.map((row, i) => row.map((v, j) => cell(0, -110 + j * 52, -60 - i * 52, 40)));
-const uCells2 = A0.map((row, i) => row.map((v, j) => cell(0, 60 + j * 52, -60 - i * 52, 40)));
-new VText(scene, { text: 'LU 分解：A = L × U —— 高斯消元把 A 变成上三角 U，消元乘数记进下三角 L（对角线为 1）', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '上方 = 消元过程（青色 = 主元行，琥珀 = 乘数）；下方左 = L（下三角），右 = U（上三角，由消元得到）', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
+const lCells = A0.map((row, i) => row.map((v, j) => cell(0, 210 + j * 52, 240 - i * 52, 40)));
+const uCells2 = A0.map((row, i) => row.map((v, j) => cell(0, 380 + j * 52, 240 - i * 52, 40)));
+new VText(scene, { text: 'LU 分解：A = L × U —— 高斯消元把 A 变成上三角 U，消元乘数记进下三角 L（对角线为 1）', x: 0, y: 525, z: 0, color: PALETTE.textDim, scale: 0.68 });
+new VText(scene, { text: '上方 = 消元过程（青色 = 主元行，琥珀 = 乘数）；下方左 = L（下三角），右 = U（上三角，由消元得到）', x: 0, y: 95, z: 0, color: PALETTE.textDim, scale: 0.62 });
 
 function fmt(v) { return Math.abs(v % 1) < 1e-9 ? String(Math.round(v)) : v.toFixed(2); }
 function setCell(obj, v, color) { obj.setText(fmt(v)); if (color) obj.setColor(color, color); }

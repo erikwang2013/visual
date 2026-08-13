@@ -8,21 +8,21 @@ import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Snowflake3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 290, 700], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：雪花 ID', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：雪花 ID', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 // —— 64 位 ID 三段：41bit 时间戳 + 10bit 机器 + 12bit 序列 ——
 const segInfo = [
-  { w: 340, x: -185, color: GREEN, bit: '41 bit', name: '毫秒时间戳' },
-  { w: 110, x: 100, color: BLUE, bit: '10 bit', name: '机器 ID' },
-  { w: 120, x: 235, color: YELLOW, bit: '12 bit', name: '序列号' },
+  { w: 340, x: 135, color: GREEN, bit: '41 bit', name: '毫秒时间戳' },
+  { w: 110, x: 420, color: BLUE, bit: '10 bit', name: '机器 ID' },
+  { w: 120, x: 555, color: YELLOW, bit: '12 bit', name: '序列号' },
 ];
-const segs = segInfo.map(s => new VBox(scene, { w: s.w, h: 48, d: 40, x: s.x, y: 120, z: 0, label: s.bit + ' · ' + s.name, color: s.color, emissive: s.color }));
+const segs = segInfo.map(s => new VBox(scene, { w: s.w, h: 48, d: 40, x: s.x, y: 330, z: 0, label: s.bit + ' · ' + s.name, color: s.color, emissive: s.color }));
 
 // —— draw.io 风格实体图标（对应三段，位于段上方） ——
 const icons = new THREE.Group();
@@ -40,7 +40,7 @@ const clockHands = new THREE.Group();
 clockHands.add(handMin, handHour, pin);
 clockHands.position.z = 6;
 clock.add(ring, clockHands);
-clock.position.set(-185, 225, 0);
+clock.position.set(135, 510, 0);
 icons.add(clock);
 
 // 服务器（机器 ID）：机架 + 前面板 3 槽
@@ -54,7 +54,7 @@ for (let i = -1; i <= 1; i++) {
   slots.push(slot);
 }
 server.add(rack);
-server.position.set(100, 225, 0);
+server.position.set(420, 510, 0);
 icons.add(server);
 
 // 计数柱（序列号）：底座 + 3 根递增柱
@@ -70,7 +70,7 @@ for (let i = 0; i < 3; i++) {
   bars.push(bar);
 }
 counter.add(cbase);
-counter.position.set(235, 225, 0);
+counter.position.set(555, 510, 0);
 icons.add(counter);
 scene.add(icons);
 
@@ -85,16 +85,16 @@ setBars(0);
 
 // 读数（三段当前值）与结构说明
 const srcT = [
-  new VText(scene, { text: '', x: -185, y: 175, z: 0, color: GREEN, scale: 0.6 }),
-  new VText(scene, { text: '', x: 100, y: 175, z: 0, color: BLUE, scale: 0.6 }),
-  new VText(scene, { text: '', x: 235, y: 175, z: 0, color: YELLOW, scale: 0.6 }),
+  new VText(scene, { text: '', x: 135, y: 425, z: 0, color: GREEN, scale: 0.6 }),
+  new VText(scene, { text: '', x: 420, y: 425, z: 0, color: BLUE, scale: 0.6 }),
+  new VText(scene, { text: '', x: 555, y: 425, z: 0, color: YELLOW, scale: 0.6 }),
 ];
-new VText(scene, { text: '64 位 = 63 bit 数据 + 1 bit 符号位（恒 0），ID 全序单调递增', x: 0, y: 45, z: 0, color: PALETTE.textDim, scale: 0.62 });
+new VText(scene, { text: '64 位 = 63 bit 数据 + 1 bit 符号位（恒 0），ID 全序单调递增', x: 0, y: 245, z: 0, color: PALETTE.textDim, scale: 0.62 });
 
 // 生成的 ID 展示
-const idBox = new VBox(scene, { w: 520, h: 58, d: 44, x: 0, y: -60, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
-const idT = new VText(scene, { text: '', x: 0, y: -60, z: 26, color: PALETTE.textGlow, scale: 0.62 });
-const stepT = new VText(scene, { text: '', x: 0, y: -150, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const idBox = new VBox(scene, { w: 520, h: 58, d: 44, x: 0, y: 165, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
+const idT = new VText(scene, { text: '', x: 0, y: 165, z: 26, color: PALETTE.textGlow, scale: 0.62 });
+const stepT = new VText(scene, { text: '', x: 0, y: 75, z: 0, color: PALETTE.textGlow, scale: 0.75 });
 
 const idOf = (ms, mid, seq) => ((BigInt(ms) << 22n) | (BigInt(mid) << 12n) | BigInt(seq)).toString();
 const fmt = n => Number(n).toLocaleString('en-US');

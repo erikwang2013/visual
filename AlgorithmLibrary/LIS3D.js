@@ -7,14 +7,14 @@ import { VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('LIS3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 680], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：最长递增子序列 LIS', x: 0, y: 270, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：最长递增子序列 LIS', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -230, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const SA = [10, 22, 9, 33, 21, 50, 41, 60, 80];
 const N = SA.length;
@@ -23,7 +23,7 @@ const dpView = new Map();    // i -> VText
 const dp = Array(N).fill(0);
 const pred = Array(N).fill(-1);
 
-function xOf(i) { return (i - (N - 1) / 2) * 66; }
+function xOf(i) { return (i - (N - 1) / 2) * 66 + 320; }
 function clearView() {
   barView.forEach(b => scene.remove(b.mesh));
   dpView.forEach(t => scene.remove(t.sprite));
@@ -32,10 +32,10 @@ function clearView() {
 function buildBars() {
   clearView();
   for (let i = 0; i < N; i++) {
-    const h = SA[i] * 7;
-    const b = new VBox(scene, { w: 38, h, d: 16, x: xOf(i), y: -h / 2, z: 0, label: String(SA[i]), color: BLUE, emissive: BLUE });
+    const h = SA[i] * 5.5;
+    const b = new VBox(scene, { w: 38, h, d: 16, x: xOf(i), y: -h / 2 + 310, z: 0, label: String(SA[i]), color: BLUE, emissive: BLUE });
     barView.set(i, b);
-    const t = new VText(scene, { text: '', x: xOf(i), y: h / 2 + 34, z: 0, color: GOLD, scale: 0.62 });
+    const t = new VText(scene, { text: '', x: xOf(i), y: h / 2 + 344, z: 0, color: GOLD, scale: 0.62 });
     dpView.set(i, t);
   }
 }

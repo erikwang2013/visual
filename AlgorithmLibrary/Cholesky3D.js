@@ -7,16 +7,16 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Cholesky3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155, ROSE = 0xfb7185, VIOLET = 0xa78bfa, AMBER = 0xfbbf24;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Cholesky 分解 A = L·Lᵀ', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Cholesky 分解 A = L·Lᵀ', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 40, z: 0, color: PALETTE.textGlow, scale: 0.58 });
-const outT = new VText(scene, { text: '', x: 0, y: -245, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72, wrapChars: 7 });
+const eqT = new VText(scene, { text: '', x: 700, y: 405, z: 0, color: PALETTE.textGlow, scale: 0.45, wrapChars: 8 });
+const outT = new VText(scene, { text: '', x: 700, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.45, wrapChars: 8 });
 
 const A0 = [[4, 12, -16], [12, 37, -43], [-16, -43, 98]];
 const N = 3;
@@ -39,14 +39,14 @@ function cholesky(A) {
 }
 const { L, steps } = cholesky(A0);
 
-const AX = j => -150 + j * 70;
-const ARY = i => 200 - i * 50;
-const LX = j => 120 + j * 70;
+const AX = j => 40 + j * 70;
+const ARY = i => 420 - i * 50;
+const LX = j => 290 + j * 70;
 const cell = (v, x, y, sz = 40) => new VBox(scene, { w: sz, h: sz, d: sz, x, y, z: 0, label: String(v), color: DIM, emissive: DIM });
 const aCells = A0.map((row, i) => row.map((v, j) => cell(v, AX(j), ARY(i))));
 const lCells = A0.map((row, i) => row.map((v, j) => cell(0, LX(j), ARY(i))));
-new VText(scene, { text: 'Cholesky：对称正定阵 A = L × Lᵀ —— L 是下三角，对角元开平方根。L 与 Lᵀ 互为镜像，只算一半', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '左 = A（对称正定），右 = L（下三角）—— 逐格填：先扣已填项，对角开方（金），非对角除以对角（琥珀）', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
+new VText(scene, { text: 'Cholesky：对称正定阵 A = L × Lᵀ —— L 是下三角，对角元开平方根。L 与 Lᵀ 互为镜像，只算一半', x: 700, y: 520, z: 0, color: PALETTE.textDim, scale: 0.42, wrapChars: 8 });
+new VText(scene, { text: '左 = A（对称正定），右 = L（下三角）—— 逐格填：先扣已填项，对角开方（金），非对角除以对角（琥珀）', x: 700, y: 470, z: 0, color: PALETTE.textDim, scale: 0.42, wrapChars: 8 });
 const cellColor = (i, j) => (i === j ? GOLD : AMBER);
 
 function fmtV(v) { return Math.abs(Math.round(v) - v) < 1e-6 ? String(Math.round(v)) : String(Math.round(v * 1000) / 1000); }
@@ -85,9 +85,9 @@ function* cholGen() {
     refs.forEach(([ri, rj]) => lCells[ri][rj].setColor(cellColor(ri, rj), cellColor(ri, rj)));
     eqT.setText('');
   }
-  yield S(() => { outT.setText('L = [[2,0,0],[6,1,0],[-8,5,3]] —— 验证 L·Lᵀ = A：第 1 行 2×(2,6,-8) = (4,12,-16) ✓，第 2 行 6×(2,6,-8)+1×(0,1,5) = (12,37,-43) ✓'); status.textContent = 'Cholesky 分解：L = [[2,0,0],[6,1,0],[-8,5,3]]（L·Lᵀ = A 验证通过）'; });
+  yield S(() => { outT.setText('L = [[2,0,0],[6,1,0],[-8,5,3]] —— 验证 L·Lᵀ = A ✓：第 1 行 (4,12,-16) ✓，第 2 行 (12,37,-43) ✓'); status.textContent = 'Cholesky 分解：L = [[2,0,0],[6,1,0],[-8,5,3]]（L·Lᵀ = A 验证通过）'; });
   yield W(1000);
-  yield S(() => { hint.setText('用途：解 Ax=b 只需一次分解、两次三角回代 —— 比 LU 快一倍，且 L 直接给出「平方根协方差」矩阵'); outT.setText('复杂度 O(n³/6)：LU 的 O(n³/3) 的一半。应用：高斯过程、Kalman 滤波、AᵀA 正规方程、MCMC 采样'); });
+  yield S(() => { hint.setText('用途：解 Ax=b 只需一次分解、两次三角回代 —— 比 LU 快一倍，且 L 直接给出「平方根协方差」矩阵'); outT.setText('复杂度 O(n³/6) = LU 一半。应用：高斯过程、Kalman 滤波、AᵀA 正规方程、MCMC'); });
   yield W(1200);
   yield S(() => { hint.setText('Cholesky 完成：L·Lᵀ = A ✓'); outT.setText(''); });
   yield W(400);

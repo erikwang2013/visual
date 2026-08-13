@@ -8,12 +8,12 @@ import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Paxos3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Paxos 共识', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Paxos 共识', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 // draw.io 风格节点：机架 + 正面 2 槽
@@ -42,22 +42,22 @@ function makeNode(x, y) {
   };
 }
 
-const NX = [-240, -120, 0, 120, 240];
-const nodes = NX.map((x, i) => makeNode(x, 100));
-const nodeLabel = NX.map((x, i) => new VText(scene, { text: 'P' + (i + 1), x, y: 100, z: 22, color: PALETTE.textGlow, scale: 0.58 }));
-new VText(scene, { text: '5 个节点，多数 = 3 票（quorum）', x: 0, y: 200, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const NX = [80, 200, 320, 440, 560];
+const nodes = NX.map((x, i) => makeNode(x, 300));
+const nodeLabel = NX.map((x, i) => new VText(scene, { text: 'P' + (i + 1), x, y: 300, z: 22, color: PALETTE.textGlow, scale: 0.58 }));
+new VText(scene, { text: '5 个节点，多数 = 3 票（quorum）', x: 0, y: 400, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
 // 消息连线：从提议者到各节点
-const msgLine = new VBox(scene, { w: 200, h: 3, d: 3, x: 0, y: 0, z: 0, label: '', color: YELLOW, emissive: YELLOW });
+const msgLine = new VBox(scene, { w: 200, h: 3, d: 3, x: 0, y: 230, z: 0, label: '', color: YELLOW, emissive: YELLOW });
 msgLine.mesh.visible = false;
 
-const roundT = new VText(scene, { text: '', x: 0, y: 20, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const stepT = new VText(scene, { text: '', x: 0, y: -60, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const eqT = new VText(scene, { text: '', x: 0, y: -110, z: 0, color: PALETTE.textDim, scale: 0.68 });
+const roundT = new VText(scene, { text: '', x: 0, y: 200, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const stepT = new VText(scene, { text: '', x: 0, y: 160, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const eqT = new VText(scene, { text: '', x: 0, y: 110, z: 0, color: PALETTE.textDim, scale: 0.68 });
 
 function lineTo(srcIdx, dstIdx) {
   const x1 = NX[srcIdx], x2 = NX[dstIdx];
-  msgLine.mesh.position.set((x1 + x2) / 2, 30, 0);
+  msgLine.mesh.position.set((x1 + x2) / 2, 230, 0);
   msgLine.mesh.rotation.z = 0;
   msgLine.mesh.scale.set(Math.abs(x2 - x1) / 200, 1, 1);
   msgLine.mesh.visible = true;

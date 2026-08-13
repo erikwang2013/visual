@@ -6,53 +6,53 @@ import { VBox, VText, VBar, easeInOut } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('GBDT3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：梯度提升树', x: 0, y: 260, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：梯度提升树', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const Y = [5.1, 4.9, 8.2, 7.8];
-const XS = [-150, -50, 50, 150];
+const XS = [170, 270, 370, 470];
 const yBars = [], yVals = [];
 Y.forEach((v, i) => {
-  yBars.push(new VBar(scene, { w: 52, d: 52, x: XS[i], z: 0, height: v * 8, color: GREEN, emissive: GREEN }));
-  yVals.push(new VText(scene, { text: String(v), x: XS[i], y: v * 8 + 14, z: 0, color: PALETTE.textGlow, scale: 0.55 }));
+  yBars.push(new VBar(scene, { w: 52, d: 52, x: XS[i], y: 300, z: 0, height: v * 8, color: GREEN, emissive: GREEN }));
+  yVals.push(new VText(scene, { text: String(v), x: XS[i], y: v * 8 + 314, z: 0, color: PALETTE.textGlow, scale: 0.55 }));
 });
-new VBox(scene, { w: 640, h: 2, d: 2, x: 0, y: 0, z: 0, label: '', color: DIM, emissive: 0 });
-new VText(scene, { text: '样本 y₁ ~ y₄', x: -230, y: -14, z: 0, color: PALETTE.textDim, scale: 0.55 });
+new VBox(scene, { w: 640, h: 2, d: 2, x: 320, y: 300, z: 0, label: '', color: DIM, emissive: 0 });
+new VText(scene, { text: '样本 y₁ ~ y₄', x: 90, y: 286, z: 0, color: PALETTE.textDim, scale: 0.55 });
 
-const f0 = new VBox(scene, { w: 620, h: 3, d: 3, x: 0, y: 52, z: 0, label: '', color: BLUE, emissive: BLUE });
+const f0 = new VBox(scene, { w: 620, h: 3, d: 3, x: 320, y: 352, z: 0, label: '', color: BLUE, emissive: BLUE });
 f0.mesh.visible = false;
-const f0T = new VText(scene, { text: '', x: 0, y: 72, z: 0, color: BLUE, scale: 0.6 });
+const f0T = new VText(scene, { text: '', x: 0, y: 372, z: 0, color: BLUE, scale: 0.6 });
 
 // 残差条：挂在 f₀ 线上（正上负下），x 向右偏移
 const R1 = [-1.4, -1.6, 1.7, 1.3];
 const rBars = R1.map((r, i) => {
   const b = new VBar(scene, { w: 30, d: 30, x: XS[i] + 34, z: 0, height: Math.abs(r) * 8, color: ROSE, emissive: ROSE });
-  b.mesh.position.y = 52 + r * 4;
+  b.mesh.position.y = 352 + r * 4;
   b.mesh.visible = false;
   return b;
 });
-const rT = new VText(scene, { text: '', x: 0, y: -18, z: 0, color: ROSE, scale: 0.6 });
+const rT = new VText(scene, { text: '', x: 0, y: 282, z: 0, color: ROSE, scale: 0.6 });
 
-const leafL = new VBox(scene, { w: 180, h: 36, d: 36, x: -105, y: -55, z: 0, label: '', color: YELLOW, emissive: YELLOW });
-const leafR = new VBox(scene, { w: 180, h: 36, d: 36, x: 105, y: -55, z: 0, label: '', color: YELLOW, emissive: YELLOW });
+const leafL = new VBox(scene, { w: 180, h: 36, d: 36, x: 215, y: 245, z: 0, label: '', color: YELLOW, emissive: YELLOW });
+const leafR = new VBox(scene, { w: 180, h: 36, d: 36, x: 425, y: 245, z: 0, label: '', color: YELLOW, emissive: YELLOW });
 [leafL, leafR].forEach(b => (b.mesh.visible = false));
-const leafLt = new VText(scene, { text: '', x: -105, y: -55, z: 22, color: PALETTE.textGlow, scale: 0.55 });
-const leafRt = new VText(scene, { text: '', x: 105, y: -55, z: 22, color: PALETTE.textGlow, scale: 0.55 });
+const leafLt = new VText(scene, { text: '', x: 215, y: 245, z: 22, color: PALETTE.textGlow, scale: 0.55 });
+const leafRt = new VText(scene, { text: '', x: 425, y: 245, z: 22, color: PALETTE.textGlow, scale: 0.55 });
 
 const F1 = [6.35, 6.35, 6.65, 6.65];
 const f1Bars = F1.map((v, i) => {
-  const b = new VBar(scene, { w: 34, d: 34, x: XS[i] - 34, z: 0, height: v * 8, color: YELLOW, emissive: YELLOW });
+  const b = new VBar(scene, { w: 34, d: 34, x: XS[i] - 34, y: 300, z: 0, height: v * 8, color: YELLOW, emissive: YELLOW });
   b.mesh.visible = false;
   return b;
 });
 
-const stepT = new VText(scene, { text: '', x: 0, y: -120, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const eqT = new VText(scene, { text: '', x: 0, y: -160, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const stepT = new VText(scene, { text: '', x: 0, y: 180, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const eqT = new VText(scene, { text: '', x: 0, y: 140, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
 function resetAll() {
   Y.forEach((v, i) => { yBars[i].setHeight(v * 8); yVals[i].setText(String(v)); });

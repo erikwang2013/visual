@@ -7,16 +7,16 @@ import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('GeometryBase3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 60, 720], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：几何工具箱 —— 叉积 / 鞋带 / 点线距离', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：几何工具箱 —— 叉积 / 鞋带 / 点线距离', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -8, z: 0, color: PALETTE.textGlow, scale: 0.52 });
-const outT = new VText(scene, { text: '', x: 0, y: -230, z: 0, color: PALETTE.textGlow, scale: 0.6 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 292, z: 0, color: PALETTE.textGlow, scale: 0.52 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.6 });
 
 const temp = [];
 function addTemp(o) { temp.push(o); return o; }
@@ -24,12 +24,12 @@ function clearTemp() { temp.forEach(o => { try { o.remove(); } catch (e) {} }); 
 const pt = (x, y, color, label, r = 12) => addTemp(new VNode(scene, { x, y, z: 0, radius: r, label, color, emissive: color }));
 const seg = (a, b, color, opacity = 0.6, radius = 3) => addTemp(tubeBetween(scene, { x: a[0], y: a[1], z: 0 }, { x: b[0], y: b[1], z: 0 }, { color, opacity, radius }));
 
-// ① 三点转向
-const PA = [-170, 70], PB = [10, -30], PC = [150, 80];
+// ① 三点转向（屏幕坐标）
+const PA = [150, 370], PB = [330, 270], PC = [470, 380];
 // ② 四边形鞋带
-const Q = [[-160, -130], [60, -175], [160, -60], [-40, 40]];
+const Q = [[160, 170], [380, 125], [480, 240], [280, 340]];
 // ③ 点线距离：3x − 4y + 12 = 0，P = (16, 10) → d = 4
-const La = [-60, -42], Lb = [60, 48], P0 = [16, 10];
+const La = [260, 258], Lb = [380, 348], P0 = [336, 310];
 
 function* showCross() {
   yield S(() => { stageT.setText('① 三点转向（叉积）：A(−170,70) B(10,−30) C(150,80)'); eqT.setText('AB = (180, −100)，AC = (320, 10)'); });

@@ -6,19 +6,19 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('PCA3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：PCA 降维', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：PCA 降维', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const PTS = [[1, 2], [2, 1], [3, 4], [4, 3], [5, 6]]; // (x, y)
-const WX = v => (v - 3) * 55, WY = v => -(v - 3.2) * 55;
+const WX = v => 320 + (v - 3) * 55, WY = v => 380 - (v - 3.2) * 55;
 const pts = PTS.map(([x, y], i) => new VBox(scene, { w: 32, h: 32, d: 32, x: WX(x), y: WY(y), z: 0, label: 'p' + i, color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-const mean = new VBox(scene, { w: 40, h: 40, d: 40, x: 0, y: 0, z: 0, label: '均值', color: YELLOW, emissive: YELLOW });
-new VText(scene, { text: '5 个样本点，均值 (3, 3.2)（黄块）', x: 0, y: 200, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const mean = new VBox(scene, { w: 40, h: 40, d: 40, x: 320, y: 380, z: 0, label: '均值', color: YELLOW, emissive: YELLOW });
+new VText(scene, { text: '5 个样本点，均值 (3, 3.2)（黄块）', x: 700, y: 310, z: 0, color: PALETTE.textDim, scale: 0.45, wrapChars: 8 });
 
 // 主成分 1：特征向量 (0.619, 0.785) × 长度 95
 const E1 = [0.619, -0.785];
@@ -26,18 +26,18 @@ const AXIS_LEN = 95;
 const axis = new VBox(scene, { w: 200, h: 4, d: 4, x: 0, y: 0, z: 0, label: '', color: BLUE, emissive: BLUE });
 axis.mesh.rotation.z = Math.atan2(E1[1], E1[0]);
 axis.mesh.scale.set(AXIS_LEN / 200, 1, 1);
-axis.mesh.position.set((E1[0] * AXIS_LEN) / 2, (E1[1] * AXIS_LEN) / 2, 0);
+axis.mesh.position.set((E1[0] * AXIS_LEN) / 2 + 320, (E1[1] * AXIS_LEN) / 2 + 380, 0);
 axis.mesh.visible = false;
-const axisT = new VText(scene, { text: '', x: E1[0] * (AXIS_LEN + 28), y: E1[1] * (AXIS_LEN + 28), z: 0, color: BLUE, scale: 0.55 });
+const axisT = new VText(scene, { text: '', x: 320 + E1[0] * (AXIS_LEN + 28), y: 380 + E1[1] * (AXIS_LEN + 28), z: 0, color: BLUE, scale: 0.55 });
 
-const covT = new VText(scene, { text: '', x: 0, y: 160, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const covT = new VText(scene, { text: '', x: 700, y: 250, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 
 // 投影：p0、p4 到主成分轴的连线 + 投影点
 const PROJ = { 0: -2.18, 4: 3.436 };
 const projPts = [], projLines = [];
 [0, 4].forEach(i => {
   const t = PROJ[i];
-  const px = t * 0.619 * 55, py = -t * 0.785 * 55;
+  const px = 320 + t * 0.619 * 55, py = 380 - t * 0.785 * 55;
   const src = { x: WX(PTS[i][0]), y: WY(PTS[i][1]) };
   const line = new VBox(scene, { w: 200, h: 2, d: 2, x: 0, y: 0, z: 0, label: '', color: ROSE, emissive: ROSE });
   const cx = (src.x + px) / 2, cy = (src.y + py) / 2;
@@ -51,7 +51,7 @@ const projPts = [], projLines = [];
   pp.mesh.visible = false;
   projPts.push(pp);
 });
-const stepT = new VText(scene, { text: '', x: 0, y: -205, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const stepT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: PALETTE.textGlow, scale: 0.72, wrapChars: 7 });
 
 function resetAll() {
   pts.forEach(b => b.setColor(PALETTE.node, PALETTE.nodeEmissive));

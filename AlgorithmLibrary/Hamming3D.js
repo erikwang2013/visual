@@ -7,24 +7,24 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Hamming3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：汉明(7,4) —— 4 数据位 + 3 校验位，纠 1 位错', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：汉明(7,4) —— 4 数据位 + 3 校验位，纠 1 位错', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textGlow, scale: 0.48 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 729, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 617, z: 0, color: PALETTE.textGlow, scale: 0.48 });
+const outT = new VText(scene, { text: '', x: 0, y: 232, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 // 7 位码字：位置 1,2,4 = 校验位（青），3,5,6,7 = 数据位（蓝）
-const BX = [-210, -140, -70, 0, 70, 140, 210];
+const BX = [110, 180, 250, 320, 390, 460, 530];
 const PARITY_IDX = [0, 1, 3];
-const chips = BX.map((x, i) => new VBox(scene, { w: 54, h: 54, d: 54, x, y: 80, z: 0, label: '位' + (i + 1), color: PARITY_IDX.includes(i) ? CYAN : BLUE, emissive: PARITY_IDX.includes(i) ? CYAN : BLUE }));
-new VText(scene, { text: '位置 1,2,4 = 校验位 p1,p2,p4（青）；3,5,6,7 = 数据位 d1,d2,d3,d4（蓝）', x: 0, y: 22, z: 0, color: PALETTE.textDim, scale: 0.4 });
-const synChips = [-140, 0, 140].map((x, k) => new VBox(scene, { w: 54, h: 54, d: 54, x, y: -60, z: 0, label: 's' + [1, 2, 4][k] + '=?', color: DIM, emissive: DIM }));
-new VText(scene, { text: '校正子 s1 s2 s4：接收端重算奇偶校验 —— 全 0 无错；非 0 时 s1+2s2+4s4 = 出错位号', x: 0, y: -125, z: 0, color: PALETTE.textDim, scale: 0.4 });
+const chips = BX.map((x, i) => new VBox(scene, { w: 54, h: 54, d: 54, x, y: 547, z: 0, label: '位' + (i + 1), color: PARITY_IDX.includes(i) ? CYAN : BLUE, emissive: PARITY_IDX.includes(i) ? CYAN : BLUE }));
+new VText(scene, { text: '位置 1,2,4 = 校验位 p1,p2,p4（青）；3,5,6,7 = 数据位 d1,d2,d3,d4（蓝）', x: 0, y: 489, z: 0, color: PALETTE.textDim, scale: 0.4 });
+const synChips = [180, 320, 460].map((x, k) => new VBox(scene, { w: 54, h: 54, d: 54, x, y: 407, z: 0, label: 's' + [1, 2, 4][k] + '=?', color: DIM, emissive: DIM }));
+new VText(scene, { text: '校正子 s1 s2 s4：接收端重算奇偶校验 —— 全 0 无错；非 0 时 s1+2s2+4s4 = 出错位号', x: 0, y: 342, z: 0, color: PALETTE.textDim, scale: 0.4 });
 
 const bits = [null, null, null, null, null, null, null];
 

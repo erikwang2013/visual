@@ -7,26 +7,26 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SM43D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 680], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：SM4 —— 国密 128 位分组密码，32 轮迭代', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：SM4 —— 国密 128 位分组密码，32 轮迭代', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 130, z: 0, color: PALETTE.textGlow, scale: 0.42 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72, wrapChars: 7 });
+const eqT = new VText(scene, { text: '', x: 700, y: 380, z: 0, color: PALETTE.textGlow, scale: 0.42, wrapChars: 8 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.62, wrapChars: 8 });
 
-const mkChip = new VBox(scene, { w: 520, h: 54, d: 54, x: 0, y: 200, z: 0, label: '密钥 MK = 0123456789abcdeffedcba9876543210', color: PUR, emissive: PUR });
-const regChips = [-270, -90, 90, 270].map((x, i) => new VBox(scene, { w: 150, h: 56, d: 56, x, y: 115, z: 0, label: ['X0','X1','X2','X3'][i], color: BLUE, emissive: BLUE }));
-new VText(scene, { text: 'X0~X3 = 4 个 32 位字（128 位明文分组）—— 每轮在窗口右端长出新字 X_{i+4}，左端挤掉旧字', x: 0, y: 70, z: 0, color: PALETTE.textDim, scale: 0.38 });
-const rkChip = new VBox(scene, { w: 280, h: 52, d: 52, x: -290, y: -5, z: 0, label: 'rk_i = 轮密钥', color: GOLD, emissive: GOLD });
-const tBox = new VBox(scene, { w: 240, h: 72, d: 72, x: 60, y: -5, z: 0, label: 'T = τ ∘ L', color: CYAN, emissive: CYAN });
-const sBox = new VBox(scene, { w: 150, h: 52, d: 52, x: 250, y: -30, z: 0, label: 'τ：S 盒×4', color: DIM, emissive: DIM });
-const lBox = new VBox(scene, { w: 150, h: 52, d: 52, x: 380, y: -30, z: 0, label: 'L：循环移位异或', color: DIM, emissive: DIM });
-new VText(scene, { text: 'T′（密钥扩展用）= τ ∘ L′，L′ = B ⊕ (B<<<13) ⊕ (B<<<23)', x: 0, y: -60, z: 0, color: PALETTE.textDim, scale: 0.36 });
-const ckT = new VText(scene, { text: '密钥扩展：K = MK ⊕ FK（系统参数）；rk_i = K_{i+4} = K_i ⊕ T′(K_{i+1}⊕K_{i+2}⊕K_{i+3}⊕CK_i)，CK_i = 固定常数', x: 0, y: -95, z: 0, color: PALETTE.textDim, scale: 0.36 });
+const mkChip = new VBox(scene, { w: 440, h: 54, d: 54, x: 340, y: 430, z: 0, label: '密钥 MK = 0123456789abcdeffedcba9876543210', color: PUR, emissive: PUR });
+const regChips = [135, 280, 425, 570].map((x, i) => new VBox(scene, { w: 130, h: 56, d: 56, x, y: 350, z: 0, label: ['X0','X1','X2','X3'][i], color: BLUE, emissive: BLUE }));
+new VText(scene, { text: 'X0~X3 = 4 个 32 位字（128 位明文分组）—— 每轮在窗口右端长出新字 X_{i+4}，左端挤掉旧字', x: 700, y: 500, z: 0, color: PALETTE.textDim, scale: 0.45, wrapChars: 8 });
+const rkChip = new VBox(scene, { w: 165, h: 52, d: 52, x: 170, y: 255, z: 0, label: 'rk_i = 轮密钥', color: GOLD, emissive: GOLD });
+const tBox = new VBox(scene, { w: 140, h: 72, d: 72, x: 375, y: 255, z: 0, label: 'T = τ ∘ L', color: CYAN, emissive: CYAN });
+const sBox = new VBox(scene, { w: 100, h: 52, d: 52, x: 470, y: 230, z: 0, label: 'τ：S 盒×4', color: DIM, emissive: DIM });
+const lBox = new VBox(scene, { w: 100, h: 52, d: 52, x: 565, y: 230, z: 0, label: 'L：循环移位异或', color: DIM, emissive: DIM });
+new VText(scene, { text: 'T′（密钥扩展用）= τ ∘ L′，L′ = B ⊕ (B<<<13) ⊕ (B<<<23)', x: 700, y: 345, z: 0, color: PALETTE.textDim, scale: 0.42, wrapChars: 8 });
+const ckT = new VText(scene, { text: '密钥扩展：K = MK ⊕ FK（系统参数）；rk_i = K_{i+4} = K_i ⊕ T′(K_{i+1}⊕K_{i+2}⊕K_{i+3}⊕CK_i)，CK_i = 固定常数', x: 700, y: 310, z: 0, color: PALETTE.textDim, scale: 0.42, wrapChars: 8 });
 
 function* sm4Gen() {
   yield S(() => { hint.setText('SM4：国密分组密码（GB/T 32907）—— 128 位明文/密钥，32 轮，与 DES/AES 同属迭代分组密码'); stageT.setText('128 位明文 = 4 个 32 位字 X0..X3；128 位密钥 MK 经扩展得 32 个轮密钥 rk_0..rk_31'); });

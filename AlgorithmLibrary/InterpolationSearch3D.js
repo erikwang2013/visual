@@ -6,30 +6,30 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('InterpolationSearch3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 260, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, BLUE = 0x38bdf8, RED = 0xf87171;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：插值搜索 —— 按值比例估算位置', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：插值搜索 —— 按值比例估算位置', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const DATA = [5, 12, 18, 26, 33, 41, 49, 57, 64, 72, 80, 88];
 const KEY = 57, N = DATA.length, SPX = 42;
 const bars = [];
 for (let i = 0; i < N; i++) {
-  bars.push(new VBox(scene, { w: 30, h: 36, d: 36, x: (i - 5.5) * SPX, y: 0, z: 0, label: String(DATA[i]), color: DIM, emissive: DIM }));
+  bars.push(new VBox(scene, { w: 30, h: 36, d: 36, x: (i - 5.5) * SPX + 320, y: 300, z: 0, label: String(DATA[i]), color: DIM, emissive: DIM }));
 }
-new VText(scene, { text: '数组近似等差（均匀分布）→ 按值比例估算', x: 0, y: 305, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const lowM = new VBox(scene, { w: 10, h: 10, d: 10, x: -2000, y: -78, z: 0, color: BLUE, emissive: BLUE });
-const highM = new VBox(scene, { w: 10, h: 10, d: 10, x: -2000, y: -78, z: 0, color: BLUE, emissive: BLUE });
-const lowT = new VText(scene, { text: '', x: 0, y: -60, z: 0, color: BLUE, scale: 0.6 });
-const highT = new VText(scene, { text: '', x: 0, y: -78, z: 0, color: BLUE, scale: 0.6 });
-const formulaT = new VText(scene, { text: '', x: 0, y: -110, z: 0, color: PALETTE.textGlow, scale: 0.7 });
-const foundT = new VText(scene, { text: '', x: 0, y: 205, z: 0, color: GREEN, scale: 0.8 });
+new VText(scene, { text: '数组近似等差（均匀分布）→ 按值比例估算', x: 320, y: 605, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const lowM = new VBox(scene, { w: 10, h: 10, d: 10, x: -2000, y: 222, z: 0, color: BLUE, emissive: BLUE });
+const highM = new VBox(scene, { w: 10, h: 10, d: 10, x: -2000, y: 222, z: 0, color: BLUE, emissive: BLUE });
+const lowT = new VText(scene, { text: '', x: 0, y: 240, z: 0, color: BLUE, scale: 0.6 });
+const highT = new VText(scene, { text: '', x: 0, y: 222, z: 0, color: BLUE, scale: 0.6 });
+const formulaT = new VText(scene, { text: '', x: 0, y: 190, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const foundT = new VText(scene, { text: '', x: 0, y: 505, z: 0, color: GREEN, scale: 0.8 });
 
-const setH = i => { bars[i].mesh.scale.y = Math.max(DATA[i] / 100, 0.04); bars[i].mesh.position.y = 18 * DATA[i] / 100 - 18; };
-const moveMark = (m, i) => { m.mesh.position.x = (i - 5.5) * SPX; };
+const setH = i => { bars[i].mesh.scale.y = Math.max(DATA[i] / 100, 0.04); bars[i].mesh.position.y = 18 * DATA[i] / 100 + 282; };
+const moveMark = (m, i) => { m.mesh.position.x = (i - 5.5) * SPX + 320; };
 
 function* interpGen() {
   let low = 0, high = N - 1;

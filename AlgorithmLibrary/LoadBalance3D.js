@@ -8,19 +8,19 @@ import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('LoadBalance3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：加权轮询', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：加权轮询', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 // —— 左侧负载均衡器（小机盒 + 双箭头标识） ——
-const lb = new VBox(scene, { w: 96, h: 56, d: 56, x: -330, y: 60, z: 0, label: '负载均衡器', color: BLUE, emissive: BLUE });
+const lb = new VBox(scene, { w: 96, h: 56, d: 56, x: -10, y: 360, z: 0, label: '负载均衡器', color: BLUE, emissive: BLUE });
 
 // —— 3 台服务器机架：机箱 + 正面 3 槽（draw.io 服务器图标） ——
-const SX = [-210, 0, 210];
+const SX = [110, 320, 530];
 function makeRack(i) {
   const g = new THREE.Group();
   const rack = new THREE.Mesh(new THREE.BoxGeometry(150, 84, 40),
@@ -34,19 +34,19 @@ function makeRack(i) {
     slots.push(slot);
   }
   g.add(rack);
-  g.position.set(SX[i], -80, 0);
+  g.position.set(SX[i], 220, 0);
   scene.add(g);
   return slots;
 }
 const servers = [0, 1, 2].map((_, i) => ({ w: [2, 1, 1][i], count: 0, slots: makeRack(i) }));
-[0, 1, 2].forEach(i => new VText(scene, { text: 'S' + (i + 1) + ' · 权重 ' + servers[i].w, x: SX[i], y: -18, z: 0, color: PALETTE.textGlow, scale: 0.66 }));
+[0, 1, 2].forEach(i => new VText(scene, { text: 'S' + (i + 1) + ' · 权重 ' + servers[i].w, x: SX[i], y: 282, z: 0, color: PALETTE.textGlow, scale: 0.66 }));
 
 // 请求盒子（从 LB 出发落到目标机架槽位）；计数在机架下方，绝不进盒子内部
-const reqBox = new VBox(scene, { w: 56, h: 40, d: 40, x: -330, y: 150, z: 0, label: 'R1', color: YELLOW, emissive: YELLOW });
+const reqBox = new VBox(scene, { w: 56, h: 40, d: 40, x: -10, y: 450, z: 0, label: 'R1', color: YELLOW, emissive: YELLOW });
 reqBox.mesh.visible = false;
-const countT = [0, 1, 2].map(i => new VText(scene, { text: '', x: SX[i], y: -150, z: 0, color: PALETTE.textGlow, scale: 0.68 }));
-const stepT = new VText(scene, { text: '', x: 0, y: 118, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-new VText(scene, { text: '3 台服务器：S1 权重 2 · S2 权重 1 · S3 权重 1 — 按权重比例分派', x: 0, y: -212, z: 0, color: PALETTE.textDim, scale: 0.66 });
+const countT = [0, 1, 2].map(i => new VText(scene, { text: '', x: SX[i], y: 150, z: 0, color: PALETTE.textGlow, scale: 0.68 }));
+const stepT = new VText(scene, { text: '', x: 0, y: 418, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+new VText(scene, { text: '3 台服务器：S1 权重 2 · S2 权重 1 · S3 权重 1 — 按权重比例分派', x: 0, y: 88, z: 0, color: PALETTE.textDim, scale: 0.66 });
 
 // 加权轮询序列：S1 两连发（权重 2）→ S2 → S3 → 循环
 const SEQ = [0, 0, 1, 2, 0, 0, 1, 2, 0, 0];
@@ -70,14 +70,14 @@ function* lbGen() {
     const si = SEQ[i], s = servers[si];
     yield S(() => {
       reqBox.setText('R' + (i + 1));
-      reqBox.mesh.position.set(-330, 150, 0);
+      reqBox.mesh.position.set(-10, 450, 0);
       reqBox.mesh.visible = true;
       reqBox.setColor(YELLOW, YELLOW);
       stepT.setText('R' + (i + 1) + ' 到达 LB → 轮转到 S' + (si + 1) + '（权重 ' + s.w + '）');
     });
     yield W(240);
     yield A(280, (p) => {
-      reqBox.mesh.position.set(-330 + (SX[si] + 330) * p, 150 + (-60 - 150) * p, 30 * p);
+      reqBox.mesh.position.set(-10 + (SX[si] + 10) * p, 450 + (240 - 450) * p, 30 * p);
     });
     yield S(() => {
       s.slots.forEach(x => { x.material.emissiveIntensity = 0.15; });

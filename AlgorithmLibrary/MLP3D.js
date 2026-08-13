@@ -6,20 +6,20 @@ import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('MLP3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：多层感知机', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：多层感知机', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 // 网络骨架：输入层 2 节点 → 隐藏层 2 节点 → 输出 1 节点
-const i1 = new VBox(scene, { w: 56, h: 56, d: 56, x: -200, y: 90, z: 0, label: 'x₁ = 1', color: BLUE, emissive: BLUE });
-const i2 = new VBox(scene, { w: 56, h: 56, d: 56, x: -200, y: -90, z: 0, label: 'x₂ = 1', color: BLUE, emissive: BLUE });
-const h1 = new VBox(scene, { w: 56, h: 56, d: 56, x: 0, y: 90, z: 0, label: 'h₁', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
-const h2 = new VBox(scene, { w: 56, h: 56, d: 56, x: 0, y: -90, z: 0, label: 'h₂', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
-const out = new VBox(scene, { w: 56, h: 56, d: 56, x: 200, y: 0, z: 0, label: 'ŷ', color: GREEN, emissive: GREEN });
+const i1 = new VBox(scene, { w: 56, h: 56, d: 56, x: 120, y: 390, z: 0, label: 'x₁ = 1', color: BLUE, emissive: BLUE });
+const i2 = new VBox(scene, { w: 56, h: 56, d: 56, x: 120, y: 210, z: 0, label: 'x₂ = 1', color: BLUE, emissive: BLUE });
+const h1 = new VBox(scene, { w: 56, h: 56, d: 56, x: 320, y: 390, z: 0, label: 'h₁', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
+const h2 = new VBox(scene, { w: 56, h: 56, d: 56, x: 320, y: 210, z: 0, label: 'h₂', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
+const out = new VBox(scene, { w: 56, h: 56, d: 56, x: 520, y: 300, z: 0, label: 'ŷ', color: GREEN, emissive: GREEN });
 
 const link = (x1, y1, x2, y2) => {
   const b = new VBox(scene, { w: 200, h: 3, d: 3, x: 0, y: 0, z: 0, label: '', color: DIM, emissive: 0 });
@@ -31,16 +31,16 @@ const link = (x1, y1, x2, y2) => {
   b.mesh.visible = false;
   return b;
 };
-const L1 = [link(-200, 90, 0, 90), link(-200, 90, 0, -90), link(-200, -90, 0, 90), link(-200, -90, 0, -90)];
-const L2 = [link(0, 90, 200, 0), link(0, -90, 200, 0)];
-new VText(scene, { text: '输入层', x: -260, y: 155, z: 0, color: PALETTE.textDim, scale: 0.55 });
-new VText(scene, { text: '隐藏层（σ 激活）', x: 0, y: 145, z: 0, color: PALETTE.textDim, scale: 0.55 });
-new VText(scene, { text: '输出层', x: 260, y: 155, z: 0, color: PALETTE.textDim, scale: 0.55 });
-new VText(scene, { text: 'XOR：输入相同 → 0，不同 → 1（线性不可分）', x: 0, y: 185, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const L1 = [link(120, 390, 320, 390), link(120, 390, 320, 210), link(120, 210, 320, 390), link(120, 210, 320, 210)];
+const L2 = [link(320, 390, 520, 300), link(320, 210, 520, 300)];
+new VText(scene, { text: '输入层', x: 60, y: 455, z: 0, color: PALETTE.textDim, scale: 0.55 });
+new VText(scene, { text: '隐藏层（σ 激活）', x: 320, y: 445, z: 0, color: PALETTE.textDim, scale: 0.55 });
+new VText(scene, { text: '输出层', x: 580, y: 455, z: 0, color: PALETTE.textDim, scale: 0.55 });
+new VText(scene, { text: 'XOR：输入相同 → 0，不同 → 1（线性不可分）', x: 0, y: 485, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
-const eq1T = new VText(scene, { text: '', x: 0, y: 55, z: 0, color: PALETTE.textDim, scale: 0.68 });
-const eq2T = new VText(scene, { text: '', x: 0, y: -55, z: 0, color: PALETTE.textDim, scale: 0.68 });
-const stepT = new VText(scene, { text: '', x: 0, y: -165, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const eq1T = new VText(scene, { text: '', x: 0, y: 355, z: 0, color: PALETTE.textDim, scale: 0.68 });
+const eq2T = new VText(scene, { text: '', x: 0, y: 245, z: 0, color: PALETTE.textDim, scale: 0.68 });
+const stepT = new VText(scene, { text: '', x: 0, y: 135, z: 0, color: PALETTE.textGlow, scale: 0.75 });
 
 function resetAll() {
   h1.setText('h₁'); h2.setText('h₂'); out.setText('ŷ');

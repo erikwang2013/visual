@@ -1,4 +1,4 @@
-// AlgorithmLibrary/EditDistance3D.js — 编辑距离：kitten→sitting 的 (m+1)×(n+1) DP 斜板表，三种来源（上=删/左=插/对角=替）黄色闪烁取最小，回溯路径绿色（function* 生成器驱动）
+// AlgorithmLibrary/EditDistance3D.js — 编辑距离：kitten→sitting 的 (m+1)×(n+1) DP 表逐格填，三种来源（上=删/左=插/对角=替）黄色闪烁取最小，回溯路径绿色（function* 生成器驱动）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
@@ -7,43 +7,32 @@ import { VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('EditDistance3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 260, 800], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, YELLOW = 0xfde047;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：编辑距离（kitten → sitting）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：编辑距离（kitten → sitting）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -190, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const SA = 'kitten', B = 'sitting';
 const N = SA.length, M = B.length;
-const CW = 46, CH = 40, TY = 70, halfC = N / 2, halfR = M / 2;
 const cellView = new Map();   // 'i-j' -> VBox
-const aBoxes = [], bBoxes = [];
 const dp = Array.from({ length: M + 1 }, () => Array(N + 1).fill(0));
-
-function px(j) { return (j - halfC) * CW; }
-function pz(i) { return (halfR - i) * CH; }
 function clearView() {
   cellView.forEach(c => scene.remove(c.box.mesh));
-  aBoxes.forEach(b => scene.remove(b.mesh));
-  bBoxes.forEach(b => scene.remove(b.mesh));
-  cellView.clear(); aBoxes.length = 0; bBoxes.length = 0;
+  cellView.clear();
 }
 function buildTable() {
   clearView();
+  for (let j = 1; j <= N; j++) new VText(scene, { text: SA[j - 1], x: 152 + j * 52, y: 613, z: 0, color: CYAN, scale: 0.6 });
+  for (let i = 1; i <= M; i++) new VText(scene, { text: B[i - 1], x: 110, y: 590 - (i - 1) * 46, z: 0, color: CYAN, scale: 0.6 });
   for (let i = 0; i <= M; i++) {
     for (let j = 0; j <= N; j++) {
-      const box = new VBox(scene, { w: 38, h: 34, d: 16, x: px(j), y: TY, z: pz(i), label: String(dp[i][j]), color: BLUE, emissive: BLUE });
+      const box = new VBox(scene, { w: 48, h: 42, d: 14, x: 152 + j * 52, y: 590 - i * 46, z: 0, label: String(dp[i][j]), color: BLUE, emissive: BLUE });
       cellView.set(i + '-' + j, { box });
     }
-  }
-  for (let j = 1; j <= N; j++) {
-    aBoxes.push(new VBox(scene, { w: 32, h: 32, d: 14, x: px(j), y: TY + 56, z: (halfR + 1) * CH, label: SA[j - 1], color: CYAN, emissive: CYAN }));
-  }
-  for (let i = 1; i <= M; i++) {
-    bBoxes.push(new VBox(scene, { w: 32, h: 32, d: 14, x: -halfC * CW - 56, y: TY, z: pz(i), label: B[i - 1], color: CYAN, emissive: CYAN }));
   }
 }
 function setCell(i, j, v, c) {

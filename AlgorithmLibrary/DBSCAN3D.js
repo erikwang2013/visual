@@ -6,19 +6,19 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('DBSCAN3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：DBSCAN 密度聚类', x: 0, y: 255, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：DBSCAN 密度聚类', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const PTS = [[0, 0], [1, 0], [0.5, 0.5], [0, 1], [1, 1], [4, 4], [5, 4], [4.5, 4.5], [4, 5], [7, 1]];
-const WX = v => v * 45 - 160, WY = v => -(v * 45 - 112.5);
+const WX = v => v * 45 + 160, WY = v => 442.5 - v * 45;
 const pts = PTS.map(([x, y]) => new VBox(scene, { w: 30, h: 30, d: 30, x: WX(x), y: WY(y), z: 0, label: '', color: DIM, emissive: 0 }));
-new VText(scene, { text: 'ε = 1.1，minPts = 3', x: -240, y: 180, z: 0, color: PALETTE.textDim, scale: 0.6 });
-new VText(scene, { text: '10 个样本点：两簇 + 一个孤立点', x: -230, y: 130, z: 0, color: PALETTE.textDim, scale: 0.6 });
+new VText(scene, { text: 'ε = 1.1，minPts = 3', x: 700, y: 490, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
+new VText(scene, { text: '10 个样本点：两簇 + 一个孤立点', x: 700, y: 450, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 
 // 密度可达的邻接边（距离 ≤ ε）：簇① 8 条，簇② 5 条
 const C1 = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 4], [2, 3], [2, 4], [3, 4]];
@@ -36,7 +36,7 @@ const edgeBox = (i, j) => {
 };
 const edges1 = C1.map(([i, j]) => edgeBox(i, j));
 const edges2 = C2.map(([i, j]) => edgeBox(i, j));
-const stepT = new VText(scene, { text: '', x: 0, y: -170, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+const stepT = new VText(scene, { text: '', x: 700, y: 370, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 function resetAll() {
   pts.forEach(b => b.setColor(DIM, 0));

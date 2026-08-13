@@ -7,16 +7,16 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SJF3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：SJF —— 每步都挑最短的作业', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：SJF —— 每步都挑最短的作业', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: -60, z: 0, color: PALETTE.textGlow, scale: 0.56 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.56 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const PROCS = [
   { name: 'P1', arrive: 0, burst: 8 },
@@ -33,13 +33,13 @@ let acc = 0;
 const blockOf = {};
 const blocks = ORDER.map(name => {
   const p = PROCS.find(x => x.name === name);
-  const b = new VBox(scene, { w: p.burst * UNIT - 6, h: 52, d: 40, x: startX + acc * UNIT + (p.burst * UNIT - 6) / 2, y: 40, z: 0, label: p.name + ' (到达 ' + p.arrive + ', ' + p.burst + ')', color: BLUE, emissive: BLUE });
+  const b = new VBox(scene, { w: p.burst * UNIT - 6, h: 52, d: 40, x: startX + acc * UNIT + (p.burst * UNIT - 6) / 2 + 320, y: 340, z: 0, label: p.name + ' (到达 ' + p.arrive + ', ' + p.burst + ')', color: BLUE, emissive: BLUE });
   blockOf[p.name] = b;
   acc += p.burst;
   return { p, b, tStart: acc - p.burst };
 });
-const timeT = new VText(scene, { text: '', x: 0, y: 100, z: 0, color: PALETTE.textGlow, scale: 0.5 });
-const doneT = new VText(scene, { text: '', x: 0, y: -10, z: 0, color: GOLD, scale: 0.6 });
+const timeT = new VText(scene, { text: '', x: 0, y: 400, z: 0, color: PALETTE.textGlow, scale: 0.5 });
+const doneT = new VText(scene, { text: '', x: 0, y: 290, z: 0, color: GOLD, scale: 0.6 });
 
 function* sjfGen() {
   yield S(() => { hint.setText('SJF（最短作业优先）：CPU 空闲时选运行时间最短的就绪进程 —— 平均等待理论最优，但需预知 burst'); stageT.setText('进程：P1(0,8) P2(1,4) P3(2,9) P4(3,5) —— 关键：P1 先到先占 CPU'); });

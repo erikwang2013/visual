@@ -6,26 +6,26 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ExponentialSearch3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 260, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, TEAL = 0x2dd4bf, BLUE = 0x38bdf8, RED = 0xf87171;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：指数搜索 —— 翻倍 + 二分', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：指数搜索 —— 翻倍 + 二分', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const DATA = [3, 8, 15, 19, 26, 34, 41, 47, 55, 62, 68, 74, 81, 90];
 const KEY = 62, N = DATA.length, SPX = 42;
 const bars = [];
 for (let i = 0; i < N; i++) {
-  bars.push(new VBox(scene, { w: 30, h: 36, d: 36, x: (i - 6.5) * SPX, y: 0, z: 0, label: String(DATA[i]), color: DIM, emissive: DIM }));
+  bars.push(new VBox(scene, { w: 30, h: 36, d: 36, x: (i - 6.5) * SPX + 320, y: 225, z: 0, label: String(DATA[i]), color: DIM, emissive: DIM }));
 }
-new VText(scene, { text: '14 个已排序元素 —— 指数步进翻倍，圈定上界', x: 0, y: 305, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const edgeT = new VText(scene, { text: '', x: 0, y: 205, z: 0, color: GOLD, scale: 0.75 });
-const logT = new VText(scene, { text: '', x: 0, y: -95, z: 0, color: PALETTE.textGlow, scale: 0.65 });
-const foundT = new VText(scene, { text: '', x: 0, y: -130, z: 0, color: GREEN, scale: 0.75 });
+new VText(scene, { text: '14 个已排序元素 —— 指数步进翻倍，圈定上界', x: 700, y: 470, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
+const edgeT = new VText(scene, { text: '', x: 700, y: 405, z: 0, color: GOLD, scale: 0.55, wrapChars: 8 });
+const logT = new VText(scene, { text: '', x: 700, y: 340, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const foundT = new VText(scene, { text: '', x: 700, y: 280, z: 0, color: GREEN, scale: 0.6, wrapChars: 8 });
 
-const setH = i => { bars[i].mesh.scale.y = Math.max(DATA[i] / 100, 0.04); bars[i].mesh.position.y = 18 * DATA[i] / 100 - 18; };
+const setH = i => { bars[i].mesh.scale.y = Math.max(DATA[i] / 100, 0.04); bars[i].mesh.position.y = 18 * DATA[i] / 100 - 18 + 225; };
 
 function* expGen() {
   let i = 1, k = 0;

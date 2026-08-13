@@ -7,14 +7,14 @@ import { VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('DPFib3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 220, 620], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：DP 计算斐波那契 F[12]', x: 0, y: 290, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：DP 计算斐波那契 F[12]', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -250, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const N = 12;
 const cellView = new Map();   // i -> VBox
@@ -26,9 +26,9 @@ function clearView() {
 }
 function buildTable() {
   clearView();
-  new VText(scene, { text: 'F', x: -360, y: 0, z: 0, color: CYAN, scale: 0.8 });
+  new VText(scene, { text: 'F', x: 6, y: 450, z: 0, color: CYAN, scale: 0.8 });
   for (let i = 0; i <= N; i++) {
-    const box = new VBox(scene, { w: 58, h: 52, d: 16, x: (i - N / 2) * 70, y: 0, z: 0, label: F[i] === null ? '?' : String(F[i]), color: BLUE, emissive: BLUE });
+    const box = new VBox(scene, { w: 44, h: 44, d: 14, x: 34 + i * 48, y: 450, z: 0, label: F[i] === null ? '?' : String(F[i]), color: BLUE, emissive: BLUE });
     cellView.set(i, { box, val: F[i] });
   }
 }

@@ -7,16 +7,16 @@ import { VNode, VText, VBox, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('OptimalBST3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 700], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：最优二叉搜索树', x: 0, y: 308, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：最优二叉搜索树', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 265, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: -268, z: 0, color: PALETTE.textGlow, scale: 0.6 });
-const totalT = new VText(scene, { text: '', x: 0, y: -200, z: 0, color: GOLD, scale: 0.8 });
+const stageT = new VText(scene, { text: '', x: 0, y: 565, z: 0, color: GOLD, scale: 0.72 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.6 });
+const totalT = new VText(scene, { text: '', x: 0, y: 100, z: 0, color: GOLD, scale: 0.8 });
 
 const P = [0, 0.15, 0.10, 0.05, 0.10, 0.20];
 const Q = [0.05, 0.10, 0.05, 0.05, 0.05, 0.10];
@@ -50,16 +50,16 @@ const TORDER = [];
   buildT(i, r - 1); buildT(r + 1, j);
 })(1, N);
 
-const KX = (i) => -160 + (i - 1) * 80;
-const keys = [1, 2, 3, 4, 5].map(i => new VNode(scene, { radius: 26, x: KX(i), y: 180, z: 0, label: 'k' + i, color: BLUE, emissive: BLUE }));
-const pT = [1, 2, 3, 4, 5].map(i => new VText(scene, { text: 'p=' + P[i].toFixed(2), x: KX(i), y: 213, z: 0, color: WHITE, scale: 0.5 }));
+const KX = (i) => 160 + (i - 1) * 80;
+const keys = [1, 2, 3, 4, 5].map(i => new VNode(scene, { radius: 26, x: KX(i), y: 480, z: 0, label: 'k' + i, color: BLUE, emissive: BLUE }));
+const pT = [1, 2, 3, 4, 5].map(i => new VText(scene, { text: 'p=' + P[i].toFixed(2), x: KX(i), y: 513, z: 0, color: WHITE, scale: 0.5 }));
 const cells = [];
 for (let len = 1; len <= N; len++) for (let i = 1; i + len - 1 <= N; i++) {
   const j = i + len - 1;
-  const box = new VBox(scene, { w: 52, h: 32, d: 32, x: -160 + (i + j - 2) * 40, y: 30 - (len - 1) * 45, z: 0, label: '', color: BLUE, emissive: BLUE });
+  const box = new VBox(scene, { w: 52, h: 32, d: 32, x: 160 + (i + j - 2) * 40, y: 330 - (len - 1) * 45, z: 0, label: '', color: BLUE, emissive: BLUE });
   cells.push({ i, j, box });
 }
-const TPOS = { 1: [245, -12], 2: [300, 60], 3: [275, -150], 4: [315, -84], 5: [355, -12] };
+const TPOS = { 1: [565, 288], 2: [620, 360], 3: [595, 150], 4: [635, 216], 5: [675, 288] };
 const tNodes = [1, 2, 3, 4, 5].map(k => new VNode(scene, { radius: 24, x: TPOS[k][0], y: TPOS[k][1], z: 0, label: '', color: BLUE, emissive: BLUE }));
 const tEdges = [
   tubeBetween(scene, { x: TPOS[2][0], y: TPOS[2][1], z: 0 }, { x: TPOS[1][0], y: TPOS[1][1], z: 0 }, { color: CYAN, opacity: 0, radius: 1.8 }),
@@ -67,8 +67,8 @@ const tEdges = [
   tubeBetween(scene, { x: TPOS[5][0], y: TPOS[5][1], z: 0 }, { x: TPOS[4][0], y: TPOS[4][1], z: 0 }, { color: CYAN, opacity: 0, radius: 1.8 }),
   tubeBetween(scene, { x: TPOS[4][0], y: TPOS[4][1], z: 0 }, { x: TPOS[3][0], y: TPOS[3][1], z: 0 }, { color: CYAN, opacity: 0, radius: 1.8 })
 ];
-new VText(scene, { text: '键 k1..k5 各有查找概率 p', x: 0, y: 248, z: 0, color: WHITE, scale: 0.68 });
-new VText(scene, { text: 'e[i][j] = min_{r}(e[i][r−1] + e[r+1][j]) + w[i][j]：每加深一层，区间内全部键与哑键都多算一次', x: 0, y: -238, z: 0, color: WHITE, scale: 0.62 });
+new VText(scene, { text: '键 k1..k5 各有查找概率 p', x: 0, y: 548, z: 0, color: WHITE, scale: 0.68 });
+new VText(scene, { text: 'e[i][j] = min_{r}(e[i][r−1] + e[r+1][j]) + w[i][j]：每加深一层，区间内全部键与哑键都多算一次', x: 0, y: 62, z: 0, color: WHITE, scale: 0.62 });
 
 function cellOf(i, j) { return cells.find(c => c.i === i && c.j === j); }
 function clearView() {

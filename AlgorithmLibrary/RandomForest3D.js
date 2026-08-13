@@ -6,12 +6,12 @@ import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('RandomForest3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 340, 660], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：随机森林投票', x: 0, y: 265, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：随机森林投票', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 // 三棵树：规则卡片 + 决策路径 chips（YELLOW 高亮 → GREEN 落定）
@@ -22,25 +22,25 @@ const TREES = [
 ];
 const cardBoxes = [], chips = [], voteBoxes = [];
 TREES.forEach((t, ti) => {
-  const x = -230 + ti * 230;
-  cardBoxes.push(new VBox(scene, { w: 210, h: 56, d: 40, x, y: 140, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-  new VText(scene, { text: t.title, x, y: 192, z: 0, color: PALETTE.textGlow, scale: 0.55 });
-  new VText(scene, { text: t.rule[0], x, y: 152, z: 23, color: PALETTE.textDim, scale: 0.42 });
-  new VText(scene, { text: t.rule[1], x, y: 128, z: 23, color: PALETTE.textDim, scale: 0.42 });
+  const x = 90 + ti * 230;
+  cardBoxes.push(new VBox(scene, { w: 210, h: 56, d: 40, x, y: 440, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+  new VText(scene, { text: t.title, x, y: 492, z: 0, color: PALETTE.textGlow, scale: 0.55 });
+  new VText(scene, { text: t.rule[0], x, y: 452, z: 23, color: PALETTE.textDim, scale: 0.42 });
+  new VText(scene, { text: t.rule[1], x, y: 428, z: 23, color: PALETTE.textDim, scale: 0.42 });
   const row = [];
   t.path.forEach((p, i) => {
-    const chip = new VBox(scene, { w: 92, h: 26, d: 26, x, y: 112 - i * 28, z: 0, label: p, color: DIM, emissive: 0 });
+    const chip = new VBox(scene, { w: 92, h: 26, d: 26, x, y: 412 - i * 28, z: 0, label: p, color: DIM, emissive: 0 });
     chip.mesh.visible = false;
     row.push(chip);
   });
   chips.push(row);
-  voteBoxes.push(new VBox(scene, { w: 120, h: 40, d: 40, x, y: -95, z: 0, label: '树 ' + (ti + 1), color: DIM, emissive: 0 }));
+  voteBoxes.push(new VBox(scene, { w: 120, h: 40, d: 40, x, y: 205, z: 0, label: '树 ' + (ti + 1), color: DIM, emissive: 0 }));
 });
 
-const testBox = new VBox(scene, { w: 300, h: 44, d: 44, x: 0, y: -30, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
-new VText(scene, { text: '测试水果：红 · 大 · 椭圆', x: 0, y: -30, z: 26, color: PALETTE.textGlow, scale: 0.55 });
-const resultT = new VText(scene, { text: '', x: 0, y: -155, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const stepT = new VText(scene, { text: '', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.72 });
+const testBox = new VBox(scene, { w: 300, h: 44, d: 44, x: 320, y: 270, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
+new VText(scene, { text: '测试水果：红 · 大 · 椭圆', x: 320, y: 270, z: 26, color: PALETTE.textGlow, scale: 0.55 });
+const resultT = new VText(scene, { text: '', x: 0, y: 145, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const stepT = new VText(scene, { text: '', x: 0, y: 95, z: 0, color: PALETTE.textDim, scale: 0.72 });
 
 function resetAll() {
   for (let ti = 0; ti < TREES.length; ti++) {

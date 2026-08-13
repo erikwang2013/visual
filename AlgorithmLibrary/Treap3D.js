@@ -7,16 +7,16 @@ import { VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('Treap3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 220, 640], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, WHITE = 0xffffff, GREEN = 0x4ade80, ORANGE = 0xfb923c, PURPLE = 0xc084fc;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Treap 堆性质修复（旋转）', x: 0, y: 320, z: 0, color: PALETTE.textGlow, scale: 0.8 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：Treap 堆性质修复（旋转）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -20, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 0, y: 280, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-const ROOT_Y = 260, STEP_Y = 95, X_STEP = 84;
+const ROOT_Y = 560, STEP_Y = 95, X_STEP = 84;
 
 // ---- 纯数据模型：BST 键 + 优先级（小顶堆性质：父 prio < 子 prio） ----
 let nextId = 0;

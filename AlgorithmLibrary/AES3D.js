@@ -7,22 +7,22 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('AES3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 320, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：AES-128 —— 16 字节分组 × 10 轮 × 4 层变换', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：AES-128 —— 16 字节分组 × 10 轮 × 4 层变换', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 148, z: 0, color: PALETTE.textGlow, scale: 0.44 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 320, y: 200, z: 0, color: PALETTE.textGlow, scale: 0.44 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const stateChips = [];
 for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++)
-  stateChips.push(new VBox(scene, { w: 74, h: 56, d: 56, x: -150 + c * 100, y: 62 - r * 76, z: 0, label: '00', color: DIM, emissive: DIM }));
-new VText(scene, { text: '状态矩阵（4×4 字节，行 0 在顶）', x: 0, y: 102, z: 0, color: PALETTE.textDim, scale: 0.34 });
-const phaseT = new VText(scene, { text: '等待运行', x: 0, y: -14, z: 0, color: CYAN, scale: 0.55 });
+  stateChips.push(new VBox(scene, { w: 74, h: 56, d: 56, x: 170 + c * 100, y: 544 - r * 76, z: 0, label: '00', color: DIM, emissive: DIM }));
+new VText(scene, { text: '状态矩阵（4×4 字节，行 0 在顶）', x: 320, y: 580, z: 0, color: PALETTE.textDim, scale: 0.34 });
+const phaseT = new VText(scene, { text: '等待运行', x: 320, y: 260, z: 0, color: CYAN, scale: 0.55 });
 
 // —— AES 核心：S 盒 / 密钥扩展 / 四层变换（全部运行时计算）——
 function gfMul(a, b) {

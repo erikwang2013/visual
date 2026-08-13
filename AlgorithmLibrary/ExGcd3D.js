@@ -6,12 +6,12 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ExGcd3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 300, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, CYAN = 0x67e8f9, AMBER = 0xfbbf24, ROSE = 0xfb7185;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：扩展欧几里得', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：扩展欧几里得', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 // GA/GB 避开 GeneratorEngine 的导入名 A；预计算 3 步除法 + 正向递推表（每行是余数对 48、18 的组合系数）
@@ -26,19 +26,19 @@ for (const s of steps) { const nx = x1 - s.q * x2, ny = y1 - s.q * y2; cs.push({
 const BX = x1, BY = y1;
 const showBez = (c1, c2) => (c1 < 0 ? '−' : '') + Math.abs(c1) + '×' + GA + (c2 < 0 ? ' − ' : ' + ') + Math.abs(c2) + '×' + GB;
 
-new VText(scene, { text: '普通欧几里得只求 gcd；扩展版每步还记录余数如何写成 48、18 的组合 → 递推表最后一行就是 x、y', x: 0, y: 225, z: 0, color: PALETTE.textDim, scale: 0.68 });
-const stageT = new VText(scene, { text: '', x: 0, y: 255, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textGlow, scale: 0.62 });
-const gcdT = new VText(scene, { text: '', x: 0, y: -80, z: 0, color: GOLD, scale: 0.85 });
-const backT = new VText(scene, { text: '', x: 0, y: -140, z: 0, color: PALETTE.textGlow, scale: 0.58 });
-const outT = new VText(scene, { text: '', x: 0, y: -200, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+new VText(scene, { text: '普通欧几里得只求 gcd；扩展版每步还记录余数如何写成 48、18 的组合 → 递推表最后一行就是 x、y', x: 320, y: 525, z: 0, color: PALETTE.textDim, scale: 0.68 });
+const stageT = new VText(scene, { text: '', x: 0, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 450, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const gcdT = new VText(scene, { text: '', x: 0, y: 220, z: 0, color: GOLD, scale: 0.85 });
+const backT = new VText(scene, { text: '', x: 0, y: 160, z: 0, color: PALETTE.textGlow, scale: 0.58 });
+const outT = new VText(scene, { text: '', x: 0, y: 100, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-const mkBox = (x, color, label) => new VBox(scene, { w: 84, h: 56, d: 56, x, y: 30, z: 0, label, color, emissive: color });
-const aBox = mkBox(-180, CYAN, 'a = ' + GA);
-const bBox = mkBox(-60, CYAN, 'b = ' + GB);
-const qBox = mkBox(60, AMBER, 'q = ?');
-const rBox = mkBox(180, ROSE, 'r = ?');
-['被除数 a', '除数 b', '商 q', '余 r'].forEach((t, c) => { new VText(scene, { text: t, x: -180 + c * 120, y: -15, z: 0, color: PALETTE.textDim, scale: 0.55 }); });
+const mkBox = (x, color, label) => new VBox(scene, { w: 84, h: 56, d: 56, x, y: 330, z: 0, label, color, emissive: color });
+const aBox = mkBox(140, CYAN, 'a = ' + GA);
+const bBox = mkBox(260, CYAN, 'b = ' + GB);
+const qBox = mkBox(380, AMBER, 'q = ?');
+const rBox = mkBox(500, ROSE, 'r = ?');
+['被除数 a', '除数 b', '商 q', '余 r'].forEach((t, c) => { new VText(scene, { text: t, x: 140 + c * 120, y: 285, z: 0, color: PALETTE.textDim, scale: 0.55 }); });
 
 function resetAll() {
   aBox.setText('a = ' + GA); bBox.setText('b = ' + GB);

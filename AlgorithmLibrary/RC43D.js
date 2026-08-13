@@ -7,25 +7,25 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('RC43D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：RC4 —— 密钥调度 KSA + 伪随机数 PRGA，异或即加密', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：RC4 —— 密钥调度 KSA + 伪随机数 PRGA，异或即加密', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 140, z: 0, color: PALETTE.textGlow, scale: 0.48 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 700, y: 480, z: 0, color: GOLD, scale: 0.5, wrapChars: 8 });
+const eqT = new VText(scene, { text: '', x: 700, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.45, wrapChars: 8 });
+const outT = new VText(scene, { text: '', x: 700, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.45, wrapChars: 8 });
 
 const M = 8; // toy 8 元素 S 盒（演示用；真实 RC4 是 256）
 const SX = [-280, -200, -120, -40, 40, 120, 200, 280];
-const sChips = SX.map((x, i) => new VBox(scene, { w: 60, h: 60, d: 60, x, y: 70, z: 0, label: String(i), color: BLUE, emissive: BLUE }));
-new VText(scene, { text: 'S 盒下标', x: 0, y: 30, z: 0, color: PALETTE.textDim, scale: 0.34 });
+const sChips = SX.map((x, i) => new VBox(scene, { w: 60, h: 60, d: 60, x, y: 380, z: 0, label: String(i), color: BLUE, emissive: BLUE }));
+new VText(scene, { text: 'S 盒下标', x: 320, y: 325, z: 0, color: PALETTE.textDim, scale: 0.34 });
 const KEYBYTES = 'Key'.split('').map(c => c.charCodeAt(0));
-const keyChips = SX.map((x, i) => new VBox(scene, { w: 60, h: 44, d: 44, x, y: 170, z: 0, label: KEYBYTES[i % 3], color: PUR, emissive: PUR }));
-new VText(scene, { text: '密钥字节（"Key" 循环）：' + KEYBYTES.map(k => k + '(' + String.fromCharCode(k) + ')').join(' '), x: 0, y: 205, z: 0, color: PALETTE.textDim, scale: 0.38 });
-const ijT = new VText(scene, { text: 'i=0  j=0', x: 0, y: -20, z: 0, color: GOLD, scale: 0.6 });
+const keyChips = SX.map((x, i) => new VBox(scene, { w: 60, h: 44, d: 44, x, y: 480, z: 0, label: KEYBYTES[i % 3], color: PUR, emissive: PUR }));
+new VText(scene, { text: '密钥字节（"Key" 循环）：' + KEYBYTES.map(k => k + '(' + String.fromCharCode(k) + ')').join(' '), x: 320, y: 530, z: 0, color: PALETTE.textDim, scale: 0.38 });
+const ijT = new VText(scene, { text: 'i=0  j=0', x: 700, y: 520, z: 0, color: GOLD, scale: 0.5, wrapChars: 8 });
 
 function* rc4Gen() {
   yield S(() => { hint.setText('RC4：两阶段 —— ① KSA 用密钥把 S = [0..7] 彻底打乱；② PRGA 每输出一字节就再换一次'); stageT.setText('S 初始 [0,1,2,3,4,5,6,7]，密钥字节 K = [75,101,121]（"Key"）—— 全部按 mod 8 计算'); });
@@ -78,9 +78,9 @@ function* rc4Gen() {
   const ch = String.fromCharCode(enc);
   yield S(() => { stageT.setText("加密 'a'(" + plain + ') ⊕ ' + ks + ' = ' + enc + ' → "' + ch + '"   （XOR 是对合运算：再 ⊕ 一次就还原）'); eqT.setText('C = P ⊕ K；解密 P = C ⊕ K —— 同一个函数'); });
   yield W(900);
-  yield S(() => { outT.setText("解密验证：'" + ch + "'(" + enc + ') ⊕ ' + ks + ' = ' + (enc ^ ks) + ' → "a" ✓'); status.textContent = 'RC4：a → ' + ch; hint.setText('曾用于 WEP/TLS/PDF；2015 年后因密钥流偏差攻击（如 RC4 NOMORE）被弃用 —— 但它是「简单即优雅」的经典教材案例'); });
+  yield S(() => { eqT.setText(''); outT.setText("解密验证：'" + ch + "' ⊕ " + ks + ' = ' + (enc ^ ks) + ' → "a" ✓'); status.textContent = 'RC4：a → ' + ch; hint.setText('曾用于 WEP/TLS/PDF；2015 年后因密钥流偏差攻击（如 RC4 NOMORE）被弃用 —— 但它是「简单即优雅」的经典教材案例'); });
   yield W(1100);
-  yield S(() => { hint.setText('现代替代：ChaCha20（无偏、更快）。RC4 的教训：可预测的密钥流 + 重复 IV = 灾难'); outT.setText('复杂度：O(1) 每字节；状态 = 256 字节 —— 历史上极省资源'); });
+  yield S(() => { hint.setText('现代替代：ChaCha20（无偏、更快）。RC4 的教训：可预测的密钥流 + 重复 IV = 灾难'); outT.setText('复杂度：O(1)/字节；状态 256 字节 —— 极省资源'); });
   yield W(1100);
   yield S(() => { hint.setText('RC4 演示完成：KSA 打乱 S 盒 → PRGA 生成密钥流 → XOR 加解密'); outT.setText(''); });
   yield W(400);

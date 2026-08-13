@@ -7,31 +7,31 @@ import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SSTF3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 260, 700], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：SSTF —— 磁头总挑离自己最近的请求', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：SSTF —— 磁头总挑离自己最近的请求', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 80, z: 0, color: PALETTE.textGlow, scale: 0.56 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 0, y: 380, z: 0, color: PALETTE.textGlow, scale: 0.56 });
+const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const REQ = [98, 183, 37, 122, 14, 124, 65, 67];
 const START = 53;
-const AXIS_Y = -40;
+const AXIS_Y = 260;
 const K = 3.2;
-const xOf = c => -320 + c * K;
+const xOf = c => c * K;
 // 贪心顺序：每次选最近 → 65,67,37,14,98,122,124,183；总移动 236（比 SCAN 345 / C-SCAN 382 都短）
 const ORDER = [65, 67, 37, 14, 98, 122, 124, 183];
-tubeBetween(scene, { x: -320, y: AXIS_Y, z: 0 }, { x: 320, y: AXIS_Y, z: 0 }, { color: DIM, opacity: 0.5, radius: 3 });
+tubeBetween(scene, { x: 0, y: AXIS_Y, z: 0 }, { x: 640, y: AXIS_Y, z: 0 }, { color: DIM, opacity: 0.5, radius: 3 });
 for (let c = 0; c <= 200; c += 50) {
   new VText(scene, { text: String(c), x: xOf(c), y: AXIS_Y - 26, z: 0, color: PALETTE.textDim, scale: 0.34 });
 }
 const reqNodes = REQ.map(c => new VNode(scene, { x: xOf(c), y: AXIS_Y, z: 0, radius: 11, label: String(c), color: CYAN, emissive: CYAN }));
 const head = new VNode(scene, { x: xOf(START), y: AXIS_Y, z: 0, radius: 17, label: '头 53', color: GOLD, emissive: GOLD });
-const selT = new VText(scene, { text: '', x: 0, y: 140, z: 0, color: PUR, scale: 0.5 });
+const selT = new VText(scene, { text: '', x: 0, y: 440, z: 0, color: PUR, scale: 0.5 });
 let visited = new Set();
 
 function* sstfGen() {

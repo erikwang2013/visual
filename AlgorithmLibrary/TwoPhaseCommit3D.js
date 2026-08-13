@@ -6,26 +6,26 @@ import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('TwoPhaseCommit3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 380, 720], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, BLUE = 0x60a5fa, YELLOW = 0xfacc15, RED = 0xf87171, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：2PC 事务', x: 0, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：2PC 事务', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
-const coord = new VNode(scene, { x: 0, y: 90, z: 0, radius: 30, label: '协调者', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
+const coord = new VNode(scene, { x: 320, y: 490, z: 0, radius: 30, label: '协调者', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
 const parts = [];
 const pStates = [];
-const POS = [[-260, -80], [0, -170], [260, -80]];
+const POS = [[-260, 320], [0, 230], [260, 320]];
 for (let i = 0; i < 3; i++) {
-  parts.push(new VNode(scene, { x: POS[i][0], y: POS[i][1], z: 0, radius: 25, label: '参与者' + (i + 1), color: DIM, emissive: DIM }));
+  parts.push(new VNode(scene, { x: POS[i][0] + 320, y: POS[i][1], z: 0, radius: 25, label: '参与者' + (i + 1), color: DIM, emissive: DIM }));
   pStates.push(new VText(scene, { text: '就绪待命', x: POS[i][0], y: POS[i][1] + 55, z: 0, color: PALETTE.textDim, scale: 0.55 }));
 }
 const tubes = parts.map(p => tubeBetween(scene, coord.mesh.position, p.mesh.position, { color: BLUE, opacity: 0.4, radius: 2.2 }));
 tubes.forEach(t => t.visible = false);
-const phaseT = new VText(scene, { text: '', x: 0, y: 200, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const ruleT = new VText(scene, { text: '规则：任一参与者回复 NO（如余额不足）→ 协调者广播 ABORT，全体回滚', x: 0, y: -260, z: 0, color: PALETTE.textDim, scale: 0.62 });
+const phaseT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: PALETTE.textGlow, scale: 0.72, wrapChars: 7 });
+const ruleT = new VText(scene, { text: '规则：任一参与者回复 NO（如余额不足）→ 协调者广播 ABORT，全体回滚', x: 700, y: 330, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 
 function resetAll() {
   coord.setColor(PALETTE.node, PALETTE.nodeEmissive);

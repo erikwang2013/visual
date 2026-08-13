@@ -7,14 +7,14 @@ import { VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('MatrixChain3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 330, 760], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, YELLOW = 0xfde047;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：矩阵连乘（A1..A5，P=[5,4,6,2,7,3]）', x: 0, y: 315, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：矩阵连乘（A1..A5，P=[5,4,6,2,7,3]）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: -150, z: 0, color: PALETTE.textGlow, scale: 0.7 });
+const outT = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const P = [5, 4, 6, 2, 7, 3];
 const N = P.length - 1;
@@ -24,7 +24,7 @@ const matrixBox = [];         // Ai -> VBox
 const m = Array.from({ length: N + 1 }, () => Array(N + 1).fill(0));
 const s = Array.from({ length: N + 1 }, () => Array(N + 1).fill(0));
 
-function cellX(j) { return (j - 3) * CW; }
+function cellX(j) { return (j - 3) * CW + 320; }
 function cellZ(i) { return (2 - i) * CH * 0.85; }
 function clearView() {
   cellView.forEach(c => scene.remove(c.box.mesh));
@@ -34,17 +34,17 @@ function clearView() {
 function buildView() {
   clearView();
   for (let i = 1; i <= N; i++) {
-    const b = new VBox(scene, { w: 84, h: 44, d: 20, x: (i - 3) * 118, y: 260, z: 0, label: 'A' + i, color: BLUE, emissive: BLUE });
+    const b = new VBox(scene, { w: 84, h: 44, d: 20, x: (i - 3) * 118 + 320, y: 560, z: 0, label: 'A' + i, color: BLUE, emissive: BLUE });
     matrixBox.push(b);
-    new VText(scene, { text: P[i - 1] + '×' + P[i], x: (i - 3) * 118, y: 212, z: 0, color: WHITE, scale: 0.45 });
+    new VText(scene, { text: P[i - 1] + '×' + P[i], x: (i - 3) * 118 + 320, y: 512, z: 0, color: WHITE, scale: 0.45 });
   }
   for (let i = 1; i <= N; i++) {
     for (let j = i; j <= N; j++) {
-      const box = new VBox(scene, { w: 56, h: 42, d: 14, x: cellX(j), y: TY, z: cellZ(i), label: i === j ? '0' : '', color: BLUE, emissive: BLUE });
+      const box = new VBox(scene, { w: 56, h: 42, d: 14, x: cellX(j), y: TY + 300, z: cellZ(i), label: i === j ? '0' : '', color: BLUE, emissive: BLUE });
       cellView.set(i + '-' + j, { box });
     }
   }
-  new VText(scene, { text: 'm[i][j] = min_{i≤k<j} m[i][k]+m[k+1][j] + p[i-1]·p[k]·p[j]', x: 0, y: 118, z: 0, color: GOLD, scale: 0.5 });
+  new VText(scene, { text: 'm[i][j] = min_{i≤k<j} m[i][k]+m[k+1][j] + p[i-1]·p[k]·p[j]', x: 320, y: 418, z: 0, color: GOLD, scale: 0.5 });
 }
 function setCell(i, j, v, c) {
   m[i][j] = v;

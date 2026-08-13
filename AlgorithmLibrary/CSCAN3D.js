@@ -7,25 +7,25 @@ import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('CSCAN3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 260, 700], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：C-SCAN —— 只往一个方向扫，回程走「传送带」', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：C-SCAN —— 只往一个方向扫，回程走「传送带」', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 80, z: 0, color: PALETTE.textGlow, scale: 0.56 });
-const outT = new VText(scene, { text: '', x: 0, y: -235, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72 });
+const eqT = new VText(scene, { text: '', x: 320, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.56 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const REQ = [98, 183, 37, 122, 14, 124, 65, 67];
 const START = 53;
-const AXIS_Y = -40;
+const AXIS_Y = 330;
 const K = 3.2;
-const xOf = c => -320 + c * K;
+const xOf = c => 40 + c * K;
 // 单向向右：服务 65,67,98,122,124,183 → 顶 199 → 回绕 0 → 服务 14,37
 const SEQ = [53, 65, 67, 98, 122, 124, 183, 199, 0, 14, 37];
-tubeBetween(scene, { x: -320, y: AXIS_Y, z: 0 }, { x: 320, y: AXIS_Y, z: 0 }, { color: DIM, opacity: 0.5, radius: 3 });
+tubeBetween(scene, { x: 40, y: AXIS_Y, z: 0 }, { x: 680, y: AXIS_Y, z: 0 }, { color: DIM, opacity: 0.5, radius: 3 });
 for (let c = 0; c <= 200; c += 50) {
   new VText(scene, { text: String(c), x: xOf(c), y: AXIS_Y - 26, z: 0, color: PALETTE.textDim, scale: 0.34 });
 }

@@ -6,12 +6,12 @@ import { VBox, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ActivitySelect3D');
 
-const scene = new Scene3D('scene', { cameraPos: [0, 240, 640], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, WHITE = 0xe2e8f0;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：活动选择 —— 一间教室最多排几个活动？', x: 0, y: 300, z: 0, color: PALETTE.textGlow, scale: 0.85 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：活动选择 —— 一间教室最多排几个活动？', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const K = 24;
@@ -32,17 +32,17 @@ const acSteps = (() => {
 const CHOSEN = acSteps[acSteps.length - 1].chosen;
 
 const bars = ACTS.map((a, i) => {
-  const y = 150 - i * 26;
-  return new VBox(scene, { w: (a[1] - a[0]) * K - 4, h: 20, d: 20, x: -360 + a[0] * K + 2, y, z: 0, label: 'A' + (i + 1), color: DIM, emissive: DIM });
+  const y = 150 - i * 26 + 380;
+  return new VBox(scene, { w: (a[1] - a[0]) * K - 4, h: 20, d: 20, x: 130 + a[0] * K, y, z: 0, label: 'A' + (i + 1), color: DIM, emissive: DIM });
 });
-tubeBetween(scene, { x: -360, y: -140, z: 0 }, { x: 24, y: -140, z: 0 }, { color: PALETTE.edge, opacity: 0.5, radius: 1.5 });
+tubeBetween(scene, { x: 128, y: 240, z: 0 }, { x: 512, y: 240, z: 0 }, { color: PALETTE.edge, opacity: 0.5, radius: 1.5 });
 [0, 4, 8, 12, 16].forEach(t =>
-  new VText(scene, { text: String(t), x: -360 + t * K, y: -160, z: 0, color: PALETTE.textDim, scale: 0.5 }));
-new VText(scene, { text: '11 个活动（开始 s, 结束 f）按结束时间排好 —— 一间教室，最多能排几个不冲突的活动？', x: 0, y: 196, z: 0, color: PALETTE.textDim, scale: 0.55 });
-new VText(scene, { text: '贪心策略：每次选「结束最早且与已选兼容」的活动 —— 留下的时间最多，后续选择空间最大', x: 0, y: -205, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const stageT = new VText(scene, { text: '', x: 0, y: 262, z: 0, color: GOLD, scale: 0.68 });
-const outT = new VText(scene, { text: '', x: 0, y: -245, z: 0, color: PALETTE.textGlow, scale: 0.62 });
-const totalT = new VText(scene, { text: '', x: 0, y: -170, z: 0, color: GREEN, scale: 0.8 });
+  new VText(scene, { text: String(t), x: 128 + t * K, y: 220, z: 0, color: PALETTE.textDim, scale: 0.5 }));
+new VText(scene, { text: '11 个活动按结束时间排好：横条 = 时间区间，一间教室最多能排几个不冲突？', x: 700, y: 320, z: 0, color: PALETTE.textDim, scale: 0.55, wrapChars: 8 });
+new VText(scene, { text: '贪心：每次选「结束最早且兼容」的活动 —— 留下的时间最多，后续选择空间最大', x: 700, y: 220, z: 0, color: PALETTE.textDim, scale: 0.55, wrapChars: 8 });
+const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.68 });
+const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const totalT = new VText(scene, { text: '', x: 320, y: 190, z: 0, color: GREEN, scale: 0.8 });
 
 function* actGen() {
   yield S(() => { hint.setText('贪心 ≠ 碰运气：要证明「选最早结束」的最优性 —— 任何最优解都能把第一个活动换成它（交换论证）'); });

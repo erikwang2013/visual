@@ -12,12 +12,12 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x38bdf8, GOLD = 0xfde047, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfdba74, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：BFS 从节点 0 出发', x: 700, y: 560, z: 0, color: WHITE, scale: 1.2, wrapChars: 7 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：BFS 从节点 0 出发', x: 700, y: 640, z: 0, color: WHITE, scale: 1.2, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: WHITE, scale: 1.2 });
-const eqT = new VText(scene, { text: '', x: 0, y: 230, z: 0, color: WHITE, scale: 1.2 });
-const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: WHITE, scale: 1.5, wrapChars: 8 });
-const orderT = new VText(scene, { text: '遍历顺序: ', x: 700, y: 300, z: 0, color: WHITE, scale: 1.5, wrapChars: 8 });
+const eqT = new VText(scene, { text: '', x: -150, y: 165, z: 0, color: WHITE, scale: 1.3, wrapChars: 8, maxH: 150 });
+const outT = new VText(scene, { text: '', x: 786, y: 445, z: 0, color: WHITE, scale: 1.5, wrapChars: 7, maxH: 150 });
+const orderT = new VText(scene, { text: '遍历顺序: ', x: 786, y: 211, z: 0, color: WHITE, scale: 1.3, wrapChars: 8, maxH: 150 });
 
 const N = 8, R = 200;
 const adj = Array.from({ length: N }, () => []);
@@ -128,12 +128,12 @@ function* bfsGen() {
       yield W(340);
     }
     setNodeColor(cur, GREEN);
-    yield S(() => { orderT.setText('遍历顺序: ' + order.join(' → ')); });
+    yield S(() => { orderT.setText('遍历顺序: ' + order.join('→')); });
   }
   yield S(() => {
     outT.setText('BFS 完成：按距离分层，队列先进先出');
     stageT.setText('③ 完成：全部节点按层访问（第 3 层完成：共 2 个节点）');
-    eqT.setText('遍历顺序 0 → 1 → 6 → 7 → 2 → 5 → 3 → 4：先访问距起点 1 层，再 2 层、3 层');
+    eqT.setText('顺序 0→1→6→7→2→5→3→4，按层访问');
     status.textContent = 'BFS 顺序: ' + order.join(' → ');
   });
   yield W(900);

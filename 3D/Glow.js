@@ -53,7 +53,7 @@ export function textTexture(text, opts = {}) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const color = opts.color || PALETTE.text;
+  const color = typeof opts.color === 'number' ? '#' + opts.color.toString(16).padStart(6, '0') : (opts.color || PALETTE.text);
   const glow = opts.glow || PALETTE.textGlow;
   ctx.shadowColor = glow;
   ctx.shadowBlur = 12;

@@ -39,7 +39,7 @@ function buildGraph(edges) {
   for (let i = 0; i < N; i++) adj[i].length = 0;
   for (let i = 0; i < N; i++) {
     const p = posOf(i);
-    const vn = new VNode(scene, { radius: 28, x: p.x, y: p.y, z: p.z, color: BLUE, emissive: BLUE });
+    const vn = new VNode(scene, { radius: 28, x: p.x, y: p.y, z: p.z, label: String(i), color: BLUE, emissive: BLUE });
     nodeView.set(i, vn);
   }
   for (const [a, b] of edges) {
@@ -52,9 +52,9 @@ function setNodeColor(i, c) { nodeView.get(i).setColor(c, c); }
 function setEdgeColor(a, b, c, op) { const e = edgeView.get(a + '-' + b); if (e) { e.material.color.setHex(c); e.material.opacity = op; } }
 
 // ---- 队列可视化 ----
-function* pushBox() {
+function* pushBox(id) {
   const x = 130 + queueBoxes.length * 60;
-  const box = new VBox(scene, { w: 48, h: 48, d: 24, x, y: 475, z: 0, color: ORANGE, emissive: ORANGE });
+  const box = new VBox(scene, { w: 48, h: 48, d: 24, x, y: 475, z: 0, label: id, color: ORANGE, emissive: ORANGE });
   box.mesh.scale.setScalar(0.01);
   yield A(280, p => { box.mesh.scale.setScalar(0.01 + 0.99 * p); });
   queueBoxes.push({ box });
@@ -75,7 +75,7 @@ function* bfsGen() {
   const visited = new Set(), order = [], queue = [0];
   visited.add(0);
   setNodeColor(0, ORANGE);
-  yield* pushBox();
+  yield* pushBox('0');
   yield W(800);
   let head = 0, curLevel = 0, levelCount = 0;
   while (head < queue.length) {
@@ -96,7 +96,7 @@ function* bfsGen() {
       setNodeColor(nb, ORANGE);
       nodeView.get(nb).pulse(0.18);
       setEdgeColor(cur, nb, GREEN, 0.95);
-      yield* pushBox();
+      yield* pushBox(String(nb));
       yield W(340);
     }
     setNodeColor(cur, GREEN);

@@ -7,17 +7,17 @@ import { VText, VNode, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('BFS3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x38bdf8, GOLD = 0xfde047, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfdba74, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：BFS 从节点 0 出发', x: 700, y: 640, z: 0, color: WHITE, scale: 1.2, wrapChars: 7 });
+const hint = new VText(scene, { text: '点击「▶ 演示」开始：BFS 从节点 0 出发', x: 700, y: 700, z: 0, color: WHITE, scale: 1.2, wrapChars: 7, maxH: 150 });
 const status = panel.addStatus('就绪');
 const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: WHITE, scale: 1.2 });
 const eqT = new VText(scene, { text: '', x: -150, y: 165, z: 0, color: WHITE, scale: 1.3, wrapChars: 8, maxH: 150 });
-const outT = new VText(scene, { text: '', x: 786, y: 445, z: 0, color: WHITE, scale: 1.5, wrapChars: 7, maxH: 150 });
-const orderT = new VText(scene, { text: '遍历顺序: ', x: 786, y: 211, z: 0, color: WHITE, scale: 1.3, wrapChars: 8, maxH: 150 });
+const outT = new VText(scene, { text: '', x: 786, y: 455, z: 0, color: WHITE, scale: 1.5, wrapChars: 7, maxH: 150 });
+const orderT = new VText(scene, { text: '遍历顺序: ', x: 786, y: 185, z: 0, color: WHITE, scale: 1.3, wrapChars: 8, maxH: 150 });
 
 const N = 8, R = 200;
 const adj = Array.from({ length: N }, () => []);
@@ -148,7 +148,7 @@ function* runBFS() {
   yield* bfsGen();
   yield S(() => {
     outT.setText('');
-    hint.setText('BFS 完成：时间复杂度 O(V+E)，可求无权图最短步数与可达性');
+    hint.setText('BFS 完成：O(V+E)，无权最短路与连通分量');
     stageT.setText('④ 复杂度：O(V+E），应用：无权最短路、连通分量');
   });
   yield W(700);

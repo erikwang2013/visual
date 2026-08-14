@@ -1,4 +1,4 @@
-// AlgorithmLibrary/BoyerMoore3D.js — BM 坏字符规则：从右往左比较，失配按坏字符最后出现位置跳跃（function* 生成器驱动）
+// AlgorithmLibrary/BoyerMoore3D.js — BM 坏字符规则：从右往左比较，失配按坏字符最右出现位跳跃（function* 生成器驱动）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
@@ -7,147 +7,173 @@ import { VBox, VText, VNode, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('BoyerMoore3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const BLUE = 0x60a5fa, RED = 0xfb7185, GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x67e8f9, ORANGE = 0xfb923c;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
-const status = panel.addStatus('');
+const BLUE = 0x38bdf8, RED = 0xfb7185, GOLD = 0xfde047, GREEN = 0x4ade80, CYAN = 0x67e8f9, ORANGE = 0xfb923c;
+const FRAME = 0x94a3b8;
+const status = panel.addStatus('就绪');
 
-const TXT = 'ABCBABAB', P = 'ABAB';
+const TXT = 'ABACDABABABC', P = 'ABABC';
 const SP = 46;
 const lerp = (a, b, p) => a + (b - a) * p;
-const mx = k => (k - (TXT.length - 1) / 2) * SP + 400;
-const sBox = [...TXT].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 569, label: ch, color: BLUE, emissive: BLUE }));
-const pBox = [...P].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 289, label: ch, color: RED, emissive: RED }));
-const iBall = new VNode(scene, { radius: 11, x: mx(0), y: 489, color: CYAN, emissive: CYAN });
-const jBall = new VNode(scene, { radius: 11, x: mx(0), y: 199, color: GOLD, emissive: GOLD });
-const ring = new VTorus(scene, { radius: 36, x: 0, y: 569, color: GOLD });
-ring.mesh.visible = false;
-const xMark = new VText(scene, { text: '✕', x: 0, y: 569, z: 40, color: RED, scale: 1.35 });
+const ease = p => p * p * (3 - 2 * p);
+const mx = k => (k - (TXT.length - 1) / 2) * SP + 320;   // k=0→67, k=11→573
+const cx = i => mx(i) + 92;                               // 窗口框中心（框半宽 116）
+
+// ---- 视觉：主串/模式字符盒、i/j 指针球、滑动窗口框（4 细边）、✕ 失配标记、跳转箭头、命中环 ----
+const sBox = [...TXT].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 420, label: ch, color: BLUE, emissive: BLUE }));
+const sNum = [...TXT].map((_, k) => new VText(scene, { text: String(k), x: mx(k), y: 458, z: 10, color: PALETTE.textDim, scale: 0.45 }));
+const pBox = [...P].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 560, label: ch, color: RED, emissive: RED }));
+const pNum = [...P].map((_, k) => new VText(scene, { text: String(k), x: mx(k), y: 598, z: 10, color: PALETTE.textDim, scale: 0.45 }));
+const iBall = new VNode(scene, { radius: 11, x: mx(0), y: 320, color: CYAN, emissive: CYAN });
+const jBall = new VNode(scene, { radius: 11, x: mx(4), y: 640, color: GOLD, emissive: GOLD });
+
+const mkBar = (w, h, x, y) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 2), new THREE.MeshBasicMaterial({ color: FRAME }));
+  m.position.set(x, y, 0);
+  return m;
+};
+const winGroup = new THREE.Group();
+const bars = [mkBar(2, 160, -116, 0), mkBar(2, 160, 116, 0), mkBar(232, 2, 0, -80), mkBar(232, 2, 0, 80)];
+bars.forEach(b => winGroup.add(b));
+winGroup.position.set(cx(0), 420, 0);
+scene.add(winGroup);
+const frameColor = c => bars.forEach(b => b.material.color.setHex(c));
+
+const xMark = new VText(scene, { text: '✕', x: 0, y: 368, z: 10, color: RED, scale: 0.7 });
 xMark.sprite.visible = false;
-const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
-new VText(scene, { text: '主串 S', x: 70, y: 569, z: 0, color: PALETTE.textDim, scale: 0.6 });
-new VText(scene, { text: '模式串 P', x: 70, y: 289, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
-let fxGroup = new THREE.Group();
+const fxGroup = new THREE.Group();
+const arrowBody = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 2), new THREE.MeshBasicMaterial({ color: ORANGE }));
+const arrowTip = new THREE.Mesh(new THREE.ConeGeometry(9, 16, 10), new THREE.MeshBasicMaterial({ color: ORANGE }));
+arrowTip.rotation.z = -Math.PI / 2;
+fxGroup.add(arrowBody); fxGroup.add(arrowTip);
+fxGroup.visible = false;
 scene.add(fxGroup);
-const clearFx = () => { scene.remove(fxGroup); fxGroup = new THREE.Group(); scene.add(fxGroup); };
 
-const fly = (ball, x, y, ms = 340) => {
+const ring = new VTorus(scene, { radius: 118, x: cx(7), y: 420, color: GREEN });
+ring.mesh.visible = false;
+
+const fly = (ball, x, y, ms = 300) => {
   const fx = ball.mesh.position.x, fy = ball.mesh.position.y;
   return A(ms, p => {
-    const e = p * p * (3 - 2 * p);
+    const e = ease(p);
     ball.mesh.position.x = lerp(fx, x, e);
     ball.mesh.position.y = lerp(fy, y, e);
   });
 };
 
-const flyWindow = (i, ms = 480) => {
-  const from = pBox.map(b => b.mesh.position.x);
-  const fromI = iBall.mesh.position.x;
+// 同帧四组 lerp：模式盒整行 + 窗口框 + i 球 + j 球 → 消除多 Group 时序冲突
+const shiftAll = (from, to, ms = 640) => {
+  const px0 = pBox.map(b => b.mesh.position.x);
+  const gx0 = winGroup.position.x;
+  const ix0 = iBall.mesh.position.x;
+  const jx0 = jBall.mesh.position.x;
   return A(ms, p => {
-    const e = p * p * (3 - 2 * p);
-    pBox.forEach((b, k) => { b.mesh.position.x = lerp(from[k], mx(i + k), e); });
-    iBall.mesh.position.x = lerp(fromI, mx(i), e);
+    const e = ease(p);
+    pBox.forEach((b, k) => { b.mesh.position.x = lerp(px0[k], mx(to + k), e); });
+    winGroup.position.x = lerp(gx0, cx(to), e);
+    iBall.mesh.position.x = lerp(ix0, mx(to), e);
+    jBall.mesh.position.x = lerp(jx0, mx(to + 4), e);
   });
 };
 
-const lastIndex = (ch, upto) => { for (let k = upto; k >= 0; k--) if (P[k] === ch) return k; return -1; };
-
-const stretchArrow = (fromX, toX, y, ms) => {
-  const g = new THREE.Group();
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 1, 8), new THREE.MeshBasicMaterial({ color: ORANGE }));
-  shaft.rotation.z = Math.PI / 2;
-  const head = new THREE.Mesh(new THREE.ConeGeometry(8, 18, 10), new THREE.MeshBasicMaterial({ color: ORANGE }));
-  head.rotation.z = Math.PI / 2;
-  g.add(shaft); g.add(head);
-  g.position.set(fromX, y, 50);
-  fxGroup.add(g);
+// 箭头从窗口左缘 mx(from) 拉伸至新窗口左缘 mx(to)，长度 ∝ 移动量
+const stretchArrow = (fromX, toX, ms = 420) => {
+  fxGroup.visible = true;
   return A(ms, p => {
-    const e = p * p * (3 - 2 * p);
+    const e = ease(p);
     const len = (toX - fromX) * e;
-    shaft.scale.x = Math.max(len, 0.001);
-    head.position.x = len;
+    arrowBody.scale.x = Math.max(len, 0.001);
+    arrowBody.position.set(fromX + len / 2, 492, 0);
+    arrowTip.position.set(fromX + len, 492, 0);
   });
 };
 
 function resetAll() {
-  clearFx();
   sBox.forEach(b => b.setColor(BLUE, BLUE));
-  pBox.forEach(b => b.setColor(RED, RED));
-  iBall.mesh.position.set(mx(0), 489, 0);
-  jBall.mesh.position.set(mx(0), 199, 0);
-  ring.mesh.visible = false;
+  pBox.forEach((b, k) => { b.setColor(RED, RED); b.mesh.position.x = mx(k); });
+  iBall.mesh.position.set(mx(0), 320, 0);
+  jBall.mesh.position.set(mx(4), 640, 0);
+  winGroup.position.set(cx(0), 420, 0);
+  frameColor(FRAME);
   xMark.sprite.visible = false;
-  outT.setText('');
+  fxGroup.visible = false;
+  arrowBody.scale.x = 1;
+  ring.mesh.visible = false;
 }
 
 function* runBM() {
   yield S(resetAll);
-  yield S(() => { hint.setText('BM：模式串从右往左比较。失配的字符叫「坏字符」：它没在 P 中先段出现 → 整段跳过 j+1 格；出现过 → 对齐到最后一次出现处'); });
-  let i = 0;
-  while (i <= TXT.length - P.length) {
-    yield flyWindow(i);
-    let j = P.length - 1;
-    let full = true;
-    while (j >= 0) {
-      yield fly(jBall, mx(i + j), 199);
-      yield S(() => { sBox[i + j].setColor(GOLD, GOLD); pBox[j].setColor(GOLD, GOLD); });
-      yield W(300);
-      if (TXT[i + j] === P[j]) {
-        yield S(() => {
-          sBox[i + j].setColor(GREEN, GREEN); pBox[j].setColor(GREEN, GREEN);
-          outT.setText(`第 ${j + 1} 位匹配：S[${i + j}]='${TXT[i + j]}' == P[${j}]='${P[j]}' —— 成为「好后缀」的一部分`);
-        });
-        j--;
-      } else {
-        const bad = TXT[i + j];
-        const last = lastIndex(bad, j - 1);
-        const shift = last >= 0 ? j - last : j + 1;
-        const gs = P.slice(j + 1);
-        yield S(() => {
-          xMark.sprite.position.set(mx(i + j), 569, 40);
-          xMark.sprite.visible = true;
-          sBox[i + j].setColor(RED, RED); pBox[j].setColor(RED, RED);
-          outT.setText(`坏字符 S[${i + j}]='${bad}' ≠ P[${j}]='${P[j]}'：'${bad}' ${last >= 0 ? `最后出现在 P[${last}]` : '在 P 中未出现'} → 平移 ${shift} 格${gs ? `；好后缀 '${gs}' 已确认绿色` : ''}`);
-        });
-        yield W(800);
-        yield S(() => hint.setText(`坏字符跳转：窗口右移 ${shift} 格（橙色拉伸箭头 = 步长，指向新窗口位置）`));
-        yield stretchArrow(mx(i), mx(i + shift), 429, 700);
-        yield flyWindow(i + shift, 550);
-        yield W(350);
-        yield S(() => {
-          clearFx();
-          xMark.sprite.visible = false;
-          pBox.forEach(b => b.setColor(RED, RED));
-          sBox.forEach(b => b.setColor(BLUE, BLUE));
-        });
-        i += shift;
-        full = false;
-        break;
-      }
-    }
-    if (full) {
-      yield S(() => {
-        for (let k = 0; k < P.length; k++) sBox[i + k].setColor(GREEN, GREEN);
-        ring.mesh.position.set(mx(i), 569, 0);
-        ring.mesh.visible = true;
-        outT.setText(`匹配成功：S[${i}..${i + P.length - 1}] == P —— 第 ${i + 1} 次对齐命中`);
-        status.textContent = `BM 结果：主串 "${TXT}" 中 "${P}" 出现在位置 ${i}（坏字符跳转 2 次）`;
-        hint.setText('对比 BF：同样失配，BF 的 i 只回退 1 格；BM 一次跳 3 格 —— 坏字符规则让「没用的字符」直接翻页，文本越长优势越大');
-      });
-      yield W(1400);
-      return;
-    }
-    yield W(200);
+  yield W(200);
+  // ① 建表示意：5 盒自左向右金闪一遍（示意 δ 预计算）
+  for (let k = 0; k < P.length; k++) {
+    yield S(() => pBox[k].setColor(GOLD, GOLD));
+    yield W(300);
+    yield S(() => pBox[k].setColor(RED, RED));
+    yield W(150);
   }
-  yield S(() => { outT.setText('匹配失败：主串中不存在模式串'); status.textContent = `BM 结果：主串 "${TXT}" 中未找到 "${P}"`; });
+  yield S(() => { status.textContent = 'BM 坏字符规则：模式 "ABABC" 从右往左比较；δ 表：A→2 B→3 其余→整窗跳'; });
+  yield W(300);
+  // ② 窗口 i=0：j=4 失配（坏字符 D 未出现 → 跳 5 格）
+  yield S(() => { sBox[4].setColor(GOLD, GOLD); pBox[4].setColor(GOLD, GOLD); });
+  yield W(420);
+  yield S(() => {
+    sBox[4].setColor(RED, RED); pBox[4].setColor(RED, RED);
+    xMark.sprite.position.set(mx(4), 368, 10);
+    xMark.sprite.visible = true;
+  });
+  yield W(480);
+  yield S(() => { status.textContent = '窗口 i=0：S[4]="D"≠P[4]="C"，坏字符 "D" 未在模式中出现 → 移动 j+1=5 格 → 新窗口 i=5'; });
+  yield W(200);
+  // ③ 跳转 0→5：箭头拉伸 230 + 整行模式盒/框/双球同帧右移
+  yield stretchArrow(mx(0), mx(5), 420);
+  yield W(160);
+  yield shiftAll(0, 5, 640);
+  yield S(() => {
+    fxGroup.visible = false; arrowBody.scale.x = 1;
+    sBox[4].setColor(BLUE, BLUE); pBox[4].setColor(RED, RED);
+    xMark.sprite.visible = false;
+  });
+  yield W(150);
+  // ④ 窗口 i=5：j=4 失配（坏字符 A 最右在 P[2] → 跳 2 格）
+  yield S(() => { sBox[9].setColor(GOLD, GOLD); pBox[4].setColor(GOLD, GOLD); });
+  yield W(400);
+  yield S(() => {
+    sBox[9].setColor(RED, RED); pBox[4].setColor(RED, RED);
+    xMark.sprite.position.set(mx(9), 368, 10);
+    xMark.sprite.visible = true;
+  });
+  yield W(460);
+  yield S(() => { status.textContent = '窗口 i=5：S[9]="A"≠P[4]="C"，坏字符 "A" 最右在 P[2] → 移动 4−2=2 格 → 新窗口 i=7'; });
+  yield W(200);
+  // ⑤ 跳转 5→7：箭头拉伸 92 + 同帧右移
+  yield stretchArrow(mx(5), mx(7), 400);
+  yield W(140);
+  yield shiftAll(5, 7, 600);
+  yield S(() => {
+    fxGroup.visible = false; arrowBody.scale.x = 1;
+    sBox[9].setColor(BLUE, BLUE); pBox[4].setColor(RED, RED);
+    xMark.sprite.visible = false;
+  });
+  yield W(150);
+  // ⑥ 窗口 i=7：j=4..0 逐位验证命中 → 绿环
+  for (let j = 4; j >= 0; j--) {
+    if (j < 4) yield fly(jBall, mx(7 + j), 640, 300);
+    yield S(() => { sBox[7 + j].setColor(GOLD, GOLD); pBox[j].setColor(GOLD, GOLD); });
+    yield W(400);
+    yield S(() => { sBox[7 + j].setColor(GREEN, GREEN); pBox[j].setColor(GREEN, GREEN); });
+    yield W(430);
+  }
+  yield S(() => { ring.mesh.visible = true; frameColor(GREEN); });
+  yield W(1300);
+  yield S(() => { status.textContent = 'BM 完成：命中位置 7，比较 7 次（BF 需 20 次）；跳转 5 格、2 格各一次'; });
+  yield W(800);
 }
 
 engine.queue(() => runBM());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；红 ✕ = 坏字符，绿 = 好后缀，金球 = 比较指针，橙色箭头 = 平移步长）');
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

@@ -86,7 +86,7 @@ function* runBF() {
       yield S(() => { status.textContent = 'BruteForce 完成：命中位置 ' + i + '，共比较 ' + comps + ' 次'; });
       return;
     }
-    yield* shiftP(i);
+    yield shiftP(i);
     yield W(120);
   }
   yield S(() => { status.textContent = 'BruteForce 完成：未找到 "' + P + '"，共比较 ' + comps + ' 次'; });

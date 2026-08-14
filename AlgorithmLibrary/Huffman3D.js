@@ -109,8 +109,8 @@ function* runHuffman() {
     yield A(300, p => vn.mesh.scale.setScalar(1 + 0.12 * Math.sin(p * Math.PI * 2)));
     makeEdge(m.x, m.p); makeEdge(m.y, m.p);
     const ex = edgeView.get(m.x), ey = edgeView.get(m.y);
-    yield* flowAlong(ex.curve);
-    yield* flowAlong(ey.curve);
+    yield flowAlong(ex.curve);
+    yield flowAlong(ey.curve);
     yield A(300, p => { ex.mesh.material.opacity = 0.85 * p; ey.mesh.material.opacity = 0.85 * p; });
     yield S(() => { ex.lbl.sprite.visible = true; ey.lbl.sprite.visible = true; });
     yield S(() => {

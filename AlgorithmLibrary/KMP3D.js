@@ -80,12 +80,12 @@ const drawJump = (from, to) => {
 
 const growBar = (k, v) => {
   const full = barH(v);
+  const target = full / 65;
   return A(420, p => {
     const e = ease(p);
-    const s = Math.max(0.01, e);
-    bars[k].mesh.scale.y = s;
-    bars[k].mesh.position.y = BAR_BASE + full * s / 2;
-    barVals[k].sprite.position.y = BAR_BASE + full * s + 14;
+    bars[k].mesh.scale.y = Math.max(0.01, target * e);
+    bars[k].mesh.position.y = BAR_BASE + full * e / 2;
+    barVals[k].sprite.position.y = BAR_BASE + full * e + 14;
   });
 };
 
@@ -155,12 +155,17 @@ function* runKMP() {
       i++; j++;
       if (j === P.length) break;
     } else if (j > 0) {
-      yield S(() => { sBox[i].setColor(RED, RED); pBox[j].setColor(RED, RED); });
-      yield drawJump(j, pmt[j - 1]);
+      const oldJ = j;
+      yield S(() => { sBox[i].setColor(RED, RED); pBox[oldJ].setColor(RED, RED); });
+      yield drawJump(oldJ, pmt[oldJ - 1]);
       yield W(300);
-      j = pmt[j - 1];
+      j = pmt[oldJ - 1];
       yield fly(jBall, px(j), 610, 250);
-      yield S(() => { sBox[i].setColor(BLUE, BLUE); pBox[j].setColor(GOLD, GOLD); });
+      yield S(() => {
+        for (let q = i - oldJ; q <= i - j - 1; q++) sBox[q].setColor(BLUE, BLUE);
+        sBox[i].setColor(BLUE, BLUE);
+        pBox[j].setColor(GOLD, GOLD);
+      });
       yield W(120);
     } else {
       yield S(() => { sBox[i].setColor(RED, RED); pBox[j].setColor(RED, RED); });

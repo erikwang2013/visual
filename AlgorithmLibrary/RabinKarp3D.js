@@ -73,9 +73,9 @@ function* runRK() {
   yield W(450);
   yield S(() => hpTag.setText(String(HP), { color: CYAN }));
   yield W(200);
-  // ② 逐窗口滚动 W1..W7（W0 加载即显示；失配闪框、W2 碰撞验证、W7 命中验证）
-  for (let i = 1; i <= 7; i++) {
-    yield A(380, p => { const e = ease(p); winGroup.position.x = lerp(cx(i - 1), cx(i), e); });
+  // ② 逐窗口滚动 W0..W7（失配闪框、W2 碰撞验证、W7 命中验证）
+  for (let i = 0; i <= 7; i++) {
+    if (i > 0) yield A(380, p => { const e = ease(p); winGroup.position.x = lerp(cx(i - 1), cx(i), e); });
     yield S(() => hTag.setText(String(WIN[i]), { color: GOLD }));
     yield W(220);
     yield S(() => hTag.setText(String(WIN[i]), { color: CYAN }));
@@ -88,7 +88,7 @@ function* runRK() {
       yield W(150);
     } else if (i === 2) {
       // ③ 碰撞：哈希相同但字符不等 → 伪命中
-      yield S(() => { hpTag.setText(String(HP), { color: CYAN }); frameColor(GOLD); });
+      yield S(() => hpTag.setText(String(HP), { color: CYAN }));
       yield W(320);
       yield S(() => { sBox[2].setColor(GOLD, GOLD); pBox[0].setColor(GOLD, GOLD); });
       yield W(250);
@@ -108,7 +108,7 @@ function* runRK() {
       yield W(150);
     } else {
       // ④ 命中：逐位验证全同 → 窗口绿框
-      yield S(() => { hpTag.setText(String(HP), { color: CYAN }); frameColor(GOLD); });
+      yield S(() => hpTag.setText(String(HP), { color: CYAN }));
       yield W(300);
       for (let k = 0; k < P.length; k++) {
         yield S(() => { sBox[7 + k].setColor(GOLD, GOLD); pBox[k].setColor(GOLD, GOLD); });

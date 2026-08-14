@@ -1,176 +1,131 @@
-// AlgorithmLibrary/RabinKarp3D.js — RK 滚动哈希：窗口哈希 O(1) 递推，折线顶点爆炸 = 哈希命中（function* 生成器驱动）
+// AlgorithmLibrary/RabinKarp3D.js — RabinKarp 滚动哈希：模式哈希 + 逐窗口滚动哈希比较 + 碰撞逐字符验证（function* 生成器驱动）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, VNode, VTorus } from '../3D/VisualObject3D.js';
+import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('RabinKarp3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const BLUE = 0x60a5fa, RED = 0xfb7185, GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x67e8f9, VIOLET = 0xc4b5fd;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
-const status = panel.addStatus('');
+const BLUE = 0x38bdf8, RED = 0xfb7185, GOLD = 0xfde047, GREEN = 0x4ade80, CYAN = 0x67e8f9;
+const FRAME = 0x94a3b8;
+const status = panel.addStatus('就绪');
 
-const TXT = 'ABABABC', P = 'ABAB';
-const B = 29;
-const hash = s => { let h = 0; for (const ch of s) h = h * B + ch.charCodeAt(0); return h; };
-const HP = hash(P);
-const winH = [];
-for (let i = 0; i <= TXT.length - P.length; i++) winH.push(hash(TXT.slice(i, i + P.length)));
-const hMin = Math.min(...winH), hMax = Math.max(...winH);
-
+const TXT = '59302363124', P = '3124', Q = 101;
+const HP = 3124 % Q;                       // 94
+const WIN = [72, 10, 94, 34, 40, 96, 50, 94];
 const SP = 46;
 const lerp = (a, b, p) => a + (b - a) * p;
+const ease = p => p * p * (3 - 2 * p);
 const mx = k => (k - (TXT.length - 1) / 2) * SP + 320;
 const px = k => (k - (P.length - 1) / 2) * SP + 320;
-const sBox = [...TXT].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 290, label: ch, color: BLUE, emissive: BLUE }));
-const pBox = [...P].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: px(k), y: 620, label: ch, color: RED, emissive: RED }));
-const iBall = new VNode(scene, { radius: 11, x: mx(0), y: 210, color: CYAN, emissive: CYAN });
-const jBall = new VNode(scene, { radius: 11, x: px(0), y: 710, color: GOLD, emissive: GOLD });
-const ring = new VTorus(scene, { radius: 36, x: 0, y: 290, color: GOLD });
-ring.mesh.visible = false;
-const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
-new VText(scene, { text: '主串 S', x: 60, y: 290, z: 0, color: PALETTE.textDim, scale: 0.6 });
-new VText(scene, { text: '模式串 P', x: 60, y: 620, z: 0, color: PALETTE.textDim, scale: 0.6 });
+const cx = i => 159 + SP * i;              // 窗口框中心
 
-const chartX = i => 185 + i * 90;
-const chartY = h => 500 - 150 * (h - hMin) / (hMax - hMin);
-const verts = winH.map((h, i) => new VNode(scene, { radius: 7, x: chartX(i), y: chartY(h), color: 0x475569, emissive: 0x475569 }));
-winH.map((_, i) => new VText(scene, { text: 'i=' + i, x: chartX(i), y: 450, z: 0, color: PALETTE.textDim, scale: 0.5 }));
-new VText(scene, { text: '滚动哈希曲线 h(i)（顶点 = 各窗口哈希，绿色爆炸 = 哈希命中）', x: 320, y: 540, z: 0, color: VIOLET, scale: 0.62 });
+// ---- 视觉：主串/模式字符盒 + 可滑动窗口框（4 条细边 + 窗口哈希标签）----
+const sBox = [...TXT].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 420, label: ch, color: BLUE, emissive: BLUE }));
+const sNum = [...TXT].map((_, k) => new VText(scene, { text: String(k), x: mx(k), y: 392, z: 10, color: PALETTE.textDim, scale: 0.45 }));
+const pBox = [...P].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: px(k), y: 560, label: ch, color: RED, emissive: RED }));
+const pNum = [...P].map((_, k) => new VText(scene, { text: String(k), x: px(k), y: 532, z: 10, color: PALETTE.textDim, scale: 0.45 }));
 
-let fxGroup = new THREE.Group();
-scene.add(fxGroup);
-const clearFx = () => { scene.remove(fxGroup); fxGroup = new THREE.Group(); scene.add(fxGroup); };
-
-const fly = (ball, x, y, ms = 340) => {
-  const fx = ball.mesh.position.x, fy = ball.mesh.position.y;
-  return A(ms, p => {
-    const e = p * p * (3 - 2 * p);
-    ball.mesh.position.x = lerp(fx, x, e);
-    ball.mesh.position.y = lerp(fy, y, e);
-  });
+const mkBar = (w, h, x, y) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 2), new THREE.MeshBasicMaterial({ color: FRAME }));
+  m.position.set(x, y, 0);
+  return m;
 };
+const winGroup = new THREE.Group();
+const bars = [mkBar(2, 190, -92, 0), mkBar(2, 190, 92, 0), mkBar(186, 2, 0, -95), mkBar(186, 2, 0, 95)];
+bars.forEach(b => winGroup.add(b));
+winGroup.position.set(cx(0), 420, 0);
+scene.add(winGroup);
 
-const burst = (x, y) => {
-  const g = new THREE.Group();
-  const parts = [];
-  for (let k = 0; k < 26; k++) {
-    const m = new THREE.Mesh(new THREE.SphereGeometry(3, 6, 6), new THREE.MeshBasicMaterial({ color: GREEN }));
-    const start = new THREE.Vector3(x, y, 0);
-    m.position.copy(start);
-    const dir = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, (Math.random() - 0.5) * 0.5).normalize();
-    parts.push({ m, start, dir, d: 26 + Math.random() * 30 });
-    g.add(m);
-  }
-  fxGroup.add(g);
-  return A(650, p => {
-    const e = p * p * (3 - 2 * p);
-    parts.forEach(pt => pt.m.position.copy(pt.start).addScaledVector(pt.dir, pt.d * e));
-  });
-};
+const hTag = new VText(scene, { text: String(WIN[0]), x: 0, y: -70, z: 10, color: CYAN, scale: 0.6 });
+scene.remove(hTag.sprite);
+winGroup.add(hTag.sprite);
+const hpTag = new VText(scene, { text: String(HP), x: 320, y: 610, z: 10, color: GOLD, scale: 0.6 });
+hpTag.sprite.visible = false;
+
+const frameColor = c => bars.forEach(b => b.material.color.setHex(c));
 
 function resetAll() {
-  clearFx();
   sBox.forEach(b => b.setColor(BLUE, BLUE));
   pBox.forEach(b => b.setColor(RED, RED));
-  verts.forEach(v => v.setColor(0x475569, 0x475569));
-  iBall.mesh.position.set(mx(0), 210, 0);
-  jBall.mesh.position.set(px(0), 710, 0);
-  ring.mesh.visible = false;
-  outT.setText('');
-}
-
-function* chartPoint(i, h) {
-  const hit = h === HP;
-  yield S(() => verts[i].setColor(hit ? GOLD : 0x475569, hit ? GOLD : 0x475569));
-  yield W(180);
-  if (i > 0) {
-    yield S(() => {
-      const a = new THREE.Vector3(chartX(i - 1), chartY(winH[i - 1]), 30);
-      const b = new THREE.Vector3(chartX(i), chartY(h), 30);
-      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]),
-        new THREE.LineBasicMaterial({ color: VIOLET, transparent: true, opacity: 0.9 }));
-      fxGroup.add(line);
-    });
-  }
-  if (hit) yield burst(chartX(i), chartY(h));
+  winGroup.position.set(cx(0), 420, 0);
+  frameColor(FRAME);
+  hTag.setText(String(WIN[0]), { color: CYAN });
+  hpTag.sprite.visible = false;
+  hpTag.setText(String(HP), { color: GOLD });
 }
 
 function* runRK() {
   yield S(resetAll);
-  yield S(() => { hint.setText('RK：先算模式串哈希 H；每个窗口的哈希用「滚动」公式 O(1) 递推；哈希相等才逐字符验证（本例 base=29）'); });
-  const matches = [];
-  let h = winH[0];
-  for (let i = 0; i < winH.length; i++) {
-    yield fly(iBall, mx(i), 210);
-    yield S(() => {
-      outT.setText(i === 0
-        ? `窗口 0 直接计算哈希：${h}`
-        : `滚动：h${i} = (h${i - 1} − S[${i - 1}]·29³)·29 + S[${i + P.length - 1}] = ${h}`);
-    });
-    yield* chartPoint(i, h);
-    if (h === HP) {
-      matches.push(i);
-      yield S(() => { hint.setText(`h${i} == H = ${HP} —— 哈希命中！顶点爆炸，窗口金色，逐字符验证`); });
-      yield W(500);
-      let ok = true;
-      for (let k = 0; k < P.length; k++) {
-        yield fly(iBall, mx(i + k), 210);
-        yield fly(jBall, px(k), 710);
-        yield S(() => { sBox[i + k].setColor(GOLD, GOLD); pBox[k].setColor(GOLD, GOLD); });
-        yield W(240);
-        if (TXT[i + k] === P[k]) {
-          yield S(() => { sBox[i + k].setColor(GREEN, GREEN); pBox[k].setColor(GREEN, GREEN); });
-        } else {
-          ok = false;
-          yield S(() => { sBox[i + k].setColor(RED, RED); pBox[k].setColor(RED, RED); });
-          break;
-        }
-      }
-      yield S(() => {
-        pBox.forEach(b => b.setColor(RED, RED));
-        sBox.forEach(b => b.setColor(BLUE, BLUE));
-      });
+  yield W(200);
+  // ① 模式哈希：4 盒逐盒金闪 → HP 揭晓
+  for (let k = 0; k < P.length; k++) {
+    yield S(() => pBox[k].setColor(GOLD, GOLD));
+    yield W(350);
+    yield S(() => pBox[k].setColor(RED, RED));
+  }
+  yield S(() => { hpTag.sprite.visible = true; hpTag.setText(String(HP), { color: GOLD }); });
+  yield W(450);
+  yield S(() => hpTag.setText(String(HP), { color: CYAN }));
+  yield W(200);
+  // ② 逐窗口滚动 W1..W7（W0 加载即显示；失配闪框、W2 碰撞验证、W7 命中验证）
+  for (let i = 1; i <= 7; i++) {
+    yield A(380, p => { const e = ease(p); winGroup.position.x = lerp(cx(i - 1), cx(i), e); });
+    yield S(() => hTag.setText(String(WIN[i]), { color: GOLD }));
+    yield W(220);
+    yield S(() => hTag.setText(String(WIN[i]), { color: CYAN }));
+    yield S(() => { hpTag.setText(String(HP), { color: GOLD }); frameColor(GOLD); });
+    yield W(260);
+    if (WIN[i] !== HP) {
+      yield S(() => { hpTag.setText(String(HP), { color: CYAN }); frameColor(RED); });
+      yield W(340);
+      yield S(() => frameColor(FRAME));
+      yield W(150);
+    } else if (i === 2) {
+      // ③ 碰撞：哈希相同但字符不等 → 伪命中
+      yield S(() => { hpTag.setText(String(HP), { color: CYAN }); frameColor(GOLD); });
+      yield W(320);
+      yield S(() => { sBox[2].setColor(GOLD, GOLD); pBox[0].setColor(GOLD, GOLD); });
       yield W(250);
-      if (ok) {
-        yield S(() => {
-          for (let k = 0; k < P.length; k++) sBox[i + k].setColor(GREEN, GREEN);
-          ring.mesh.position.set(mx(i), 290, 0);
-          ring.mesh.visible = true;
-          outT.setText(`验证通过：S[${i}..${i + P.length - 1}] == P —— 匹配位置 ${i}（金色窗口框）`);
-        });
-        yield W(1100);
-        yield S(() => ring.mesh.visible = false);
-      } else {
-        yield S(() => outT.setText('哈希命中但字符不等 —— 哈希碰撞！验证环节就是为此存在的'));
-        yield W(900);
-      }
+      yield S(() => { sBox[2].setColor(GREEN, GREEN); pBox[0].setColor(GREEN, GREEN); });
+      yield W(350);
+      yield S(() => { sBox[3].setColor(GOLD, GOLD); pBox[1].setColor(GOLD, GOLD); });
+      yield W(250);
+      yield S(() => { sBox[3].setColor(RED, RED); pBox[1].setColor(RED, RED); });
+      yield W(420);
+      yield S(() => { for (let k = 0; k < 4; k++) sBox[2 + k].setColor(RED, RED); frameColor(RED); });
+      yield W(350);
+      yield S(() => {
+        for (let k = 0; k < 4; k++) sBox[2 + k].setColor(BLUE, BLUE);
+        pBox[0].setColor(RED, RED); pBox[1].setColor(RED, RED);
+        frameColor(FRAME);
+      });
+      yield W(150);
     } else {
-      yield S(() => { outT.setText(`h${i} = ${h} ≠ H = ${HP} —— 哈希不等，整窗跳过，不逐字符`); });
-      yield W(650);
-    }
-    if (i < winH.length - 1) {
-      yield S(() => {});
-      h = (h - TXT.charCodeAt(i) * Math.pow(B, P.length - 1)) * B + TXT.charCodeAt(i + P.length);
+      // ④ 命中：逐位验证全同 → 窗口绿框
+      yield S(() => { hpTag.setText(String(HP), { color: CYAN }); frameColor(GOLD); });
+      yield W(300);
+      for (let k = 0; k < P.length; k++) {
+        yield S(() => { sBox[7 + k].setColor(GOLD, GOLD); pBox[k].setColor(GOLD, GOLD); });
+        yield W(220);
+        yield S(() => { sBox[7 + k].setColor(GREEN, GREEN); pBox[k].setColor(GREEN, GREEN); });
+        yield W(320);
+      }
+      yield S(() => frameColor(GREEN));
+      yield W(1200);
     }
   }
-  yield S(() => {
-    matches.forEach(m => { for (let k = 0; k < P.length; k++) sBox[m + k].setColor(GREEN, GREEN); });
-    ring.mesh.position.set(mx(matches[0]), 290, 0);
-    ring.mesh.visible = true;
-    outT.setText(`扫描结束：匹配位置 ${matches.join('、')}。${winH.length} 个窗口 = 1 次直接哈希 + ${winH.length - 1} 次 O(1) 滚动`);
-    status.textContent = `RK 结果：主串 "${TXT}" 中 "${P}" 出现在位置 ${matches.join(' 和 ')}（哈希命中 ${matches.length} 次，均验证通过）`;
-    hint.setText('对比 BF：RK 把「比较字符串」变成「比较整数」；哈希不等直接跳过，命中才回查 —— 平均 O(n+m)');
-  });
+  // ⑤ 完成
+  yield S(() => { status.textContent = 'RabinKarp 完成：命中位置 7；哈希比较 8 次，逐字符验证 6 次（含 1 次伪命中）'; });
+  yield W(800);
 }
 
 engine.queue(() => runRK());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；紫色折线 = 哈希曲线，金色顶点 + 爆炸 = 命中，金环 = 匹配窗口）');
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

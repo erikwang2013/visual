@@ -7,16 +7,12 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ECDH3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：ECDH —— 椭圆曲线 DH', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 410, z: 0, color: PALETTE.textGlow, scale: 0.44 });
-const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 // —— 椭圆曲线核心：mod 17 点运算（运行时计算）——
 const P = 17, CA = 2;
@@ -43,52 +39,42 @@ const shrA = ecMul(AA, pubB), shrB = ecMul(AB, pubA), SHR = ecMul(12, G0);
 const fmt = (pt) => pt ? '(' + pt.x + ', ' + pt.y + ')' : '∞';
 
 const box = (v, x, y, w = 92, color = DIM) => new VBox(scene, { w, h: 44, d: 44, x, y, z: 0, label: String(v), color, emissive: color });
-const aPri = box('', -10, 475, 78);
-const aPub = box('', -10, 345, 88);
-const aShr = box('', -10, 205, 88);
-const bPri = box('', 650, 475, 78);
-const bPub = box('', 650, 345, 88);
-const bShr = box('', 650, 205, 88);
-const midBox = box('', 320, 205, 150);
-new VText(scene, { text: '爱丽丝', x: -10, y: 520, z: 0, color: CYAN, scale: 0.5 });
-new VText(scene, { text: '鲍勃', x: 650, y: 520, z: 0, color: ORANGE, scale: 0.5 });
-new VText(scene, { text: '私钥', x: -65, y: 475, z: 0, color: RED, scale: 0.42 });
-new VText(scene, { text: '公钥', x: -65, y: 345, z: 0, color: PUR, scale: 0.42 });
-new VText(scene, { text: '共享秘密', x: -65, y: 205, z: 0, color: GREEN, scale: 0.42 });
-new VText(scene, { text: '曲线 y²=x³+2x+2，G=(5,1)，n=19', x: 0, y: 538, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '核心等式：aA·(aB·G) = aB·(aA·G) —— 点乘交换律让两边殊途同归', x: 0, y: 160, z: 0, color: PALETTE.textDim, scale: 0.62 });
+const aPri = box('', 160, 700, 78);
+const aPub = box('', 160, 550, 88);
+const aShr = box('', 160, 400, 88);
+const bPri = box('', 480, 700, 78);
+const bPub = box('', 480, 550, 88);
+const bShr = box('', 480, 400, 88);
+const midBox = box('', 320, 320, 150);
 const setCell = (obj, v, color) => { obj.setText(String(v)); if (color) obj.setColor(color, color); };
 
 function* ecdhGen() {
-  yield S(() => { hint.setText('问题：公开信道协商密钥。DH 用模幂，ECDH 用点乘 —— 同样数学、更短的密钥'); stageT.setText('公开参数：曲线、基点 G = ' + fmt(G0) + '、阶 n = 19 —— 全世界都知道'); });
+  yield S(() => { status.textContent = '问题：公开信道协商密钥。DH 用模幂，ECDH 用点乘 —— 同样数学、更短的密钥。公开参数：曲线 y²=x³+2x+2、基点 G = ' + fmt(G0) + '、阶 n = 19（全世界都知道）'; });
   yield W(900);
   setCell(aPri, 'aA = ' + AA, RED);
   setCell(bPri, 'aB = ' + AB, RED);
-  yield S(() => { stageT.setText('各自掷私钥：爱丽丝 aA = ' + AA + '，鲍勃 aB = ' + AB + '（红）—— 私钥永远不出门'); });
+  yield S(() => { status.textContent = '各自掷私钥：爱丽丝 aA = ' + AA + '，鲍勃 aB = ' + AB + '（红）—— 私钥永远不出门'; });
   yield W(850);
   setCell(aPub, AA + 'G = ' + fmt(pubA), PUR);
   setCell(bPub, AB + 'G = ' + fmt(pubB), PUR);
-  yield S(() => { stageT.setText('公钥 = 私钥 × G：爱丽丝 ' + AA + 'G = ' + fmt(pubA) + '；鲍勃 ' + AB + 'G = ' + fmt(pubB) + '（紫）'); eqT.setText('由公钥反推私钥 = 椭圆曲线离散对数难题 —— 安全'); });
+  yield S(() => { status.textContent = '公钥 = 私钥 × G：爱丽丝 ' + AA + 'G = ' + fmt(pubA) + '，鲍勃 ' + AB + 'G = ' + fmt(pubB) + '（紫）；由公钥反推私钥 = 椭圆曲线离散对数难题 —— 安全'; });
   yield W(900);
-  yield S(() => { stageT.setText('公开信道交换公钥：中间人能看到 ' + fmt(pubA) + ' 和 ' + fmt(pubB) + '，但反推不出 ' + AA + ' 或 ' + AB); });
+  yield S(() => { status.textContent = '公开信道交换公钥：中间人能看到 ' + fmt(pubA) + ' 和 ' + fmt(pubB) + '，但反推不出 ' + AA + ' 或 ' + AB; });
   yield W(850);
   setCell(aShr, 'aA·Bpub = ' + fmt(shrA), GREEN);
-  yield S(() => { stageT.setText('爱丽丝本地：aA × 鲍勃公钥 = ' + AA + '·' + fmt(pubB) + ' = ' + fmt(shrA)); eqT.setText('' + AA + '·' + fmt(pubB) + ' = ' + AA + '·(' + AB + 'G) = ' + (AA * AB) + 'G'); });
+  yield S(() => { status.textContent = '爱丽丝本地：aA × 鲍勃公钥 = ' + AA + '·' + fmt(pubB) + ' = ' + fmt(shrA) + '（= ' + (AA * AB) + 'G）'; });
   yield W(900);
   setCell(bShr, 'aB·Apub = ' + fmt(shrB), GREEN);
-  yield S(() => { stageT.setText('鲍勃本地：aB × 爱丽丝公钥 = ' + AB + '·' + fmt(pubA) + ' = ' + fmt(shrB) + ' —— 两个结果完全相同！'); eqT.setText('' + AB + '·' + fmt(pubA) + ' = ' + AB + '·(' + AA + 'G) = ' + (AA * AB) + 'G —— 交换律'); });
+  yield S(() => { status.textContent = '鲍勃本地：aB × 爱丽丝公钥 = ' + AB + '·' + fmt(pubA) + ' = ' + fmt(shrB) + ' —— 点乘交换律让两边殊途同归！'; });
   yield W(900);
   setCell(midBox, '共享秘密 = ' + (AA * AB) + 'G = ' + fmt(SHR), GREEN);
-  outT.setText('共享秘密 ' + fmt(SHR) + ' ✓ 双方一致，中间人算不出');
-  status.textContent = 'ECDH: aA=' + AA + ', aB=' + AB + ' → 公钥 ' + fmt(pubA) + '/' + fmt(pubB) + ' → 共享秘密 ' + fmt(SHR);
-  yield S(() => { stageT.setText('共享秘密诞生：双方都得到 ' + fmt(SHR) + '（绿）—— 通常取 x 坐标喂给 KDF 派生出对称密钥'); hint.setText('中间人缺了私钥，即使拿着两个公钥也算不出 ' + (AA * AB) + 'G —— 除非破解离散对数'); });
+  yield S(() => { status.textContent = '共享秘密 ' + fmt(SHR) + ' ✓ 双方一致，中间人算不出；通常取 x 坐标喂给 KDF 派生出对称密钥'; });
   yield W(1000);
-  yield S(() => { hint.setText('ECDH 演示完成：私钥 → 公钥 → 交换 → ' + (AA * AB) + 'G = ' + fmt(SHR) + '。TLS 1.3 ECDHE 握手、Signal 协议都在用它'); outT.setText(''); });
+  yield S(() => { status.textContent = 'ECDH 演示完成：私钥 → 公钥 → 交换 → ' + (AA * AB) + 'G = ' + fmt(SHR) + '。TLS 1.3 ECDHE 握手、Signal 协议都在用它；数据：aA=' + AA + ', aB=' + AB + ' → 公钥 ' + fmt(pubA) + '/' + fmt(pubB) + ' → 共享秘密 ' + fmt(SHR); });
   yield W(400);
 }
 
 function* runECDH() {
-  hint.setText('ECDH：点乘版密钥交换');
   yield W(400);
   yield* ecdhGen();
 }
@@ -97,9 +83,7 @@ engine.queue(() => runECDH());
 panel.addButton('清空', () => {
   engine.clear();
   [aPri, aPub, aShr, bPri, bPub, bShr, midBox].forEach(b => setCell(b, '', DIM));
-  stageT.setText(''); eqT.setText(''); outT.setText('');
-  hint.setText('已清空，可重新运行'); status.textContent = '';
+  status.textContent = '';
 });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 爱丽丝，橙 = 鲍勃，红 = 私钥，紫 = 公钥，绿 = 共享秘密 12G=(0,11)）');
 
 scene.start(engine);

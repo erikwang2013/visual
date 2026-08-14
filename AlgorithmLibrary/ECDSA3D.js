@@ -7,16 +7,12 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ECDSA3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：ECDSA —— 数字签名', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 700, y: 330, z: 0, color: PALETTE.textGlow, scale: 0.44, wrapChars: 8 });
-const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 // —— 椭圆曲线核心：mod 17 点运算 + 模逆（运行时计算）——
 const P = 17, CA = 2, N = 19;
@@ -46,61 +42,57 @@ const PP = ecAdd(ecMul(U1, G0), ecMul(U2, Q0));
 const fmt = (pt) => pt ? '(' + pt.x + ', ' + pt.y + ')' : '∞';
 
 const box = (v, x, y, w = 92, color = DIM) => new VBox(scene, { w, h: 44, d: 44, x, y, z: 0, label: String(v), color, emissive: color });
-const dBox = box('', 40, 400, 74);
-const qBox = box('', 130, 400, 92);
-const kBox = box('', 240, 400, 74);
-const kgBox = box('', 330, 400, 92);
-const rBox = box('', 460, 400, 62);
-const sBox = box('', 555, 400, 62);
-const wBox = box('', 40, 260, 74);
-const u1Box = box('', 130, 260, 74);
-const u2Box = box('', 240, 260, 74);
-const pBox = box('', 330, 260, 92);
-const ckBox = box('', 460, 260, 158);
-new VText(scene, { text: '签名', x: 330, y: 445, z: 0, color: CYAN, scale: 0.46 });
-new VText(scene, { text: '验签', x: 330, y: 305, z: 0, color: GOLD, scale: 0.46 });
-new VText(scene, { text: 'ECDSA：私钥 dA，公钥 Q=dA·G', x: 700, y: 620, z: 0, color: PALETTE.textDim, scale: 0.55, wrapChars: 8 });
-new VText(scene, { text: '签名 r = x₁ mod n（x₁ 来自 kG），s = k⁻¹(e + r·dA) mod n。验签 w = s⁻¹：u1G + u2Q 还原 kG，x₁ 对得上即通过', x: 700, y: 250, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
+const dBox = box('', 40, 650, 74);
+const qBox = box('', 130, 650, 92);
+const kBox = box('', 240, 650, 74);
+const kgBox = box('', 330, 650, 92);
+const rBox = box('', 460, 650, 62);
+const sBox = box('', 555, 650, 62);
+const wBox = box('', 40, 440, 74);
+const u1Box = box('', 130, 440, 74);
+const u2Box = box('', 240, 440, 74);
+const pBox = box('', 330, 440, 92);
+const ckBox = box('', 460, 440, 158);
+new VText(scene, { text: '签名', x: 330, y: 700, z: 0, color: CYAN, scale: 0.46 });
+new VText(scene, { text: '验签', x: 330, y: 490, z: 0, color: GOLD, scale: 0.46 });
 const setCell = (obj, v, color) => { obj.setText(String(v)); if (color) obj.setColor(color, color); };
 
 function* ecdsaGen() {
-  yield S(() => { hint.setText('ECDSA = 椭圆曲线数字签名：把 DSA 的模幂换成点乘 —— 密钥短 6 倍，速度还更快'); stageT.setText('密钥对：私钥 dA = ' + DA + '（红，保密）→ 公钥 Q = dA·G = ' + fmt(Q0)); });
+  yield S(() => { status.textContent = 'ECDSA = 椭圆曲线数字签名：把 DSA 的模幂换成点乘 —— 密钥短 6 倍，速度还更快。密钥对：私钥 dA = ' + DA + '（红，保密）→ 公钥 Q = dA·G = ' + fmt(Q0); });
   yield W(900);
   setCell(dBox, 'dA = ' + DA, RED);
   setCell(qBox, 'Q = ' + DA + 'G = ' + fmt(Q0), PUR);
-  yield S(() => { stageT.setText('公钥 Q = ' + fmt(Q0) + '（紫）公开 —— 比特币地址 = Base58(哈希(Q))'); });
+  yield S(() => { status.textContent = '公钥 Q = ' + fmt(Q0) + '（紫）公开 —— 比特币地址 = Base58(哈希(Q))'; });
   yield W(850);
   setCell(kBox, 'k = ' + K, ORANGE);
-  yield S(() => { stageT.setText('签名准备：摘要 e = ' + E + '（消息哈希），随机数 k = ' + K + ' —— 每次签名重新掷 k'); eqT.setText('Sony PS3 事件教训：k 重用 → 私钥被直接算出'); });
+  yield S(() => { status.textContent = '签名准备：摘要 e = ' + E + '（消息哈希），随机数 k = ' + K + ' —— 每次签名重新掷 k；Sony PS3 事件教训：k 重用 → 私钥被直接算出'; });
   yield W(850);
   setCell(kgBox, 'kG = ' + K + 'G = ' + fmt(KG), ORANGE);
-  yield S(() => { stageT.setText('第一步：kG = ' + fmt(KG) + '（橙）—— 随机点定下签名的「锚」'); });
+  yield S(() => { status.textContent = '第一步：kG = ' + fmt(KG) + '（橙）—— 随机点定下签名的「锚」'; });
   yield W(850);
   setCell(rBox, 'r = ' + R, GOLD);
-  yield S(() => { stageT.setText('r = x₁ mod n = ' + KG.x + ' mod ' + N + ' = ' + R + '（金）—— 签名第一半 = 随机点的 x 坐标'); });
+  yield S(() => { status.textContent = 'r = x₁ mod n = ' + KG.x + ' mod ' + N + ' = ' + R + '（金）—— 签名第一半 = 随机点的 x 坐标'; });
   yield W(850);
   setCell(sBox, 's = ' + S_, GOLD);
-  yield S(() => { stageT.setText('s = k⁻¹(e + r·dA) = ' + modinv(K, N) + '·(' + E + ' + ' + R + '·' + DA + ') = ' + S_ + ' —— 私钥、摘要、随机数焊进 s'); eqT.setText('k⁻¹ mod ' + N + ' = ' + modinv(K, N) + '（' + K + '×' + modinv(K, N) + ' ≡ 1）。签名 = (r, s) = (' + R + ', ' + S_ + ')'); });
+  yield S(() => { status.textContent = 's = k⁻¹(e + r·dA) = ' + modinv(K, N) + '·(' + E + ' + ' + R + '·' + DA + ') = ' + S_ + ' —— 私钥、摘要、随机数焊进 s；k⁻¹ mod ' + N + ' = ' + modinv(K, N) + '（' + K + '×' + modinv(K, N) + ' ≡ 1）。签名 = (r, s) = (' + R + ', ' + S_ + ')'; });
   yield W(900);
   setCell(wBox, 'w = ' + WV, CYAN);
   setCell(u1Box, 'u1 = ' + U1, CYAN);
   setCell(u2Box, 'u2 = ' + U2, CYAN);
-  yield S(() => { stageT.setText('验签（只有公钥）：w = s⁻¹ mod n = ' + WV + '；u1 = e·w = ' + U1 + '；u2 = r·w = ' + U2); hint.setText('u1G + u2Q 的设计：u2Q = u2·dA·G，s⁻¹ 里的 dA 与 Q 里的 dA 自动约掉'); });
+  yield S(() => { status.textContent = '验签（只有公钥）：w = s⁻¹ mod n = ' + WV + '；u1 = e·w = ' + U1 + '；u2 = r·w = ' + U2 + '。u1G + u2Q 的设计：u2Q = u2·dA·G，s⁻¹ 里的 dA 与 Q 里的 dA 自动约掉'; });
   yield W(900);
   setCell(pBox, 'P = u1G + u2Q = ' + fmt(PP), GREEN);
-  yield S(() => { stageT.setText('P = ' + U1 + 'G + ' + U2 + '·Q = ' + fmt(PP) + ' —— u2·Q 中的 dA 与 s 中的 dA⁻¹ 抵消，奇迹般地还原出 kG'); eqT.setText('推导：s⁻¹(e·G + r·Q) = k⁻¹·(e + r·dA)·G = kG —— 代数环环相扣'); });
+  yield S(() => { status.textContent = 'P = ' + U1 + 'G + ' + U2 + '·Q = ' + fmt(PP) + ' —— u2·Q 中的 dA 与 s 中的 dA⁻¹ 抵消，还原出 kG；推导：s⁻¹(e·G + r·Q) = k⁻¹·(e + r·dA)·G = kG —— 代数环环相扣'; });
   yield W(950);
   setCell(ckBox, 'x₁′ = ' + PP.x + ' = r ✓ 验签通过', GREEN);
-  outT.setText('核对：P 的 x 坐标 ' + PP.x + ' = 签名里的 r = ' + R + ' → 签名真实有效 ✓');
-  status.textContent = 'ECDSA: dA=' + DA + ', Q=' + fmt(Q0) + ', e=' + E + ', k=' + K + ' → (r,s)=(' + R + ',' + S_ + ')；验签 P=' + fmt(PP) + '，x₁′=' + PP.x + '=r ✓';
-  yield S(() => { stageT.setText('验签通过 ✓ —— 篡改消息（e 变）或伪造签名都会使等式破裂'); hint.setText('认证 + 完整性 + 不可否认，一次签名全部达成'); });
+  yield S(() => { status.textContent = '核对：P 的 x 坐标 ' + PP.x + ' = 签名里的 r = ' + R + ' → 签名真实有效 ✓（认证 + 完整性 + 不可否认）。ECDSA 全参：dA=' + DA + ', Q=' + fmt(Q0) + ', e=' + E + ', k=' + K + ' → (r,s)=(' + R + ',' + S_ + ')，验签 P=' + fmt(PP) + '，x₁′=' + PP.x + '=r ✓'; });
   yield W(1000);
-  yield S(() => { hint.setText('ECDSA 演示完成：dA → Q → (r,s) → u1G+u2Q → x₁′ = r ✓。与 SM2 同家族，比特币/以太坊/TLS 都在用它'); outT.setText(''); });
+  yield S(() => { status.textContent = 'ECDSA 演示完成：dA → Q → (r,s) → u1G+u2Q → x₁′ = r ✓。与 SM2 同家族，比特币/以太坊/TLS 都在用它'; });
   yield W(400);
 }
 
 function* runECDSA() {
-  hint.setText('ECDSA：点乘版数字签名');
+  status.textContent = 'ECDSA：点乘版数字签名';
   yield W(400);
   yield* ecdsaGen();
 }
@@ -109,9 +101,7 @@ engine.queue(() => runECDSA());
 panel.addButton('清空', () => {
   engine.clear();
   [dBox, qBox, kBox, kgBox, rBox, sBox, wBox, u1Box, u2Box, pBox, ckBox].forEach(b => setCell(b, '', DIM));
-  stageT.setText(''); eqT.setText(''); outT.setText('');
-  hint.setText('已清空，可重新运行'); status.textContent = '';
+  status.textContent = '';
 });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；红 = 私钥，紫 = 公钥，橙 = 随机数，金 = 签名 (r,s)，青 = 验签数，绿 = 通过）');
 
 scene.start(engine);

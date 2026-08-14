@@ -43,7 +43,7 @@ const shiftP = (s, ms = 500) => {
 
 function resetAll() {
   sBox.forEach(b => b.setColor(BLUE, BLUE));
-  pBox.forEach(b => b.setColor(RED, RED));
+  pBox.forEach((b, k) => { b.setColor(RED, RED); b.mesh.position.x = mx(k); });
   iBall.mesh.position.set(mx(0), 380, 0);
   jBall.mesh.position.set(mx(0), 640, 0);
   ring.mesh.visible = false;

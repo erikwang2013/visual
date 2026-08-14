@@ -4,21 +4,19 @@ import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VText, VNode, VBox } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { applyTheme } from '../3D/Glow.js';
 applyTheme('HopcroftKarp3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Hopcroft-Karp（BFS 分层 + DFS 批量增广）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const NL = 4, NR = 4;
 const LX = 180, RX = 460;
-const LY = [410, 335, 260, 185];
+const LY = [760, 660, 560, 460];
 const EDGES = [[0, 0], [0, 1], [1, 0], [1, 2], [2, 2], [3, 1], [3, 3]];
 const adj = Array.from({ length: NL }, () => []);
 const nodeView = new Map();   // 'L0' / 'R1' -> VNode
@@ -77,7 +75,7 @@ function showDists() {
 }
 function* pushBox(id) {
   const x = 170 + queueBoxes.length * 55;
-  const box = new VBox(scene, { w: 42, h: 42, d: 20, x, y: 490, z: 0, label: id, color: ORANGE, emissive: ORANGE });
+  const box = new VBox(scene, { w: 42, h: 42, d: 20, x, y: 360, z: 0, label: id, color: ORANGE, emissive: ORANGE });
   box.mesh.scale.setScalar(0.01);
   yield A(280, p => { box.mesh.scale.setScalar(0.01 + 0.99 * p); });
   queueBoxes.push({ id, box });
@@ -98,14 +96,14 @@ function* bfsLayers() {
     if (pairL[i] === -1) { dist[i] = 0; q.push(i); yield* pushBox('L' + i); }
   }
   showDists();
-  yield S(() => outT.setText('BFS 分层：自由左点 dist=0 入队（' + (q.map(x => 'L' + x).join('、') || '无') + '）'));
+  yield S(() => { status.textContent = 'BFS 分层：自由左点 dist=0 入队（' + (q.map(x => 'L' + x).join('、') || '无') + '）'; });
   yield W(450);
   let head = 0, found = false;
   while (head < q.length) {
     const u = q[head++];
     setNodeColor('L' + u, GOLD);
     yield* popBox();
-    yield S(() => outT.setText('出队 L' + u + '（d=' + dist[u] + '），扫描其边'));
+    yield S(() => { status.textContent = '出队 L' + u + '（d=' + dist[u] + '），扫描其边'; });
     yield W(300);
     for (const v of adj[u]) {
       setEdgeColor(u, v, CYAN, 1);
@@ -113,7 +111,7 @@ function* bfsLayers() {
       if (pairR[v] === -1) {
         setEdgeColor(u, v, PUR, 1);
         found = true;
-        yield S(() => outT.setText('R' + v + ' 自由 → 找到增广路（最短距离层次完成）'));
+        yield S(() => { status.textContent = 'R' + v + ' 自由 → 找到增广路（最短距离层次完成）'; });
         yield W(320);
       } else {
         const w = pairR[v];
@@ -122,10 +120,10 @@ function* bfsLayers() {
           q.push(w);
           yield* pushBox('L' + w);
           setNodeColor('L' + w, ORANGE);
-          yield S(() => outT.setText('R' + v + ' 已配给 L' + w + ' → L' + w + ' 入队，dist=' + dist[w]));
+          yield S(() => { status.textContent = 'R' + v + ' 已配给 L' + w + ' → L' + w + ' 入队，dist=' + dist[w]; });
           yield W(340);
         } else {
-          yield S(() => outT.setText('R' + v + ' 的配对方 L' + w + ' 已分层（d=' + dist[w] + '），跳过'));
+          yield S(() => { status.textContent = 'R' + v + ' 的配对方 L' + w + ' 已分层（d=' + dist[w] + '），跳过'; });
           yield W(240);
         }
       }
@@ -134,7 +132,7 @@ function* bfsLayers() {
     refreshMatched();
   }
   showDists();
-  yield S(() => outT.setText('BFS 结束' + (found ? '：存在最短增广路，转入 DFS 批量增广' : '：无增广路 → 匹配最大')));
+  yield S(() => { status.textContent = 'BFS 结束' + (found ? '：存在最短增广路，转入 DFS 批量增广' : '：无增广路 → 匹配最大'); });
   yield W(450);
   return found;
 }
@@ -144,14 +142,14 @@ function* dfsAug(u) {
     if (pairR[v] === -1 || dist[pairR[v]] === dist[u] + 1) {
       setEdgeColor(u, v, GOLD, 1);
       setNodeColor('R' + v, ORANGE);
-      yield S(() => outT.setText('DFS L' + u + ' → R' + v + '（满足 dist 层次 +1）' + (pairR[v] === -1 ? '，R 自由 → 翻转' : '，继续深入 L' + pairR[v])));
+      yield S(() => { status.textContent = 'DFS L' + u + ' → R' + v + '（满足 dist 层次 +1）' + (pairR[v] === -1 ? '，R 自由 → 翻转' : '，继续深入 L' + pairR[v]); });
       yield W(320);
       if (pairR[v] === -1 || (yield* dfsAug(pairR[v]))) {
         pairR[v] = u; pairL[u] = v;
         refreshMatched();
         setEdgeColor(u, v, GOLD, 1);
         setNodeColor('L' + u, GREEN);
-        yield S(() => outT.setText('增广翻转：L' + u + '-R' + v + ' 成为匹配边'));
+        yield S(() => { status.textContent = '增广翻转：L' + u + '-R' + v + ' 成为匹配边'; });
         yield W(380);
         return true;
       }
@@ -163,54 +161,53 @@ function* dfsAug(u) {
 
 function* hkGen() {
   pairL = Array(NL).fill(-1); pairR = Array(NR).fill(-1); dist = Array(NL).fill(Infinity);
-  yield S(() => outT.setText('Hopcroft-Karp：每次「BFS 求最短增广路距离 + DFS 批量翻转」为一阶段，共 O(√V) 阶段'));
+  yield S(() => { status.textContent = 'Hopcroft-Karp：每次「BFS 求最短增广路距离 + DFS 批量翻转」为一阶段，共 O(√V) 阶段'; });
   yield W(600);
   let phase = 0;
   while (true) {
     phase++;
-    yield S(() => outT.setText('——— 第 ' + phase + ' 阶段：BFS 分层 ———'));
+    yield S(() => { status.textContent = '——— 第 ' + phase + ' 阶段：BFS 分层 ———'; });
     yield W(450);
     const found = yield* bfsLayers();
     if (!found) break;
-    yield S(() => outT.setText('——— DFS 批量增广（只走 dist 递增的边）———'));
+    yield S(() => { status.textContent = '——— DFS 批量增广（只走 dist 递增的边）———'; });
     yield W(450);
     for (let u = 0; u < NL; u++) {
       if (pairL[u] !== -1 || dist[u] !== 0) continue;
       setNodeColor('L' + u, GOLD);
-      yield S(() => outT.setText('自由左点 L' + u + ' 尝试 DFS 增广'));
+      yield S(() => { status.textContent = '自由左点 L' + u + ' 尝试 DFS 增广'; });
       yield W(280);
       if (yield* dfsAug(u)) {
-        yield S(() => outT.setText('L' + u + ' 增广成功'));
+        yield S(() => { status.textContent = 'L' + u + ' 增广成功'; });
       } else {
         setNodeColor('L' + u, RED);
-        yield S(() => outT.setText('L' + u + ' 无可用的最短增广路（已尽力）'));
+        yield S(() => { status.textContent = 'L' + u + ' 无可用的最短增广路（已尽力）'; });
         yield W(300);
         setNodeColor('L' + u, BLUE);
       }
     }
     refreshMatched();
-    yield S(() => outT.setText('第 ' + phase + ' 阶段完成，重新 BFS 分层'));
+    yield S(() => { status.textContent = '第 ' + phase + ' 阶段完成，重新 BFS 分层'; });
     yield W(500);
   }
   const pairs = [];
   for (let v = 0; v < NR; v++) if (pairR[v] !== -1) pairs.push('L' + pairR[v] + '-R' + v);
-  yield S(() => outT.setText('最大匹配 ' + pairs.length + ' 对：' + pairs.join('、') + '，共 ' + (phase - 1) + ' 个阶段'));
+  yield S(() => { status.textContent = '最大匹配 ' + pairs.length + ' 对：' + pairs.join('、') + '，共 ' + (phase - 1) + ' 个阶段'; });
   yield W(550);
-  yield S(() => { status.textContent = 'Hopcroft-Karp 完成：最大匹配 ' + pairs.length + '，O(E√V)'; });
+  yield S(() => { status.textContent = 'Hopcroft-Karp 演示完成：最大匹配 ' + pairs.length + '，O(E√V)'; });
   yield W(450);
   refreshMatched();
 }
 
 function* runHK() {
   buildGraph();
-  hint.setText('Hopcroft-Karp：BFS 分层 + DFS 批量增广');
+  status.textContent = 'Hopcroft-Karp：BFS 分层 + DFS 批量增广';
   yield W(400);
   yield* hkGen();
-  yield S(() => { outT.setText(''); hint.setText('Hopcroft-Karp 完成：最大匹配 ' + pairR.filter(x => x !== -1).length + '，O(E√V)'); });
+  yield S(() => { status.textContent = 'Hopcroft-Karp 演示完成：最大匹配 ' + pairR.filter(x => x !== -1).length + ' 对，O(E√V)'; });
 }
 
 engine.queue(() => runHK());
-panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；顶行 = BFS 队列；青 = 探测边，金 = 增广边，绿 = 匹配边，紫 = 自由右点；左点上方 d=N 为层次）');
+panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
 
 scene.start(engine);

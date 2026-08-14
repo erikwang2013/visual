@@ -7,14 +7,12 @@ import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('BellmanFord3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Bellman-Ford 从 0 出发（含负权边）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const N = 5, R = 190;
 // 有向边 [from, to, w]，含负权 -2 与 -3
@@ -25,7 +23,7 @@ const edgeView = new Map();  // 'f-t' -> { tube, lbl }
 const distView = new Map();
 let dist = [], prev = [];
 
-function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R + 320, 300, Math.sin(a) * R); }
+function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R + 320, 510, Math.sin(a) * R); }
 function tube(a, b) {
   const curve = new THREE.CatmullRomCurve3([a, b]);
   return new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
@@ -66,11 +64,11 @@ function* bellmanFordGen() {
   prev = Array(N).fill(-1);
   dist[0] = 0;
   setDist(0);
-  yield S(() => outT.setText('初始化：dist[0]=0。执行 V-1 = 4 轮，每轮松弛全部 ' + EDGES.length + ' 条边'));
+  yield S(() => { status.textContent = '初始化：dist[0]=0。执行 V-1 = 4 轮，每轮松弛全部 ' + EDGES.length + ' 条边'; });
   yield W(550);
   let converged = false;
   for (let round = 1; round <= N - 1; round++) {
-    yield S(() => outT.setText('——— 第 ' + round + ' 轮：依次松弛每条边 ———'));
+    yield S(() => { status.textContent = '——— 第 ' + round + ' 轮：依次松弛每条边 ———'; });
     yield W(450);
     let changed = false;
     for (const [u, v, w] of EDGES) {
@@ -79,7 +77,7 @@ function* bellmanFordGen() {
       if (cand < dist[v]) {
         setEdgeColor(u, v, GREEN, 1);
         setNodeColor(v, ORANGE);
-        yield S(() => outT.setText('松弛 ' + u + '→' + v + '（' + w + '）：dist[' + v + '] ' + (dist[v] === Infinity ? '∞' : dist[v]) + ' → ' + cand));
+        yield S(() => { status.textContent = '松弛 ' + u + '→' + v + '（' + w + '）：dist[' + v + '] ' + (dist[v] === Infinity ? '∞' : dist[v]) + ' → ' + cand; });
         dist[v] = cand;
         prev[v] = u;
         setDist(v);
@@ -87,20 +85,20 @@ function* bellmanFordGen() {
         yield W(430);
       } else {
         setEdgeColor(u, v, CYAN, 0.75);
-        yield S(() => outT.setText('边 ' + u + '→' + v + '（' + dist[u] + '+' + w + ' ≥ dist[' + v + ']=' + dist[v] + '）：无更新'));
+        yield S(() => { status.textContent = '边 ' + u + '→' + v + '（' + dist[u] + '+' + w + ' ≥ dist[' + v + ']=' + dist[v] + '）：无更新'; });
         yield W(240);
       }
       resetEdgeColors();
     }
     if (!changed) {
       converged = true;
-      yield S(() => outT.setText('第 ' + round + ' 轮无任何更新 → 提前收敛，无需 V-1 轮'));
+      yield S(() => { status.textContent = '第 ' + round + ' 轮无任何更新 → 提前收敛，无需 V-1 轮'; });
       yield W(550);
       break;
     }
   }
   if (!converged) {
-    yield S(() => outT.setText('跑满 4 轮后第 V 轮验证：所有边均无法再松弛 → 图中无负权环'));
+    yield S(() => { status.textContent = '跑满 4 轮后第 V 轮验证：所有边均无法再松弛 → 图中无负权环'; });
     yield W(500);
   }
   const path = [4];
@@ -108,11 +106,10 @@ function* bellmanFordGen() {
   while (x !== 0 && prev[x] !== -1) { x = prev[x]; path.unshift(x); }
   for (let k = 0; k < path.length - 1; k++) setEdgeColor(path[k], path[k + 1], GOLD, 1);
   setNodeColor(4, GOLD);
-  yield S(() => outT.setText('最短路径 0→4：' + path.join(' → ') + '，总长 ' + dist[4] + '（负权边参与）'));
+  yield S(() => { status.textContent = '最短路径 0→4：' + path.join(' → ') + '，总长 ' + dist[4] + '（负权边参与）'; });
   yield W(800);
   yield S(() => {
-    outT.setText('dist 表：' + dist.map((d, i) => i + ':' + d).join('  '));
-    status.textContent = 'Bellman-Ford 完成：0→4 = ' + dist[4] + '，' + (converged ? '提前收敛' : '4 轮') + '，无负环';
+    status.textContent = 'Bellman-Ford 演示完成：0→4 = ' + dist[4] + '，' + (converged ? '提前收敛' : '4 轮') + '，无负环';
   });
   yield W(500);
   resetEdgeColors();
@@ -121,14 +118,13 @@ function* bellmanFordGen() {
 
 function* runBF() {
   buildGraph();
-  hint.setText('Bellman-Ford：支持负权边，V-1 轮全边松弛');
+  yield S(() => { status.textContent = 'Bellman-Ford：从 0 出发，支持负权边，V-1 轮全边松弛'; });
   yield W(400);
   yield* bellmanFordGen();
-  yield S(() => { outT.setText(''); hint.setText('Bellman-Ford 完成：O(VE)；第 V 轮仍更新则存在负环'); });
+  yield S(() => { status.textContent = 'Bellman-Ford 演示完成：复杂度 O(VE)，第 V 轮仍更新则存在负环'; });
 }
 
 engine.queue(() => runBF());
-panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；绿 = 松弛成功，青 = 无更新，金 = 最短路径，红字 = 负权边）');
+panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
 
 scene.start(engine);

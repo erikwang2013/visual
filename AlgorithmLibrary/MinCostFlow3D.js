@@ -7,17 +7,15 @@ import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('MinCostFlow3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：最小费用最大流（Bellman-Ford 选最便宜路）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const N = 4;
-const POS = [[0, 170, 0], [-150, 0, 0], [150, 0, 0], [0, -170, 0]].map(p => [p[0] + 320, p[1] + 300, p[2]]);
+const POS = [[0, 170, 0], [-150, 0, 0], [150, 0, 0], [0, -170, 0]].map(p => [p[0] + 320, p[1] + 500, p[2]]);
 const NAME = ['s', 'a', 'b', 't'];
 // [u, v, cap, cost]
 const E = [[0, 1, 3, 1], [0, 2, 3, 3], [1, 2, 2, 1], [1, 3, 2, 4], [2, 3, 3, 1]];
@@ -98,7 +96,7 @@ function* bfShortest() {
           changed = true;
           setEdgeColor(e.i, CYAN, 1);
           setNodeColor(e.v, ORANGE);
-          yield S(() => outT.setText('松弛 ' + NAME[u] + '→' + NAME[e.v] + '（费用 ' + e.cost + '）：dist=' + dist[e.v]));
+          yield S(() => { status.textContent = '松弛 ' + NAME[u] + '→' + NAME[e.v] + '（费用 ' + e.cost + '）：dist=' + dist[e.v]; });
           yield W(300);
           resetEdgeColors();
         }
@@ -112,16 +110,16 @@ function* mcfGen() {
   flow = E.map(() => 0);
   buildGraph();
   refreshResidual();
-  yield S(() => outT.setText('Bellman-Ford 每次选「总费用最小」的增广路（反向残余边费用取负）。边标签 = 流量/容量，下方 = 单位费用'));
+  yield S(() => { status.textContent = '最小费用最大流：Bellman-Ford 每次选「总费用最小」的增广路，反向残余边费用取负；边标签 = 流量/容量，下方 = 单位费用'; });
   yield W(700);
   let total = 0, totalCost = 0, aug = 0;
   while (true) {
     aug++;
-    yield S(() => outT.setText('——— 第 ' + aug + ' 轮：Bellman-Ford 求最便宜增广路 ———'));
+    yield S(() => { status.textContent = '第 ' + aug + ' 轮：Bellman-Ford 求最便宜增广路'; });
     yield W(400);
     const sp = yield* bfShortest();
     if (!sp) {
-      yield S(() => outT.setText('无残余路径 → 最大流已达，费用最小！'));
+      yield S(() => { status.textContent = '无残余路径 → 最大流已达，费用最小'; });
       yield W(450);
       break;
     }
@@ -133,11 +131,11 @@ function* mcfGen() {
       chain.unshift([i, x]);
       x = sp.dir[x] === 1 ? a : b;
     }
-    yield S(() => outT.setText('最便宜路（总费用 ' + sp.cost + '）：' + chain.map(([i]) => NAME[E[i][0]] + '→' + NAME[E[i][1]]).join(' → ') + '，瓶颈 ' + bf));
+    yield S(() => { status.textContent = '最便宜路（总费用 ' + sp.cost + '）：' + chain.map(([i]) => NAME[E[i][0]] + '→' + NAME[E[i][1]]).join(' → ') + '，瓶颈 ' + bf; });
     for (const [i, x] of chain) {
       const [a, b, c] = E[i];
       setEdgeColor(i, GOLD, 1);
-      yield S(() => outT.setText('增广 ' + bf + '：' + NAME[a] + '→' + NAME[b] + ' flow ' + flow[i] + ' → ' + (flow[i] + sp.dir[x] * bf)));
+      yield S(() => { status.textContent = '增广 ' + bf + '：' + NAME[a] + '→' + NAME[b] + ' flow ' + flow[i] + ' → ' + (flow[i] + sp.dir[x] * bf); });
       flow[i] += sp.dir[x] * bf;
       setEdgeLbl(i);
       yield W(380);
@@ -145,28 +143,25 @@ function* mcfGen() {
     total += bf;
     totalCost += bf * sp.cost;
     refreshResidual();
-    yield S(() => outT.setText('第 ' + aug + ' 轮完成：流量 ' + total + '，累计费用 ' + totalCost));
+    yield S(() => { status.textContent = '第 ' + aug + ' 轮完成：流量 ' + total + '，累计费用 ' + totalCost; });
     yield W(500);
     resetEdgeColors();
   }
-  yield S(() => {
-    outT.setText('结果：最大流 ' + total + '，最小费用 ' + totalCost + '。' + E.map(([u, v, c], i) => NAME[u] + '→' + NAME[v] + ' ' + flow[i] + '/' + c).join('，'));
-    status.textContent = 'MinCostFlow 完成：流 ' + total + '，费用 ' + totalCost + '，增广 ' + (aug - 1) + ' 次';
-  });
+  yield S(() => { status.textContent = '结果：最大流 ' + total + '，最小费用 ' + totalCost + '；各边流量 ' + E.map(([u, v, c], i) => NAME[u] + '→' + NAME[v] + ' ' + flow[i] + '/' + c).join('，'); });
   yield W(600);
+  yield S(() => { status.textContent = 'MinCostFlow 演示完成：最大流 ' + total + '，最小费用 ' + totalCost + '，增广 ' + (aug - 1) + ' 次，O(F·VE)；应用：物流运输/网络路由最小成本'; });
+  yield W(450);
   resetEdgeColors();
   nodeView.forEach(v => v.setColor(BLUE, BLUE));
 }
 
 function* runMCF() {
-  hint.setText('最小费用最大流：每次走最便宜路，反向边退流费用为负');
+  buildGraph();
   yield W(400);
   yield* mcfGen();
-  yield S(() => { outT.setText(''); hint.setText('MinCostFlow 完成：成功最短路径法，O(F·VE)'); });
 }
 
 engine.queue(() => runMCF());
-panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = BF 松弛，金 = 增广边，紫细线 = 反向残余边（费用为负））');
+panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
 
 scene.start(engine);

@@ -7,17 +7,15 @@ import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('PushRelabel3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Push-Relabel 预流推进（s→t）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const N = 4;
-const POS = [[320, 470, 0], [170, 300, 0], [470, 300, 0], [320, 130, 0]];
+const POS = [[320, 650, 0], [170, 500, 0], [470, 500, 0], [320, 350, 0]];
 const NAME = ['s', 'a', 'b', 't'];
 const E = [[0, 1, 2], [0, 2, 1], [1, 2, 1], [1, 3, 1], [2, 3, 2]];
 const nodeView = new Map();
@@ -69,7 +67,7 @@ function* pushRelabelGen() {
   ex = [0, 0, 0, 0];
   buildGraph();
   for (let i = 0; i < N; i++) showEx(i);
-  yield S(() => outT.setText('初始化：h[s]=' + N + '，其余 h=0。饱和 s 的所有出边（预流）'));
+  yield S(() => { status.textContent = '初始化：h[s]=' + N + '，其余 h=0。饱和 s 的所有出边（预流）'; });
   yield W(550);
   for (let i = 0; i < E.length; i++) {
     if (E[i][0] !== 0) continue;
@@ -78,12 +76,12 @@ function* pushRelabelGen() {
     ex[v] += c;
     setEdgeColor(i, CYAN, 1);
     setNodeColor(v, ORANGE);
-    yield S(() => outT.setText('饱和 ' + NAME[u] + '→' + NAME[v] + '：flow=' + c + '/' + c + '，ex[' + NAME[v] + ']=' + ex[v]));
+    yield S(() => { status.textContent = '饱和 ' + NAME[u] + '→' + NAME[v] + '：flow=' + c + '/' + c + '，ex[' + NAME[v] + ']=' + ex[v]; });
     setEdgeLbl(i);
     showEx(v);
     yield W(450);
   }
-  yield S(() => outT.setText('预流完成。对「excess>0 且非 s/t」的节点反复 push / relabel'));
+  yield S(() => { status.textContent = '预流完成。对「excess>0 且非 s/t」的节点反复 push / relabel'; });
   yield W(500);
   resetEdgeColors();
   let guard = 0;
@@ -103,7 +101,7 @@ function* pushRelabelGen() {
       ex[u] -= delta; ex[v] += delta;
       setEdgeColor(i, CYAN, 1);
       setNodeColor(v, ORANGE);
-      yield S(() => outT.setText('push ' + delta + '：' + NAME[u] + '→' + NAME[v] + '（h=' + h[u] + '=h[' + NAME[v] + ']+1）。ex[' + NAME[u] + ']=' + ex[u] + '，ex[' + NAME[v] + ']=' + ex[v]));
+      yield S(() => { status.textContent = 'push ' + delta + '：' + NAME[u] + '→' + NAME[v] + '（h=' + h[u] + '=h[' + NAME[v] + ']+1）。ex[' + NAME[u] + ']=' + ex[u] + '，ex[' + NAME[v] + ']=' + ex[v]; });
       setEdgeLbl(i);
       showEx(u); showEx(v);
       yield W(430);
@@ -120,19 +118,18 @@ function* pushRelabelGen() {
       }
       h[u] = (mh === Infinity ? h[u] : mh + 1);
       setNodeColor(u, RED);
-      yield S(() => outT.setText('relabel：' + NAME[u] + ' 无可推边 → 提升 h 至 ' + h[u]));
+      yield S(() => { status.textContent = 'relabel：' + NAME[u] + ' 无可推边 → 提升 h 至 ' + h[u]; });
       showEx(u);
       yield W(450);
       setNodeColor(u, BLUE);
     }
   }
   const maxf = E.reduce((s, e, i) => s + (e[1] === N - 1 ? flow[i] : 0), 0);
-  yield S(() => outT.setText('全部非 s/t 节点 excess=0 → 完成。汇 t 收到的总流量 = ' + maxf));
+  yield S(() => { status.textContent = '全部非 s/t 节点 excess=0 → 完成。汇 t 收到的总流量 = ' + maxf; });
   yield W(450);
   setNodeColor(N - 1, GREEN);
   yield S(() => {
-    outT.setText('最大流 = ' + maxf + '：' + E.map(([u, v, c], i) => NAME[u] + '→' + NAME[v] + ' ' + flow[i] + '/' + c).join('，'));
-    status.textContent = 'Push-Relabel 完成：最大流 ' + maxf + '，O(V³)';
+    status.textContent = 'Push-Relabel 演示完成：最大流 ' + maxf + '，O(V³)';
   });
   yield W(600);
   resetEdgeColors();
@@ -140,14 +137,13 @@ function* pushRelabelGen() {
 }
 
 function* runPR() {
-  hint.setText('Push-Relabel：预流 + 局部 push/relabel，无全局查找');
+  yield S(() => { status.textContent = 'Push-Relabel：预流 + 局部 push/relabel，无全局查找'; });
   yield W(400);
   yield* pushRelabelGen();
-  yield S(() => { outT.setText(''); hint.setText('Push-Relabel 完成：可并行，最坏 O(V³)'); });
+  yield S(() => { status.textContent = 'Push-Relabel 演示完成：预流推进，可并行，最坏 O(V³)'; });
 }
 
 engine.queue(() => runPR());
-panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；节点上方 = ex 溢出量 + h 高度，橙 = 有溢出，金 = 处理中，红 = relabel）');
+panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
 
 scene.start(engine);

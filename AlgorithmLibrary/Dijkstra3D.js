@@ -7,14 +7,12 @@ import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Dijkstra3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x22d3ee, RED = 0xfb7185, ORANGE = 0xfb923c, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Dijkstra 从 0 出发', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 // 顶点 0..5，有向边 [from, to, w]
 const N = 6, R = 200;
@@ -25,7 +23,7 @@ const edgeView = new Map();  // 'f-t' -> { tube, lbl }
 const distView = new Map();  // i -> VText (跟随节点上方)
 let dist = [], prev = [];
 
-function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R + 320, 300, Math.sin(a) * R); }
+function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R + 320, 330, Math.sin(a) * R); }
 function tube(a, b) {
   const curve = new THREE.CatmullRomCurve3([a, b]);
   return new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
@@ -74,14 +72,14 @@ function* dijkstraGen() {
   const done = new Set();
   dist[0] = 0;
   setDist(0);
-  yield S(() => outT.setText('初始化：dist[0] = 0，其余 ∞。每轮取未访问中距离最小者'));
+  yield S(() => { status.textContent = '初始化：dist[0] = 0，其余 ∞。每轮取未访问中距离最小者'; });
   yield W(500);
   while (done.size < N) {
     let u = -1, best = Infinity;
     for (let i = 0; i < N; i++) if (!done.has(i) && dist[i] < best) { best = dist[i]; u = i; }
     if (u === -1) break;
     done.add(u);
-    yield S(() => outT.setText('选出最小距离节点 ' + u + '（dist=' + dist[u] + '）→ 标记已确定'));
+    yield S(() => { status.textContent = '选出最小距离节点 ' + u + '（dist=' + dist[u] + '）→ 标记已确定'; });
     yield* pulseNode(u, GOLD);
     yield W(450);
     for (const [v, w] of adj[u]) {
@@ -89,7 +87,7 @@ function* dijkstraGen() {
       if (cand < dist[v]) {
         setEdgeColor(u, v, CYAN, 1);
         setNodeColor(v, ORANGE);
-        yield S(() => outT.setText('松弛边 ' + u + '→' + v + '（权重 ' + w + '）：dist[' + v + '] ' + (dist[v] === Infinity ? '∞' : dist[v]) + ' → ' + cand + '（经由 ' + u + '）'));
+        yield S(() => { status.textContent = '松弛边 ' + u + '→' + v + '（权重 ' + w + '）：dist[' + v + '] ' + (dist[v] === Infinity ? '∞' : dist[v]) + ' → ' + cand + '（经由 ' + u + '）'; });
         dist[v] = cand;
         prev[v] = u;
         setDist(v);
@@ -97,13 +95,13 @@ function* dijkstraGen() {
         yield W(420);
       } else {
         setEdgeColor(u, v, RED, 0.8);
-        yield S(() => outT.setText('边 ' + u + '→' + v + '（' + dist[u] + '+' + w + '=' + cand + ' ≥ dist[' + v + ']=' + dist[v] + '）：不更新'));
+        yield S(() => { status.textContent = '边 ' + u + '→' + v + '（' + dist[u] + '+' + w + '=' + cand + ' ≥ dist[' + v + ']=' + dist[v] + '）：不更新'; });
         yield W(330);
       }
       resetEdgeColors();
     }
     setNodeColor(u, GREEN);
-    yield S(() => outT.setText('节点 ' + u + ' 收点完成（dist=' + dist[u] + '）'));
+    yield S(() => { status.textContent = '节点 ' + u + ' 收点完成（dist=' + dist[u] + '）'; });
     yield W(350);
   }
   // 回溯 0 -> 5
@@ -112,26 +110,21 @@ function* dijkstraGen() {
   while (x !== 0 && prev[x] !== -1) { x = prev[x]; path.unshift(x); }
   for (let k = 0; k < path.length - 1; k++) setEdgeColor(path[k], path[k + 1], GOLD, 1);
   setNodeColor(5, GOLD);
-  yield S(() => outT.setText('最短路径 0→5 = ' + path.join(' → ') + '，总长 ' + dist[5]));
+  yield S(() => { status.textContent = '最短路径 0→5 = ' + path.join(' → ') + '，总长 ' + dist[5]; });
   yield W(800);
-  yield S(() => {
-    outT.setText('dist 表：' + dist.map((d, i) => i + ':' + d).join('  '));
-    status.textContent = 'Dijkstra 完成：0→5 最短 ' + dist[5] + '，路径 ' + path.join('→');
-  });
+  yield S(() => { status.textContent = 'Dijkstra 演示完成：0→5 最短 ' + dist[5] + '，路径 ' + path.join('→') + '；dist=' + dist.map((d, i) => i + ':' + d).join(' ') + '；O((V+E)log V)，要求边权非负'; });
   yield W(500);
   resetNodeColors();
 }
 
 function* runDijkstra() {
   buildGraph();
-  hint.setText('Dijkstra：贪心选取最小距离节点，边松弛更新；本页为有向加权图');
+  yield S(() => { status.textContent = 'Dijkstra：从源点出发，贪心选取最小距离节点并松弛出边（本页为有向加权图）'; });
   yield W(400);
   yield* dijkstraGen();
-  yield S(() => { outT.setText(''); hint.setText('Dijkstra 完成：O((V+E)log V)（二叉堆），要求边权非负'); });
 }
 
 engine.queue(() => runDijkstra());
-panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；金 = 收点/最短路径，青 = 松弛成功，红 = 不更新，橙 = 距离更新）');
+panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
 
 scene.start(engine);

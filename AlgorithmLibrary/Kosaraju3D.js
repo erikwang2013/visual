@@ -4,17 +4,15 @@ import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VText, VNode, VBox } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { applyTheme } from '../3D/Glow.js';
 applyTheme('Kosaraju3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Kosaraju 强连通分量（两次 DFS）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const N = 7, R = 205;
 const EDGES = [[0, 1], [1, 2], [2, 0], [2, 3], [3, 4], [4, 3], [3, 5], [5, 6]];
@@ -29,7 +27,7 @@ let state = [], state2 = [], members = [];
 const finishOrder = [];
 const sccList = [];
 
-function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R + 320, 300, Math.sin(a) * R); }
+function posOf(i) { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return new THREE.Vector3(Math.cos(a) * R + 320, 330, Math.sin(a) * R); }
 function tube(a, b) {
   const curve = new THREE.CatmullRomCurve3([a, b]);
   return new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
@@ -88,18 +86,18 @@ function* popBox() {
 function* dfs1(u) {
   state[u] = 1;
   setNodeColor(u, GOLD);
-  yield S(() => outT.setText('第一遍 DFS 访问 ' + u));
+  yield S(() => { status.textContent = '第一遍 DFS 访问 ' + u; });
   yield W(300);
   for (const v of adj[u]) {
     if (state[v] === 0) {
       setEdgeColor(u, v, CYAN, 1);
-      yield S(() => outT.setText('树边 ' + u + '→' + v + '：递归'));
+      yield S(() => { status.textContent = '树边 ' + u + '→' + v + '：递归'; });
       yield W(280);
       yield* dfs1(v);
       resetEdgeColors();
     } else if (state[v] === 1) {
       setEdgeColor(u, v, RED, 0.8);
-      yield S(() => outT.setText('后向边 ' + u + '→' + v + '（' + v + ' 尚未完成）'));
+      yield S(() => { status.textContent = '后向边 ' + u + '→' + v + '（' + v + ' 尚未完成）'; });
       yield W(260);
       resetEdgeColors();
     }
@@ -109,14 +107,14 @@ function* dfs1(u) {
   setNodeColor(u, GREEN);
   finView.get(u).setText('fin=' + finishOrder.length);
   yield* pushBox(String(u));
-  yield S(() => outT.setText('完成 ' + u + '：入栈（完成序 #' + finishOrder.length + '）'));
+  yield S(() => { status.textContent = '完成 ' + u + '：入栈（完成序 #' + finishOrder.length + '）'; });
   yield W(320);
 }
 function* dfs2(u, ci) {
   state2[u] = 1;
   members.push(u);
   setNodeColor(u, SCC_COLORS[ci]);
-  yield S(() => outT.setText('反图 DFS 到 ' + u + '，加入 SCC'));
+  yield S(() => { status.textContent = '反图 DFS 到 ' + u + '，加入 SCC'; });
   yield W(280);
   for (const v of radj[u]) {
     if (state2[v] === 0) {
@@ -129,49 +127,46 @@ function* dfs2(u, ci) {
 
 function* kosarajuGen() {
   state = Array(N).fill(0); state2 = Array(N).fill(0); finishOrder.length = 0; sccList.length = 0;
-  yield S(() => outT.setText('Kosaraju：① 原图 DFS 求完成序 → ② 反图按完成序逆序 DFS，每棵 DFS 树 = 一个 SCC'));
+  yield S(() => { status.textContent = 'Kosaraju：① 原图 DFS 求完成序 → ② 反图按完成序逆序 DFS，每棵 DFS 树 = 一个 SCC'; });
   yield W(600);
   for (let i = 0; i < N; i++) {
     if (state[i] === 0) {
-      yield S(() => outT.setText('——— 第一遍新 DFS 根：' + i + ' ———'));
+      yield S(() => { status.textContent = '——— 第一遍新 DFS 根：' + i + ' ———'; });
       yield W(300);
       yield* dfs1(i);
     }
   }
-  yield S(() => outT.setText('完成序（栈顶 = 最后完成）：' + finishOrder.join(' → ')));
+  yield S(() => { status.textContent = '完成序（栈顶 = 最后完成）：' + finishOrder.join(' → '); });
   yield W(550);
-  yield S(() => outT.setText('——— 第二遍：边全部反向（紫），按完成序逆序出栈 DFS ———'));
+  yield S(() => { status.textContent = '——— 第二遍：边全部反向（紫），按完成序逆序出栈 DFS ———'; });
   yield W(500);
   while (finishOrder.length) {
     const u = finishOrder.pop();
     yield* popBox();
     if (state2[u] === 0) {
       members = [];
-      yield S(() => outT.setText('反图新根 ' + u + '：DFS 树上全部节点组成一个 SCC'));
+      yield S(() => { status.textContent = '反图新根 ' + u + '：DFS 树上全部节点组成一个 SCC'; });
       yield W(320);
       yield* dfs2(u, sccList.length % SCC_COLORS.length);
       sccList.push(members.slice());
-      yield S(() => outT.setText('发现 SCC {' + members.join(',') + '}'));
+      yield S(() => { status.textContent = '发现 SCC {' + members.join(',') + '}'; });
       yield W(550);
     }
   }
-  yield S(() => outT.setText('全部 ' + sccList.length + ' 个 SCC：' + sccList.map(s => '{' + s.join(',') + '}').join('  ')));
+  yield S(() => { status.textContent = '全部 ' + sccList.length + ' 个 SCC：' + sccList.map(s => '{' + s.join(',') + '}').join('  '); });
   yield W(550);
-  yield S(() => { status.textContent = 'Kosaraju 完成：' + sccList.length + ' 个 SCC，O(V+E)'; });
+  yield S(() => { status.textContent = 'Kosaraju 演示完成：共 ' + sccList.length + ' 个 SCC，O(V+E)'; });
   yield W(450);
   resetEdgeColors();
 }
 
 function* runKosaraju() {
   buildGraph();
-  hint.setText('Kosaraju：两次 DFS 找 SCC，思路直观');
   yield W(400);
   yield* kosarajuGen();
-  yield S(() => { outT.setText(''); hint.setText('Kosaraju 完成：SCC ' + sccList.length + ' 个：' + sccList.map(s => '{' + s.join(',') + '}').join(' ')); });
 }
 
 engine.queue(() => runKosaraju());
-panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 第一遍树边，红 = 后向边，紫 = 反图遍历边；顶行为完成序栈；同色节点 = 同一 SCC）');
+panel.addButton('清空', () => { engine.clear(); clearView(); buildGraph(); status.textContent = ''; });
 
 scene.start(engine);

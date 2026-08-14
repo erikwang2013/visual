@@ -7,17 +7,15 @@ import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Biconnected3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Tarjan 割点/桥（dfn/low）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const N = 6;
-const POS = { 0: [160, 360, 0], 1: [200, 230, 0], 2: [270, 300, 0], 3: [370, 300, 0], 4: [440, 230, 0], 5: [480, 360, 0] };
+const POS = { 0: [160, 470, 0], 1: [200, 340, 0], 2: [270, 410, 0], 3: [370, 410, 0], 4: [440, 340, 0], 5: [480, 470, 0] };
 const ADJ = { 0: [1, 2], 1: [0, 2], 2: [0, 1, 3], 3: [2, 4, 5], 4: [3, 5], 5: [4, 3] };
 const EDGE_LIST = [[0, 1], [1, 2], [2, 0], [2, 3], [3, 4], [4, 5], [5, 3]];
 const nodeView = new Map();
@@ -68,7 +66,7 @@ function* dfs(u) {
   showDL(u);
   setNodeColor(u, GOLD);
   let childCnt = 0;
-  yield S(() => outT.setText('访问 ' + u + '：dfn=low=' + timer));
+  yield S(() => { status.textContent = '访问 ' + u + '：dfn=low=' + timer; });
   yield W(320);
   for (const v of ADJ[u]) {
     if (v === parent[u]) continue;
@@ -76,17 +74,17 @@ function* dfs(u) {
       childCnt++;
       parent[v] = u;
       setEdgeColor(u, v, CYAN, 1);
-      yield S(() => outT.setText('树边 ' + u + '-' + v + '：递归'));
+      yield S(() => { status.textContent = '树边 ' + u + '-' + v + '：递归'; });
       yield W(280);
       yield* dfs(v);
       low[u] = Math.min(low[u], low[v]);
       showDL(u);
-      yield S(() => outT.setText('回退 ' + u + '：low[' + u + ']=min(' + low[u] + ', low[' + v + ']=' + low[v] + ') → ' + low[u]));
+      yield S(() => { status.textContent = '回退 ' + u + '：low[' + u + ']=min(' + low[u] + ', low[' + v + ']=' + low[v] + ') → ' + low[u]; });
       yield W(320);
       if (low[v] > dfn[u]) {
         bridgeList.push(u + '-' + v);
         setEdgeColor(u, v, GOLD, 1);
-        yield S(() => outT.setText('桥：' + u + '-' + v + '（low[' + v + ']=' + low[v] + ' > dfn[' + u + ']=' + dfn[u] + '，删去即断连）'));
+        yield S(() => { status.textContent = '桥：' + u + '-' + v + '（low[' + v + ']=' + low[v] + ' > dfn[' + u + ']=' + dfn[u] + '，删去即断连）'; });
         yield W(380);
       }
       if (parent[u] === -1 ? childCnt > 1 : low[v] >= dfn[u]) {
@@ -94,7 +92,7 @@ function* dfs(u) {
         setNodeColor(u, RED);
         tagView.get(u).setText('割点');
         if (!cutList.includes(u)) cutList.push(u);
-        yield S(() => outT.setText(u + ' 是割点' + (parent[u] === -1 ? '（根且有 ' + childCnt + ' 棵子树）' : '（low[' + v + ']=' + low[v] + ' ≥ dfn[' + u + ']=' + dfn[u] + '）')));
+        yield S(() => { status.textContent = u + ' 是割点' + (parent[u] === -1 ? '（根且有 ' + childCnt + ' 棵子树）' : '（low[' + v + ']=' + low[v] + ' ≥ dfn[' + u + ']=' + dfn[u] + '）'); });
         yield W(380);
       }
       resetEdgeColors();
@@ -102,7 +100,7 @@ function* dfs(u) {
       setEdgeColor(u, v, RED, 1);
       low[u] = Math.min(low[u], dfn[v]);
       showDL(u);
-      yield S(() => outT.setText('回边 ' + u + '-' + v + '：low[' + u + '] → ' + low[u]));
+      yield S(() => { status.textContent = '回边 ' + u + '-' + v + '：low[' + u + '] → ' + low[u]; });
       yield W(300);
       resetEdgeColors();
     }
@@ -113,34 +111,32 @@ function* dfs(u) {
 
 function* biconnectedGen() {
   dfn = Array(N).fill(0); low = Array(N).fill(0); parent = Array(N).fill(-1); state = Array(N).fill(0); cut = Array(N).fill(false); timer = 0;
-  yield S(() => outT.setText('割点：low[v] ≥ dfn[u]（根则需 2+ 棵子树）；桥：low[v] > dfn[u]'));
+  yield S(() => { status.textContent = '割点：low[v] ≥ dfn[u]（根则需 2+ 棵子树）；桥：low[v] > dfn[u]'; });
   yield W(600);
   for (let i = 0; i < N; i++) {
     if (state[i] === 0) {
-      yield S(() => outT.setText('——— 新 DFS 根：' + i + ' ———'));
+      yield S(() => { status.textContent = '新 DFS 根：' + i; });
       yield W(300);
       yield* dfs(i);
     }
   }
-  yield S(() => outT.setText('割点 ' + cutList.length + ' 个：' + (cutList.join('、') || '无') + '；桥 ' + bridgeList.length + ' 条：' + (bridgeList.join('、') || '无')));
+  yield S(() => { status.textContent = '割点 ' + cutList.length + ' 个：' + (cutList.join('、') || '无') + '；桥 ' + bridgeList.length + ' 条：' + (bridgeList.join('、') || '无'); });
   yield W(600);
-  yield S(() => outT.setText('双连通分量（本例 3 个）：{0,1,2}（三角）、{2,3}（桥自身）、{3,4,5}（三角）'));
+  yield S(() => { status.textContent = '双连通分量（本例 3 个）：{0,1,2}（三角）、{2,3}（桥自身）、{3,4,5}（三角）'; });
   yield W(550);
-  yield S(() => { status.textContent = 'Biconnected 完成：割点 ' + cutList.length + ' 个，桥 ' + bridgeList.length + ' 条，O(V+E)'; });
+  yield S(() => { status.textContent = 'Biconnected 演示完成：割点 ' + cutList.length + ' 个，桥 ' + bridgeList.length + ' 条，O(V+E)'; });
   yield W(450);
   resetEdgeColors();
 }
 
 function* runBiconnected() {
   buildGraph();
-  hint.setText('Tarjan：dfn/low 判割点与桥，一次 DFS 完成');
+  yield S(() => { status.textContent = 'Tarjan：dfn/low 判割点与桥，一次 DFS 完成'; });
   yield W(400);
   yield* biconnectedGen();
-  yield S(() => { outT.setText(''); hint.setText('Biconnected 完成：割点 ' + cutList.join('、') + '，桥 ' + bridgeList.join('、')); });
 }
 
 engine.queue(() => runBiconnected());
-panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；青 = 树边，红 = 回边/割点，金 = 桥；节点上方 dX lY = dfn/low）');
+panel.addButton('清空', () => { engine.clear(); buildGraph(); status.textContent = ''; });
 
 scene.start(engine);

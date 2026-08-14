@@ -7,17 +7,15 @@ import { VText, VNode } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Dinic3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Dinic 最大流（BFS 分层 + DFS 阻塞流）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const N = 6;
-const POS = [[0, 220, 0], [-120, 73, 0], [120, 73, 0], [-120, -73, 0], [120, -73, 0], [0, -220, 0]].map(p => [p[0] + 320, p[1] + 436, p[2]]);
+const POS = [[0, 220, 0], [-120, 73, 0], [120, 73, 0], [-120, -73, 0], [120, -73, 0], [0, -220, 0]].map(p => [p[0] + 320, p[1] + 546, p[2]]);
 const NAME = ['s', '1', '2', '3', '4', 't'];
 const E = [[0, 1, 3], [0, 2, 2], [1, 3, 2], [1, 4, 2], [2, 3, 1], [2, 4, 2], [3, 4, 1], [3, 5, 2], [4, 5, 3]];
 const nodeView = new Map();
@@ -74,7 +72,7 @@ function* bfsLevels() {
     }
   }
   showLevels();
-  yield S(() => outT.setText('BFS 分层：' + NAME.map((n, i) => n + '=L' + level[i]).join('  ') + (level[N - 1] === -1 ? ' → t 不可达' : ' → 汇 t 在 L' + level[N - 1])));
+  yield S(() => { status.textContent = 'BFS 分层：' + NAME.map((n, i) => n + '=L' + level[i]).join('  ') + (level[N - 1] === -1 ? ' → t 不可达' : ' → 汇 t 在 L' + level[N - 1]); });
   yield W(550);
   return level[N - 1] !== -1;
 }
@@ -85,14 +83,14 @@ function* dfsBlocking(u, pushed) {
     const [a, b, c] = E[i];
     if (a === u && flow[i] < c && level[b] === level[u] + 1) {
       setEdgeColor(i, CYAN, 1);
-      yield S(() => outT.setText('DFS 沿分层边 ' + NAME[a] + '→' + NAME[b] + '（残量 ' + (c - flow[i]) + '）'));
+      yield S(() => { status.textContent = 'DFS 沿分层边 ' + NAME[a] + '→' + NAME[b] + '（残量 ' + (c - flow[i]) + '）'; });
       yield W(280);
       const d = yield* dfsBlocking(b, Math.min(pushed, c - flow[i]));
       if (d > 0) {
         flow[i] += d;
         setEdgeLbl(i);
         setEdgeColor(i, GOLD, 1);
-        yield S(() => outT.setText('增广 ' + d + '：' + NAME[a] + '→' + NAME[b] + ' flow → ' + flow[i] + '/' + c));
+        yield S(() => { status.textContent = '增广 ' + d + '：' + NAME[a] + '→' + NAME[b] + ' flow → ' + flow[i] + '/' + c; });
         yield W(320);
         return d;
       }
@@ -106,50 +104,44 @@ function* dfsBlocking(u, pushed) {
 function* dinicGen() {
   flow = E.map(() => 0);
   buildGraph();
-  yield S(() => outT.setText('Dinic：BFS 建分层网络 → DFS 沿 level 递增边找阻塞流 → 重复直到 t 不可达'));
+  yield S(() => { status.textContent = 'Dinic：BFS 建分层网络 → DFS 沿 level 递增边找阻塞流 → 重复直到 t 不可达'; });
   yield W(650);
   let total = 0, phase = 0;
   while (true) {
     phase++;
-    yield S(() => outT.setText('——— 阶段 ' + phase + '：BFS 分层 ———'));
+    yield S(() => { status.textContent = '——— 阶段 ' + phase + '：BFS 分层 ———'; });
     yield W(350);
     const ok = yield* bfsLevels();
     if (!ok) {
-      yield S(() => outT.setText('t 不可达 → 最大流已求得！'));
+      yield S(() => { status.textContent = 't 不可达 → 最大流已求得！'; });
       yield W(450);
       break;
     }
-    yield S(() => outT.setText('DFS 求阻塞流：只沿 level +1 的边前进'));
+    yield S(() => { status.textContent = 'DFS 求阻塞流：只沿 level +1 的边前进'; });
     yield W(400);
     let got;
     do {
       resetEdgeColors();
       got = yield* dfsBlocking(0, Infinity);
       total += got;
-      if (got > 0) yield S(() => outT.setText('本轮已增广，当前总流量 ' + total));
+      if (got > 0) yield S(() => { status.textContent = '本轮已增广，当前总流量 ' + total; });
     } while (got > 0);
-    yield S(() => outT.setText('阻塞流完成：阶段 ' + phase + ' 共增广至总流量 ' + total));
+    yield S(() => { status.textContent = '阻塞流完成：阶段 ' + phase + ' 共增广至总流量 ' + total; });
     yield W(550);
     resetEdgeColors();
   }
-  yield S(() => {
-    outT.setText('最大流 = ' + total + '：' + E.map(([u, v, c], i) => NAME[u] + '→' + NAME[v] + ' ' + flow[i] + '/' + c).join('，'));
-    status.textContent = 'Dinic 完成：最大流 ' + total + '，' + (phase - 1) + ' 个阶段，O(V²E)';
-  });
+  yield S(() => { status.textContent = '演示完成：Dinic 最大流 = ' + total + '，共 ' + (phase - 1) + ' 个阶段，O(V²E)'; });
   yield W(600);
   resetEdgeColors();
   nodeView.forEach(v => v.setColor(BLUE, BLUE));
 }
 
 function* runDinic() {
-  hint.setText('Dinic：分层网络 + 阻塞流，一般快于 EK');
   yield W(400);
   yield* dinicGen();
-  yield S(() => { outT.setText(''); hint.setText('Dinic 完成：最大流 = ' + flow.reduce((s, f, i) => E[i][0] === 0 ? s + f : s, 0)); });
 }
 
 engine.queue(() => runDinic());
-panel.addButton('清空', () => { engine.clear(); clearView(); hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；节点上方 = level，青 = DFS 探测，金 = 增广边；标签 = 流量/容量）');
+panel.addButton('清空', () => { engine.clear(); buildGraph(); status.textContent = ''; });
 
 scene.start(engine);

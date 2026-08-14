@@ -125,24 +125,24 @@ function* runKMP() {
       yield W(250);
     }
     comps++;
-    if (P[j] === P[k]) {
-      yield S(() => { pBox[j].setColor(GREEN, GREEN); pBox[k].setColor(GREEN, GREEN); });
+    const ck = k;
+    if (P[j] === P[ck]) {
+      yield S(() => { pBox[j].setColor(GREEN, GREEN); pBox[ck].setColor(GREEN, GREEN); });
       yield W(450);
       k++;
     } else {
-      yield S(() => { pBox[j].setColor(RED, RED); pBox[k].setColor(RED, RED); });
+      yield S(() => { pBox[j].setColor(RED, RED); pBox[ck].setColor(RED, RED); });
       yield W(450);
     }
     pmt[j] = k;
     yield growBar(j, k);
     yield S(() => { barVals[j].setText(String(k), { color: PALETTE.textDim }); });
-    yield S(() => { pBox[j].setColor(RED, RED); pBox[k].setColor(RED, RED); });
+    yield S(() => { pBox[j].setColor(RED, RED); pBox[ck].setColor(RED, RED); });
     yield W(120);
   }
   // Phase B：线性扫描匹配
   yield fly(jBall, px(0), 610, 250);
-  let i = 0;
-  j = 0;
+  let i = 0, j = 0;
   while (i < TXT.length) {
     yield fly(iBall, mx(i), 358, 250);
     yield fly(jBall, px(j), 610, 250);

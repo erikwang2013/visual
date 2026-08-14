@@ -7,16 +7,12 @@ import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('DES3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：DES（16 轮 Feistel）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 320, y: 215, z: 0, color: PALETTE.textGlow, scale: 0.44 });
-const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 // —— DES 核心：标准表内嵌为逗号字符串，运行时解析；全部计算运行时进行 ——
 const T = (s) => s.split(',').map(Number);
@@ -84,81 +80,74 @@ const DES_R = des(bits(PT), KEY_BITS);
 const CT_BYTES = [];
 for (let i = 0; i < 64; i += 8) { let v = 0; for (let j = 0; j < 8; j++) v = (v << 1) | DES_R.out[i + j]; CT_BYTES.push(v); }
 
-// —— 场景布局 ——
+// —— 场景布局：上排密钥（紫）/ 中排明文（蓝）/ 左右 Feistel 半区 / 下排密文（绿）——
 const keyChips = [], ptChips = [], ctChips = [];
 const KSP = 62, KX0 = 143;
 for (let i = 0; i < 8; i++) keyChips.push(new VBox(scene, { w: 50, h: 46, d: 46, x: KX0 + i * KSP, y: 600, z: 0, label: h2(KEY[i]), color: PUR, emissive: PUR }));
-new VText(scene, { text: '56 位密钥 → PC1 → 16 轮左移 → 轮密钥', x: 700, y: 650, z: 0, color: PALETTE.textDim, scale: 0.4 });
-const subkeyT = new VText(scene, { text: '', x: 700, y: 620, z: 0, color: CYAN, scale: 0.5 });
+const subkeyT = new VText(scene, { text: '', x: 700, y: 620, z: 0, color: CYAN, scale: 0.5 });   // 轮密钥值文本（演示体标注）
 for (let i = 0; i < 8; i++) ptChips.push(new VBox(scene, { w: 50, h: 46, d: 46, x: KX0 + i * KSP, y: 510, z: 0, label: h2(PT[i]), color: BLUE, emissive: BLUE }));
-new VText(scene, { text: '64 位明文分组', x: 700, y: 520, z: 0, color: PALETTE.textDim, scale: 0.6 });
 const lBox = new VBox(scene, { w: 200, h: 56, d: 56, x: 180, y: 425, z: 0, label: 'L₀ = IP 左 32 位', color: BLUE, emissive: BLUE });
 const rBox = new VBox(scene, { w: 200, h: 56, d: 56, x: 500, y: 425, z: 0, label: 'R₀ = IP 右 32 位', color: CYAN, emissive: CYAN });
-new VText(scene, { text: '16 轮 Feistel：Lᵢ = Rᵢ₋₁，Rᵢ = Lᵢ₋₁ ⊕ f(Rᵢ₋₁, Kᵢ)', x: 720, y: 490, z: 0, color: PALETTE.textDim, scale: 0.45, wrapChars: 9 });
-for (let i = 0; i < 8; i++) ctChips.push(new VBox(scene, { w: 50, h: 46, d: 46, x: KX0 + i * KSP, y: 300, z: 0, label: '00', color: DIM, emissive: DIM }));
-new VText(scene, { text: 'IP⁻¹ 逆置换 → 密文', x: 700, y: 320, z: 0, color: PALETTE.textDim, scale: 0.6 });
-const roundT = new VText(scene, { text: '第 1 轮', x: 360, y: 360, z: 0, color: GOLD, scale: 0.55 });
+for (let i = 0; i < 8; i++) ctChips.push(new VBox(scene, { w: 50, h: 46, d: 46, x: KX0 + i * KSP, y: 325, z: 0, label: '00', color: DIM, emissive: DIM }));
+const roundT = new VText(scene, { text: '第 1 轮', x: 360, y: 372, z: 0, color: GOLD, scale: 0.55 });   // 阶段徽章
 
 function* desGen() {
-  yield S(() => { hint.setText('DES 数据流：IP 置换 → 16 轮 Feistel → IP⁻¹。每轮右半经 f 函数（E 扩展 ⊕ 轮密钥 → S 盒 → P 置换）与左半异或'); stageT.setText('密钥 133457799BBCDFF1 · 明文 0123456789ABCDEF（FIPS-81 标准测试向量）'); });
+  yield S(() => { status.textContent = 'DES 数据流：IP 置换 → 16 轮 Feistel → IP⁻¹。每轮右半经 f 函数（E 扩展 ⊕ 轮密钥 → S 盒 → P 置换）与左半异或。密钥 133457799BBCDFF1 · 明文 0123456789ABCDEF（FIPS-81 标准测试向量）'; });
   yield W(900);
   for (let i = 0; i < 8; i++) { keyChips[i].setColor(GOLD, GOLD); yield W(120); }
-  yield S(() => { stageT.setText('PC1：64 位 → 56 位（去掉每字节第 8 位奇偶校验），分成 C₀/D₀ 各 28 位'); });
+  yield S(() => { status.textContent = 'PC1：64 位 → 56 位（去掉每字节第 8 位奇偶校验），分成 C₀/D₀ 各 28 位'; });
   yield W(650);
   for (let i = 0; i < 8; i++) keyChips[i].setColor(PUR, PUR);
-  yield S(() => { stageT.setText('IP 初始置换：按 58,50,…,7 表重排 64 位 → L₀ + R₀ 各 32 位'); });
+  yield S(() => { status.textContent = 'IP 初始置换：按 58,50,…,7 表重排 64 位 → L₀ + R₀ 各 32 位'; });
   yield W(650);
   for (let r = 0; r < 16; r++) {
     const rnd = DES_R.rounds[r];
     roundT.setText('第 ' + (r + 1) + ' 轮');
     subkeyT.setText('轮密钥 K' + (r + 1) + ' = ' + hx(rnd.K.slice(0, 4)) + '…');
     if (r === 0) {
-      yield S(() => { stageT.setText('第 1 轮 ① E 扩展：R₀ 32 位 → 48 位（首尾复制重排）'); eqT.setText('E 扩展表：32,1,2,3,4,5,4,5,6,…,32,1 —— 相邻位被复制以交叉影响'); });
+      yield S(() => { status.textContent = '第 1 轮 ① E 扩展：R₀ 32 位 → 48 位（首尾复制重排，相邻位复制以交叉影响）'; });
       yield W(800);
       rBox.setColor(ORANGE, ORANGE);
       yield W(450);
       rBox.setColor(CYAN, CYAN);
-      yield S(() => { stageT.setText('② 异或轮密钥：E(R) ⊕ K₁ = 48 位'); });
+      yield S(() => { status.textContent = '第 1 轮 ② 异或轮密钥：E(R₀) ⊕ K₁ = 48 位'; });
       yield W(800);
       lBox.setColor(ORANGE, ORANGE);
       yield W(450);
       lBox.setColor(BLUE, BLUE);
-      yield S(() => { stageT.setText('③ S 盒：8 个 6→4 位盒（每盒 4×16 查找表，非线性核心）'); });
+      yield S(() => { status.textContent = '第 1 轮 ③ S 盒：8 个 6→4 位盒（每盒 4×16 查找表，非线性核心）'; });
       yield W(800);
       rBox.setColor(GREEN, GREEN);
       yield W(450);
       rBox.setColor(CYAN, CYAN);
-      yield S(() => { stageT.setText('④ P 置换：32 位重新排列 → f(R₀, K₁) 与 L₀ 异或 → R₁'); });
+      yield S(() => { status.textContent = '第 1 轮 ④ P 置换：32 位重新排列 → f(R₀, K₁) 与 L₀ 异或 → R₁'; });
       yield W(800);
       lBox.setColor(GREEN, GREEN);
       yield W(450);
       lBox.setColor(BLUE, BLUE);
     } else {
-      yield S(() => { stageT.setText('第 ' + (r + 1) + ' 轮：L = R（交换），R = L ⊕ f(R, K) —— Feistel 交换，可逆无需逆 f'); });
+      yield S(() => { status.textContent = '第 ' + (r + 1) + ' 轮：L = R（交换），R = L ⊕ f(R, K) —— Feistel 交换，可逆无需逆 f'; });
       yield W(220);
       lBox.setColor(ORANGE, ORANGE); yield W(130); lBox.setColor(BLUE, BLUE);
       rBox.setColor(GREEN, GREEN); yield W(130); rBox.setColor(CYAN, CYAN);
       yield W(180);
     }
     if (r === 15) {
-      yield S(() => { stageT.setText('16 轮完成：末轮不交换 —— 输出 R₁₆‖L₁₆（保证解密对称性）'); });
+      yield S(() => { status.textContent = '16 轮完成：末轮不交换 —— 输出 R₁₆‖L₁₆（保证解密对称性）'; });
       yield W(650);
       lBox.setText('R₁₆'); rBox.setText('L₁₆');
     }
   }
-  yield S(() => { stageT.setText('IP⁻¹ 逆置换：40,8,…,25 表 → 密文'); });
+  yield S(() => { status.textContent = 'IP⁻¹ 逆置换：40,8,…,25 表 → 密文'; });
   yield W(650);
   ctChips.forEach((ch, i) => { ch.setText(h2(CT_BYTES[i])); ch.setColor(GREEN, GREEN); });
-  outT.setText('密文 85E813540F0AB405 ✓ 与 FIPS-81 标准向量一致（运行时算出，非硬编码）');
-  status.textContent = 'DES: 85E813540F0AB405';
-  yield S(() => { hint.setText('DES 强度：56 位密钥只有 2⁵⁶ 种 —— 1998 年 EFF 深破机 56 小时破解，已被 3DES/AES 取代'); });
+  yield S(() => { status.textContent = '加密完成：密文 85E813540F0AB405 ✓ 与 FIPS-81 标准向量一致（运行时算出，非硬编码）；强度：56 位密钥只有 2⁵⁶ 种 —— 1998 年 EFF 深破机 56 小时破解，已被 3DES/AES 取代'; });
   yield W(1000);
-  yield S(() => { hint.setText('DES 演示完成：IP → 16 轮 Feistel（E 扩展 ⊕ K → S 盒 → P）→ IP⁻¹ → 85E813540F0AB405'); outT.setText(''); roundT.setText(''); subkeyT.setText(''); });
+  yield S(() => { status.textContent = 'DES 演示完成：IP → 16 轮 Feistel（E 扩展 ⊕ K → S 盒 → P）→ IP⁻¹ → 85E813540F0AB405，时间复杂度 O(16 × 轮内操作)'; roundT.setText(''); subkeyT.setText(''); });
   yield W(400);
 }
 
 function* runDES() {
-  hint.setText('DES：16 轮 Feistel');
   yield W(400);
   yield* desGen();
 }
@@ -171,9 +160,7 @@ panel.addButton('清空', () => {
   ctChips.forEach(ch => { ch.setText('00'); ch.setColor(DIM, DIM); });
   lBox.setText('L₀ = IP 左 32 位'); lBox.setColor(BLUE, BLUE);
   rBox.setText('R₀ = IP 右 32 位'); rBox.setColor(CYAN, CYAN);
-  roundT.setText('第 1 轮'); subkeyT.setText(''); stageT.setText(''); eqT.setText(''); outT.setText('');
-  hint.setText('已清空，可重新运行'); status.textContent = '';
+  roundT.setText('第 1 轮'); subkeyT.setText(''); status.textContent = '';
 });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；上排紫 = 密钥、蓝 = 明文、左右盒 = Feistel 半区（橙 = 正在变换、绿 = 异或后）、下排绿 = 密文；第 1 轮四阶段逐段演示，2-16 轮快进）');
 
 scene.start(engine);

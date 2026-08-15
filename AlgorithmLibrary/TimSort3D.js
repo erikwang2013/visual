@@ -7,7 +7,7 @@ import { VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('TimSort3D');
 
-const scene = new Scene3D('scene', { cameraPos: [440, 500, 900], lookAt: [440, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
@@ -17,8 +17,7 @@ const RUN_NAMES = ['青', '橙', '绿', '粉'];
 const blend = (a, b) => new THREE.Color(a).lerp(new THREE.Color(b), 0.5).getHex();
 const c01 = blend(RUN_COLORS[0], RUN_COLORS[1]);
 const c23 = blend(RUN_COLORS[2], RUN_COLORS[3]);
-
-const hint = new VText(scene, { text: 'TimSort：4 个 Run 色块 + 组内插入排序微光 + 归并碰撞波纹', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
+const E = p => p * p * (3 - 2 * p);
 const status = panel.addStatus('就绪');
 
 const N = 24, RUNLEN = 6, RUNS = 4;
@@ -67,37 +66,52 @@ const setSlab = (k, lo, hi, color) => {
 };
 const hideSlabs = () => slabs.forEach(s => { s.visible = false; });
 
-// ---- 归并碰撞波纹 ----
-let fxGroup = new THREE.Group();
+// ---- 归并碰撞波纹（模块级对象池） ----
+const fxGroup = new THREE.Group();
 scene.add(fxGroup);
-const clearFx = () => { scene.remove(fxGroup); fxGroup = new THREE.Group(); scene.add(fxGroup); };
-function* ripple(x, y, color, opts = {}) {
-  const ms = opts.ms ?? 560, maxR = opts.maxR ?? 60;
-  const ring = new THREE.Mesh(new THREE.RingGeometry(26, 30, 40), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
-  ring.position.set(x, y, -14);
+const ringPool = [], ringFree = [];
+for (let i = 0; i < 6; i++) {
+  const ring = new THREE.Mesh(new THREE.RingGeometry(26, 30, 40), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
+  ring.visible = false;
   ring.rotation.x = -Math.PI / 2;
   fxGroup.add(ring);
+  ringPool.push(ring);
+}
+const clearFx = () => { ringPool.forEach(r => { r.visible = false; }); ringFree.length = 0; ringFree.push(...ringPool); };
+function* ripple(x, y, color, opts = {}) {
+  const ms = opts.ms ?? 560, maxR = opts.maxR ?? 60;
+  const ring = ringFree.pop();
+  if (!ring) return;
+  ring.visible = true;
+  ring.material.color.setHex(color);
+  ring.material.opacity = 0.8;
+  ring.position.set(x, y, -14);
+  ring.scale.setScalar(1);
   yield A(ms, p => {
     ring.scale.setScalar(1 + (maxR / 30 - 1) * p);
     ring.material.opacity = 0.8 * (1 - p);
   });
-  fxGroup.remove(ring);
-  ring.geometry.dispose(); ring.material.dispose();
+  ring.visible = false;
+  ringFree.push(ring);
 }
 function* dualRipple(x1, x2, color, ms = 560) {
-  const mk = x => {
-    const ring = new THREE.Mesh(new THREE.RingGeometry(26, 30, 40), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
-    ring.position.set(x, 288, -14);
-    ring.rotation.x = -Math.PI / 2;
-    fxGroup.add(ring);
-    return ring;
-  };
-  const r1 = mk(x1), r2 = mk(x2);
+  const r1 = ringFree.pop(), r2 = ringFree.pop();
+  if (!r1 || !r2) {
+    if (r1) { r1.visible = false; ringFree.push(r1); }
+    if (r2) { r2.visible = false; ringFree.push(r2); }
+    return;
+  }
+  r1.visible = true; r2.visible = true;
+  r1.material.color.setHex(color); r2.material.color.setHex(color);
+  r1.material.opacity = 0.8; r2.material.opacity = 0.8;
+  r1.position.set(x1, 288, -14); r2.position.set(x2, 288, -14);
+  r1.scale.setScalar(1); r2.scale.setScalar(1);
   yield A(ms, p => {
     r1.scale.setScalar(1 + p); r2.scale.setScalar(1 + p);
     r1.material.opacity = 0.8 * (1 - p); r2.material.opacity = 0.8 * (1 - p);
   });
-  [r1, r2].forEach(r => { fxGroup.remove(r); r.geometry.dispose(); r.material.dispose(); });
+  r1.visible = false; r2.visible = false;
+  ringFree.push(r1); ringFree.push(r2);
 }
 
 // ---- Run 内插入排序（青色微光 = 提取待插入元素） ----
@@ -105,25 +119,25 @@ function* insertRun(lo, hi, runColor) {
   for (let i = lo + 1; i <= hi; i++) {
     const keyBar = bars[i];
     setBarColor(keyBar, CYAN);
-    yield S(() => hint.setText('Run 内插入：a[' + i + ']=' + keyBar.value + ' 提取（青色微光）'));
-    yield A(260, p => keyBar.g.position.y = 60 * p);
+    yield S(() => { status.textContent = 'Run 内插入：a[' + i + ']=' + keyBar.value + ' 提取（青色微光）'; });
+    yield A(260, p => keyBar.g.position.y = 60 * E(p));
     let j = i - 1;
     while (j >= lo && bars[j].value > keyBar.value) {
       setBarColor(bars[j], WHITE);
-      yield S(() => hint.setText('a[' + j + ']=' + bars[j].value + ' > ' + keyBar.value + '，右移一位'));
+      yield S(() => { status.textContent = 'a[' + j + ']=' + bars[j].value + ' > ' + keyBar.value + '，右移一位'; });
       yield W(160);
       const b = bars[j];
-      yield A(240, p => b.g.position.x = slotX(j + 1) + (slotX(j) - slotX(j + 1)) * (1 - p));
+      yield A(240, p => b.g.position.x = slotX(j + 1) + (slotX(j) - slotX(j + 1)) * (1 - E(p)));
       bars[j + 1] = b;
       setBarColor(b, runColor);
       j--;
     }
     bars[j + 1] = keyBar;
-    yield A(260, p => keyBar.g.position.y = 60 * (1 - p));
+    yield A(260, p => keyBar.g.position.y = 60 * (1 - E(p)));
     setBarColor(keyBar, runColor);
     yield W(90);
   }
-  yield S(() => hint.setText('Run [' + lo + '..' + hi + '] 内部有序'));
+  yield S(() => { status.textContent = 'Run [' + lo + '..' + hi + '] 内部有序'; });
   yield W(200);
 }
 
@@ -135,8 +149,8 @@ function* mergeGen(lo, mid, hi, cA, cB, cM) {
   const pick = function* (src, kk) {
     const b = col[src];
     const x = b.g.position.x;
-    yield S(() => hint.setText('取 a[' + src + ']=' + b.value + '，落入临时区 [' + kk + ']'));
-    yield A(420, p => b.g.position.y = 300 - 150 * p + 90 * Math.sin(Math.PI * p));
+    yield S(() => { status.textContent = '取 a[' + src + ']=' + b.value + '，落入临时区 [' + kk + ']'; });
+    yield A(420, p => b.g.position.y = 300 - 150 * E(p) + 90 * Math.sin(Math.PI * E(p)));
     picked.push(src);
     if (kk === lo) yield* ripple(x, 140, cM, { ms: 300, maxR: 30 });
     yield W(70);
@@ -147,15 +161,15 @@ function* mergeGen(lo, mid, hi, cA, cB, cM) {
   }
   while (li <= mid) { yield* pick(li, k); li++; k++; }
   while (ri <= hi) { yield* pick(ri, k); ri++; k++; }
-  yield S(() => hint.setText('两 Run 相遇：碰撞波纹，临时区元素弹回主行'));
+  yield S(() => { status.textContent = '两 Run 相遇：碰撞波纹，临时区元素弹回主行'; });
   yield* dualRipple(slotX(mid), slotX(mid + 1), cM);
   const col2 = bars.slice();
   picked.forEach((src, idx) => { bars[lo + idx] = col2[src]; });
   for (let idx = 0; idx < picked.length; idx++) {
     const b = bars[lo + idx];
     setBarColor(b, cM);
-    yield S(() => hint.setText('弹回：' + b.value + ' → a[' + (lo + idx) + ']'));
-    yield A(420, p => b.g.position.set(slotX(lo + idx), 150 + 150 * p + 60 * Math.sin(Math.PI * p), 0));
+    yield S(() => { status.textContent = '弹回：' + b.value + ' → a[' + (lo + idx) + ']'; });
+    yield A(420, p => b.g.position.set(slotX(lo + idx), 150 + 150 * E(p) + 60 * Math.sin(Math.PI * E(p)), 0));
     yield W(70);
   }
 }
@@ -171,25 +185,26 @@ function resetAll() {
   }
 }
 function* doneMsg() {
-  yield S(() => { hint.setText('TimSort 完成：Run 识别 + 插入排序 + 归并，最坏 O(n log n)'); status.textContent = 'TimSort 完成：O(n log n)'; bars.forEach(b => setBarColor(b, OK)); });
-  yield W(700);
+  yield S(() => { status.textContent = 'TimSort 演示完成：24 个元素划为 4 个 Run（每段 6 个）分别插入排序，再两两归并至整表升序；最坏时间 O(n log n)，空间 O(n)'; bars.forEach(b => setBarColor(b, OK)); });
+  yield W(800);
 }
 
 function* timSort() {
-  yield S(resetAll);
-  hint.setText('阶段 1：划分 4 个 Run（每段 6 个元素），Run 色块染色');
+  yield S(() => { resetAll(); status.textContent = '阶段 1：划分 4 个 Run（每段 6 个元素），Run 色块染色'; });
   yield W(400);
   for (let k = 0; k < RUNS; k++) {
     const lo = k * RUNLEN, hi = lo + RUNLEN - 1;
-    yield S(() => setSlab(k, lo, hi));
-    for (let i = lo; i <= hi; i++) setBarColor(bars[i], RUN_COLORS[k]);
-    yield S(() => hint.setText('Run ' + (k + 1) + '：a[' + lo + '..' + hi + '] 染' + RUN_NAMES[k] + '色'));
+    yield S(() => {
+      setSlab(k, lo, hi);
+      for (let i = lo; i <= hi; i++) setBarColor(bars[i], RUN_COLORS[k]);
+      status.textContent = 'Run ' + (k + 1) + '：a[' + lo + '..' + hi + '] 染' + RUN_NAMES[k] + '色';
+    });
     yield W(300);
   }
-  yield S(() => { hint.setText('阶段 2：各 Run 内部插入排序（青色微光 = 提取待插入元素）'); status.textContent = 'Run 划分完成'; });
+  yield S(() => { status.textContent = '阶段 2：各 Run 内部插入排序（青色微光 = 提取待插入元素）'; });
   yield W(450);
   for (let k = 0; k < RUNS; k++) yield* insertRun(k * RUNLEN, k * RUNLEN + RUNLEN - 1, RUN_COLORS[k]);
-  yield S(() => { hint.setText('阶段 3：相邻 Run 归并（碰撞波纹 = 两列表相遇）'); status.textContent = 'Run 内有序'; });
+  yield S(() => { status.textContent = '阶段 3：相邻 Run 归并（碰撞波纹 = 两列表相遇）'; });
   yield W(450);
   yield* mergeGen(0, 5, 11, RUN_COLORS[0], RUN_COLORS[1], c01);
   yield S(() => { setSlab(0, 0, 11, c01); slabs[1].visible = false; });
@@ -203,8 +218,7 @@ function* timSort() {
 }
 
 function* randomizeGen() {
-  yield S(resetAll);
-  hint.setText('随机打乱数组');
+  yield S(() => { resetAll(); status.textContent = '随机打乱数组'; });
   const a = bars.map(b => b.value);
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -214,12 +228,12 @@ function* randomizeGen() {
     setV(i, a[i]);
     yield W(60);
   }
-  yield S(() => hint.setText('已随机化，可点击「▶ 演示」'));
+  yield S(() => { status.textContent = '已随机化，可点击「▶ 演示」'; });
+  yield W(200);
 }
 
 panel.addButton('随机化', () => engine.start(randomizeGen()));
 engine.queue(() => timSort());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；色块 = Run 范围，波纹 = 归并碰撞）');
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

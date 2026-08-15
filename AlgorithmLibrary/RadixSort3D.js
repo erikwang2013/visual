@@ -1,19 +1,17 @@
-// AlgorithmLibrary/RadixSort3D.js — 基数排序（LSD）：10 桶 + 数字环按位旋转 90° + 收集重连成链（function* 生成器驱动）
+// AlgorithmLibrary/RadixSort3D.js — 基数排序（LSD）：10 桶 + 数字环按位旋转 90° + 收集重连成链（function* 生成器驱动，解说入状态栏）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VText, tubeBetween } from '../3D/VisualObject3D.js';
+import { VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('RadixSort3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BASE = 0x60a5fa, GOLD = 0xfcd34d, OK = 0x4ade80, CYAN = 0x22d3ee;
-
-const hint = new VText(scene, { text: '基数排序 LSD：数字环按位旋转 90°，球飞入 10 桶，收集回主行重连成链', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const DATA = [170, 45, 75, 90, 802, 24, 2, 66, 745, 91, 351, 488, 611, 223, 990];
@@ -58,23 +56,30 @@ for (let d = 0; d < 10; d++) {
   new VText(scene, { text: String(d), x: BX(d), y: 224, z: -50, color: PALETTE.textDim, scale: 0.7 });
 }
 
-let chains = [];
-function clearChains() {
-  chains.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
-  chains = [];
+// ---- 金链对象池：N-1 根直管，模块级预建，运行期仅更新曲线/再生几何 ----
+const chainPool = [];
+for (let i = 0; i < N - 1; i++) {
+  const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 0, 0)]);
+  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 2, 1.8, 6, false), new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0 }));
+  m.visible = false;
+  scene.add(m);
+  chainPool.push({ m, curve });
 }
 function* fadeChains() {
-  if (!chains.length) return;
-  yield A(260, p => chains.forEach(m => { m.material.opacity = 0.4 * (1 - p); }));
-  clearChains();
+  yield A(260, p => chainPool.forEach(c => { c.m.material.opacity = 0.4 * (1 - p); }));
+  chainPool.forEach(c => { c.m.visible = false; });
 }
 function* linkChain() {
-  clearChains();
   for (let i = 0; i < N - 1; i++) {
-    const m = tubeBetween(scene, spheres[i].g.position, spheres[i + 1].g.position, { color: GOLD, radius: 1.8, opacity: 0 });
-    chains.push(m);
+    const a = spheres[i].g.position, b = spheres[i + 1].g.position;
+    const c = chainPool[i];
+    c.curve.points[0].copy(a);
+    c.curve.points[1].copy(b);
+    c.m.geometry.dispose();
+    c.m.geometry = new THREE.TubeGeometry(c.curve, 2, 1.8, 6, false);
+    c.m.visible = true;
   }
-  yield A(400, p => chains.forEach(m => { m.material.opacity = 0.4 * p; }));
+  yield A(400, p => chainPool.forEach(c => { c.m.material.opacity = 0.4 * p; }));
 }
 
 function* fly(sph, from, to, opts = {}) {
@@ -88,7 +93,7 @@ function* fly(sph, from, to, opts = {}) {
 }
 
 function resetAll() {
-  clearChains();
+  chainPool.forEach(c => { c.m.visible = false; c.m.material.opacity = 0; });
   for (let i = 0; i < N; i++) {
     const p = spheres[i];
     p.g.position.set(slotX(i), 320, 0);
@@ -98,17 +103,13 @@ function resetAll() {
     setSphColor(p, BASE);
   }
 }
-function* doneMsg() {
-  yield S(() => { hint.setText('基数排序完成：LSD 稳定，O(d·(n+k))'); status.textContent = '基数排序完成：O(d·(n+k))'; spheres.forEach(p => setSphColor(p, OK)); });
-  yield W(700);
-}
 
 function* pass(passNo) {
   yield* fadeChains();
   yield A(420, pp => spheres.forEach(p => { p.ring.rotation.y = Math.PI / 2 * pp; }));
   yield S(() => {
     spheres.forEach(p => { p.ring.rotation.y = 0; p.dLbl.setText(String(digitOf(p.value, passNo))); });
-    hint.setText('第 ' + (passNo + 1) + ' 趟：按' + NAMES[passNo] + '分桶（环旋转 90° 指向当前位）');
+    status.textContent = '第 ' + (passNo + 1) + ' 趟：按' + NAMES[passNo] + '分桶（环旋转 90° 指向当前位）';
   });
   yield W(450);
   const buckets = Array.from({ length: 10 }, () => []);
@@ -116,17 +117,17 @@ function* pass(passNo) {
     const p = spheres[i];
     const d = digitOf(p.value, passNo);
     setSphColor(p, GOLD);
-    yield S(() => hint.setText('a[' + i + ']=' + p.value + ' 的' + NAMES[passNo] + ' = ' + d + '，飞入桶 ' + d));
+    yield S(() => { status.textContent = 'a[' + i + ']=' + p.value + ' 的' + NAMES[passNo] + ' = ' + d + '，飞入桶 ' + d; });
     yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: BX(d), y: 304 + buckets[d].length * 30, z: -50 }, { lift: 90 });
     buckets[d].push(p);
     yield W(90);
   }
-  yield S(() => hint.setText('按桶 0→9 顺序收集回主行（重连成链）'));
+  yield S(() => { status.textContent = '按桶 0→9 顺序收集回主行（重连成链）'; });
   yield W(320);
   let k = 0;
   for (let d = 0; d < 10; d++) {
     for (const p of buckets[d]) {
-      yield S(() => hint.setText('桶 ' + d + ' → 主行 [' + k + ']'));
+      yield S(() => { status.textContent = '桶 ' + d + ' → 主行 [' + k + ']'; });
       yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: slotX(k), y: 320, z: 0 }, { lift: 55, ms: 340 });
       setSphColor(p, BASE);
       k++;
@@ -137,29 +138,34 @@ function* pass(passNo) {
   yield W(250);
 }
 
-function* radixSort() {
-  yield S(resetAll);
-  hint.setText('LSD 基数排序：从个位到百位，逐趟按位分桶');
-  yield W(400);
-  for (let passNo = 0; passNo < 3; passNo++) yield* pass(passNo);
-  yield* doneMsg();
-}
-
 function* randomizeGen() {
   yield S(resetAll);
-  hint.setText('随机生成 0..999 的数');
+  yield S(() => { status.textContent = '随机生成 0..999 的数'; });
+  yield W(400);
   for (let i = 0; i < N; i++) {
     const v = Math.floor(Math.random() * 1000);
     spheres[i].value = v;
     spheres[i].lbl.setText(String(v));
     yield W(60);
   }
-  yield S(() => hint.setText('已随机化，可点击「▶ 演示」'));
+  yield S(() => { status.textContent = '随机化完成：15 个数取值 0..999'; });
+  yield W(400);
+}
+
+function* runRadixSort() {
+  yield S(resetAll);
+  yield S(() => { status.textContent = 'LSD 基数排序：从个位到百位逐趟按位分桶，数字环旋转 90° 指向当前位'; });
+  yield W(400);
+  for (let passNo = 0; passNo < 3; passNo++) yield* pass(passNo);
+  yield S(() => {
+    spheres.forEach(p => setSphColor(p, OK));
+    status.textContent = '基数排序演示完成：15 个数，个位/十位/百位 3 趟 LSD 稳定桶排，结果 ' + spheres.map(p => p.value).join(', ');
+  });
+  yield W(900);
 }
 
 panel.addButton('随机化', () => engine.start(randomizeGen()));
-engine.queue(() => radixSort());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；金链 = 收集后的顺序链）');
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
+engine.queue(() => runRadixSort());
 
 scene.start(engine);

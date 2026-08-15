@@ -7,13 +7,11 @@ import { VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('BucketSort3D');
 
-const scene = new Scene3D('scene', { cameraPos: [260, 500, 900], lookAt: [260, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BASE = 0x60a5fa, GOLD = 0xfcd34d, OK = 0x4ade80, CYAN = 0x22d3ee, RED = 0xef4444, WHITE = 0xf8fafc;
-
-const hint = new VText(scene, { text: '桶排序：球按值域飞入悬浮桶（桶内自动排队），桶内插入排序，再按序倒出', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const N = 16, BUCKETS = 5, MAXV = 20;
@@ -68,7 +66,7 @@ function resetAll() {
   buckets.forEach(b => { b.stack = []; });
 }
 function* doneMsg() {
-  yield S(() => { hint.setText('桶排序完成：数据均匀时 O(n)，桶内用插入排序'); status.textContent = '桶排序完成：O(n) 期望'; spheres.forEach(p => setSphColor(p, OK)); });
+  yield S(() => { status.textContent = '桶排序演示完成：16 个数据分入 5 桶（值域 1..20），桶内插入排序后按序倒出；期望 O(n)，最坏 O(n²)'; spheres.forEach(p => setSphColor(p, OK)); });
   yield W(700);
 }
 
@@ -93,7 +91,7 @@ function* sortBucket(b) {
     let j = i - 1;
     while (j >= 0 && b.stack[j].value > key.value) {
       setSphColor(b.stack[j], WHITE);
-      yield S(() => hint.setText('桶 ' + (b.b + 1) + ' 内排序：' + b.stack[j].value + ' > ' + key.value + '，后移'));
+      yield S(() => status.textContent = '桶 ' + (b.b + 1) + ' 内排序：' + b.stack[j].value + ' > ' + key.value + '，后移');
       yield W(170);
       yield* swapInBucket(b, j, j + 1);
       setSphColor(b.stack[j + 1], BASE);
@@ -107,32 +105,34 @@ function* sortBucket(b) {
 }
 
 function* bucketSort() {
-  yield S(resetAll);
-  hint.setText('阶段 1：按值域分桶（球飞入悬浮桶，桶内自动排队）');
+  resetAll();
+  yield S(() => status.textContent = '桶排序：16 个数据分入 5 个悬浮桶（值域 1..20），桶内插入排序后按序倒出');
+  yield W(400);
+  yield S(() => status.textContent = '阶段 1：按值域分桶（球飞入悬浮桶，桶内自动排队）');
   yield W(400);
   for (let i = 0; i < N; i++) {
     const p = spheres[i];
     const b = buckets[bucketOf(p.value)];
     setSphColor(p, GOLD);
-    yield S(() => hint.setText('a[' + i + ']=' + p.value + ' → 桶 ' + (b.b + 1) + '（第 ' + (b.stack.length + 1) + ' 个）'));
+    yield S(() => status.textContent = 'a[' + i + ']=' + p.value + ' → 桶 ' + (b.b + 1) + '（第 ' + (b.stack.length + 1) + ' 个）');
     yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: BX(b.b), y: 275 + b.stack.length * 30, z: -10 }, { lift: 95 });
     b.stack.push(p);
     yield W(110);
   }
-  yield S(() => { hint.setText('分桶完成：' + buckets.map((b, k) => (k + 1) + ':' + b.stack.length + '个').join(' ')); status.textContent = '分桶完成'; });
+  yield S(() => status.textContent = '分桶完成：' + buckets.map((b, k) => (k + 1) + ':' + b.stack.length + '个').join(' '));
   yield W(450);
-  hint.setText('阶段 2：桶内插入排序（红=待插入，白=比较）');
+  yield S(() => status.textContent = '阶段 2：桶内插入排序（红=待插入，白=比较）');
   yield W(350);
   for (const b of buckets) yield* sortBucket(b);
-  yield S(() => { hint.setText('桶内全部有序'); status.textContent = '桶内排序完成'; });
+  yield S(() => status.textContent = '桶内全部有序');
   yield W(400);
-  hint.setText('阶段 3：按序倒出（桶 1 → 5）');
+  yield S(() => status.textContent = '阶段 3：按序倒出（桶 1 → 5）');
   yield W(350);
   let outIdx = 0;
   for (const b of buckets) {
     while (b.stack.length) {
       const p = b.stack.shift();
-      yield S(() => hint.setText('倒出 ' + p.value + ' → 输出 [' + outIdx + ']'));
+      yield S(() => status.textContent = '倒出 ' + p.value + ' → 输出 [' + outIdx + ']');
       yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: slotX(outIdx), y: 90, z: 0 }, { lift: 55, ms: 380 });
       setSphColor(p, OK);
       outIdx++;
@@ -143,20 +143,20 @@ function* bucketSort() {
 }
 
 function* randomizeGen() {
-  yield S(resetAll);
-  hint.setText('随机打乱数组');
+  resetAll();
+  yield S(() => status.textContent = '随机打乱数组');
   for (let i = 0; i < N; i++) {
     const v = 1 + Math.floor(Math.random() * MAXV);
     spheres[i].value = v;
     spheres[i].lbl.setText(String(v));
     yield W(60);
   }
-  yield S(() => hint.setText('已随机化，可点击「▶ 演示」'));
+  yield S(() => status.textContent = '已随机化，可点击「▶ 演示」');
+  yield W(300);
 }
 
 panel.addButton('随机化', () => engine.start(randomizeGen()));
 engine.queue(() => bucketSort());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；5 个悬浮桶按值域均分 1..20）');
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

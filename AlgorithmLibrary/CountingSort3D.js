@@ -7,13 +7,11 @@ import { VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('CountingSort3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BASE = 0x60a5fa, GOLD = 0xfcd34d, OK = 0x4ade80, CYAN = 0x22d3ee;
-
-const hint = new VText(scene, { text: '计数排序：小球飞入圆柱计数桶，随计数增长按序弹出', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 const VALUES = 5, N = 16;
@@ -76,19 +74,21 @@ function resetAll() {
   buckets.forEach(b => { b.stack = []; b.count = 0; setFill(b, 0); b.lbl.setText('0'); });
 }
 function* doneMsg() {
-  yield S(() => { hint.setText('计数排序完成：稳定、O(n + k)'); status.textContent = '计数排序完成：O(n + k)'; spheres.forEach(p => setSphColor(p, OK)); });
+  yield S(() => { status.textContent = '计数排序演示完成：16 个数据（值域 1..5）统计出现次数后按序输出；O(n + k)，稳定排序'; spheres.forEach(p => setSphColor(p, OK)); });
   yield W(700);
 }
 
 function* countingSort() {
-  yield S(resetAll);
-  hint.setText('阶段 1：统计各值出现次数（球飞入对应计数桶，桶高增长）');
+  resetAll();
+  yield S(() => status.textContent = '计数排序：16 个数据（值域 1..5）统计各值出现次数，再按序输出');
+  yield W(400);
+  yield S(() => status.textContent = '阶段 1：统计各值出现次数（球飞入对应计数桶，桶高增长）');
   yield W(400);
   for (let i = 0; i < N; i++) {
     const p = spheres[i];
     const b = buckets[p.value - 1];
     setSphColor(p, GOLD);
-    yield S(() => hint.setText('a[' + i + ']=' + p.value + ' 飞入计数桶 ' + p.value + '（第 ' + (b.count + 1) + ' 个）'));
+    yield S(() => status.textContent = 'a[' + i + ']=' + p.value + ' 飞入计数桶 ' + p.value + '（第 ' + (b.count + 1) + ' 个）');
     yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: BX(b.b), y: 308 + b.count * 30, z: -50 }, { lift: 95 });
     b.stack.push(p);
     b.count++;
@@ -96,16 +96,16 @@ function* countingSort() {
     yield S(() => b.lbl.setText(String(b.count)));
     yield W(110);
   }
-  yield S(() => { hint.setText('统计完成：桶 ' + buckets.map((b, k) => (k + 1) + ':' + b.count).join(' ')); status.textContent = '桶高度 = 出现次数'; });
+  yield S(() => status.textContent = '统计完成：桶 ' + buckets.map((b, k) => (k + 1) + ':' + b.count).join(' '));
   yield W(450);
-  hint.setText('阶段 2：按序弹出（从小到大），飞入输出行');
+  yield S(() => status.textContent = '阶段 2：按序弹出（从小到大），飞入输出行');
   yield W(400);
   let outIdx = 0;
   for (let b = 0; b < VALUES; b++) {
     while (buckets[b].stack.length) {
       const p = buckets[b].stack.pop();
       const c = buckets[b].count--;
-      yield S(() => hint.setText('桶 ' + (b + 1) + ' 弹出 ' + p.value + ' → 输出 [' + outIdx + ']'));
+      yield S(() => status.textContent = '桶 ' + (b + 1) + ' 弹出 ' + p.value + ' → 输出 [' + outIdx + ']');
       yield A(260, p2 => setFill(buckets[b], (c - 1 + (1 - p2)) * 30));
       yield S(() => buckets[b].lbl.setText(String(c - 1)));
       yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: slotX(outIdx), y: 95, z: 0 }, { lift: 55, ms: 380 });
@@ -118,20 +118,20 @@ function* countingSort() {
 }
 
 function* randomizeGen() {
-  yield S(resetAll);
-  hint.setText('随机打乱数组');
+  resetAll();
+  yield S(() => status.textContent = '随机打乱数组');
   for (let i = 0; i < N; i++) {
     const v = 1 + Math.floor(Math.random() * VALUES);
     spheres[i].value = v;
     spheres[i].lbl.setText(String(v));
     yield W(60);
   }
-  yield S(() => hint.setText('已随机化，可点击「▶ 演示」'));
+  yield S(() => status.textContent = '已随机化，可点击「▶ 演示」');
+  yield W(300);
 }
 
 panel.addButton('随机化', () => engine.start(randomizeGen()));
 engine.queue(() => countingSort());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；金柱 = 桶内计数高度）');
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

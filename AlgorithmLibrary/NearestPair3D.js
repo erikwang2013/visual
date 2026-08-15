@@ -1,22 +1,23 @@
 // AlgorithmLibrary/NearestPair3D.js — 最近点对（分治）：左右各找最近，合并时只查中线 δ 带 —— 暴力 O(n²) 被压到 O(n log n)（function* 生成器驱动）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { VNode } from '../3D/VisualObject3D.js';
+import { applyTheme } from '../3D/Glow.js';
 applyTheme('NearestPair3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, VIOLET = 0xa78bfa, AMBER = 0xfbbf24;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：最近点对（分治）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
+const GOLD = 0xfcd34d, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, VIOLET = 0xa78bfa, AMBER = 0xfbbf24;
 const status = panel.addStatus('就绪');
 
 const PTS = [[0, 2], [1, 5], [2, 3], [3, 4], [5, 1], [6, 6], [7, 3], [8, 5]];
 const SC = 55;
 const pos = p => [(p[0] - 4) * SC + 320, -(p[1] - 3.5) * SC + 300];
+const E = p => p * p * (3 - 2 * p);
 const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]);
 const f2 = v => Math.round(v * 1000) / 1000;
 const left = PTS.slice(0, 4), right = PTS.slice(4);
@@ -32,100 +33,131 @@ const DELTA = bestL.d;
 const strip = [PTS[3], PTS[4]];
 const crossD = dist(strip[0], strip[1]);
 
-const extras = [];
-function addTemp(o) { extras.push(o); return o; }
-function clearExtras() { extras.forEach(o => { try { o.remove(); } catch (e) {} }); extras.length = 0; }
-const mkNode = (p, color, label) => addTemp(new VNode(scene, { x: pos(p)[0], y: pos(p)[1], z: 0, radius: 11, label, color, emissive: color }));
-const mkLine = (a, b, color, opacity = 0.5, radius = 2) => addTemp(tubeBetween(scene, pos(a), pos(b), { color, opacity, radius }));
-
-new VText(scene, { text: '最近点对（分治）：8 个点找距离最小的点对。竖线 = 分界 x=4；左右各自找最近，合并只查中线附近的 δ 带', x: 0, y: 525, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '紫 = 左半，琥珀 = 右半，金 = 各自的最优对；青色 = δ 带（|x−4| < δ 的点才有资格跨半配对）', x: 0, y: 95, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const stageT = new VText(scene, { text: '', x: 0, y: 555, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 572, z: 0, color: PALETTE.textGlow, scale: 0.5 });
-const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.5 });
-
-function resetAll() {
-  clearExtras();
-  stageT.setText(''); eqT.setText(''); outT.setText('');
+// ---- 对象池：节点球 + 连线管（模块级预建，生成器内零分配）----
+const nodePool = [], nodeFree = [];
+for (let i = 0; i < 14; i++) nodePool.push(new VNode(scene, { radius: 11, x: 0, y: 0, z: 0, label: '·', color: DIM, emissive: DIM }));
+const tubePool = [], tubeFree = [];
+for (let i = 0; i < 12; i++) {
+  const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 0, 0)]);
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 2, 2, 6, false), new THREE.MeshBasicMaterial({ color: DIM, transparent: true, opacity: 0.5 }));
+  tube.visible = false;
+  scene.add(tube);
+  tubePool.push({ tube, curve });
 }
+nodeFree.push(...nodePool); tubeFree.push(...tubePool);
+function clearAll() {
+  nodeFree.length = 0; nodeFree.push(...nodePool);
+  tubeFree.length = 0; tubeFree.push(...tubePool);
+  nodePool.forEach(v => { v.mesh.visible = false; v.mesh.scale.setScalar(0.01); });
+  tubePool.forEach(e => e.tube.visible = false);
+}
+function addNode(p, color) {
+  const vn = nodeFree.pop();
+  vn.mesh.position.set(pos(p)[0], pos(p)[1], 0);
+  vn.mesh.scale.setScalar(0.01);
+  vn.mesh.visible = true;
+  vn.setText('(' + p[0] + ',' + p[1] + ')');
+  vn.setColor(color, color);
+  return vn;
+}
+function addLine(a, b, color, opacity, radius = 2) {
+  const e = tubeFree.pop();
+  e.curve.points[0].set(a[0], a[1], 0);
+  e.curve.points[1].set(b[0], b[1], 0);
+  e.tube.geometry.dispose();
+  e.tube.geometry = new THREE.TubeGeometry(e.curve, 2, radius, 6, false);
+  e.tube.material.color.setHex(color);
+  e.tube.material.opacity = 0;
+  e.tube.visible = true;
+  return e;
+}
+function hideLine(e) { e.tube.visible = false; tubeFree.push(e); }
+function* popNodes(list) { yield A(380, p => list.forEach(vn => vn.mesh.scale.setScalar(0.01 + 0.99 * E(p)))); }
+function* fadeIn(e, opacity) { yield A(380, p => e.tube.material.opacity = opacity * E(p)); }
 
 function* nearestPairGen() {
-  resetAll();
-  yield S(() => hint.setText('暴力要 C(8,2)=28 次距离计算。分治：一分为二，各自递归，最后合并 —— 数学的美在于「合并很便宜」'));
-  yield S(() => {
-    PTS.forEach((p, i) => mkNode(p, DIM, `(${p[0]},${p[1]})`));
-    addTemp(tubeBetween(scene, [320, 450, 0], [320, 150, 0], { color: CYAN, opacity: 0.35, radius: 2 }));
-    addTemp(new VText(scene, { text: '分界线 x = 4', x: 340, y: 450, z: 0, color: CYAN, scale: 0.42 }));
-    stageT.setText('全部 8 个点就位，中线把平面劈成左右两半 —— 每个点都是带坐标的小球');
-  });
+  yield S(() => { status.textContent = '暴力需 C(8,2)=28 次距离计算；分治：一分为二、各自递归、最后合并 —— 合并很便宜'; });
   yield W(600);
-  yield S(() => { left.forEach(p => mkNode(p, VIOLET, `(${p[0]},${p[1]})`)); stageT.setText('左半 4 点（紫）：内部暴力找最近 —— 4 个点只需 6 对'); });
+  const all = [];
+  yield S(() => { status.textContent = '全部 8 个点就位（带坐标标签），中线 x=4 把平面劈成左右两半'; });
+  PTS.forEach(p => all.push(addNode(p, DIM)));
+  const mid = addLine([320, 450, 0], [320, 130, 0], CYAN, 0.35);
+  yield* popNodes(all);
+  yield* fadeIn(mid, 0.35);
+  yield W(450);
+
+  yield S(() => { status.textContent = '左半 4 点（紫）：内部暴力找最近 —— 4 个点只需 6 对'; });
+  const ls = [];
+  left.forEach(p => ls.push(addNode(p, VIOLET)));
+  yield* popNodes(ls);
   yield W(400);
   for (const [i, p] of pairsL.entries()) {
-    yield S(() => { mkLine(p.a, p.b, CYAN, 0.4, 1.6); eqT.setText(`左半 第 ${i + 1} 对：(${p.a.join(',')})−(${p.b.join(',')}) = ${f2(p.d)}`); });
+    const ln = addLine(pos(p.a), pos(p.b), CYAN, 0.4, 1.6);
+    yield S(() => { status.textContent = '左半第 ' + (i + 1) + ' 对：(' + p.a.join(',') + ')−(' + p.b.join(',') + ') = ' + f2(p.d); });
+    yield* fadeIn(ln, 0.4);
     yield W(250);
-    yield S(() => clearExtras());
+    hideLine(ln);
     yield W(40);
   }
-  yield S(() => {
-    mkLine(bestL.a, bestL.b, GOLD, 0.7, 2.6);
-    eqT.setText(`左半最优：(${bestL.a.join(',')})−(${bestL.b.join(',')}) = ${f2(bestL.d)}`);
-    stageT.setText(`左半最近 = ${f2(bestL.d)}（金色连线）—— 紫半 6 对全查完`);
-  });
+  const bL = addLine(pos(bestL.a), pos(bestL.b), GOLD, 0.75, 2.6);
+  yield S(() => { status.textContent = '左半最优：(' + bestL.a.join(',') + ')−(' + bestL.b.join(',') + ') = ' + f2(bestL.d) + '（金色连线），6 对全查完'; });
+  yield* fadeIn(bL, 0.75);
   yield W(500);
-  yield S(() => {
-    clearExtras();
-    right.forEach(p => mkNode(p, AMBER, `(${p[0]},${p[1]})`));
-    stageT.setText('右半 4 点（琥珀）：同样的流程再来一遍');
-  });
+
+  yield S(() => { status.textContent = '右半 4 点（琥珀）：同样流程 —— 6 对逐对排查'; });
+  clearAll();
+  const rs = [];
+  PTS.forEach(p => rs.push(addNode(p, DIM)));
+  right.forEach(p => rs.push(addNode(p, AMBER)));
+  const mid2 = addLine([320, 450, 0], [320, 130, 0], CYAN, 0.35);
+  yield* popNodes(rs);
+  yield* fadeIn(mid2, 0.35);
   yield W(400);
   for (const [i, p] of pairsR.entries()) {
-    yield S(() => { mkLine(p.a, p.b, CYAN, 0.4, 1.6); eqT.setText(`右半 第 ${i + 1} 对：(${p.a.join(',')})−(${p.b.join(',')}) = ${f2(p.d)}`); });
+    const ln = addLine(pos(p.a), pos(p.b), CYAN, 0.4, 1.6);
+    yield S(() => { status.textContent = '右半第 ' + (i + 1) + ' 对：(' + p.a.join(',') + ')−(' + p.b.join(',') + ') = ' + f2(p.d); });
+    yield* fadeIn(ln, 0.4);
     yield W(250);
-    yield S(() => clearExtras());
+    hideLine(ln);
     yield W(40);
   }
-  yield S(() => {
-    mkLine(bestR.a, bestR.b, GOLD, 0.7, 2.6);
-    eqT.setText(`右半最优：(${bestR.a.join(',')})−(${bestR.b.join(',')}) = ${f2(bestR.d)}`);
-    stageT.setText(`右半最近 = ${f2(bestR.d)}。δ = min(左右) = ${f2(DELTA)} —— 真正的答案要么在半内，要么跨中线`);
-  });
+  const bR = addLine(pos(bestR.a), pos(bestR.b), GOLD, 0.75, 2.6);
+  yield S(() => { status.textContent = '右半最优：(' + bestR.a.join(',') + ')−(' + bestR.b.join(',') + ') = ' + f2(bestR.d) + '；δ = min(左右) = ' + f2(DELTA); });
+  yield* fadeIn(bR, 0.75);
   yield W(500);
-  yield S(() => {
-    clearExtras();
-    const d = DELTA * SC;
-    addTemp(tubeBetween(scene, [-d + 320, 450, 0], [-d + 320, 150, 0], { color: CYAN, opacity: 0.4, radius: 2 }));
-    addTemp(tubeBetween(scene, [d + 320, 450, 0], [d + 320, 150, 0], { color: CYAN, opacity: 0.4, radius: 2 }));
-    PTS.forEach((p, i) => mkNode(p, DIM, `(${p[0]},${p[1]})`));
-    strip.forEach(p => mkNode(p, CYAN, `(${p[0]},${p[1]})`));
-    stageT.setText(`合并：跨半的点对只可能出现在 δ 带内 —— 只有 (3,4) 和 (5,1) 两个点（青色）在带里`);
-    hint.setText('为什么只看 δ 带？若跨线点距 < δ，则两点的 x 差必须 < δ —— 再往外的点距离必然 ≥ δ，不用查');
-  });
+
+  yield S(() => { status.textContent = '合并：跨半点对只可能出现在 δ 带内（|x−4| < δ，青色竖线），只有 (3,4) 和 (5,1) 在带里'; });
+  clearAll();
+  const band = [];
+  PTS.forEach(p => band.push(addNode(p, DIM)));
+  const div = addLine([320, 450, 0], [320, 130, 0], CYAN, 0.35);
+  const bandL = addLine([320 - DELTA * SC, 450, 0], [320 - DELTA * SC, 130, 0], CYAN, 0.4);
+  const bandR = addLine([320 + DELTA * SC, 450, 0], [320 + DELTA * SC, 130, 0], CYAN, 0.4);
+  strip.forEach(p => band.push(addNode(p, CYAN)));
+  yield* popNodes(band);
+  yield* fadeIn(div, 0.35);
+  yield* fadeIn(bandL, 0.4);
+  yield* fadeIn(bandR, 0.4);
   yield W(600);
-  yield S(() => {
-    mkLine(strip[0], strip[1], ROSE, 0.65, 2.2);
-    eqT.setText(`带内配对：(${strip[0].join(',')})−(${strip[1].join(',')}) = ${f2(crossD)} > δ = ${f2(DELTA)}`);
-    stageT.setText(`带内距离 ${f2(crossD)} 大于 δ —— 放弃！跨半候选一个都不比 δ 小`);
-  });
+
+  yield S(() => { status.textContent = '带内配对：(' + strip[0].join(',') + ')−(' + strip[1].join(',') + ') = ' + f2(crossD) + ' > δ = ' + f2(DELTA) + ' —— 放弃，跨半候选不比 δ 小'; });
+  const cL = addLine(pos(strip[0]), pos(strip[1]), ROSE, 0.65, 2.2);
+  yield* fadeIn(cL, 0.65);
   yield W(600);
-  yield S(() => {
-    clearExtras();
-    PTS.forEach((p, i) => mkNode(p, DIM, `(${p[0]},${p[1]})`));
-    mkLine(bestL.a, bestL.b, GOLD, 0.8, 3);
-    outT.setText(`答案：(${bestL.a.join(',')})−(${bestL.b.join(',')}) = √2 ≈ ${f2(bestL.d)} ✓ —— 递归、合并各一层就锁定了全局最近`);
-    status.textContent = `最近点对：(2,3)−(3,4)，距离 √2 ≈ 1.414（分治 3 轮 vs 暴力 28 次距离）`;
-    hint.setText('数学保证：δ 带里每侧最多 6 个候选点（抽屉原理）—— 所以合并是 O(n) 而非 O(n²)');
-  });
+
+  yield S(() => { status.textContent = '答案：(' + bestL.a.join(',') + ')−(' + bestL.b.join(',') + ') = √2 ≈ ' + f2(bestL.d) + '（金色）—— 递归、合并各一层锁定全局最近'; });
+  clearAll();
+  const fin = [];
+  PTS.forEach(p => fin.push(addNode(p, DIM)));
+  const ans = addLine(pos(bestL.a), pos(bestL.b), GOLD, 0.8, 3);
+  yield* popNodes(fin);
+  yield* fadeIn(ans, 0.8);
   yield W(600);
-  yield S(() => {
-    outT.setText('复杂度 T(n) = 2T(n/2) + O(n) → O(n log n)。应用：碰撞检测、聚类、分子结构比对、GPS 最近站点');
-    hint.setText('变体：KD 树查最近邻（高维）、delaunay 三角网（带内点 6 个 → 三角剖分 6 邻居上限）');
-  });
-  yield W(700);
+
+  yield S(() => { status.textContent = '最近点对演示完成：8 点分治 3 轮，左右最近均 (2,3)−(3,4) 距离 √2≈1.414，δ 带内配对 (3,4)−(5,1) 被否，全局最近 (2,3)−(3,4) 距离 √2≈1.414；T(n)=2T(n/2)+O(n) → O(n log n)，暴力需 28 次距离'; });
+  yield W(900);
 }
 
 engine.queue(() => nearestPairGen());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；紫/琥珀 = 左右半，金 = 最优对，青 = δ 带与带内点，玫瑰 = 被否的候选）');
-
+panel.addButton('清空', () => { engine.clear(); clearAll(); status.textContent = ''; });
 scene.start(engine);

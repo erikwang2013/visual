@@ -3,23 +3,21 @@ import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { VNode } from '../3D/VisualObject3D.js';
+import { applyTheme } from '../3D/Glow.js';
 applyTheme('HalfPlane3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：半平面交 —— 4 条直线逐刀裁剪正方形', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80;
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 0, y: 562, z: 0, color: GOLD, scale: 0.72 });
-const eqT = new VText(scene, { text: '', x: 0, y: 230, z: 0, color: PALETTE.textGlow, scale: 0.56 });
-const outT = new VText(scene, { text: '', x: 0, y: 150, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
 const SC = 60;
 const pos = p => [(p[0] - 2) * SC + 320, -(p[1] - 2) * SC + 300];
+const E = p => p * p * (3 - 2 * p);
+const pt2s = p => '(' + p[0].toFixed(1) + ',' + p[1].toFixed(1) + ')';
 const R0 = [[-1, -1], [5, -1], [5, 5], [-1, 5]];
 const steps = [
   { line: [[-1, 0], [5, 0]], inside: p => p[1] >= 0, ineq: 'y ≥ 0', msg: '下半平面被削平 —— 底部换上新交点' },
@@ -28,18 +26,23 @@ const steps = [
   { line: [[0, -2], [0, 6]], inside: p => p[0] >= 0, ineq: 'x ≥ 0', msg: '竖直一刀：左缘削平 —— 最终多边形诞生' }
 ];
 
-const temp = [];
-function addTemp(o) { temp.push(o); return o; }
-function clearTemp() { temp.forEach(o => { try { o.remove(); } catch (e) {} }); temp.length = 0; }
-const pt = (x, y, color, label, r = 11) => addTemp(new VNode(scene, { x, y, z: 0, radius: r, label, color, emissive: color }));
-const seg = (a, b, color, opacity = 0.65, radius = 2.5) => addTemp(tubeBetween(scene, { x: a[0], y: a[1], z: 0 }, { x: b[0], y: b[1], z: 0 }, { color, opacity, radius }));
-
-function drawPoly(poly, color) {
-  for (let i = 0; i < poly.length; i++) {
-    const p = poly[i], q = poly[(i + 1) % poly.length];
-    seg(pos(p), pos(q), color);
-    pt(pos(p)[0], pos(p)[1], color, '');
-  }
+// ---- 对象池：顶点球 + 边管（模块级预建，生成器内零分配）----
+const nodePool = [], nodeFree = [];
+for (let i = 0; i < 8; i++) nodePool.push(new VNode(scene, { radius: 11, x: 0, y: 0, z: 0, label: '·', color: BLUE, emissive: BLUE }));
+const edgePool = [], edgeFree = [];
+for (let i = 0; i < 8; i++) {
+  const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 0, 0)]);
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 2, 2.5, 6, false), new THREE.MeshBasicMaterial({ color: BLUE, transparent: true, opacity: 0.55 }));
+  tube.visible = false;
+  scene.add(tube);
+  edgePool.push({ tube, curve });
+}
+nodeFree.push(...nodePool); edgeFree.push(...edgePool);
+function clearTemp() {
+  nodeFree.length = 0; nodeFree.push(...nodePool);
+  edgeFree.length = 0; edgeFree.push(...edgePool);
+  nodePool.forEach(v => { v.mesh.visible = false; v.mesh.scale.setScalar(0.01); });
+  edgePool.forEach(e => e.tube.visible = false);
 }
 function intersect(a, b, p, q) {
   const d = [b[0] - a[0], b[1] - a[1]], e = [q[0] - p[0], q[1] - p[1]];
@@ -48,67 +51,96 @@ function intersect(a, b, p, q) {
   const t = ((p[0] - a[0]) * e[1] - (p[1] - a[1]) * e[0]) / den;
   return [a[0] + t * d[0], a[1] + t * d[1]];
 }
+function drawPoly(poly, color) {
+  const nodes = [], edges = [];
+  for (let i = 0; i < poly.length; i++) {
+    const p = poly[i], q = poly[(i + 1) % poly.length];
+    const a = pos(p), b = pos(q);
+    const vn = nodeFree.pop();
+    vn.mesh.position.set(a[0], a[1], 0);
+    vn.mesh.scale.setScalar(0.01);
+    vn.mesh.visible = true;
+    vn.setText(pt2s(p));
+    vn.setColor(color, color);
+    nodes.push(vn);
+    const e = edgeFree.pop();
+    e.curve.points[0].set(a[0], a[1], 0);
+    e.curve.points[1].set(b[0], b[1], 0);
+    e.tube.geometry.dispose();
+    e.tube.geometry = new THREE.TubeGeometry(e.curve, 2, 2.5, 6, false);
+    e.tube.material.color.setHex(color);
+    e.tube.material.opacity = 0;
+    e.tube.visible = true;
+    edges.push(e);
+  }
+  return { nodes, edges };
+}
+function drawLine(a, b, color) {
+  const e = edgeFree.pop();
+  e.curve.points[0].set(a[0], a[1], 0);
+  e.curve.points[1].set(b[0], b[1], 0);
+  e.tube.geometry.dispose();
+  e.tube.geometry = new THREE.TubeGeometry(e.curve, 2, 3, 6, false);
+  e.tube.material.color.setHex(color);
+  e.tube.material.opacity = 0;
+  e.tube.visible = true;
+  return e;
+}
+function* popIn(view) {
+  yield A(380, p => {
+    view.nodes.forEach(vn => vn.mesh.scale.setScalar(0.01 + 0.99 * E(p)));
+    view.edges.forEach(e => e.tube.material.opacity = 0.55 * E(p));
+  });
+}
+function* fadeIn(e, opacity) { yield A(380, p => e.tube.material.opacity = opacity * E(p)); }
 
 function* clipGen(poly, st) {
-  const p1 = pos(st.line[0]), p2 = pos(st.line[1]);
-  const d = [p2[0] - p1[0], p2[1] - p1[1]];
-  seg([p1[0] - d[0] * 0.8, p1[1] - d[1] * 0.8], [p2[0] + d[0] * 0.8, p2[1] + d[1] * 0.8], GOLD, 0.9, 3);
-  yield S(() => { stageT.setText('新一刀：直线 ' + st.ineq + '（金色）—— 保留满足不等式的半平面'); });
-  yield W(650);
+  const ln = drawLine(pos(st.line[0]), pos(st.line[1]), GOLD);
+  yield S(() => { status.textContent = '新一刀：直线 ' + st.ineq + '（金色）—— 保留满足不等式的半平面'; });
+  yield* fadeIn(ln, 0.9);
+  yield W(400);
   const out = [];
   for (let i = 0; i < poly.length; i++) {
     const p = poly[i], q = poly[(i + 1) % poly.length];
     const pin = st.inside(p), qin = st.inside(q);
     if (pin && qin) {
       out.push(p);
-      yield S(() => stageT.setText('边 P' + i + '→Q：两点都在保留侧 → 全部保留'));
+      yield S(() => { status.textContent = '边 P' + i + '→Q：两点都在保留侧 → 全部保留'; });
     } else if (pin && !qin) {
       out.push(p);
-      const ip = intersect(st.line[0], st.line[1], p, q);
-      out.push(ip);
-      yield S(() => stageT.setText('边 P' + i + '→Q：P 在保留侧、Q 不在 → 保留 P 并求交点'));
+      out.push(intersect(st.line[0], st.line[1], p, q));
+      yield S(() => { status.textContent = '边 P' + i + '→Q：P 在保留侧、Q 不在 → 保留 P 并求交点'; });
     } else if (!pin && qin) {
-      const ip = intersect(st.line[0], st.line[1], p, q);
-      out.push(ip);
-      yield S(() => stageT.setText('边 P' + i + '→Q：P 不在、Q 在保留侧 → 只求交点'));
+      out.push(intersect(st.line[0], st.line[1], p, q));
+      yield S(() => { status.textContent = '边 P' + i + '→Q：P 不在、Q 在保留侧 → 只求交点'; });
     } else {
-      yield S(() => stageT.setText('边 P' + i + '→Q：两点都不在保留侧 → 整边丢弃'));
+      yield S(() => { status.textContent = '边 P' + i + '→Q：两点都不在保留侧 → 整边丢弃'; });
     }
     yield W(480);
   }
-  yield S(() => { stageT.setText(st.msg); eqT.setText('裁剪后顶点：' + out.map(p => '(' + p[0].toFixed(1) + ',' + p[1].toFixed(1) + ')').join(' ')); });
+  yield S(() => { status.textContent = st.msg + ' —— 裁剪后顶点：' + out.map(pt2s).join(' '); });
   yield W(700);
   return out;
 }
 
 function* halfPlaneGen() {
-  yield S(() => { hint.setText('半平面交：Sutherland–Hodgman —— 每条线切一刀，保留指定侧，凸多边形逐刀收缩'); stageT.setText('初始：正方形 R0 = [−1,5]×[−1,5]，4 条线逐刀裁剪'); });
+  yield S(() => { status.textContent = '初始：正方形 R0 = [−1,5]×[−1,5]，4 条直线逐刀裁剪（Sutherland–Hodgman）'; });
   yield W(700);
   let poly = R0;
-  drawPoly(poly, BLUE);
-  yield W(500);
+  let view = drawPoly(poly, BLUE);
+  yield* popIn(view);
+  yield W(400);
   for (let k = 0; k < steps.length; k++) {
     poly = yield* clipGen(poly, steps[k]);
     clearTemp();
-    drawPoly(poly, GREEN);
+    view = drawPoly(poly, GREEN);
+    yield* popIn(view);
     yield W(400);
   }
-  yield S(() => { outT.setText('半平面交完成：' + poly.map(p => '(' + p[0] + ',' + p[1] + ')').join(' → ') + ' —— 4 刀后正方形缩成四边形'); status.textContent = '最终区域：' + poly.map(p => '[' + p[0] + ',' + p[1] + ']').join(' '); });
-  yield W(1000);
-  yield S(() => { hint.setText('复杂度：每刀 O(当前顶点数) → 总 O(n·m)（n 边多边形 × m 条线）—— 半平面交是线性规划 2D 版本的内核'); outT.setText('应用：可视区域、多边形裁剪、凸集交集 —— 保留侧判定由不等式方向决定，交点用参数方程求解'); });
-  yield W(1100);
-  yield S(() => { hint.setText('半平面交演示完成：y≥0 → y≥x−2 → x+y≤4 → x≥0，最终四边形 [0,0]→[2,0]→[3,1]→[0,4]'); outT.setText(''); });
-  yield W(400);
+  yield S(() => { status.textContent = '半平面交演示完成：4 条直线（y≥0 → y≥x−2 → x+y≤4 → x≥0）逐刀裁剪，正方形缩为凸四边形 [0,0]→[2,0]→[3,1]→[0,4]；每刀 O(当前顶点数)，总复杂度 O(n·m)（n 边多边形 × m 条线）'; });
+  yield W(900);
 }
 
-function* runHalf() {
-  hint.setText('半平面交：逐刀裁剪');
-  yield W(400);
-  yield* halfPlaneGen();
-}
-
-engine.queue(() => runHalf());
-panel.addButton('清空', () => { engine.clear(); clearTemp(); stageT.setText(''); eqT.setText(''); outT.setText(''); hint.setText('已清空，可重新运行'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；蓝 = 当前多边形，金 = 切割直线，绿 = 裁剪后多边形；交点用参数方程求出）');
-
+engine.queue(() => halfPlaneGen());
+panel.addButton('清空', () => { engine.clear(); clearTemp(); status.textContent = ''; });
 scene.start(engine);

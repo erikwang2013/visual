@@ -1,17 +1,16 @@
-// AlgorithmLibrary/SetCover3D.js — 集合覆盖（贪心）：每次选「覆盖最多未覆盖元素」的集合 —— 本例 S1+S3 两个集合覆盖全部 6 个元素（function* 生成器驱动，贪心步骤运行时预计算）
+// AlgorithmLibrary/SetCover3D.js — 集合覆盖（贪心）：每轮选「新覆盖最多未覆盖元素」的集合 —— 本例 S1+S3 两个集合覆盖全部 6 个元素（function* 生成器驱动，解说入状态栏）
 import { Scene3D } from '../3D/Scene3D.js';
-import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
+import { GeneratorEngine, W, S } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VNode, VBox, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SetCover3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const GOLD = 0xfcd34d, GREEN = 0x4ade80, DIM = 0x334155, ROSE = 0xfb7185, CYAN = 0x67e8f9, WHITE = 0xe2e8f0;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：集合覆盖', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
+const GOLD = 0xfcd34d, DIM = 0x334155, CYAN = 0x67e8f9;
 const status = panel.addStatus('就绪');
 
 const SETS = [
@@ -45,16 +44,16 @@ const scSteps = (() => {
 })();
 const FIN = scSteps[scSteps.length - 1];
 
+// ---- 预建对象（模块级，运行期仅改颜色/文字/连线透明度）----
 const ELEM_X = [170, 230, 290, 350, 410, 470];
 const elems = U.map(i =>
   new VNode(scene, { radius: 22, x: ELEM_X[i - 1], y: 470, z: 0, label: String(i), color: DIM, emissive: DIM }));
-const elemT = U.map(i =>
-  new VText(scene, { text: '元素' + i, x: ELEM_X[i - 1], y: 506, z: 0, color: PALETTE.textDim, scale: 0.45 }));
 const cards = SETS.map(s => ({
   box: new VBox(scene, { w: 110, h: 46, d: 46, x: -30, y: s.y, z: 0, label: s.id, color: DIM, emissive: DIM }),
   info: new VText(scene, { text: '{' + s.elems.join(',') + '}', x: -30, y: s.y + 40, z: 0, color: PALETTE.textDim, scale: 0.5 }),
   gain: new VText(scene, { text: '', x: -30, y: s.y - 40, z: 0, color: CYAN, scale: 0.55 })
 }));
+const cardOf = id => cards[SETS.findIndex(s => s.id === id)];
 const tubes = {};
 SETS.forEach(s => s.elems.forEach(e => {
   const t = tubeBetween(scene,
@@ -63,90 +62,67 @@ SETS.forEach(s => s.elems.forEach(e => {
   tubes[s.id + '-' + e] = t;
 }));
 const setTube = (sid, e, color, op) => { const t = tubes[sid + '-' + e]; t.material.color.setHex(color); t.material.opacity = op; };
-new VText(scene, { text: '全集 U = {1..6}，三个候选集合', x: 0, y: 546, z: 0, color: PALETTE.textDim, scale: 0.68 });
-new VText(scene, { text: '贪心策略：每轮选「能覆盖最多未覆盖元素」的集合 —— 局部最大覆盖，希望全局集合数最少', x: 0, y: 95, z: 0, color: PALETTE.textDim, scale: 0.62 });
-const coverT = new VText(scene, { text: '', x: 0, y: 170, z: 0, color: GOLD, scale: 0.8 });
-const stageT = new VText(scene, { text: '', x: 0, y: 565, z: 0, color: GOLD, scale: 0.72 });
-const outT = new VText(scene, { text: '', x: 0, y: 70, z: 0, color: PALETTE.textGlow, scale: 0.62 });
+const coverT = new VText(scene, { text: '已覆盖 0/6 个元素', x: 320, y: 546, z: 0, color: GOLD, scale: 0.72 });
+
+function resetAll() {
+  elems.forEach(n => n.setColor(DIM, DIM));
+  cards.forEach(c => { c.box.setColor(DIM, DIM); c.gain.setText(''); });
+  SETS.forEach(s => s.elems.forEach(e => setTube(s.id, e, PALETTE.edge, 0.12)));
+  coverT.setText('已覆盖 0/6 个元素');
+}
 
 function* scGen() {
-  yield S(() => { hint.setText('集合覆盖是经典 NP-难问题：最优解要靠暴力尝试所有组合 —— 贪心是 ln n 近似比的工业标准'); });
-  yield W(700);
-  yield S(() => {
-    stageT.setText('未覆盖 = {1,2,3,4,5,6} 共 6 个；每轮数一数每个候选集合还能「新覆盖」几个');
-    hint.setText('只算新覆盖：S2 的 4 号元素即使已被别的集合盖住也不算它的功劳 —— 避免重复计功');
-  });
-  yield W(700);
-  for (const s of scSteps) {
-    if (s.type === 'final') break;
-    if (s.type === 'round') {
+  resetAll();
+  yield S(() => { status.textContent = '集合覆盖（贪心）：每轮选「新覆盖最多未覆盖元素」的集合，直到 6 个元素全部被盖住。候选集合：S1={1,2,3,4}、S2={4,5}、S3={5,6}'; });
+  yield W(900);
+  for (const st of scSteps) {
+    if (st.type === 'final') break;
+    if (st.type === 'round') {
       yield S(() => {
-        s.gains.forEach(g => {
-          const card = cards.find(c => c.box.text === g.id);
-          card.gain.setText('新覆盖 +' + g.gain);
-          card.box.setColor(CYAN, CYAN);
-          const set = SETS.find(x => x.id === g.id);
-          set.elems.forEach(e => setTube(g.id, e, CYAN, 0.55));
+        st.gains.forEach(g => {
+          const c = cardOf(g.id);
+          c.box.setColor(CYAN, CYAN);
+          c.gain.setText('+' + g.gain);
+          SETS.find(x => x.id === g.id).elems.forEach(e => setTube(g.id, e, CYAN, 0.55));
         });
-        stageT.setText('第 ' + s.round + ' 轮：统计各集合新覆盖数 → S1=4，S2=2，S3=2 → 选覆盖最多的 ' + s.best.id);
-        hint.setText('S1 一出手就吃掉 4 个元素 —— 每轮都「花一份钱买到最大面积」');
+        coverT.setText('已覆盖 ' + st.covered.size + '/6 个元素');
+        status.textContent = '第 ' + st.round + ' 轮：只数「新覆盖」—— ' + st.gains.map(g => g.id + '=+' + g.gain).join('、') + ' → 选最多者 ' + st.best.id;
       });
-      yield W(650);
+      yield W(700);
       yield S(() => {
-        s.gains.forEach(g => {
-          if (g.id !== s.best.id) {
-            const card = cards.find(c => c.box.text === g.id);
-            card.box.setColor(DIM, DIM);
-            card.gain.setText('');
+        st.gains.forEach(g => {
+          if (g.id !== st.best.id) {
+            const c = cardOf(g.id);
+            c.box.setColor(DIM, DIM);
+            c.gain.setText('');
             SETS.find(x => x.id === g.id).elems.forEach(e => setTube(g.id, e, PALETTE.edge, 0.12));
           }
         });
+        status.textContent = '其余集合本回合落选（新覆盖数已计入对比，下一轮重新统计）';
       });
-      yield W(600);
+      yield W(500);
     } else {
-      const set = s.set, card = cards.find(c => c.box.text === set.id);
+      const set = st.set, c = cardOf(set.id);
       yield S(() => {
-        card.box.setColor(GOLD, GOLD);
-        card.gain.setText('✓ 选中');
+        c.box.setColor(GOLD, GOLD);
+        c.gain.setText('✓ 选中');
         set.elems.forEach(e => {
           setTube(set.id, e, GOLD, 0.9);
           elems[e - 1].setColor(GOLD, GOLD);
         });
-        coverT.setText('已覆盖 ' + s.covered.size + '/6 个元素' + (s.covered.size === U.length ? ' —— 全部覆盖！' : ''));
-        stageT.setText(set.id + ' 选中！新覆盖 {' + set.elems.join(',') + '} → 已覆盖 ' + s.covered.size + '/6');
-        hint.setText('当前集合数 = ' + SETS.filter(x => x.chosen).length + '；若只差 1-2 个元素，也要整组购买 —— 覆盖是「非此即彼」');
+        coverT.setText('已覆盖 ' + st.covered.size + '/6 个元素' + (st.covered.size === U.length ? ' —— 全部覆盖！' : ''));
+        status.textContent = set.id + ' 选中：新覆盖 {' + set.elems.join(',') + '} → 已覆盖 ' + st.covered.size + '/6';
       });
-      yield W(700);
+      yield W(800);
     }
   }
-  yield S(() => {
-    coverT.setText('最终覆盖：' + FIN.total.join(' + ') + ' = 2 个集合覆盖全部 6 个元素');
-    stageT.setText('贪心结束：' + FIN.total.join('、') + ' 覆盖全部元素 —— 本例恰好也是最优解');
-    hint.setText('贪心顺序：S1（盖 4 个）→ S3（补 2 个）→ 完成。S2 只盖到 5 号，始终不划算');
-  });
-  yield W(1000);
-  yield S(() => {
-    outT.setText('最少集合数 = ' + FIN.total.length + '（' + FIN.total.join('+') + '）—— 暴力验证：2 个集合只有 S1+S3 能全覆盖，最优确为 2');
-    status.textContent = '集合覆盖最少 ' + FIN.total.length + ' 个（' + FIN.total.join('+') + '）';
-    hint.setText('但贪心不是永远最优：某些输入下它会选 ln n 倍的集合 —— 这正是 NP-难问题的宿命');
-  });
+  yield S(() => { status.textContent = '贪心结束：' + FIN.total.join(' + ') + ' 共 2 个集合覆盖全部 6 个元素 —— 暴力验证 2 个集合的组合中仅 S1+S3 能全覆盖，本例贪心恰为最优解'; });
   yield W(1100);
-  yield S(() => {
-    outT.setText('复杂度 O(m·n) 每轮扫描 + 至多 n 轮；应用：广告投放选点位、病毒溯源、传感器布点、快递站点选址');
-    hint.setText('变体：加权集合覆盖（集合带成本）→ 按「单位成本覆盖数」排序；精确解用分支定界/整数规划');
-  });
-  yield W(1000);
+  yield S(() => { status.textContent = 'SetCover 演示完成：贪心依次选中 S1（新覆盖 4 个）→ S3（补 2 个），2 个集合覆盖全部 6 个元素；复杂度：每轮 O(m·n) 扫描 + 至多 n 轮，贪心为 ln n 近似比（NP-难）'; });
+  yield W(900);
 }
 
 engine.queue(() => scGen());
-panel.addButton('清空', () => {
-  engine.clear();
-  elems.forEach(n => n.setColor(DIM, DIM));
-  cards.forEach(c => { c.box.setColor(DIM, DIM); c.gain.setText(''); });
-  SETS.forEach(s => s.elems.forEach(e => setTube(s.id, e, PALETTE.edge, 0.12)));
-  coverT.setText(''); stageT.setText(''); outT.setText('');
-  hint.setText('已清空，可重新运行'); status.textContent = '';
-});
-panel.addLabel('（拖拽旋转视角，滚轮缩放；上方 6 个元素，左侧 3 张集合卡，连线 = 集合与元素的覆盖关系）');
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

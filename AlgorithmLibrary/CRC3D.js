@@ -24,16 +24,11 @@ for (let i = 0; i < IN.length; i++) {
   inBoxes.push(new VBox(scene, { w: 50, h: 50, d: 50, x: X0 + i * SP, y: 585, z: 0, label: IN[i], color: BLUE, emissive: BLUE }));
   new VText(scene, { text: '0x' + bytes[i].toString(16).padStart(2, '0'), x: X0 + i * SP, y: 533, z: 0, color: PALETTE.textDim, scale: 0.55 });
 }
-new VText(scene, { text: '输入字节', x: 320, y: 648, z: 0, color: PALETTE.textDim, scale: 0.7 });
 const RSP = 95, RX0 = 180;
 const reg = [];
 for (let i = 0; i < 4; i++) reg.push(new VBox(scene, { w: 84, h: 52, d: 40, x: RX0 + i * RSP, y: 400, z: 0, label: 'FF', color: DIM, emissive: DIM }));
-new VText(scene, { text: '移位寄存器（32 位 · 每格 8 位）', x: 320, y: 342, z: 0, color: PALETTE.textDim, scale: 0.62 });
-new VText(scene, { text: 'CRC-32 · 多项式（反射）0xEDB88320 · 初始 0xFFFFFFFF', x: 320, y: 296, z: 0, color: PALETTE.textDim, scale: 0.62 });
 const resultBox = new VBox(scene, { w: 160, h: 54, d: 40, x: 320, y: 185, z: 0, label: '', color: DIM, emissive: DIM });
 resultBox.mesh.visible = false;
-const resultTitle = new VText(scene, { text: '校验值（发送给接收端）', x: 320, y: 240, z: 0, color: PALETTE.textDim, scale: 0.6 });
-resultTitle.sprite.visible = false;
 
 const hex4 = v => [(v >>> 24) & 0xff, (v >>> 16) & 0xff, (v >>> 8) & 0xff, v & 0xff].map(x => x.toString(16).padStart(2, '0').toUpperCase());
 const setReg = (v, color, em) => {
@@ -68,7 +63,6 @@ function* runCRC() {
   resultBox.setText(final.toString(16).toUpperCase());
   resultBox.setColor(GOLD, GOLD);
   resultBox.mesh.visible = true;
-  resultTitle.sprite.visible = true;
   yield S(() => { status.textContent = '9 字节全部处理完：寄存器 ' + hex4(c).join(' ') + ' → 逐位取反 → 校验值 ' + final.toString(16).toUpperCase() + '（"123456789" 的标准 CRC-32 即 CBF43926）'; });
   yield W(1000);
   yield S(() => { status.textContent = '发送方把校验值追加到数据尾部：接收端对「数据 + 校验值」整体重算，残差应为固定魔数 0x2144DF1C'; });
@@ -90,7 +84,6 @@ panel.addButton('清空', () => {
   inBoxes.forEach(b => { b.setColor(BLUE, BLUE); b.mesh.scale.setScalar(1); });
   setReg(0xffffffff, DIM, DIM);
   resultBox.mesh.visible = false;
-  resultTitle.sprite.visible = false;
   status.textContent = '';
 });
 

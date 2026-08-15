@@ -43,7 +43,6 @@ for (let b = 0; b < BUCKETS; b++) {
   const lid = new THREE.Mesh(new THREE.BoxGeometry(106, 5, 106), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.6 }));
   lid.position.set(BX(b), 490, -10);
   scene.add(lid);
-  new VText(scene, { text: '桶 ' + (b + 1) + '：' + lo + '..' + hi, x: BX(b), y: 202, z: -10, color: PALETTE.textDim, scale: 0.6 });
   buckets.push({ b, box, stack: [] });
 }
 

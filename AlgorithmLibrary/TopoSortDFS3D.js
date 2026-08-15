@@ -126,6 +126,7 @@ function* runTopo() {
   yield* topoGen();
 }
 
+buildGraph();
 engine.queue(() => runTopo());
 panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
 scene.start(engine);

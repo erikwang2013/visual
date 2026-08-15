@@ -86,8 +86,6 @@ const ring = new VTorus(scene, { radius: 14, x: mxC(0), y: 420, z: 12, color: GO
 ring.mesh.visible = false;
 const ball = new VNode(scene, { radius: 10, x: 40, y: 660, z: 18, color: GOLD, emissive: GOLD });
 ball.mesh.visible = false;
-const codeText = new VText(scene, { text: '0.0100110100₂', x: 320, y: 780, z: 20, color: GOLD, scale: 0.55 });
-codeText.sprite.visible = false;
 
 // ---- 全复位（清空按钮与生成器首帧共用） ----
 function resetAll() {
@@ -102,7 +100,6 @@ function resetAll() {
   bitBox.forEach(c => { c.mesh.visible = true; c.mesh.material.opacity = 0.18; });
   bitText.forEach((t, k) => { t.sprite.visible = false; t.sprite.position.set(bitX(k), 530, 24); });
   ball.mesh.visible = false; ball.tweenPos = null;
-  codeText.sprite.visible = false;
 }
 
 function* runArithCoding() {
@@ -175,7 +172,6 @@ function* runArithCoding() {
   // 段 3：码字展开 + 金球滑到码值 + 解码回环
   yield S(() => {
     bitBox.forEach(c => { c.mesh.material.opacity = 1; });
-    codeText.sprite.visible = true;
     status.textContent = '编码完成：位流 = 码字 0.0100110100₂（10 bit，十进制 0.30078125）';
   });
   yield W(600);

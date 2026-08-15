@@ -150,6 +150,7 @@ function* runFF() {
   yield* ffGen();
 }
 
+buildGraph();  // 初始化默认演示体：图 + 0/容量 标签，点播放才动画
 engine.queue(() => runFF());
 panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
 

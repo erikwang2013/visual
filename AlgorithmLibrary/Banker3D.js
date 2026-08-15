@@ -30,10 +30,7 @@ for (let i = 0; i < 5; i++) {
   needCells[i] = NEED[i].map((v, j) => new VBox(scene, { w: 60, h: 36, d: 36, x: needX[j], y: rowY[i], z: 0, label: v, color: DIM, emissive: DIM }));
   allocCells[i] = ALLOC[i].map((v, j) => new VBox(scene, { w: 60, h: 36, d: 36, x: allocX[j], y: rowY[i], z: 0, label: v, color: DIM, emissive: DIM }));
 }
-new VText(scene, { text: 'Need', x: 210, y: 845, z: 0, color: PALETTE.textDim, scale: 0.45 });
-new VText(scene, { text: 'Allocation', x: 480, y: 845, z: 0, color: PALETTE.textDim, scale: 0.45 });
 const availCells = AVAIL0.map((v, j) => new VBox(scene, { w: 60, h: 40, d: 40, x: needX[j], y: 545, z: 0, label: v, color: CYAN, emissive: CYAN }));
-new VText(scene, { text: 'Available', x: 210, y: 585, z: 0, color: PALETTE.textDim, scale: 0.45 });
 let avail = [...AVAIL0];
 
 function leq(a, b) { return a.every((v, i) => v <= b[i]); }

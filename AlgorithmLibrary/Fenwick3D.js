@@ -47,7 +47,7 @@ for (let i = 0; i < N; i++) {
   const p = barPos(i);
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(34, 60, 10), glowMaterial(BLUE, { emissive: BLUE }));
   mesh.position.set(p.x, BAR_Y + h / 2, -40);
-  mesh.scale.set(0.01, 0.01, 0.01);
+  mesh.scale.set(1, h / 60, 1);   // 默认演示体：柱状数组初始可见
   const lbl = new VText(scene, { text: String(v), x: p.x, y: BAR_Y + 16 + h, z: -40, color: '#ffffff', scale: 0.6 });
   scene.add(mesh);
   bars.push({ mesh, lbl });
@@ -56,7 +56,7 @@ for (let i = 1; i <= N; i++) {
   const x = boxX(i);
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(46, 46, 30), glowMaterial(WHITE, { emissive: WHITE }));
   mesh.position.set(x, BOX_Y, 0);
-  mesh.scale.setScalar(0.01);
+  mesh.scale.setScalar(1);   // 默认演示体：BIT 盒子初始可见
   const lbl = new VText(scene, { text: String(bitVals[i]), x, y: BOX_Y + 18, z: 18, color: '#ffffff', scale: 0.62 });
   const idxLbl = new VText(scene, { text: String(i), x, y: BOX_Y - 42, z: 0, color: PALETTE.textDim, scale: 0.55 });
   scene.add(mesh);
@@ -70,14 +70,14 @@ for (let i = 1; i <= N; i++) {
 function clearView() {
   bars.forEach((o, i) => {
     const h = ARR[i] * 6;
-    o.mesh.scale.set(0.01, 0.01, 0.01);
+    o.mesh.scale.set(1, h / 60, 1);
     o.mesh.position.y = BAR_Y + h / 2;
     o.mesh.material.color.setHex(BLUE); o.mesh.material.emissive.setHex(BLUE);
     o.lbl.setText(String(ARR[i]));
     o.lbl.sprite.position.y = BAR_Y + 16 + h;
   });
   boxes.forEach((o, i) => {
-    o.mesh.scale.setScalar(0.01);
+    o.mesh.scale.setScalar(1);
     o.mesh.material.color.setHex(WHITE); o.mesh.material.emissive.setHex(WHITE);
     o.lbl.setText(String(bitVals[i + 1]));
   });

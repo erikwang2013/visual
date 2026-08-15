@@ -18,7 +18,6 @@ const status = panel.addStatus('就绪');
 // ---- 数据/坐标/文案常量（全部硬编码，勿运行时拼数字；数值依据 /tmp/dpfib_research.md §2 BigInt 核验） ----
 const FV = ['0', '1', '1', '2', '3', '5', '8', '13'];   // F(0..7)，长度 8 与坐标表一致
 const INIT = '?';
-const RESULT_TXT = 'F(7)=13';
 const CELL_Y = 690, IDX_Y = 790, CTRL_Y = 560, ARC_Z = 10, RING_Z = 16;
 const cellX = i => 40 + i * 72;                          // i=0..7 → 40..544
 // 考察帧弧数据（i=2..7 各一行）：[arc0 源 x, arc0 控 x, 终点 x(=ring), arc1 控 x, arc1 源 x]
@@ -93,10 +92,6 @@ const parts = [0, 1, 2].map(() => {
 const flyPts = [0, 1, 2].map(() => new THREE.Vector3());
 const flyParticles = (curve, ms) => A(ms, p => { const e = ease(p); parts.forEach((v, i) => v.position.copy(curve.getPoint((e + i * 0.18) % 1, flyPts[i]))); });
 
-// ---- 结果文本 'F(7)=13'（演示体，初始隐藏） ----
-const resultText = new VText(scene, { text: RESULT_TXT, x: 320, y: 360, z: 20, color: GOLD, scale: 0.55 });
-resultText.sprite.visible = false;
-
 // ---- 工具：写入格 / 双弧发射 / 全表回闪 / 全复位 ----
 const setEntry = (box, text) => {
   box.setText(text);                                     // setText 每次重算 sprite.scale
@@ -132,7 +127,6 @@ function resetAll() {
   focusRing.mesh.visible = false;
   focusRing.mesh.position.set(40, CELL_Y, RING_Z);
   fxGroup.visible = false;
-  resultText.sprite.visible = false;
 }
 
 function* runFib() {
@@ -163,10 +157,9 @@ function* runFib() {
     });
     yield W(550);
   }
-  // F14 收尾：全表金 + 结果文本 + 全表回闪 + 复杂度
+  // F14 收尾：全表金 + 全表回闪 + 复杂度
   yield S(() => {
     valCell.forEach(c => { c.setColor(GOLD, GOLD); c.mesh.material.opacity = 1; });
-    resultText.sprite.visible = true;
     focusRing.mesh.visible = false;
   });
   yield pulseAll(700);

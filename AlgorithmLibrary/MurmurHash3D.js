@@ -56,13 +56,8 @@ const bytes = new TextEncoder().encode(MSG);
 const BYTE_X = i => 320 + (i - 5) * 34;
 const byteBoxes = [...bytes].map((v, i) =>
   new VBox(scene, { w: 26, h: 26, d: 26, x: BYTE_X(i), y: 630, z: 0, label: v.toString(16).padStart(2, '0'), color: CYAN, emissive: CYAN }));
-new VText(scene, { text: '块 1', x: 201, y: 676, z: 0, color: PALETTE.textDim, scale: 0.5 });
-new VText(scene, { text: '块 2', x: 337, y: 676, z: 0, color: PALETTE.textDim, scale: 0.5 });
-new VText(scene, { text: '尾部', x: 456, y: 676, z: 0, color: PALETTE.textDim, scale: 0.5 });
 const kBox = new VBox(scene, { w: 190, h: 54, d: 54, x: 320, y: 535, z: 0, color: DIM, emissive: DIM });
 const hBox = new VBox(scene, { w: 230, h: 60, d: 60, x: 320, y: 420, z: 0, color: DIM, emissive: DIM });
-const kT = new VText(scene, { text: 'k = 0x00000000', x: 320, y: 535, z: 0, color: PALETTE.text, scale: 0.62 });
-const hT = new VText(scene, { text: 'h = 0x00000000', x: 320, y: 420, z: 0, color: PALETTE.text, scale: 0.62 });
 const token = new VBox(scene, { w: 18, h: 18, d: 18, x: 0, y: 0, z: 0, color: GOLD, emissive: GOLD });
 token.mesh.visible = false;
 
@@ -75,7 +70,6 @@ function setBytes(from, to, color) {
 function resetAll() {
   bytes.forEach((v, i) => { byteBoxes[i].setText(v.toString(16).padStart(2, '0')); byteBoxes[i].setColor(CYAN, CYAN); });
   kBox.setColor(DIM, DIM); hBox.setColor(DIM, DIM);
-  kT.setText('k = 0x00000000'); hT.setText('h = 0x00000000');
   token.mesh.visible = false;
 }
 const flyTo = (p, fx, fy, tx, ty) => { const e = E(p); token.mesh.position.set(fx + (tx - fx) * e, fy + (ty - fy) * e, 0); };
@@ -87,7 +81,6 @@ function* playStep(s, tailBytes) {
       if (s.stage === '尾部' || tailBytes) { setBytes(8, 11, GOLD); if (tailBytes) byteBoxes[10].setColor(ROSE, ROSE); }
       else setBytes((parseInt(s.stage[1], 10) - 1) * 4, parseInt(s.stage[1], 10) * 4, GOLD);
       kBox.setColor(CYAN, CYAN);
-      kT.setText('k = 0x' + hex(s.k));
       token.mesh.position.set(gx, 630, 0);
       token.mesh.visible = true;
       status.textContent = s.stage + '：' + s.op + ' = 0x' + hex(s.k);
@@ -96,15 +89,12 @@ function* playStep(s, tailBytes) {
   } else if (s.kind === 'kMix') {
     yield S(() => {
       kBox.setColor(GOLD, GOLD);
-      kT.setText('k = 0x' + hex(s.k));
-      hT.setText('h = 0x' + hex(s.h));
       status.textContent = s.op + ' → h = 0x' + hex(s.h);
     });
     yield A(420, p => flyTo(p, 320, 535, 320, 420));
   } else if (s.kind === 'hMix' || s.kind === 'len') {
     yield S(() => {
       hBox.setColor(GOLD, GOLD);
-      hT.setText('h = 0x' + hex(s.h));
       status.textContent = s.op + ' → h = 0x' + hex(s.h);
     });
     yield W(550);
@@ -112,7 +102,6 @@ function* playStep(s, tailBytes) {
     yield S(() => {
       setBytes(0, 11, ROSE);
       hBox.setColor(GREEN, GREEN);
-      hT.setText('h = 0x' + hex(s.h));
       token.mesh.visible = false;
       status.textContent = s.op + ' → MurmurHash3「' + MSG + '」= 0x' + hex(s.h);
     });

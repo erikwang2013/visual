@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
+import { VNode, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('DiffieHellman3D');
 
@@ -24,39 +24,26 @@ const alice = new VNode(scene, { x: 150, y: 470, z: 0, radius: 30, label: 'Alice
 const bob = new VNode(scene, { x: 490, y: 470, z: 0, radius: 30, label: 'Bob', color: 0x38bdf8, emissive: 0x38bdf8 });
 const lineTube = tubeBetween(scene, alice.mesh.position, bob.mesh.position, { color: PALETTE.edge, opacity: 0.25 });
 
-const aT = new VText(scene, { text: '', x: 150, y: 690, z: 0, color: RED, scale: 0.7 });
-const bT = new VText(scene, { text: '', x: 490, y: 690, z: 0, color: RED, scale: 0.7 });
-const AT = new VText(scene, { text: '', x: 150, y: 585, z: 0, color: BLUE, scale: 0.75 });
-const BT = new VText(scene, { text: '', x: 490, y: 585, z: 0, color: BLUE, scale: 0.75 });
-const sA = new VText(scene, { text: '', x: 150, y: 355, z: 0, color: GREEN, scale: 0.75 });
-const sB = new VText(scene, { text: '', x: 490, y: 355, z: 0, color: GREEN, scale: 0.75 });
 const sharedNode = new VNode(scene, { x: 320, y: 330, z: 0, radius: 30, label: '共享密钥', color: DIM, emissive: DIM });
 
 function* dhGen() {
   yield S(() => { status.textContent = '思路：密钥不在信道上传输 —— 双方各自把秘密数混进公开值，再互相用对方的公开值算出同一个秘密。公开参数 p = ' + P + '、g = ' + G + ' 全世界共享，每一步都有人监听'; });
   yield W(900);
-  aT.setText('秘密 a = ' + SA);
   alice.setColor(GOLD, GOLD);
   yield S(() => { status.textContent = 'Alice 掷出私密数 a = ' + SA + '（只存在于她的脑子里，永不发送）；公开值 A = g^a mod p = ' + modpow(G, SA, P) + ' ← 只有 a 不知道，谁都算得出来'; });
   yield W(850);
-  AT.setText('A = ' + pubA);
   yield S(() => { status.textContent = 'Alice 计算公开值 A = ' + G + '^' + SA + ' mod ' + P + ' = ' + pubA + ' 并发送'; });
   yield W(850);
-  bT.setText('秘密 b = ' + SB);
   bob.setColor(GOLD, GOLD);
   yield S(() => { status.textContent = 'Bob 掷出私密数 b = ' + SB + '；计算公开值 B = ' + G + '^' + SB + ' mod ' + P + ' = ' + pubB + '；窃听者现在手握 p, g, A, B'; });
   yield W(850);
-  BT.setText('B = ' + pubB);
   bob.setColor(0x38bdf8, 0x38bdf8);
   yield W(850);
-  yield A(750, () => { AT.moveTo(490, 585, 0, 700); BT.moveTo(150, 585, 0, 700); });
   yield S(() => { status.textContent = '交换公开值：A 飞到 Bob、B 飞到 Alice —— 信道公开，被完整监听也无妨；窃听者知道 A = g^a 和 B = g^b，但模算术单向，反求 a/b 是离散对数难题'; });
   yield W(900);
-  sA.setText('s = B^a mod p = ' + modpow(pubB, SA, P));
   alice.setColor(0xa78bfa, 0xa78bfa);
   yield S(() => { status.textContent = 'Alice 本地计算：s = B^a = ' + pubB + '^' + SA + ' mod ' + P + ' = ' + shared + '（只有她知道 a）；B^a = (g^b)^a = g^(ab) —— 指数交换律是协议的心脏'; });
   yield W(850);
-  sB.setText('s = A^b mod p = ' + modpow(pubA, SB, P));
   yield S(() => { status.textContent = 'Bob 本地计算：s = A^b = ' + pubA + '^' + SB + ' mod ' + P + ' = ' + shared + ' —— 两边殊途同归！'; });
   yield W(850);
   sharedNode.setColor(GREEN, GREEN);
@@ -78,8 +65,6 @@ function* runDH() {
 engine.queue(() => runDH());
 panel.addButton('清空', () => {
   engine.clear();
-  aT.setText(''); bT.setText(''); AT.setText(''); BT.setText(''); sA.setText(''); sB.setText('');
-  AT.moveTo(150, 585, 0, 1); BT.moveTo(490, 585, 0, 1);
   alice.setColor(0xa78bfa, 0xa78bfa); bob.setColor(0x38bdf8, 0x38bdf8);
   sharedNode.setColor(DIM, DIM); sharedNode.setText('共享密钥');
   status.textContent = '';

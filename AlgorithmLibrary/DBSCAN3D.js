@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VNode, VText, VTorus } from '../3D/VisualObject3D.js';
+import { VNode, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('DBSCAN3D');
 
@@ -18,11 +18,6 @@ const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM
 const PTS = [[0, 0], [1, 0], [0.5, 0.5], [0, 1], [1, 1], [4, 4], [5, 4], [4.5, 4.5], [4, 5], [7, 1]];
 const WX = v => v * 45 + 160, WY = v => 442.5 - v * 45;
 const pts = PTS.map((p, i) => new VNode(scene, { radius: 15, x: WX(p[0]), y: WY(p[1]), z: 0, label: String(i), color: DIM, emissive: 0 }));
-
-// 区块标题（对象标签）
-new VText(scene, { text: '簇 1', x: 182, y: 470, z: 0, color: GREEN, scale: 0.5 });
-new VText(scene, { text: '簇 2', x: 357, y: 288, z: 0, color: BLUE, scale: 0.5 });
-new VText(scene, { text: '噪声', x: 475, y: 446, z: 0, color: ROSE, scale: 0.5 });
 
 // 密度可达邻接边（距离 ≤ ε）：簇 1 八条，簇 2 五条
 const C1 = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 4], [2, 3], [2, 4], [3, 4]];

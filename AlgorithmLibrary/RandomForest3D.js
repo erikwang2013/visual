@@ -19,11 +19,10 @@ const TREES = [
   { title: '树 2 · 形状主导', path: ['椭圆', '红', '大', '橙子'] },
   { title: '树 3 · 大小主导', path: ['大', '椭圆', '橙子'] },
 ];
-const cardBoxes = [], cardTitles = [], chips = [], voteBoxes = [];
+const cardBoxes = [], chips = [], voteBoxes = [];
 TREES.forEach((t, ti) => {
   const x = 90 + ti * 230;
   cardBoxes.push(new VBox(scene, { w: 210, h: 56, d: 40, x, y: 470, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-  cardTitles.push(new VText(scene, { text: t.title, x, y: 525, z: 0, color: PALETTE.textGlow, scale: 0.55 }));
   const row = [];
   t.path.forEach((p, i) => {
     const chip = new VBox(scene, { w: 92, h: 26, d: 26, x, y: 425 - i * 34, z: 0, label: p, color: DIM, emissive: 0 });
@@ -35,7 +34,6 @@ TREES.forEach((t, ti) => {
 });
 const testBox = new VBox(scene, { w: 300, h: 44, d: 44, x: 320, y: 585, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
 const testLbl = new VText(scene, { text: '测试水果：红 · 大 · 椭圆', x: 320, y: 625, z: 0, color: GOLD, scale: 0.55 });
-const resultT = new VText(scene, { text: '', x: 320, y: 160, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
 function resetAll() {
   for (let ti = 0; ti < TREES.length; ti++) {
@@ -43,7 +41,6 @@ function resetAll() {
     voteBoxes[ti].setColor(DIM, 0); voteBoxes[ti].setText('树 ' + (ti + 1));
   }
   testBox.setColor(PALETTE.node, PALETTE.nodeEmissive);
-  resultT.setText('');
 }
 
 function* lightPath(ti) {
@@ -79,7 +76,6 @@ function* runRandomForest() {
   yield S(() => { voteBoxes[2].setColor(GREEN, GREEN); voteBoxes[2].setText('橙子 ✓'); status.textContent = '树 3 判断完成：橙子 ✓'; });
   yield W(700);
   yield S(() => {
-    resultT.setText('橙子 3 : 0 苹果');
     status.textContent = '投票汇总：橙子 3 票、苹果 0 票 → 多数表决判定「橙子」';
   });
   yield W(900);

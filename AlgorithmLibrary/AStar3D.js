@@ -37,7 +37,6 @@ function buildGrid() {
     const p = cellPos(r, c);
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(SIZE, SIZE, 24), new THREE.MeshBasicMaterial({ color: obs ? SLATE : BLUE }));
     mesh.position.copy(p);
-    mesh.scale.setScalar(0.01);
     scene.add(mesh);
     const fT = new VText(scene, { text: '', x: p.x, y: p.y + 52, z: 0, color: GOLD, scale: 0.55 });
     const ghT = new VText(scene, { text: '', x: p.x, y: p.y + 28, z: 0, color: '#94a3b8', scale: 0.45 });
@@ -117,6 +116,8 @@ function* runAStar() {
   yield* astarGen();
 }
 
+buildGrid();
+setCell(ekey, RED);
 engine.queue(() => runAStar());
 panel.addButton('清空', () => { engine.clear(); buildGrid(); setCell(ekey, RED); status.textContent = ''; });
 

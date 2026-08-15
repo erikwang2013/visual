@@ -25,8 +25,6 @@ const { gcd, steps } = euclid(A0, B0);
 const SCALE = 1.15;
 const barA = new VBox(scene, { w: A0 * SCALE, h: 40, d: 40, x: 360, y: 485, z: 0, label: '252', color: VIOLET, emissive: VIOLET });
 const barB = new VBox(scene, { w: B0 * SCALE, h: 40, d: 40, x: 360, y: 430, z: 0, label: '105', color: AMBER, emissive: AMBER });
-new VText(scene, { text: 'a = 252', x: 60, y: 485, z: 0, color: VIOLET, scale: 0.5 });
-new VText(scene, { text: 'b = 105', x: 60, y: 430, z: 0, color: AMBER, scale: 0.5 });
 const gcdBox = new VBox(scene, { w: 90, h: 44, d: 44, x: 320, y: 380, z: 0, label: '', color: DIM, emissive: DIM });
 
 const tempBoxes = [];

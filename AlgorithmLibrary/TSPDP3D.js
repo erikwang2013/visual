@@ -85,9 +85,6 @@ for (let size = 1; size <= 3; size++) {
     cells.push({ mask, i, box, badge });
   });
 }
-[['|S|=1', yRow[1]], ['|S|=2', yRow[2]], ['|S|=3', yRow[3]]]
-  .forEach(([t, y]) => new VText(scene, { text: t, x: 100, y, z: 0, color: PALETTE.textDim, scale: 0.42 }));
-
 function cellOf(mask, i) { return cells.find(c => c.mask === mask && c.i === i); }
 function resetScene() {
   cities.forEach(c => { c.setColor(BLUE, BLUE); c.mesh.visible = true; });

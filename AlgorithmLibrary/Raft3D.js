@@ -17,7 +17,6 @@ const N = 5, SPX = 160;
 const nodes = [], states = [], logs = [];
 for (let i = 0; i < N; i++) {
   nodes.push(new VNode(scene, { x: (i - 2) * SPX + 320, y: 430, z: 0, radius: 26, label: 'S' + (i + 1), color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-  states.push(new VText(scene, { text: 'Follower', x: (i - 2) * SPX + 320, y: 488, z: 0, color: PALETTE.textDim, scale: 0.6 }));
   logs.push(new VText(scene, { text: '', x: (i - 2) * SPX + 320, y: 370, z: 0, color: GREEN, scale: 0.6 }));
 }
 const termT = new VText(scene, { text: '任期 term = 1', x: 320, y: 560, z: 0, color: GOLD, scale: 0.55 });
@@ -30,7 +29,6 @@ for (let i = 0; i < N; i++) {
 
 function resetAll() {
   nodes.forEach((n, i) => { n.setColor(PALETTE.node, PALETTE.nodeEmissive); n.setText('S' + (i + 1)); });
-  states.forEach(t => t.setText('Follower'));
   logs.forEach(t => t.setText(''));
   tubes.forEach(t => t.mesh.visible = false);
   termT.setText('任期 term = 1');
@@ -42,7 +40,6 @@ function* raftGen() {
   yield W(700);
   yield S(() => {
     c3.setColor(YELLOW, YELLOW);
-    states[2].setText('Candidate');
     termT.setText('任期 term = 2');
     status.textContent = 'S3 计时器先到期 → 转为 Candidate，任期 +1，发起选举';
   });
@@ -55,15 +52,12 @@ function* raftGen() {
   yield S(() => {
     tubes.forEach(t => { t.mesh.material.color.setHex(GREEN); });
     nodes.forEach((n, i) => { if (i !== 2) n.pulse(0.3); });
-    states.forEach((t, i) => { if (i !== 2) t.setText('投票'); });
     status.textContent = '其余节点任期/日志均不落后 → 投赞成票给 S3';
   });
   yield W(800);
   yield S(() => {
     c3.setColor(GOLD, GOLD);
-    states[2].setText('Leader');
     tubes.forEach(t => t.mesh.visible = false);
-    states.forEach((t, i) => { if (i !== 2) t.setText('Follower'); });
     status.textContent = 'S3 获 5/5 票 > 多数 3/5 → 当选 Leader，心跳维持任期';
   });
   yield W(700);

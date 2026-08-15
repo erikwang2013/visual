@@ -119,15 +119,21 @@ function* flowAlong(e, count = 3, ms = 420) {
 
 const pulseHex = (hx) => A(500, p => { hx.mesh.scale.setScalar(1 + 0.2 * Math.sin(p * Math.PI * 2)); });
 
-function resetAll() {
+function blankAll() {
   clearFx();
   hexes.forEach((hx, i) => { hx.mesh.visible = i === 0; hx.mesh.scale.setScalar(1); hexColor(hx, i === 0 ? GOLD : CYAN); hx.lbl.sprite.visible = i === 0; });
   nextEdge.forEach(e => { e.mesh.visible = false; e.lbl.sprite.visible = false; });
   linkLine.forEach(l => { l.visible = false; l.material.opacity = 0; });
 }
+function resetAll() {
+  blankAll();
+  hexes.forEach(hx => { hx.mesh.visible = true; hx.lbl.sprite.visible = true; });
+  nextEdge.forEach(e => { e.mesh.visible = true; e.lbl.sprite.visible = true; });
+  linkLine.forEach(l => { l.visible = true; l.material.opacity = 0.9; });
+}
 
 function* runSAM() {
-  yield S(resetAll);
+  yield S(blankAll);
   yield W(200);
   yield S(() => { status.textContent = '后缀自动机：在线逐字符构建 "abab"。六边形状态逐一生长 → 沿后缀链补转移（蓝曲线+金粒子）→ 设新后缀链接（橙虚线）'; });
   yield W(500);
@@ -164,6 +170,7 @@ function* runSAM() {
   yield W(600);
 }
 
+resetAll(); // 加载即见完整 SAM 演示体（播放时 blankAll 回初始态并重放构建）
 engine.queue(() => runSAM());
 panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 

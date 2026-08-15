@@ -53,8 +53,6 @@ const u1Box = box('', 130, 440, 74);
 const u2Box = box('', 240, 440, 74);
 const pBox = box('', 330, 440, 92);
 const ckBox = box('', 460, 440, 158);
-new VText(scene, { text: '签名', x: 330, y: 700, z: 0, color: CYAN, scale: 0.46 });
-new VText(scene, { text: '验签', x: 330, y: 490, z: 0, color: GOLD, scale: 0.46 });
 const setCell = (obj, v, color) => { obj.setText(String(v)); if (color) obj.setColor(color, color); };
 
 function* ecdsaGen() {

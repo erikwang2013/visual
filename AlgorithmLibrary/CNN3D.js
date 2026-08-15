@@ -2,7 +2,7 @@
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('CNN3D');
 
@@ -27,19 +27,15 @@ for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
   const v = IMG[r][c];
   imgBoxes.push(new VBox(scene, { w: SZ, h: SZ, d: 24, x: cols[c], y: rows[r], z: 0, label: String(v), color: v ? GREEN : DIM, emissive: v ? GREEN : 0 }));
 }
-new VText(scene, { text: '输入 3×3', x: INX, y: CY + 150, z: 0, color: PALETTE.textDim, scale: 0.5 });
 
 const kcols = [MIDX - 28, MIDX + 28], krows = [CY + 28, CY - 28];
 const kerBoxes = KER.map((row, r) => row.map((v, c) => new VBox(scene, { w: 50, h: 50, d: 20, x: kcols[c], y: krows[r], z: 0, label: String(v), color: v ? YELLOW : DIM, emissive: v ? YELLOW : 0 })));
-new VText(scene, { text: '卷积核 2×2', x: MIDX, y: CY + 150, z: 0, color: PALETTE.textDim, scale: 0.5 });
 
 const fcols = [OUTX - 28, OUTX + 28], frows = [CY + 28, CY - 28];
 const convBoxes = CONV_VAL.map((row, r) => row.map((v, c) => new VBox(scene, { w: 50, h: 50, d: 20, x: fcols[c], y: frows[r], z: 0, label: '?', color: DIM, emissive: 0 })));
-new VText(scene, { text: '特征图 2×2', x: OUTX, y: CY + 150, z: 0, color: PALETTE.textDim, scale: 0.5 });
 
 const poolBox = new VBox(scene, { w: 54, h: 54, d: 20, x: OUTX, y: CY - 175, z: 0, label: 'max=2', color: BLUE, emissive: BLUE });
 poolBox.mesh.visible = false;
-new VText(scene, { text: '池化 1×1', x: OUTX, y: CY - 245, z: 0, color: PALETTE.textDim, scale: 0.5 });
 
 // 卷积窗口高亮（池 1，滑动复用）
 const winBox = new VBox(scene, { w: 2 * SZ + 12, h: 2 * SZ + 12, d: 6, x: 0, y: 0, z: 14, label: '', color: YELLOW, emissive: YELLOW });

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
+import { VNode, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SkipList3D');
 
@@ -25,9 +25,6 @@ LANES.forEach((lane, li) => {
     nodes.set(li + '-' + v, new VNode(scene, { radius: 18, x: vx(v), y: LAYER_Y[li], z: 0, label: String(v), color: BLUE, emissive: BLUE }));
   });
 });
-new VText(scene, { text: 'L3', x: -40, y: LAYER_Y[0], z: 0, color: PALETTE.textDim, scale: 0.45 });
-new VText(scene, { text: 'L0', x: -40, y: LAYER_Y[3], z: 0, color: PALETTE.textDim, scale: 0.45 });
-
 function buildEdges() {
   edgeMeshes.forEach(m => scene.remove(m));
   edgeMeshes = new Map();

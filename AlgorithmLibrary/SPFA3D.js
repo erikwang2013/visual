@@ -143,7 +143,8 @@ function* runSPFA() {
   yield* spfaGen();
 }
 
+buildGraph();
 engine.queue(() => runSPFA());
-panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
+panel.addButton('清空', () => { engine.clear(); buildGraph(); status.textContent = ''; });
 
 scene.start(engine);

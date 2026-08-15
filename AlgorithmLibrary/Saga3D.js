@@ -49,7 +49,6 @@ const STEP = [
   { name: '发货', x: 540 },
 ];
 const stepBoxes = STEP.map(s => makeNode(s.x, 370));
-const stepLabel = STEP.map((s, i) => new VText(scene, { text: (i + 1) + ' ' + s.name, x: s.x, y: 370, z: 22, color: PALETTE.textGlow, scale: 0.6 }));
 
 // 正向箭头（步骤间）与反向补偿箭头
 const fwdArrows = [];
@@ -64,7 +63,6 @@ revArrows.forEach(a => (a.mesh.visible = false));
 
 function resetAll() {
   stepBoxes.forEach(b => b.setColor(PALETTE.node, false));
-  stepLabel.forEach((t, i) => t.setText((i + 1) + ' ' + STEP[i].name));
   fwdArrows.forEach(a => (a.mesh.visible = false));
   revArrows.forEach(a => (a.mesh.visible = false));
 }
@@ -86,7 +84,7 @@ function* sagaGen() {
   yield W(700);
   yield S(() => {
     fwdArrows[1].mesh.visible = true;
-    stepBoxes[2].setColor(ROSE, true); stepLabel[2].setText('3 支付 ✗');
+    stepBoxes[2].setColor(ROSE, true);
     status.textContent = '第 3 步 支付失败！：余额不足/渠道拒付，Saga 链中断';
   });
   yield W(900);
@@ -94,13 +92,13 @@ function* sagaGen() {
   yield W(800);
   yield S(() => {
     revArrows[1].mesh.visible = true;
-    stepBoxes[1].setColor(ROSE, true); stepLabel[1].setText('2 回补库存');
+    stepBoxes[1].setColor(ROSE, true);
     status.textContent = '补偿第 1 步：回补库存 — 把扣掉的库存加回去（库存系统收到反向操作）';
   });
   yield W(800);
   yield S(() => {
     revArrows[0].mesh.visible = true;
-    stepBoxes[0].setColor(ROSE, true); stepLabel[0].setText('1 取消订单');
+    stepBoxes[0].setColor(ROSE, true);
     status.textContent = '补偿第 2 步：取消订单 — 订单状态改回「已取消」';
   });
   yield W(900);

@@ -65,7 +65,6 @@ function* pushRelabelGen() {
   flow = E.map(() => 0);
   h = [N, 0, 0, 0];
   ex = [0, 0, 0, 0];
-  buildGraph();
   for (let i = 0; i < N; i++) showEx(i);
   yield S(() => { status.textContent = '初始化：h[s]=' + N + '，其余 h=0。饱和 s 的所有出边（预流）'; });
   yield W(550);
@@ -143,7 +142,8 @@ function* runPR() {
   yield S(() => { status.textContent = 'Push-Relabel 演示完成：预流推进，可并行，最坏 O(V³)'; });
 }
 
+buildGraph();
 engine.queue(() => runPR());
-panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
+panel.addButton('清空', () => { engine.clear(); buildGraph(); status.textContent = ''; });
 
 scene.start(engine);

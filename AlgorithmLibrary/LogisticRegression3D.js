@@ -34,7 +34,6 @@ for (let i = 0; i < SEGS; i++) {
   seg.mesh.rotation.z = Math.atan2(dy, dx);
   seg.mesh.scale.set(Math.max(Math.hypot(dx, dy) / 200, 0.05), 1, 1);
 }
-new VText(scene, { text: 'p = σ(t) = 1/(1+e^-t)', x: CX, y: 118, z: 0, color: BLUE, scale: 0.5 });
 new VText(scene, { text: 'p=0.5', x: CX, y: CY + 16, z: 0, color: PALETTE.textDim, scale: 0.42 });
 
 // ---- 概率标记池：黄点沿曲线滑动 + p 值标签 ----

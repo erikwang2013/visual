@@ -107,12 +107,12 @@ function* primGen() {
 }
 
 function* runPrim() {
-  buildGraph();
   yield W(400);
   yield* primGen();
 }
 
+buildGraph();
 engine.queue(() => runPrim());
-panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
+panel.addButton('清空', () => { engine.clear(); buildGraph(); status.textContent = ''; });
 
 scene.start(engine);

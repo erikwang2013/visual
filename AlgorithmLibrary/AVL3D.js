@@ -272,6 +272,14 @@ function* runAVL() {
   yield W(600);
 }
 
+// 默认演示体：加载即显示完整 AVL 树（点播放后 runAVL 会 clearView 重建）
+(function buildDefault() {
+  KEYS.forEach(k => insertModel(k));
+  const pos = layout();
+  KEYS.forEach(k => addNodeMesh(findNode(k), pos.get(k)));
+  syncEdges();
+  updateBFLabels();
+})();
 engine.queue(() => runAVL());
 panel.addButton('清空', () => { engine.clear(); clearView(); root = null; status.textContent = ''; });
 

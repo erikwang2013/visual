@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VBox } from '../3D/VisualObject3D.js';
 import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('RateLimit3D');
 
@@ -47,8 +47,6 @@ function setStack(n) {
   stackCount = n;
   discs.forEach((d, i) => { d.visible = i < n; d.position.y = -40 + i * 8.2; });
 }
-new VText(scene, { text: '令牌桶', x: 340, y: 458, z: 0, color: PALETTE.textGlow, scale: 0.55 });
-new VText(scene, { text: '容量 10 · 补充速率 5/s', x: 700, y: 340, z: 0, color: PALETTE.textDim, scale: 0.45, wrapChars: 8 });
 
 // 请求盒子（label 即演示体标注），飞行变色表示取令牌成功/拒绝
 const reqBox = new VBox(scene, { w: 56, h: 40, d: 40, x: 60, y: 415, z: 0, label: 'R1', color: YELLOW, emissive: YELLOW });

@@ -271,6 +271,13 @@ function* runBST() {
   yield W(800);
 }
 
+// 默认演示体：加载即显示 7 节点平衡 BST（点播放后 runBST 会 clearView 重建）
+(function buildDefault() {
+  for (const k of [50, 30, 70, 20, 40, 60, 80]) insertModel(k);
+  const pos = layout();
+  [50, 30, 70, 20, 40, 60, 80].forEach(k => addNodeMesh(findNode(k), pos.get(k)));
+  syncEdges();
+})();
 engine.queue(() => runBST());
 panel.addButton('清空', () => { engine.clear(); clearView(); root = null; status.textContent = ''; });
 

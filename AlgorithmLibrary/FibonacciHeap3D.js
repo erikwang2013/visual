@@ -15,12 +15,12 @@ const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE
 const status = panel.addStatus('就绪');
 
 // 演示序列固定（插入 5,3,8,1,7,4 → 删 1 → 减小键 8→1、5→0、7→2 → 删 0）：节点模块级预建，随演示显隐
-const POOL = [5, 3, 8, 1, 7, 4].map(v => {
+const POOL = [5, 3, 8, 1, 7, 4].map((v, i) => {
   const n = { v, parent: null, children: [], marked: false, mesh: null, badge: null };
   n.mesh = new VNode(scene, { radius: 24, x: 330, y: 450, z: 0, label: String(v), color: BLUE, emissive: BLUE });
   n.badge = new VText(scene, { text: '', x: 330, y: 412, z: 0, color: PUR, scale: 0.45 });
-  n.mesh.visible = false;
-  n.badge.sprite.visible = false;
+  n.mesh.visible = i === 0;             // 默认演示体：首个插入节点 5，点播放才动画
+  n.badge.sprite.visible = i === 0;
   return n;
 });
 
@@ -64,9 +64,9 @@ function setCol(n, c) { n.mesh.setColor(c, c); }
 function rootVals() { return roots.map(r => r.v).join(', '); }
 function resetAll() {
   roots = [];
-  POOL.forEach(n => {
+  POOL.forEach((n, i) => {
     n.parent = null; n.children = []; n.marked = false;
-    n.mesh.visible = false; n.badge.sprite.visible = false;
+    n.mesh.visible = i === 0; n.badge.sprite.visible = i === 0;
     n.mesh.setColor(BLUE, BLUE);
   });
   edgeMeshes.forEach(m => scene.remove(m));

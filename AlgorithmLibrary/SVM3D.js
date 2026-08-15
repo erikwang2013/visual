@@ -21,26 +21,21 @@ const PX = v => v * 60 + 320, PY = v => -v * 60 + 460;
 const pts = [];
 POS.forEach(([x, y]) => {
   const vn = new VNode(scene, { radius: 21, x: PX(x), y: PY(y), z: 0, label: '', color: GREEN, emissive: GREEN });
-  vn.mesh.visible = false;
   pts.push({ vn, cls: 1 });
 });
 NEG.forEach(([x, y]) => {
   const vn = new VNode(scene, { radius: 21, x: PX(x), y: PY(y), z: 0, label: '', color: ROSE, emissive: ROSE });
-  vn.mesh.visible = false;
   pts.push({ vn, cls: -1 });
 });
-const posTitle = new VText(scene, { text: '正例 +1', x: 492, y: 330, z: 0, color: GREEN, scale: 0.6 });
-const negTitle = new VText(scene, { text: '负例 −1', x: 148, y: 600, z: 0, color: ROSE, scale: 0.6 });
 
 const line = new VBox(scene, { w: 300, h: 4, d: 4, x: 320, y: 460, z: 0, label: '', color: YELLOW, emissive: YELLOW });
 const m1 = new VBox(scene, { w: 300, h: 2.5, d: 2.5, x: 320, y: 460, z: 0, label: '', color: DIM, emissive: DIM });
 const m2 = new VBox(scene, { w: 300, h: 2.5, d: 2.5, x: 320, y: 460, z: 0, label: '', color: DIM, emissive: DIM });
 [line, m1, m2].forEach(b => (b.mesh.visible = false));
 
-const svBadge = new VText(scene, { text: '支持向量', x: 320, y: 330, z: 0, color: GOLD, scale: 0.65 });
 const svLbl1 = new VText(scene, { text: '(1, 1)', x: 452, y: 356, z: 0, color: GOLD, scale: 0.45 });
 const svLbl2 = new VText(scene, { text: '(−1, −1)', x: 188, y: 564, z: 0, color: GOLD, scale: 0.45 });
-svBadge.sprite.visible = false; svLbl1.sprite.visible = false; svLbl2.sprite.visible = false;
+svLbl1.sprite.visible = false; svLbl2.sprite.visible = false;
 
 function placeLine(c, box) {
   const p1 = { x: PX(-2.4), y: PY(c + 2.4) }, p2 = { x: PX(2.4), y: PY(c - 2.4) };
@@ -53,9 +48,9 @@ function placeLine(c, box) {
 
 function setClsCol(p) { p.vn.setColor(p.cls === 1 ? GREEN : ROSE, p.cls === 1 ? GREEN : ROSE); }
 function resetAll() {
-  pts.forEach(p => { p.vn.mesh.visible = false; p.vn.mesh.scale.setScalar(1); setClsCol(p); });
+  pts.forEach(p => { p.vn.mesh.scale.setScalar(1); setClsCol(p); });
   [line, m1, m2].forEach(b => (b.mesh.visible = false));
-  svBadge.sprite.visible = false; svLbl1.sprite.visible = false; svLbl2.sprite.visible = false;
+  svLbl1.sprite.visible = false; svLbl2.sprite.visible = false;
 }
 
 function* runSVM() {
@@ -84,7 +79,7 @@ function* runSVM() {
   yield W(800);
   yield S(() => {
     [pts[0], pts[3]].forEach(p => { p.vn.setColor(GOLD, GOLD); p.vn.mesh.scale.setScalar(1.45); });
-    svBadge.sprite.visible = true; svLbl1.sprite.visible = true; svLbl2.sprite.visible = true;
+    svLbl1.sprite.visible = true; svLbl2.sprite.visible = true;
     status.textContent = '支持向量 (1,1) 与 (−1,−1)（金球放大）：恰好压在间隔边界上 —— 只有它们决定超平面位置，其余点可删';
   });
   yield W(900);
@@ -97,9 +92,9 @@ function* runSVM() {
 engine.queue(() => runSVM());
 panel.addButton('清空', () => {
   engine.clear();
-  pts.forEach(p => { p.vn.mesh.visible = false; p.vn.mesh.scale.setScalar(1); setClsCol(p); });
+  pts.forEach(p => { p.vn.mesh.scale.setScalar(1); setClsCol(p); });
   [line, m1, m2].forEach(b => (b.mesh.visible = false));
-  svBadge.sprite.visible = false; svLbl1.sprite.visible = false; svLbl2.sprite.visible = false;
+  svLbl1.sprite.visible = false; svLbl2.sprite.visible = false;
   status.textContent = '';
 });
 

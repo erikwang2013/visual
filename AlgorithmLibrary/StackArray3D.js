@@ -21,7 +21,6 @@ for (let i = 0; i < SIZE; i++) slots.push(new VBox(scene, { w: 40, h: 46, d: 46,
 const idxT = [];
 for (let i = 0; i < SIZE; i++) idxT.push(new VText(scene, { text: String(i), x: slotX(i), y: IDX_Y, z: 0, color: PALETTE.textDim, scale: 0.4 }));
 const topBox = new VBox(scene, { w: 58, h: 20, d: 20, x: slotX(-1), y: BOX_Y, z: 0, label: 'top=空', color: GOLD, emissive: GOLD });
-const topArr = new VText(scene, { text: '▼', x: slotX(-1), y: ARR_Y, z: 0, color: GOLD, scale: 0.5 });
 
 let top = -1;
 
@@ -30,7 +29,6 @@ function clearSlot(i) { slots[i].setText(''); slots[i].setColor(DIM, DIM); }
 function moveTop() {
   const x = slotX(top);
   topBox.moveTo(x, BOX_Y, 0, 350);
-  topArr.moveTo(x, ARR_Y, 0, 350);
   topBox.setText(top === -1 ? 'top=空' : 'top=' + top);
 }
 function stackVals() { const a = []; for (let i = 0; i <= top; i++) a.push(slots[i].text); return a.join(' → ') || '空'; }

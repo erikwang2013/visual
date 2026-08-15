@@ -207,6 +207,7 @@ function* runHK() {
   yield S(() => { status.textContent = 'Hopcroft-Karp 演示完成：最大匹配 ' + pairR.filter(x => x !== -1).length + ' 对，O(E√V)'; });
 }
 
+buildGraph();  // 初始化默认演示体：二分图
 engine.queue(() => runHK());
 panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
 

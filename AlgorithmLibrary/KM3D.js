@@ -123,6 +123,7 @@ function* runKM() {
   yield* kmGen();
 }
 
+buildMatrix();  // 初始化默认演示体：权矩阵 + 顶标
 engine.queue(() => runKM());
 panel.addButton('清空', () => { engine.clear(); lx = WM.map(r => Math.max(...r)); ly = Array(N).fill(0); matchR = Array(N).fill(-1); matchL = Array(N).fill(-1); buildMatrix(); status.textContent = ''; });
 

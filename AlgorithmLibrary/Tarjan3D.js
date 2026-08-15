@@ -163,6 +163,7 @@ function* runTarjan() {
   yield* tarjanGen();
 }
 
+buildGraph();
 engine.queue(() => runTarjan());
 panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
 

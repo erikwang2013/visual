@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('UnboundedKnapsack3D');
 
@@ -20,15 +20,10 @@ const CAP = 10;
 const SLOT_X = w => 40 + w * 60;
 
 // ---- 容量槽 0..CAP（峰值 11，预建常驻）：运行期仅改文字/显隐/缩放/颜色，绝不 new ----
-const slots = [], slotCap = [];
+const slots = [];
 for (let w = 0; w <= CAP; w++) {
   const b = new VBox(scene, { w: 44, h: 40, d: 36, x: SLOT_X(w), y: 500, z: 0, label: '', color: BLUE, emissive: BLUE });
-  b.mesh.visible = false;
-  b.mesh.scale.setScalar(0.01);
   slots.push(b);
-  const cap = new VText(scene, { text: '容量 ' + w, x: SLOT_X(w), y: 548, z: 0, color: WHITE, scale: 0.42 });
-  cap.sprite.visible = false;
-  slotCap.push(cap);
 }
 
 // ---- 物品块 A/B/C（预建常驻）----
@@ -36,10 +31,7 @@ const itemBox = new Map();   // id -> { box, lab }
 ITEMS.forEach((it, i) => {
   const y = 400 - i * 100;
   const box = new VBox(scene, { w: 96, h: 48, d: 40, x: -30, y, z: 0, label: it.id, color: BLUE, emissive: BLUE });
-  box.mesh.visible = false;
-  const lab = new VText(scene, { text: '重量 ' + it.w + ' · 价值 ' + it.v, x: -30, y: y + 46, z: 0, color: WHITE, scale: 0.5 });
-  lab.sprite.visible = false;
-  itemBox.set(it.id, { box, lab });
+  itemBox.set(it.id, { box });
 });
 
 const dp = new Array(CAP + 1).fill(0);
@@ -55,16 +47,14 @@ function* runUB() {
   yield W(600);
   for (let w = 0; w <= CAP; w++) {
     const b = slots[w];
-    b.mesh.visible = true;
     b.setText('');
     b.setColor(BLUE, BLUE);
-    slotCap[w].sprite.visible = true;
     yield A(240, p => { b.mesh.scale.setScalar(0.01 + 0.99 * ease(p)); });
     b.mesh.scale.setScalar(1);
   }
   slots[0].setColor(GOLD, GOLD);
   slots[0].setText('0');
-  for (const o of itemBox.values()) { o.box.mesh.visible = true; o.box.setColor(BLUE, BLUE); o.lab.sprite.visible = true; }
+  for (const o of itemBox.values()) { o.box.setColor(BLUE, BLUE); }
   yield W(300);
   for (let w = 1; w <= CAP; w++) {
     let best = 0, bf = -1;
@@ -113,13 +103,11 @@ engine.queue(() => runUB());
 panel.addButton('清空', () => {
   engine.clear();
   for (let w = 0; w <= CAP; w++) {
-    slots[w].mesh.visible = false;
-    slots[w].mesh.scale.setScalar(0.01);
+    slots[w].mesh.scale.setScalar(1);
     slots[w].setText('');
     slots[w].setColor(BLUE, BLUE);
-    slotCap[w].sprite.visible = false;
   }
-  itemBox.forEach(o => { o.box.mesh.visible = false; o.box.setColor(BLUE, BLUE); o.lab.sprite.visible = false; });
+  itemBox.forEach(o => { o.box.setColor(BLUE, BLUE); });
   dp.fill(0);
   pick.fill(-1);
   status.textContent = '';

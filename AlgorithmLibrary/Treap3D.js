@@ -210,6 +210,15 @@ function* runTreap() {
   });
 }
 
+// 模块级预建初始树（加载即见；播放时重建并重放插入动画）
+clearView(); root = null; model.clear(); nextId = 0;
+for (const [k, p] of [[10, 30], [20, 50], [30, 10], [25, 5], [5, 1]]) {
+  const n = insertModel(k, p);
+  const pos = layout().get(n.id);
+  addNodeVis(n, new THREE.Vector3(pos.x, pos.y, pos.z));
+}
+syncEdges();
+
 engine.queue(() => runTreap());
 panel.addButton('随机化', () => engine.start(randomizeGen()));
 panel.addButton('清空', () => { engine.clear(); clearView(); root = null; model.clear(); nextId = 0; status.textContent = ''; });

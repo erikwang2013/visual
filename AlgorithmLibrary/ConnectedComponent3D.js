@@ -139,6 +139,7 @@ function* runCC() {
   yield* ccGen();
 }
 
+buildGraph();
 engine.queue(() => runCC());
 panel.addButton('清空', () => { engine.clear(); buildGraph(); status.textContent = ''; });
 

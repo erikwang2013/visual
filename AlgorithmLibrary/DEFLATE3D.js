@@ -112,23 +112,18 @@ ratioBox.mesh.material.transparent = true;
 ratioBox.mesh.material.opacity = 0.18;
 const cwChar = SYM.map((s, j) => new VText(scene, { text: s, x: cw(j), y: 755, z: 26, color: CYAN, scale: 0.5 }));
 const cwCode = CODE.map((c, j) => new VText(scene, { text: c, x: cw(j), y: 721, z: 10, color: WHITE, scale: 0.45 }));
-const ratioText = new VText(scene, { text: '5.1×', x: 608, y: 755, z: 26, color: GOLD, scale: 0.55 });
 cwChar.forEach(t => t.sprite.visible = false);
 cwCode.forEach(t => t.sprite.visible = false);
-ratioText.sprite.visible = false;
 
 // ---- 比特流盒×8 + 文本 / 分组标签×2 / 「=22 位」 / 阴影盒×8 + 文本（全隐） ----
 const bitBox = BITS.map((_, k) => new VBox(scene, { w: 52, h: 30, d: 16, x: bx(k), y: 652, z: 0, color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 const bitText = BITS.map((b, k) => new VText(scene, { text: b[1], x: bx(k), y: 652, z: 20, color: GOLD, scale: 0.5 }));
 const grpLbl = [new VText(scene, { text: '第 9 位', x: 168, y: 610, z: 10, color: PALETTE.textDim, scale: 0.38 }), new VText(scene, { text: '第 17 位', x: 384, y: 610, z: 10, color: PALETTE.textDim, scale: 0.38 })];
-const eq22 = new VText(scene, { text: '=22 位', x: 610, y: 690, z: 10, color: GREEN, scale: 0.5 });
-const eq22sx = eq22.sprite.scale.x, eq22sy = eq22.sprite.scale.y;
 const shadowBox = BITS.map((_, k) => new VBox(scene, { w: 52, h: 24, d: 10, x: bx(k), y: 690, z: 0, color: PALETTE.edge, emissive: PALETTE.edgeEmissive }));
 const shadowText = [3, 6, 9, 11, 14, 17, 19, 22].map((v, k) => new VText(scene, { text: String(v), x: bx(k), y: 690, z: 10, color: PALETTE.textDim, scale: 0.4 }));
 bitBox.forEach(b => b.mesh.visible = false);
 bitText.forEach(t => t.sprite.visible = false);
 grpLbl.forEach(t => t.sprite.visible = false);
-eq22.sprite.visible = false;
 shadowBox.forEach(b => b.mesh.visible = false);
 shadowText.forEach(t => t.sprite.visible = false);
 
@@ -209,11 +204,9 @@ function resetAll() {
   ratioBox.mesh.visible = true;
   cwChar.forEach(t => t.sprite.visible = false);
   cwCode.forEach(t => t.sprite.visible = false);
-  ratioText.sprite.visible = false;
   bitBox.forEach(b => b.mesh.visible = false);
   bitText.forEach(t => t.sprite.visible = false);
   grpLbl.forEach(t => t.sprite.visible = false);
-  eq22.sprite.visible = false;
   shadowBox.forEach(b => b.mesh.visible = false);
   shadowText.forEach(t => t.sprite.visible = false);
   status.textContent = '';
@@ -315,8 +308,8 @@ function* runDEFLATE() {
   yield S(() => { bitBox[5].mesh.visible = true; bitText[5].sprite.visible = true; status.textContent = '⑩ 比特流：x → 110，至此 17 位'; });
   yield S(() => { bitBox[6].mesh.visible = true; bitText[6].sprite.visible = true; grpLbl[1].sprite.visible = true; status.textContent = '⑩ 比特流：L5 → 00，第 18 位起；至此 19 位'; });
   yield S(() => { bitBox[7].mesh.visible = true; bitText[7].sprite.visible = true; status.textContent = '⑩ 比特流：D6 → 111，至此 22 位'; });
-  yield A(600, p => { eq22.sprite.visible = true; const f = 1 + 0.12 * Math.sin(p * Math.PI * 2); eq22.sprite.scale.x = eq22sx * f; eq22.sprite.scale.y = eq22sy * f; status.textContent = '⑩ 总长 22 位 = 0100111000010111000111'; });
-  yield S(() => { ratioText.sprite.visible = true; status.textContent = '⑪ 压缩率 = 112 / 22 ≈ 5.1×（理想熵下界：不含块头、Huffman 树表与校验码；6 个 token 若直接编码约 44 位）'; });
+  yield W(600);
+  yield S(() => { status.textContent = '⑩ 总长 22 位 = 0100111000010111000111；⑪ 压缩率 = 112 / 22 ≈ 5.1×（理想熵下界：不含块头、Huffman 树表与校验码；6 个 token 若直接编码约 44 位）'; });
   yield W(800);
 }
 

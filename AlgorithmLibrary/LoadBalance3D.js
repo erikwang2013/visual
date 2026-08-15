@@ -5,7 +5,7 @@ import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VBox, VText } from '../3D/VisualObject3D.js';
-import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
+import { glowMaterial, applyTheme } from '../3D/Glow.js';
 applyTheme('LoadBalance3D');
 
 const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
@@ -39,12 +39,10 @@ function makeRack(i) {
   return slots;
 }
 const servers = [0, 1, 2].map((_, i) => ({ w: [2, 1, 1][i], count: 0, slots: makeRack(i) }));
-[0, 1, 2].forEach(i => new VText(scene, { text: 'S' + (i + 1) + ' · 权重 ' + servers[i].w, x: SX[i], y: 282, z: 0, color: PALETTE.textGlow, scale: 0.66 }));
 
 // 请求盒子（从 LB 出发落到目标机架槽位）；计数在机架下方，绝不进盒子内部
 const reqBox = new VBox(scene, { w: 56, h: 40, d: 40, x: -10, y: 450, z: 0, label: 'R1', color: YELLOW, emissive: YELLOW });
 reqBox.mesh.visible = false;
-const countT = [0, 1, 2].map(i => new VText(scene, { text: '', x: SX[i], y: 150, z: 0, color: PALETTE.textGlow, scale: 0.68 }));
 
 // 加权轮询序列：S1 两连发（权重 2）→ S2 → S3 → 循环
 const SEQ = [0, 0, 1, 2, 0, 0, 1, 2, 0, 0];
@@ -54,7 +52,6 @@ function resetAll() {
     s.count = 0;
     s.slots.forEach(x => { x.material.emissiveIntensity = 0.15; });
   });
-  countT.forEach(t => t.setText(''));
   reqBox.mesh.visible = false;
   reqBox.setText('R1');
   reqBox.setColor(YELLOW, YELLOW);
@@ -88,7 +85,6 @@ function* runLoadBalance() {
       reqBox.mesh.visible = false; // 落入槽位
       s.slots[1].material.emissiveIntensity = 0.9;
       s.count++;
-      countT[si].setText(s.count + ' 请求');
       status.textContent = 'R' + (i + 1) + ' 落入 S' + (si + 1) + ' 槽位 — 处理完成';
     });
     yield W(280);
@@ -98,7 +94,6 @@ function* runLoadBalance() {
   yield S(() => {
     servers.forEach((s, i) => {
       s.slots.forEach(x => { x.material.emissiveIntensity = 0.6; });
-      countT[i].setText(s.count + ' 请求');
     });
     status.textContent = '结果：S1 接 6 个（权重 2 占比 50%）· S2 接 2 个 · S3 接 2 个 — 按 2:1:1 精确分配；加权轮询适合权重不同的后端（如新老机器混部），Nginx/HAProxy/LVS 都在用';
   });

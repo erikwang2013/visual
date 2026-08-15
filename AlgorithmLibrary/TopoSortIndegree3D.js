@@ -133,6 +133,7 @@ function* runKahn() {
   yield* kahnGen();
 }
 
+buildGraph();
 engine.queue(() => runKahn());
 panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
 scene.start(engine);

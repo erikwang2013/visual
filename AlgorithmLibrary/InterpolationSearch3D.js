@@ -23,7 +23,6 @@ const lowM = new VBox(scene, { w: 10, h: 10, d: 10, x: -2000, y: 222, z: 0, colo
 const highM = new VBox(scene, { w: 10, h: 10, d: 10, x: -2000, y: 222, z: 0, color: BLUE, emissive: BLUE });
 const lowT = new VText(scene, { text: '', x: 0, y: 240, z: 0, color: BLUE, scale: 0.6 });
 const highT = new VText(scene, { text: '', x: 0, y: 222, z: 0, color: BLUE, scale: 0.6 });
-const foundT = new VText(scene, { text: '', x: 0, y: 505, z: 0, color: GREEN, scale: 0.8 });
 
 const setH = i => { bars[i].mesh.scale.y = Math.max(DATA[i] / 100, 0.04); bars[i].mesh.position.y = 18 * DATA[i] / 100 + 282; };
 const moveMark = (m, i) => { m.mesh.position.x = (i - 5.5) * SPX + 320; };
@@ -51,7 +50,6 @@ function* interpGen() {
     if (DATA[pos] === KEY) {
       yield S(() => {
         bars[pos].setColor(GREEN, GREEN);
-        foundT.setText('✓ 命中！a[' + pos + '] = ' + KEY);
         status.textContent = '第 ' + steps + ' 步命中！a[' + pos + '] = ' + KEY + '（一步估算即中，均匀分布下期望 O(log log N)）';
       });
       yield W(1000);
@@ -80,7 +78,7 @@ panel.addButton('清空', () => {
   engine.clear();
   DATA.forEach((_, i) => { setH(i); bars[i].setColor(DIM, DIM); });
   [lowM, highM].forEach(m => m.mesh.position.x = -2000);
-  lowT.setText(''); highT.setText(''); foundT.setText('');
+  lowT.setText(''); highT.setText('');
   status.textContent = '';
 });
 

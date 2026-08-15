@@ -71,6 +71,7 @@ function resetFree() {
   nodeFree.length = 0; nodePool.forEach(v => { v.mesh.visible = false; v.mesh.scale.setScalar(0.01); });
   nodeFree.push(...nodePool);
   edgeFree.length = 0; edgeFree.push(...edgePool);
+  edgePool.forEach(e => { e.tube.visible = false; e.lbl.sprite.visible = false; });
 }
 function clearView() {
   resetFree();
@@ -352,8 +353,19 @@ function* runRadix() {
 
 for (let i = 0; i < 10; i++) mkNodeVis();
 for (let i = 0; i < 10; i++) mkEdgeObj();
-resetFree();
+function initDemo() {
+  resetFree();
+  insertModel('romane');
+  insertModel('robin');
+  const pos = layout();
+  for (const n of model.values()) {
+    const vn = addNodeVis(n.id, pos.get(n.id));
+    vn.mesh.scale.setScalar(1);
+  }
+  syncEdges();
+}
+initDemo();
 engine.queue(() => runRadix());
-panel.addButton('清空', () => { engine.clear(); clearView(); root.children.clear(); model.clear(); model.set(root.id, root); nextId = 0; status.textContent = ''; });
+panel.addButton('清空', () => { engine.clear(); clearView(); root.children.clear(); model.clear(); model.set(root.id, root); nextId = 0; initDemo(); status.textContent = ''; });
 
 scene.start(engine);

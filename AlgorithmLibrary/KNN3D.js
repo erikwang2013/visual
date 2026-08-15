@@ -40,9 +40,6 @@ for (let i = 0; i <= CLASSES.length; i++) {
   scene.add(tube);
   tubes.push(tube);
 }
-// 区块标题徽章
-const titleT = new VText(scene, { text: 'k = ' + K + ' 最近邻', x: 60, y: 570, z: 0, color: PALETTE.textGlow, scale: 0.6 });
-
 const dists = CLASSES.map((p, i) => ({ i, d: Math.hypot(p.x - Q[0], p.y - Q[1]) }));
 dists.sort((x, y) => x.d - y.d);
 

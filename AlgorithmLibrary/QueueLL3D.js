@@ -36,13 +36,10 @@ for (let i = 0; i < 5; i++) {
 const nodes = [];
 const headLbl = new VText(scene, { text: 'Head →', x: 30, y: 540, z: 0, color: CYAN, scale: 0.55 });
 const tailLbl = new VText(scene, { text: 'Tail →', x: 30, y: 300, z: 0, color: GOLD, scale: 0.55 });
-const emptyT = new VText(scene, { text: '空队列', x: 320, y: ROW_Y, z: 0, color: PALETTE.textDim, scale: 0.6 });
-
 function relayout() {
   nodes.forEach((n, i) => n.vn.moveTo(NODE_X(i), ROW_Y, 0, 380));
   headLbl.moveTo(nodes.length ? NODE_X(0) - 90 : 30, 540, 0, 380);
   tailLbl.moveTo(nodes.length ? NODE_X(nodes.length - 1) + 100 : 30, 300, 0, 380);
-  emptyT.sprite.visible = nodes.length === 0;
   edgeFree.forEach(m => { m.visible = false; });
   for (let i = 0; i + 1 < nodes.length; i++) {
     const m = edgeFree[i];
@@ -51,6 +48,47 @@ function relayout() {
   }
 }
 function queueVals() { return nodes.map(n => n.v).join(' → ') || '空'; }
+
+function clearQueue() {
+  nodes.forEach(n => { n.vn.mesh.visible = false; nodeFree.push(n); });
+  nodes.length = 0;
+  relayout();
+}
+// 加载即显示默认队列 5 → 3，点播放后清空重放
+(function initDefault() {
+  for (const v of [5, 3]) {
+    const n = nodeFree.pop();
+    n.v = v;
+    n.vn.setText(String(v));
+    n.vn.mesh.visible = true;
+    n.vn.mesh.position.set(NODE_X(nodes.length), ROW_Y, 0);
+    nodes.push(n);
+  }
+  relayout();
+})();
+
+function initDemo() {
+  nodes.forEach(n => { n.vn.mesh.visible = false; nodeFree.push(n); });
+  nodes.length = 0;
+  for (const v of [5, 3, 8, 1, 7]) {
+    const n = nodeFree.pop();
+    n.v = v;
+    n.vn.setText(String(v));
+    n.vn.setColor(BLUE, BLUE);
+    n.vn.mesh.position.set(NODE_X(nodes.length), ROW_Y, 0);
+    n.vn.mesh.visible = true;
+    nodes.push(n);
+  }
+  headLbl.sprite.position.set(NODE_X(0) - 90, 540, 0);
+  tailLbl.sprite.position.set(NODE_X(nodes.length - 1) + 100, 300, 0);
+  edgeFree.forEach(m => { m.visible = false; });
+  for (let i = 0; i + 1 < nodes.length; i++) {
+    const m = edgeFree[i];
+    m.position.set(NODE_X(i), ROW_Y, 0);
+    m.visible = true;
+  }
+}
+initDemo();
 
 function* enqueue(v) {
   const n = nodeFree.pop();
@@ -84,6 +122,9 @@ function* dequeue() {
 }
 
 function* runQueue() {
+  clearQueue();
+  headLbl.sprite.position.set(30, 540, 0);
+  tailLbl.sprite.position.set(30, 300, 0);
   yield S(() => { status.textContent = '链表队列：Head 出 / Tail 入，链式结构无容量上限，两端操作均 O(1)；演示：入队 5,3,8,1,7 → 出队×2 → 入队 4 → 出队'; });
   yield W(700);
   for (const v of [5, 3, 8, 1, 7]) yield* enqueue(v);
@@ -100,6 +141,6 @@ function* runQueue() {
 }
 
 engine.queue(() => runQueue());
-panel.addButton('清空', () => { engine.clear(); nodes.forEach(n => { n.vn.mesh.visible = false; nodeFree.push(n); }); nodes.length = 0; relayout(); status.textContent = ''; });
+panel.addButton('清空', () => { engine.clear(); clearQueue(); status.textContent = ''; });
 
 scene.start(engine);

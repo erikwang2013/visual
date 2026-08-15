@@ -41,7 +41,6 @@ const sBox = new VBox(scene, { w: 90, h: 44, d: 44, x: 490, y: 470, z: 0, label:
 const baseBox = new VBox(scene, { w: 110, h: 44, d: 44, x: 230, y: 360, z: 0, label: '底数 b = 2', color: DIM, emissive: DIM });
 const xBox = new VBox(scene, { w: 240, h: 52, d: 52, x: 450, y: 360, z: 0, label: 'x = ?', color: DIM, emissive: DIM });
 const xSeq = new VText(scene, { text: '', x: 320, y: 310, z: 0, color: PALETTE.textGlow, scale: 0.45, wrapChars: 32 });
-const verdictT = new VText(scene, { text: '', x: 320, y: 700, z: 0, color: GOLD, scale: 0.7, wrapChars: 20 });
 
 function setCell(obj, v, color) { obj.setText(String(v)); if (color) obj.setColor(color, color); }
 
@@ -49,7 +48,6 @@ function* roundGen(r, ri) {
   setCell(nBox, 'n = ' + r.n, CYAN);
   setCell(dBox, 'd = ' + r.d, DIM); setCell(sBox, 's = ' + r.s, DIM);
   setCell(baseBox, '底数 b = ' + r.b, DIM); setCell(xBox, 'x = ?', DIM);
-  verdictT.setText('');
   yield S(() => { status.textContent = '第 ' + (ri + 1) + ' 轮：' + r.label + ' —— 先分解 n−1：' + r.n + ' − 1 = ' + (r.n - 1) + ' = ' + r.d + ' × 2^' + r.s + '，把 2 的因子全部提出来'; });
   yield W(700);
   setCell(xBox, 'x = ' + r.b + '^' + r.d + ' mod ' + r.n + ' = ' + r.xs[0], PUR);
@@ -70,11 +68,9 @@ function* roundGen(r, ri) {
   }
   if (r.pass) {
     setCell(xBox, 'x = x² mod ' + r.n + ' = ' + r.xs[r.xs.length - 1], GOLD);
-    verdictT.setText(r.n + ' 在底数 ' + r.b + ' 下：probably prime ✓（撞出 −1）', { color: GOLD });
     yield S(() => { status.textContent = '第 ' + (ri + 1) + ' 轮通过：' + r.n + ' 撞出 −1 —— 只有素数才会出现这种 −1 平方根，合数几乎不可能'; });
   } else {
     setCell(xBox, 'x = x² mod ' + r.n + ' = ' + r.xs[r.xs.length - 1], RED);
-    verdictT.setText(r.n + ' 在底数 ' + r.b + ' 下：composite ✗（底数 2 是证人）', { color: RED });
     yield S(() => { status.textContent = '第 ' + (ri + 1) + ' 轮露馅：' + r.n + ' 的平方序列从未出现 −1 —— 底数 2 是合数证人'; });
   }
   yield W(800);
@@ -106,6 +102,6 @@ function* runMR() {
 }
 
 engine.queue(() => runMR());
-panel.addButton('清空', () => { engine.clear(); verdictT.setText(''); xSeq.setText(''); setCell(nBox, 'n = 97', DIM); setCell(dBox, 'd = 3', DIM); setCell(sBox, 's = 5', DIM); setCell(baseBox, '底数 b = 2', DIM); setCell(xBox, 'x = ?', DIM); status.textContent = ''; });
+panel.addButton('清空', () => { engine.clear(); xSeq.setText(''); setCell(nBox, 'n = 97', DIM); setCell(dBox, 'd = 3', DIM); setCell(sBox, 's = 5', DIM); setCell(baseBox, '底数 b = 2', DIM); setCell(xBox, 'x = ?', DIM); status.textContent = ''; });
 
 scene.start(engine);

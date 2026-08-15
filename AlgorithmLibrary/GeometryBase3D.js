@@ -39,6 +39,10 @@ function resetFree() {
   nodeFree.length = 0; nodePool.forEach(v => { v.mesh.visible = false; v.mesh.scale.setScalar(0.01); }); nodeFree.push(...nodePool);
   segFree.length = 0; segPool.forEach(s => { s.tube.visible = false; }); segFree.push(...segPool);
 }
+// 初始化默认演示体：① 三点转向 A/B/C + 两条连线
+nodeFree.push(...nodePool); segFree.push(...segPool);
+pt(PA[0], PA[1], CYAN, 'A'); pt(PB[0], PB[1], CYAN, 'B'); pt(PC[0], PC[1], CYAN, 'C');
+seg(PA, PB, CYAN); seg(PA, PC, ORANGE);
 function pt(x, y, color, label) {
   const vn = nodeFree.pop(); if (!vn) return;
   vn.mesh.position.set(x, y, 0); vn.mesh.scale.setScalar(1); vn.mesh.visible = true;

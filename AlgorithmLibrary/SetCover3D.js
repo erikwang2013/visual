@@ -62,13 +62,11 @@ SETS.forEach(s => s.elems.forEach(e => {
   tubes[s.id + '-' + e] = t;
 }));
 const setTube = (sid, e, color, op) => { const t = tubes[sid + '-' + e]; t.material.color.setHex(color); t.material.opacity = op; };
-const coverT = new VText(scene, { text: '已覆盖 0/6 个元素', x: 320, y: 546, z: 0, color: GOLD, scale: 0.72 });
 
 function resetAll() {
   elems.forEach(n => n.setColor(DIM, DIM));
   cards.forEach(c => { c.box.setColor(DIM, DIM); c.gain.setText(''); });
   SETS.forEach(s => s.elems.forEach(e => setTube(s.id, e, PALETTE.edge, 0.12)));
-  coverT.setText('已覆盖 0/6 个元素');
 }
 
 function* scGen() {
@@ -85,7 +83,6 @@ function* scGen() {
           c.gain.setText('+' + g.gain);
           SETS.find(x => x.id === g.id).elems.forEach(e => setTube(g.id, e, CYAN, 0.55));
         });
-        coverT.setText('已覆盖 ' + st.covered.size + '/6 个元素');
         status.textContent = '第 ' + st.round + ' 轮：只数「新覆盖」—— ' + st.gains.map(g => g.id + '=+' + g.gain).join('、') + ' → 选最多者 ' + st.best.id;
       });
       yield W(700);
@@ -105,12 +102,10 @@ function* scGen() {
       const set = st.set, c = cardOf(set.id);
       yield S(() => {
         c.box.setColor(GOLD, GOLD);
-        c.gain.setText('✓ 选中');
         set.elems.forEach(e => {
           setTube(set.id, e, GOLD, 0.9);
           elems[e - 1].setColor(GOLD, GOLD);
         });
-        coverT.setText('已覆盖 ' + st.covered.size + '/6 个元素' + (st.covered.size === U.length ? ' —— 全部覆盖！' : ''));
         status.textContent = set.id + ' 选中：新覆盖 {' + set.elems.join(',') + '} → 已覆盖 ' + st.covered.size + '/6';
       });
       yield W(800);

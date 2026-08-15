@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
+import { VNode, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('DES3D');
 
@@ -84,12 +84,10 @@ for (let i = 0; i < 64; i += 8) { let v = 0; for (let j = 0; j < 8; j++) v = (v 
 const keyChips = [], ptChips = [], ctChips = [];
 const KSP = 62, KX0 = 143;
 for (let i = 0; i < 8; i++) keyChips.push(new VBox(scene, { w: 50, h: 46, d: 46, x: KX0 + i * KSP, y: 600, z: 0, label: h2(KEY[i]), color: PUR, emissive: PUR }));
-const subkeyT = new VText(scene, { text: '', x: 700, y: 620, z: 0, color: CYAN, scale: 0.5 });   // 轮密钥值文本（演示体标注）
 for (let i = 0; i < 8; i++) ptChips.push(new VBox(scene, { w: 50, h: 46, d: 46, x: KX0 + i * KSP, y: 510, z: 0, label: h2(PT[i]), color: BLUE, emissive: BLUE }));
 const lBox = new VBox(scene, { w: 200, h: 56, d: 56, x: 180, y: 425, z: 0, label: 'L₀ = IP 左 32 位', color: BLUE, emissive: BLUE });
 const rBox = new VBox(scene, { w: 200, h: 56, d: 56, x: 500, y: 425, z: 0, label: 'R₀ = IP 右 32 位', color: CYAN, emissive: CYAN });
 for (let i = 0; i < 8; i++) ctChips.push(new VBox(scene, { w: 50, h: 46, d: 46, x: KX0 + i * KSP, y: 325, z: 0, label: '00', color: DIM, emissive: DIM }));
-const roundT = new VText(scene, { text: '第 1 轮', x: 360, y: 372, z: 0, color: GOLD, scale: 0.55 });   // 阶段徽章
 
 function* desGen() {
   yield S(() => { status.textContent = 'DES 数据流：IP 置换 → 16 轮 Feistel → IP⁻¹。每轮右半经 f 函数（E 扩展 ⊕ 轮密钥 → S 盒 → P 置换）与左半异或。密钥 133457799BBCDFF1 · 明文 0123456789ABCDEF（FIPS-81 标准测试向量）'; });
@@ -101,9 +99,6 @@ function* desGen() {
   yield S(() => { status.textContent = 'IP 初始置换：按 58,50,…,7 表重排 64 位 → L₀ + R₀ 各 32 位'; });
   yield W(650);
   for (let r = 0; r < 16; r++) {
-    const rnd = DES_R.rounds[r];
-    roundT.setText('第 ' + (r + 1) + ' 轮');
-    subkeyT.setText('轮密钥 K' + (r + 1) + ' = ' + hx(rnd.K.slice(0, 4)) + '…');
     if (r === 0) {
       yield S(() => { status.textContent = '第 1 轮 ① E 扩展：R₀ 32 位 → 48 位（首尾复制重排，相邻位复制以交叉影响）'; });
       yield W(800);
@@ -143,7 +138,7 @@ function* desGen() {
   ctChips.forEach((ch, i) => { ch.setText(h2(CT_BYTES[i])); ch.setColor(GREEN, GREEN); });
   yield S(() => { status.textContent = '加密完成：密文 85E813540F0AB405 ✓ 与 FIPS-81 标准向量一致（运行时算出，非硬编码）；强度：56 位密钥只有 2⁵⁶ 种 —— 1998 年 EFF 深破机 56 小时破解，已被 3DES/AES 取代'; });
   yield W(1000);
-  yield S(() => { status.textContent = 'DES 演示完成：IP → 16 轮 Feistel（E 扩展 ⊕ K → S 盒 → P）→ IP⁻¹ → 85E813540F0AB405，时间复杂度 O(16 × 轮内操作)'; roundT.setText(''); subkeyT.setText(''); });
+  yield S(() => { status.textContent = 'DES 演示完成：IP → 16 轮 Feistel（E 扩展 ⊕ K → S 盒 → P）→ IP⁻¹ → 85E813540F0AB405，时间复杂度 O(16 × 轮内操作)'; });
   yield W(400);
 }
 
@@ -160,7 +155,7 @@ panel.addButton('清空', () => {
   ctChips.forEach(ch => { ch.setText('00'); ch.setColor(DIM, DIM); });
   lBox.setText('L₀ = IP 左 32 位'); lBox.setColor(BLUE, BLUE);
   rBox.setText('R₀ = IP 右 32 位'); rBox.setColor(CYAN, CYAN);
-  roundT.setText('第 1 轮'); subkeyT.setText(''); status.textContent = '';
+  status.textContent = '';
 });
 
 scene.start(engine);

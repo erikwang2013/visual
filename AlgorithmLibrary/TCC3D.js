@@ -46,7 +46,7 @@ const coord = makeNode(320, 495, 150, 74);
 const coordLabel = new VText(scene, { text: '协调者', x: 320, y: 495, z: 22, color: PALETTE.textGlow, scale: 0.62 });
 const AX = [110, 530];
 const accs = AX.map(x => makeNode(x, 245, 110, 96));
-const accLabel = AX.map((x, i) => new VText(scene, { text: '账户 ' + (i ? 'B' : 'A') + '（余额 200）', x, y: 245, z: 22, color: PALETTE.textGlow, scale: 0.55 }));
+const accLabel = AX.map((x, i) => new VText(scene, { text: '账户 ' + (i ? 'B' : 'A'), x, y: 245, z: 22, color: PALETTE.textGlow, scale: 0.55 }));
 
 // 消息连线（协调者 ↔ 账户）
 const msgLine = new VBox(scene, { w: 210, h: 3, d: 3, x: 320, y: 370, z: 0, label: '', color: YELLOW, emissive: YELLOW });
@@ -65,7 +65,7 @@ const money = new VBox(scene, { w: 44, h: 30, d: 30, x: AX[0], y: 160, z: 0, lab
 function resetScene() {
   coord.setColor(PALETTE.node, false);
   accs.forEach(a => a.setColor(PALETTE.node, false));
-  accLabel.forEach((t, i) => t.setText('账户 ' + (i ? 'B' : 'A') + '（余额 200）'));
+  accLabel.forEach((t, i) => t.setText('账户 ' + (i ? 'B' : 'A')));
   msgLine.mesh.visible = false;
 }
 
@@ -100,8 +100,6 @@ function* tccGen() {
     money.mesh.position.set(AX[0] + (AX[1] - AX[0]) * p, 160 - 40 * Math.sin(p * Math.PI), 0);
   });
   yield S(() => {
-    accLabel[0].setText('账户 A（余额 100）');
-    accLabel[1].setText('账户 B（余额 300）');
     status.textContent = 'Confirm 完成：A 余额 200→100，B 余额 200→300 — 转账成功 ✓';
   });
   yield W(900);
@@ -116,13 +114,13 @@ function* tccGen() {
   yield W(700);
   yield S(() => {
     lineTo(1, 0, 105);
-    accs[1].setColor(ROSE, true); accLabel[1].setText('账户 B ✗ 服务故障');
+    accs[1].setColor(ROSE, true); accLabel[1].setText('账户 B ✗');
     status.textContent = 'Try(B) 失败：B 宕机/超时 → 不能假装成功';
   });
   yield W(800);
   yield S(() => {
     lineTo(0, 0, -105);
-    accs[0].setColor(ROSE, true); accLabel[0].setText('账户 A（余额 200 · 解冻）');
+    accs[0].setColor(ROSE, true);
     status.textContent = '③ Cancel：协调者通知 A 解冻 — 100 元回到可用余额，一切如初';
   });
   yield W(900);

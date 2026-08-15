@@ -23,8 +23,6 @@ for (let r = 0; r < ROWS; r++) {
     cells[r].push(new VBox(scene, { w: 58, h: 42, d: 42, x, y, z: 0, label: String(M0[r][c]), color: c === 3 ? ORANGE : BLUE, emissive: c === 3 ? ORANGE : BLUE }));
   }
 }
-const solLabels = ['x', 'y', 'z'].map((v, r) => new VText(scene, { text: '', x: 585, y: 474 - r * 82, z: 0, color: GREEN, scale: 0.95 }));
-
 function fmt(v) { return Math.abs(v % 1) < 1e-9 ? String(Math.round(v)) : v.toFixed(2); }
 function draw(M) {
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) cells[r][c].setText(fmt(M[r][c]));
@@ -35,7 +33,6 @@ function setRowColor(r, col, col3) {
 function clearView() {
   draw(M0);
   for (let r = 0; r < ROWS; r++) setRowColor(r, BLUE, ORANGE);
-  solLabels.forEach(s => s.setText(''));
 }
 
 function* gaussGen() {
@@ -67,7 +64,6 @@ function* gaussGen() {
     for (let c = r + 1; c < ROWS; c++) s -= M[r][c] * x[c];
     x[r] = s / M[r][r];
     setRowColor(r, GREEN);
-    solLabels[r].setText('xyz'[r] + ' = ' + fmt(x[r]));
     yield S(() => { status.textContent = '回代第 ' + (ROWS - r) + ' 行：' + 'xyz'[r] + ' = (' + fmt(M[r][3]) + (r === 2 ? '' : ' − Σ 下方系数×解') + ') ÷ ' + fmt(M[r][r]) + ' = ' + fmt(x[r]); });
     yield W(700);
   }

@@ -283,21 +283,29 @@ function* inorderGen() {
   tmp.forEach(x => x.t.setText(''));
 }
 
-function* runSplay() {
+function initTree() {
   clearView(); root = null;
-  yield S(() => { status.textContent = '伸展树：每次访问（插入/查找/删除）都把节点旋到根，近期访问者更快'; });
-  yield W(400);
-  for (const k of [50, 30, 70, 20, 40]) yield* insertGen(k);
-  yield S(() => { status.textContent = '5 键插入完成（每次插入后伸展到根）'; });
+  for (const k of [50, 30, 70, 20, 40]) insertModel(k);
+  (function walk(n) {
+    if (!n) return;
+    addNodeMesh(n, layout().get(n.key));
+    walk(n.left); walk(n.right);
+  })(root);
+  syncEdges();
+}
+initTree();
+
+function* runSplay() {
+  yield S(() => { status.textContent = '伸展树：每次访问（插入/查找/删除）都把节点旋到根，近期访问者更快 —— 初始树 50/30/70/20/40，演示查找 20（zig-zig）、查找 35（未命中）、删除 30（根合并）'; });
   yield W(400);
   yield* searchGen(20);
   yield* searchGen(35);
   yield* deleteGen(30);
   yield* inorderGen();
-  yield S(() => { status.textContent = 'Splay 演示完成：插入 50/30/70/20/40（每次伸展）、查找 20（zig-zig）与 35（未命中）、删除 30（根合并）；摊还 O(log n)'; });
+  yield S(() => { status.textContent = 'Splay 演示完成：初始树 50/30/70/20/40，查找 20（zig-zig 伸展至根）与 35（未命中）、删除 30（根合并）；摊还 O(log n)'; });
 }
 
 engine.queue(() => runSplay());
-panel.addButton('清空', () => { engine.clear(); clearView(); root = null; status.textContent = ''; });
+panel.addButton('清空', () => { engine.clear(); initTree(); status.textContent = ''; });
 
 scene.start(engine);

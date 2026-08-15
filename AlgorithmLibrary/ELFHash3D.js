@@ -39,18 +39,10 @@ const overflows = elfSteps.filter(s => s.g !== 0).length;
 const CX = k => 320 + (k - 4.5) * 60;
 const charBoxes = STR.split('').map((ch, k) =>
   new VBox(scene, { w: 50, h: 50, d: 50, x: CX(k), y: 585, z: 0, label: ch, color: DIM, emissive: DIM }));
-const codeT = STR.split('').map((ch, k) =>
-  new VText(scene, { text: '', x: CX(k), y: 533, z: 0, color: PALETTE.textDim, scale: 0.45 }));
-new VText(scene, { text: '输入字符', x: 320, y: 648, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const hT = new VText(scene, { text: '', x: 320, y: 470, z: 0, color: GOLD, scale: 0.62 });
 const bitBoxes = [...Array(BITS)].map((_, b) =>
   new VBox(scene, { w: 10, h: 10, d: 10, x: 134 + b * 12, y: 400, z: 0, label: b % 4 === 0 ? String(BITS - 1 - b) : '', color: DIM, emissive: DIM }));
-new VText(scene, { text: '32 位寄存器', x: 320, y: 342, z: 0, color: PALETTE.textDim, scale: 0.6 });
-const foldT = new VText(scene, { text: '溢出折叠 ×0', x: 320, y: 296, z: 0, color: GOLD, scale: 0.58 });
 const resultBox = new VBox(scene, { w: 200, h: 54, d: 40, x: 320, y: 195, z: 0, label: '', color: DIM, emissive: DIM });
 resultBox.mesh.visible = false;
-const resultTitle = new VText(scene, { text: 'ELF 哈希值', x: 320, y: 250, z: 0, color: PALETTE.textDim, scale: 0.6 });
-resultTitle.sprite.visible = false;
 
 const setBits = h => bitBoxes.forEach((b, i) => {
   const on = ((h >>> (BITS - 1 - i)) & 1) === 1;
@@ -58,12 +50,9 @@ const setBits = h => bitBoxes.forEach((b, i) => {
 });
 const hexOf = v => '0x' + v.toString(16).toUpperCase().padStart(8, '0');
 function resetAll() {
-  for (let k = 0; k < N; k++) { charBoxes[k].setColor(DIM, DIM); charBoxes[k].setText(STR[k]); charBoxes[k].mesh.scale.setScalar(1); codeT[k].setText(''); }
+  for (let k = 0; k < N; k++) { charBoxes[k].setColor(DIM, DIM); charBoxes[k].setText(STR[k]); charBoxes[k].mesh.scale.setScalar(1); }
   setBits(0);
-  hT.setText('');
-  foldT.setText('溢出折叠 ×0');
   resultBox.mesh.visible = false;
-  resultTitle.sprite.visible = false;
 }
 
 function* runELF() {
@@ -73,7 +62,6 @@ function* runELF() {
   for (let t = 0; t < elfSteps.length; t++) {
     const s = elfSteps[t];
     charBoxes[t].setColor(CYAN, CYAN);
-    codeT[t].setText('' + s.ch + ' → ' + s.code);
     yield S(() => { status.textContent = '字符 ' + (t + 1) + ' "' + s.ch + '"（码 ' + s.code + '）：h = ' + s.shifted + '（左移 4 位）+ ' + s.code + ' = ' + s.h; });
     yield W(480);
     yield A(300, p => { const e = ease(p); charBoxes[t].mesh.scale.setScalar(1 + 0.3 * Math.sin(e * Math.PI)); });
@@ -81,8 +69,6 @@ function* runELF() {
     if (s.g !== 0) { charBoxes[t].setColor(ROSE, ROSE); foldCount++; }
     else charBoxes[t].setColor(GOLD, GOLD);
     setBits(s.h);
-    hT.setText('h = ' + hexOf(s.h));
-    foldT.setText('溢出折叠 ×' + foldCount);
     yield S(() => {
       if (s.g !== 0) {
         status.textContent = '溢出！高 4 位 g = ' + hexOf(s.g) + ' → h ^= g>>>24; h &= ~g：折叠回低 8 位并清零 —— 最高位的贡献不白丢';
@@ -97,7 +83,6 @@ function* runELF() {
   resultBox.setText(hexOf(FINAL));
   resultBox.setColor(GOLD, GOLD);
   resultBox.mesh.visible = true;
-  resultTitle.sprite.visible = true;
   yield S(() => { status.textContent = 'ELFHash 演示完成："helloworld" → ' + hexOf(FINAL) + '（' + FINAL + '），' + overflows + ' 次溢出折叠回低 8 位；复杂度 O(n) 一次遍历，每字符常数次位运算，无乘法器也能跑'; });
   yield W(800);
 }

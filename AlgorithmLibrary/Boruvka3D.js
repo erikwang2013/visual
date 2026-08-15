@@ -112,6 +112,7 @@ function* runBoruvka() {
   yield* boruvkaGen();
 }
 
+buildGraph();
 engine.queue(() => runBoruvka());
 panel.addButton('清空', () => { engine.clear(); buildGraph(); status.textContent = ''; });
 

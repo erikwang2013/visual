@@ -84,28 +84,15 @@ function mkKey() {
   nd.mesh.scale.setScalar(0.01);
   keyPool.push(nd);
 }
-const notePool = [], noteFree = [];
-function mkNote() {
-  const t = new VText(scene, { text: '', x: 0, y: 0, z: 0, color: GREEN, scale: 0.7 });
-  t.sprite.visible = false;
-  notePool.push(t);
-  return t;
-}
-const redNote = new VText(scene, { text: '', x: 0, y: 0, z: 0, color: RED, scale: 0.7 });
-redNote.sprite.visible = false;
-
 function clearAll() {
   srvFree.length = 0; srvFree.push(...srvPool);
   srvLblFree.length = 0; srvLblFree.push(...srvLblPool);
   keyFree.length = 0; keyFree.push(...keyPool);
-  noteFree.length = 0; noteFree.push(...notePool);
   arcFree.length = 0; arcFree.push(...arcPool);
   srvPool.forEach(n => { n.mesh.visible = false; n.mesh.scale.setScalar(0.01); });
   srvLblPool.forEach(t => t.sprite.visible = false);
   keyPool.forEach(n => { n.mesh.visible = false; n.mesh.scale.setScalar(0.01); });
-  notePool.forEach(t => t.sprite.visible = false);
   arcPool.forEach(a => a.line.visible = false);
-  redNote.sprite.visible = false;
 }
 function addServer(name, hash, isNew) {
   const nd = srvFree.pop();
@@ -129,11 +116,6 @@ function addKey(name, hash) {
   nd.mesh.scale.setScalar(0.01);
   return nd;
 }
-function setNote(t, text, x, y, z) {
-  t.setText(text);
-  t.sprite.position.set(x, y, z);
-  t.sprite.visible = true;
-}
 function* growIn(nd) {
   yield A(250, p => nd.mesh.scale.setScalar(0.01 + 0.99 * E(p)));
 }
@@ -154,7 +136,6 @@ function* chGen() {
     yield S(() => {
       nd = addKey(k, hash);
       setArc(arcFree.pop(), hash, sh, GREEN, 0.55, 294);
-      setNote(noteFree.pop(), k + ' → ' + srv, (pv(hash).x + pv(sh).x) / 2, 318, (pv(hash).z + pv(sh).z) / 2);
       nd.setColor(GREEN, GREEN);
       status.textContent = 'key ' + k + '：hash = ' + hash + '°，顺时针遇到 ' + srv + ' → 归属 ' + srv;
     });
@@ -169,7 +150,6 @@ function* chGen() {
   yield S(() => {
     mNode = addKey('k2', 170);
     mNode.setColor(RED, RED);
-    setNote(redNote, 'k2 → B → D', pv(170).x, 235, pv(170).z);
     status.textContent = 'k2(170°) 在 A(130°) 与 D(220°) 之间：原顺时针遇 B，现先遇 D → 只有 k2 需要迁移';
   });
   yield* growIn(mNode);
@@ -184,9 +164,9 @@ function* chGen() {
 
 for (let i = 0; i < 4; i++) mkServer();
 for (let i = 0; i < 6; i++) mkKey();
-for (let i = 0; i < 6; i++) mkNote();
 for (let i = 0; i < 7; i++) mkArc();
 clearAll();
+for (const [p, hash] of SERVERS) addServer(p, hash, false);
 engine.queue(() => chGen());
 panel.addButton('清空', () => { engine.clear(); clearAll(); status.textContent = ''; });
 

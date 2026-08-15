@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
+import { VNode, VBox } from '../3D/VisualObject3D.js';
 import { applyTheme } from '../3D/Glow.js';
 applyTheme('StoneMerge3D');
 
@@ -13,7 +13,6 @@ const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff;
 const status = panel.addStatus('就绪');
-const stageT = new VText(scene, { text: '', x: 320, y: 610, z: 0, color: GOLD, scale: 0.72 });
 
 const ST = [4, 1, 2, 7];
 const N = 4;
@@ -37,7 +36,6 @@ for (let len = 2; len <= N; len++) {
 }
 
 const nodes = [0, 1, 2, 3].map(i => new VNode(scene, { radius: 26, x: PX[i], y: 520, z: 0, label: String(ST[i]), color: BLUE, emissive: BLUE }));
-const sumT = [0, 1, 2, 3].map(i => new VText(scene, { text: '石子 ' + ST[i], x: PX[i], y: 565, z: 0, color: WHITE, scale: 0.5 }));
 const dpCells = [];
 for (let len = 2; len <= N; len++) for (let i = 0; i + len <= N; i++) {
   const j = i + len - 1;
@@ -48,9 +46,7 @@ for (let len = 2; len <= N; len++) for (let i = 0; i + len <= N; i++) {
 function cellOf(i, j) { return dpCells.find(c => c.i === i && c.j === j); }
 function clearView() {
   nodes.forEach((n, i) => { n.setColor(BLUE, BLUE); n.setText(String(ST[i])); });
-  sumT.forEach((t, i) => t.setText('石子 ' + ST[i], { color: WHITE }));
   dpCells.forEach(c => { c.box.setColor(BLUE, BLUE); c.box.setText(''); });
-  stageT.setText('');
 }
 
 function* smGen() {
@@ -59,7 +55,7 @@ function* smGen() {
   for (const s of steps) {
     nodes[s.i].setColor(RED, RED); nodes[s.j].setColor(RED, RED);
     cellOf(s.i, s.j).box.setColor(CYAN, CYAN);
-    yield S(() => { stageT.setText('长度 ' + s.len + '：dp[' + s.i + '][' + s.j + ']'); status.textContent = '长度 ' + s.len + '：dp[' + s.i + '][' + s.j + '] 枚举分界点 k=' + s.i + '..' + (s.j - 1) + '，区间和 sum(' + s.i + '..' + s.j + ')=' + s.sum; });
+    yield S(() => { status.textContent = '长度 ' + s.len + '：dp[' + s.i + '][' + s.j + '] 枚举分界点 k=' + s.i + '..' + (s.j - 1) + '，区间和 sum(' + s.i + '..' + s.j + ')=' + s.sum; });
     yield W(420);
     for (let k = s.i; k < s.j; k++) {
       const v = dp[s.i][k] + dp[k + 1][s.j];

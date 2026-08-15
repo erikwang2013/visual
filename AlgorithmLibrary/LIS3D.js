@@ -121,7 +121,8 @@ function* runLIS() {
   yield W(900);
 }
 
+for (let i = 0; i < N; i++) allocCol(i);   // 加载即显示演示体，点播放才动画
 engine.queue(() => runLIS());
-panel.addButton('清空', () => { engine.clear(); freeCols(); status.textContent = ''; });
+panel.addButton('清空', () => { engine.clear(); freeCols(); for (let i = 0; i < N; i++) allocCol(i); status.textContent = ''; });
 
 scene.start(engine);

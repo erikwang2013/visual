@@ -91,17 +91,14 @@ const srcT = [
 
 // 生成的 ID 展示
 const idBox = new VBox(scene, { w: 520, h: 58, d: 44, x: 0, y: 165, z: 0, label: '', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
-const idT = new VText(scene, { text: '', x: 0, y: 165, z: 26, color: PALETTE.textGlow, scale: 0.62 });
 
-const idOf = (ms, mid, seq) => ((BigInt(ms) << 22n) | (BigInt(mid) << 12n) | BigInt(seq)).toString();
 const fmt = n => Number(n).toLocaleString('en-US');
 function show(ms, mid, seq) {
   srcT[0].setText(fmt(ms)); srcT[1].setText(String(mid)); srcT[2].setText(String(seq));
-  idT.setText('Snowflake ID = ' + idOf(ms, mid, seq));
 }
 
 function resetAll() {
-  srcT.forEach(t => t.setText('')); idT.setText('');
+  srcT.forEach(t => t.setText(''));
   clockHands.rotation.z = 0;
   slots.forEach(s => s.material.emissiveIntensity = 0.2);
   setBars(0);

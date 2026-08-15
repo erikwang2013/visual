@@ -103,6 +103,7 @@ function* runKruskal() {
   yield* kruskalGen();
 }
 
+buildGraph();  // 初始化默认演示体：带权图
 engine.queue(() => runKruskal());
 panel.addButton('清空', () => { engine.clear(); buildGraph(); parT.setText(''); status.textContent = ''; });
 

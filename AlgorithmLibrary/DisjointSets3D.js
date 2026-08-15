@@ -205,6 +205,7 @@ function* runDS() {
   yield S(() => { status.textContent = '并查集演示完成：7 次按秩联合 → 单树根 0（秩 8），find(7) 链 7→6→4→0 与 find(3) 链 3→2→0 均路径压缩到深度 1，find + union 近似 O(1)'; });
 }
 
+buildStatic();  // 初始化默认演示体：森林 + 父/秩表，点播放才动画
 engine.queue(() => runDS());
 panel.addButton('清空', () => { engine.clear(); clearView(); parent = Array.from({ length: N }, (_, i) => i); size = Array(N).fill(1); status.textContent = ''; });
 

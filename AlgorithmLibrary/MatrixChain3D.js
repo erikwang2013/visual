@@ -106,7 +106,8 @@ function* runMC() {
   yield* mcGen();
 }
 
+buildView();   // 加载即显示演示体，点播放才动画
 engine.queue(() => runMC());
-panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
+panel.addButton('清空', () => { engine.clear(); buildView(); status.textContent = ''; });
 
 scene.start(engine);

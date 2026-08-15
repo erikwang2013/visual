@@ -46,7 +46,6 @@ for (let b = 0; b < VALUES; b++) {
   fill.position.set(BX(b), 280.5, -50);
   scene.add(fill);
   const lbl = new VText(scene, { text: '0', x: BX(b), y: 228, z: -50, color: PALETTE.textDim, scale: 0.7 });
-  new VText(scene, { text: '桶 ' + (b + 1), x: BX(b), y: 542, z: -50, color: PALETTE.textDim, scale: 0.6 });
   buckets.push({ b, fill, lbl, stack: [], count: 0 });
 }
 

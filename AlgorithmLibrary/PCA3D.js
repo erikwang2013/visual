@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VNode, VBox, VText } from '../3D/VisualObject3D.js';
+import { VNode, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('PCA3D');
 
@@ -44,11 +44,6 @@ arrow2.rotation.z = Math.atan2(D2[0], D2[1]);
 arrow2.position.set(tip2.x, tip2.y, 0);
 arrow2.visible = false;
 scene.add(arrow2);
-const axis1T = new VText(scene, { text: '第一主成分', x: tip1.x + D1[0] * 34, y: tip1.y + D1[1] * 34, z: 0, color: BLUE, scale: 0.5 });
-axis1T.sprite.visible = false;
-const axis2T = new VText(scene, { text: '第二主成分', x: tip2.x + D2[0] * 30, y: tip2.y + D2[1] * 30, z: 0, color: VIOLET, scale: 0.45 });
-axis2T.sprite.visible = false;
-
 // ---- 投影池：每点投影线（玫瑰）+ 投影点（金），t = (p-μ)·e₁ ----
 const T = PTS.map(([x, y]) => (x - 3) * E1[0] + (y - 3.2) * E1[1]);
 const projPts = T.map(t => ({ x: 320 + t * E1[0] * SC, y: 380 - t * E1[1] * SC }));
@@ -71,7 +66,6 @@ function resetAll() {
   pts.forEach(n => n.setColor(PALETTE.node, PALETTE.nodeEmissive));
   axis1.mesh.visible = false; axis2.mesh.visible = false;
   arrow1.visible = false; arrow2.visible = false;
-  axis1T.sprite.visible = false; axis2T.sprite.visible = false;
   projLines.forEach(l => (l.mesh.visible = false));
   projDots.forEach((d, i) => { d.mesh.position.set(WX(PTS[i][0]), WY(PTS[i][1]), 0); d.mesh.visible = false; });
 }
@@ -83,12 +77,12 @@ function* runPca() {
   yield S(() => { status.textContent = '样本均值 μ=(3, 3.2)（黄块）；去中心化后协方差矩阵 Σ = [[2.5, 2.5], [2.5, 3.7]]，对角线=各轴方差、非对角线=相关性'; });
   yield W(950);
   yield S(() => {
-    axis1.mesh.visible = true; arrow1.visible = true; axis1T.sprite.visible = true;
+    axis1.mesh.visible = true; arrow1.visible = true;
     status.textContent = '特征分解：λ₁=5.67 → 特征向量 (0.619, 0.785)（蓝轴=第一主成分，数据最分散的方向）';
   });
   yield W(800);
   yield S(() => {
-    axis2.mesh.visible = true; arrow2.visible = true; axis2T.sprite.visible = true;
+    axis2.mesh.visible = true; arrow2.visible = true;
     status.textContent = 'λ₂=0.53 → 特征向量 (-0.785, 0.619)（紫轴=第二主成分，与第一主成分正交）；λ₁/(λ₁+λ₂) = 91.5%，只丢 8.5% 方差即可降一维';
   });
   yield W(800);

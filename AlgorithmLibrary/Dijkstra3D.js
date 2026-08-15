@@ -124,6 +124,7 @@ function* runDijkstra() {
   yield* dijkstraGen();
 }
 
+buildGraph();
 engine.queue(() => runDijkstra());
 panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
 

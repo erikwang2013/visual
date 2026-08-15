@@ -145,6 +145,7 @@ function* heapGen() {
   yield W(400);
 }
 
+nodes[0].mesh.scale.setScalar(1);  // 初始化默认演示体：首个堆节点
 function* runHeap() {
   resetAll();
   yield W(300);

@@ -133,6 +133,7 @@ function* leftistGen() {
   yield W(400);
 }
 
+show(POOL[0]);  // 初始化默认演示体：首个堆节点
 function* runLeftist() {
   resetAll();
   yield W(400);

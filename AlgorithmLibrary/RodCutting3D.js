@@ -50,7 +50,6 @@ const cutLine = new VBox(scene, { w: 8, h: 96, d: 80, x: 90, y: ROD_Y, z: 0, lab
 cutLine.mesh.visible = false;
 const bin1 = new VBox(scene, { w: 180, h: 50, d: 50, x: 255, y: BIN_Y, z: 0, label: '', color: DIM, emissive: DIM });
 const bin2 = new VBox(scene, { w: 80, h: 50, d: 50, x: 440, y: BIN_Y, z: 0, label: '', color: DIM, emissive: DIM });
-const totalT = new VText(scene, { text: '', x: 620, y: BIN_Y, z: 0, color: GOLD, scale: 0.6 });
 
 function* rodGen() {
   yield S(() => { status.textContent = '钢条切割：一根长 ' + N + ' 的钢条可整卖（' + P[N] + ' 元）或切段卖。dp[i] = max(p[j] + dp[i−j])：第一刀切 j，剩下 i−j 交给子问题，小问题先算'; });
@@ -100,7 +99,6 @@ function* rodGen() {
     }
   });
   rod.forEach(r => r.mesh.scale.setScalar(0.6));
-  totalT.setText('总价 = ' + dp[N] + ' 元');
   yield S(() => { status.textContent = '装箱完成：段 ' + SEG + '（' + P[SEG] + ' 元）+ 段 ' + SEG2 + '（' + P[SEG2] + ' 元）= ' + dp[N] + ' 元 —— 整卖 ' + P[N] + ' 元，切割多赚 ' + (dp[N] - P[N]) + ' 元；按单价贪心切 4 段 2 只卖 20 元，贪心输给 DP'; });
   yield W(900);
   yield S(() => { status.textContent = 'RodCutting 演示完成：长 8 钢条最优切割 6+2，收益 22 元（整卖 20 元，切割多赚 2 元）；复杂度 O(n²)（n 段 × 每段试 n 刀）'; });
@@ -117,7 +115,6 @@ panel.addButton('清空', () => {
   cutLine.mesh.position.set(90, ROD_Y, 0);
   bin1.mesh.visible = false; bin2.mesh.visible = false;
   bin1.setText(''); bin2.setText('');
-  totalT.setText('');
   status.textContent = '';
 });
 

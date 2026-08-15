@@ -22,7 +22,8 @@ const pts = PTS.map(p => new VNode(scene, { radius: 13, x: p[0] + 320, y: p[1] +
 // 拟合线：预建 X 向细管（长 540），运行期仅改 scale/rotation/position
 const lineCurve = new THREE.CatmullRomCurve3([new THREE.Vector3(-270, 0, 0), new THREE.Vector3(270, 0, 0)]);
 const line = new THREE.Mesh(new THREE.TubeGeometry(lineCurve, 4, 3, 6, false), new THREE.MeshBasicMaterial({ color: PALETTE.highlight }));
-line.visible = false;
+line.visible = true;  // 初始化默认演示体：数据点 + 拟合线
+line.scale.x = 0.001;
 scene.add(line);
 // 残差虚线池：每点 4 段（段为 Y 向细管长 40），峰值 9×4 = 36、池 37
 const SEGS = 4, SEG_LEN = 40, FRAC = [0.125, 0.375, 0.625, 0.875];
@@ -43,10 +44,6 @@ for (let i = 0; i < N; i++) {
   scene.add(t);
   resPool.push(t);
 }
-// 参数徽标（数据标签）
-const eqT = new VText(scene, { text: '', x: 60, y: 570, z: 0, color: PALETTE.textGlow, scale: 0.55 });
-const lossT = new VText(scene, { text: '', x: 60, y: 520, z: 0, color: PALETTE.textDim, scale: 0.5 });
-
 // 预计算梯度下降轨迹：坐标归一化到 [-1,1] 保证收敛，采样时还原为显示值
 const X = PTS.map(([x, y]) => [x / 240, y / 240]);
 let w = 0, b = 0;
@@ -94,8 +91,6 @@ function resetAll() {
   line.scale.x = 0.001;
   line.rotation.z = 0;
   line.position.set(320, 330, 0);
-  eqT.setText('');
-  lossT.setText('');
 }
 
 function* runLR() {
@@ -115,8 +110,6 @@ function* runLR() {
     if (i === 1 || i === 2 || i === 5 || i === steps.length - 1) {
       const desc = i === 1 ? ' —— 一步大梯度直抵最优附近' : (i === 2 ? ' —— 已收敛（梯度≈0），继续微调' : (i === 5 ? ' —— 残差平方均值已最小' : ' —— 最终参数'));
       yield S(() => {
-        eqT.setText('y = ' + s.w.toFixed(2) + 'x + ' + s.b.toFixed(1));
-        lossT.setText('MSE = ' + s.mse.toFixed(1));
         status.textContent = '迭代 ' + (i * 30) + '：w = ' + s.w.toFixed(3) + '、b = ' + s.b.toFixed(1) + '，MSE = ' + s.mse.toFixed(1) + desc;
       });
       yield W(650);

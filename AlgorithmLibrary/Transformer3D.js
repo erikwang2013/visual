@@ -45,11 +45,6 @@ const lines = [TX[0], TX[1], TX[3], TX[4]].map(mkLine);
 const ring = new VTorus(scene, { radius: 26, x: TX[QUERY], y: TOK_Y, z: 0, color: GOLD });
 ring.mesh.visible = false;
 
-new VText(scene, { text: 'K 键 = V 值', x: 40, y: 510, z: 0, color: PALETTE.textDim, scale: 0.5 });
-new VText(scene, { text: '得分 s', x: 40, y: 380, z: 0, color: PALETTE.textDim, scale: 0.5 });
-new VText(scene, { text: 'softmax α', x: 40, y: 315, z: 0, color: PALETTE.textDim, scale: 0.5 });
-new VText(scene, { text: '输出', x: 40, y: 250, z: 0, color: PALETTE.textDim, scale: 0.5 });
-
 const wCol = w => (w >= 0.25 ? GOLD : w >= 0.1 ? ORANGE : DIM);
 const wEm = w => (wCol(w) === DIM ? 0 : wCol(w));
 

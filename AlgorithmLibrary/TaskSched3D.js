@@ -2,7 +2,7 @@
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('TaskSched3D');
 
@@ -38,8 +38,7 @@ const tsSteps = (() => {
 const FIN = tsSteps[tsSteps.length - 1];
 
 const tasksV = TASKS.map(t => ({
-  box: new VBox(scene, { w: 130, h: 56, d: 40, x: -10, y: t.y, z: 0, label: t.id, color: DIM, emissive: DIM }),
-  info: new VText(scene, { text: '利润 ' + t.p + ' · 截止 ' + t.d, x: -10, y: t.y - 42, z: 0, color: PALETTE.textDim, scale: 0.5 })
+  box: new VBox(scene, { w: 130, h: 56, d: 40, x: -10, y: t.y, z: 0, label: t.id, color: DIM, emissive: DIM })
 }));
 const slotBox = [1, 2, 3].map(i =>
   new VBox(scene, { w: 90, h: 60, d: 60, x: 400 + (i - 1) * 110, y: 330, z: 0, label: '槽' + i, color: DIM, emissive: DIM }));

@@ -21,7 +21,6 @@ const EDGE_LIST = [[0, 1], [1, 2], [2, 0], [2, 3], [3, 4], [4, 5], [5, 3]];
 const nodeView = new Map();
 const edgeView = new Map();   // 'a-b'(a<b) -> { tube }
 const dlView = new Map();     // i -> dfn/low 标签
-const tagView = new Map();    // i -> 割点标签
 let dfn = [], low = [], parent = [], state = [], cut = [], timer = 0;
 const bridgeList = [];
 const cutList = [];
@@ -44,9 +43,6 @@ function buildGraph() {
     const dT = new VText(scene, { text: '', x: 0, y: 46, z: 0, color: CYAN, scale: 0.58 });
     vn.mesh.add(dT.sprite);
     dlView.set(i, dT);
-    const tT = new VText(scene, { text: '', x: 0, y: -48, z: 0, color: RED, scale: 0.55 });
-    vn.mesh.add(tT.sprite);
-    tagView.set(i, tT);
   }
   for (const [u, v] of EDGE_LIST) {
     const a = new THREE.Vector3(...POS[u]), b = new THREE.Vector3(...POS[v]);
@@ -90,7 +86,6 @@ function* dfs(u) {
       if (parent[u] === -1 ? childCnt > 1 : low[v] >= dfn[u]) {
         cut[u] = true;
         setNodeColor(u, RED);
-        tagView.get(u).setText('割点');
         if (!cutList.includes(u)) cutList.push(u);
         yield S(() => { status.textContent = u + ' 是割点' + (parent[u] === -1 ? '（根且有 ' + childCnt + ' 棵子树）' : '（low[' + v + ']=' + low[v] + ' ≥ dfn[' + u + ']=' + dfn[u] + '）'); });
         yield W(380);
@@ -136,6 +131,7 @@ function* runBiconnected() {
   yield* biconnectedGen();
 }
 
+buildGraph();
 engine.queue(() => runBiconnected());
 panel.addButton('清空', () => { engine.clear(); buildGraph(); status.textContent = ''; });
 

@@ -370,6 +370,52 @@ function* runBTree() {
   });
 }
 
+// 默认演示体：加载即显示插完 9 键的完整 B 树（点播放后 runBTree 会 clearView 重建）
+(function buildDefault() {
+  const splitModel = n => {
+    const mid = Math.floor(n.keys.length / 2);
+    const promoted = n.keys[mid];
+    const right = mkNode();
+    right.keys = n.keys.slice(mid + 1);
+    right.parent = n.parent;
+    if (n.children.length) {
+      right.children = n.children.slice(mid + 1);
+      for (const c of right.children) c.parent = right;
+      n.children = n.children.slice(0, mid + 1);
+    }
+    n.keys = n.keys.slice(0, mid);
+    if (!n.parent) {
+      const nr = mkNode();
+      nr.keys = [promoted]; nr.children = [n, right];
+      n.parent = nr; right.parent = nr;
+      root = nr;
+    } else {
+      const parent = n.parent;
+      let i = 0; while (i < parent.keys.length && parent.keys[i] < promoted) i++;
+      parent.keys.splice(i, 0, promoted);
+      parent.children.splice(i + 1, 0, right);
+      if (parent.keys.length > MAX) splitModel(parent);
+    }
+  };
+  const ins = key => {
+    if (!root) { root = mkNode(); root.keys.push(key); return; }
+    let n = root;
+    while (n.children.length) {
+      let i = 0; while (i < n.keys.length && n.keys[i] < key) i++;
+      n = n.children[i];
+    }
+    let i = 0; while (i < n.keys.length && n.keys[i] < key) i++;
+    n.keys.splice(i, 0, key);
+    if (n.keys.length > MAX) splitModel(n);
+  };
+  [20, 10, 30, 5, 15, 25, 35, 12, 18].forEach(ins);
+  const pos = layout();
+  for (const [id] of model) {
+    const g = addNodeVis(model.get(id), pos.get(id));
+    g.scale.setScalar(1);
+  }
+  syncEdges();
+})();
 engine.queue(() => runBTree());
 panel.addButton('清空', () => { engine.clear(); clearView(); root = null; status.textContent = ''; });
 

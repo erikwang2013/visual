@@ -39,10 +39,6 @@ const L1 = [], L2 = [];
 for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) L1.push(mkLink(LX, NODE_Y(i), HX, NODE_Y(j)));
 for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) L2.push(mkLink(HX, NODE_Y(i), OX, OUT_Y(j)));
 
-new VText(scene, { text: '输入层', x: LX, y: 730, z: 0, color: PALETTE.textDim, scale: 0.5 });
-new VText(scene, { text: '隐藏层 σ', x: HX, y: 730, z: 0, color: PALETTE.textDim, scale: 0.5 });
-new VText(scene, { text: '输出层 softmax', x: OX, y: 730, z: 0, color: PALETTE.textDim, scale: 0.5 });
-
 function resetAll() {
   [...L1, ...L2].forEach(b => { b.mesh.visible = false; b.setColor(DIM, 0); });
   inN.forEach((n, i) => { n.setColor(BLUE, BLUE); n.setText('x' + (i + 1) + '=' + X_VAL[i]); });

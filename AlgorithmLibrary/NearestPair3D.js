@@ -79,7 +79,7 @@ function* nearestPairGen() {
   yield S(() => { status.textContent = '暴力需 C(8,2)=28 次距离计算；分治：一分为二、各自递归、最后合并 —— 合并很便宜'; });
   yield W(600);
   const all = [];
-  yield S(() => { status.textContent = '全部 8 个点就位（带坐标标签），中线 x=4 把平面劈成左右两半'; });
+  yield S(() => { clearAll(); status.textContent = '全部 8 个点就位（带坐标标签），中线 x=4 把平面劈成左右两半'; });
   PTS.forEach(p => all.push(addNode(p, DIM)));
   const mid = addLine([320, 450, 0], [320, 130, 0], CYAN, 0.35);
   yield* popNodes(all);
@@ -158,6 +158,8 @@ function* nearestPairGen() {
   yield W(900);
 }
 
+clearAll();
+PTS.forEach(p => addNode(p, DIM));   // 加载即显示演示体，点播放才动画
 engine.queue(() => nearestPairGen());
-panel.addButton('清空', () => { engine.clear(); clearAll(); status.textContent = ''; });
+panel.addButton('清空', () => { engine.clear(); clearAll(); PTS.forEach(p => addNode(p, DIM)); status.textContent = ''; });
 scene.start(engine);

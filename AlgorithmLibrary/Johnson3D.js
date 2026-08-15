@@ -142,6 +142,7 @@ function* runJohnson() {
   yield* johnsonGen();
 }
 
+buildGraph();  // 初始化默认演示体：带边权的图
 engine.queue(() => runJohnson());
 panel.addButton('清空', () => { engine.clear(); clearView(); buildGraph(); status.textContent = ''; });
 

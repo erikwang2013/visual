@@ -123,7 +123,13 @@ function* clipGen(poly, st) {
   return out;
 }
 
+// 初始化默认演示体：初始正方形 R0（播放时 clearTemp 重建）
+const initView = drawPoly(R0, BLUE);
+initView.nodes.forEach(vn => vn.mesh.scale.setScalar(1));
+initView.edges.forEach(e => (e.tube.material.opacity = 0.55));
+
 function* halfPlaneGen() {
+  clearTemp();
   yield S(() => { status.textContent = '初始：正方形 R0 = [−1,5]×[−1,5]，4 条直线逐刀裁剪（Sutherland–Hodgman）'; });
   yield W(700);
   let poly = R0;

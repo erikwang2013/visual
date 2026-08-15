@@ -24,8 +24,6 @@ PTS.forEach((p, i) => {
   nodePool.push(new VNode(scene, { radius: 17, x: PX(p[0]), y: PY(p[1]), z: 0, label: String(i), color: p[2] ? GREEN : ROSE, emissive: p[2] ? GREEN : ROSE }));
   wPool.push(new VText(scene, { text: '0.167', x: PX(p[0]), y: PY(p[1]) - 42, z: 0, color: PALETTE.textDim, scale: 0.5 }));
 });
-const lblPos = new VText(scene, { text: '正样本', x: 66, y: 640, z: 0, color: GREEN, scale: 0.5 });
-const lblNeg = new VText(scene, { text: '负样本', x: 66, y: 600, z: 0, color: ROSE, scale: 0.5 });
 
 // 弱学习器分界线池：① x₁=1.5 竖线（黄）；② x₂=0.5 横线（黄）
 const vLine = new VBox(scene, { w: 5, h: 230, d: 5, x: 295, y: 610, z: 0, label: '', color: YELLOW, emissive: YELLOW });

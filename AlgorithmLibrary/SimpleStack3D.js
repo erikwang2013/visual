@@ -2,7 +2,7 @@
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VText, VBox } from '../3D/VisualObject3D.js';
+import { VBox } from '../3D/VisualObject3D.js';
 import { applyTheme } from '../3D/Glow.js';
 applyTheme('SimpleStack3D');
 
@@ -17,20 +17,17 @@ const SIZE = 10;
 const slotY = i => 250 + i * 44;
 const slots = [];
 for (let i = 0; i < SIZE; i++) slots.push(new VBox(scene, { w: 46, h: 46, d: 46, x: 320, y: slotY(i), z: 0, label: '', color: DIM, emissive: DIM }));
-const topInd = new VText(scene, { text: 'top=空', x: 405, y: slotY(-1) + 40, z: 0, color: GOLD, scale: 0.55 });
 
 let top = -1;
 
 function setSlot(i, v, c) { slots[i].setText(String(v)); slots[i].setColor(c, c); }
 function clearSlot(i) { slots[i].setText(''); slots[i].setColor(DIM, DIM); }
-function moveTop() { topInd.moveTo(405, slotY(top) + 40, 0, 350); topInd.setText(top === -1 ? 'top=空' : 'top=' + top); }
 function stackVals() { const a = []; for (let i = 0; i <= top; i++) a.push(slots[i].text); return a.join(' → ') || '空'; }
 
 function* push(v) {
   yield S(() => { status.textContent = 'push(' + v + ')：top 上移一格，写入栈顶'; });
   yield W(400);
   top++;
-  moveTop();
   yield W(350);
   setSlot(top, v, GOLD);
   yield S(() => { status.textContent = v + ' 写入槽 ' + top + '（金）—— 栈 = ' + stackVals(); });
@@ -46,7 +43,6 @@ function* pop() {
   yield W(450);
   clearSlot(top);
   top--;
-  moveTop();
   yield S(() => { status.textContent = v + ' 弹出，top 下移 —— 栈 = ' + stackVals(); });
   yield W(450);
 }
@@ -76,6 +72,6 @@ function* runStack() {
 }
 
 engine.queue(() => runStack());
-panel.addButton('清空', () => { engine.clear(); for (let i = 0; i < SIZE; i++) clearSlot(i); top = -1; moveTop(); status.textContent = ''; });
+panel.addButton('清空', () => { engine.clear(); for (let i = 0; i < SIZE; i++) clearSlot(i); top = -1; status.textContent = ''; });
 
 scene.start(engine);

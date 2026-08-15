@@ -68,10 +68,6 @@ function mkEntry(kind) {
   box.scale.x = 0.9; g.add(box);
   const lbl = new VText(scene, { text: '', x: 0, y: 0, z: 10, color: '#ffffff', scale: 0.62 });
   scene.remove(lbl.sprite); g.add(lbl.sprite);
-  if (kind === 'leaf') {
-    const tag = new VText(scene, { text: '叶', x: 0, y: 36, z: 0, color: '#94a3b8', scale: 0.5 });
-    scene.remove(tag.sprite); g.add(tag.sprite);
-  }
   g.scale.setScalar(0.01); g.visible = false; scene.add(g);
   const e = { g, box, lbl, kind };
   (kind === 'leaf' ? leafPool : intPool).push(e);
@@ -178,6 +174,54 @@ function* flyLabel(text, from, to) {
 for (let i = 0; i < 8; i++) mkEntry('leaf');
 for (let i = 0; i < 6; i++) mkEntry('int');
 resetFree();
+
+// 默认演示体：加载即显示插完 11 键的完整 B+ 树（点播放后 runBPlus 会清空重建）
+(function buildDefault() {
+  const splitModel = n => {
+    const mid = Math.floor(n.keys.length / 2);
+    const promoted = n.keys[mid];
+    const right = n.isLeaf ? mkLeaf() : mkInternal();
+    right.keys = n.keys.slice(n.isLeaf ? mid : mid + 1);
+    if (n.isLeaf) { right.next = n.next; n.next = right; }
+    else {
+      right.parent = n.parent;
+      right.children = n.children.slice(mid + 1);
+      for (const c of right.children) c.parent = right;
+      n.children = n.children.slice(0, mid + 1);
+    }
+    n.keys = n.keys.slice(0, mid);
+    if (!n.parent) {
+      const nr = mkInternal();
+      nr.keys = [promoted]; nr.children = [n, right];
+      n.parent = nr; right.parent = nr;
+      root = nr;
+    } else {
+      const parent = n.parent;
+      let i = 0; while (i < parent.keys.length && parent.keys[i] < promoted) i++;
+      parent.keys.splice(i, 0, promoted);
+      parent.children.splice(i + 1, 0, right);
+      right.parent = parent;
+      if (parent.keys.length > MAX) splitModel(parent);
+    }
+  };
+  const ins = key => {
+    if (!root) { root = mkLeaf(); leafHead = root; root.keys.push(key); return; }
+    let n = root;
+    while (!n.isLeaf) { let i = 0; while (i < n.keys.length && n.keys[i] < key) i++; n = n.children[i]; }
+    let i = 0; while (i < n.keys.length && n.keys[i] < key) i++;
+    n.keys.splice(i, 0, key);
+    if (n.keys.length > LMAX) splitModel(n);
+  };
+  [20, 10, 30, 5, 15, 25, 35, 12, 18, 17, 33].forEach(ins);
+  const pos = layout();
+  for (const [id] of model) {
+    const n = model.get(id), p = pos.get(id);
+    if (!p) continue;
+    const g = addNodeVis(n, p);
+    if (g) g.scale.setScalar(1);
+  }
+  syncEdges();
+})();
 
 // ---- 插入：下钻 → 写叶 → 叶分裂（副本键上移）→ 内部级联 ----
 function* insertGen(key) {

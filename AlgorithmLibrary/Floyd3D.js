@@ -44,7 +44,7 @@ function buildMatrix() {
       const p = cellPos(r, c);
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(70, 52, 22), new THREE.MeshBasicMaterial({ color: WHITE }));
       mesh.position.copy(p);
-      mesh.scale.setScalar(0.01);
+      mesh.scale.setScalar(1);
       scene.add(mesh);
       const lbl = new VText(scene, { text: fmt(D[r][c]), x: p.x, y: p.y, z: 12, color: '#ffffff', scale: 0.55 });
       cells.set(r + ',' + c, { mesh, lbl });
@@ -115,6 +115,8 @@ function* runFloyd() {
   yield* floydGen();
 }
 
+D = W0.map(row => row.slice());
+buildMatrix();  // 初始化默认演示体：邻接矩阵，点播放才动画
 engine.queue(() => runFloyd());
 panel.addButton('清空', () => { engine.clear(); D = W0.map(row => row.slice()); buildMatrix(); resetMatrixColors(); status.textContent = ''; });
 

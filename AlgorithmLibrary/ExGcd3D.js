@@ -30,14 +30,12 @@ const aBox = mkBox(140, CYAN, 'a = ' + GA);
 const bBox = mkBox(260, CYAN, 'b = ' + GB);
 const qBox = mkBox(380, AMBER, 'q = ?');
 const rBox = mkBox(500, ROSE, 'r = ?');
-const gcdT = new VText(scene, { text: '', x: 320, y: 560, z: 0, color: GOLD, scale: 0.85 });
 
 function resetAll() {
   aBox.setText('a = ' + GA); bBox.setText('b = ' + GB);
   qBox.setText('q = ?'); rBox.setText('r = ?');
   aBox.setColor(CYAN, CYAN); bBox.setColor(CYAN, CYAN);
   qBox.setColor(AMBER, AMBER); rBox.setColor(ROSE, ROSE);
-  gcdT.setText('');
 }
 
 function* exgcdGen() {
@@ -53,7 +51,6 @@ function* exgcdGen() {
     yield W(600);
   }
   yield S(() => {
-    gcdT.setText('gcd(' + GA + ', ' + GB + ') = ' + GCD);
     status.textContent = '余数为 0，停止：最后的非零余数 ' + GCD + ' 即最大公约数';
   });
   yield W(600);

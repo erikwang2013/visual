@@ -53,10 +53,6 @@ divider.position.set(19, 420, 0);
 scene.add(divider);
 const ball = new VNode(scene, { radius: 10, x: 40, y: 330, z: 0, color: GOLD, emissive: GOLD });
 
-// ---- ✕ 失配标记 ----
-const xMark = new VText(scene, { text: '✕', x: 0, y: 368, z: 10, color: RED, scale: 0.7 });
-xMark.sprite.visible = false;
-
 // ---- chip 行：6 盒 + 6 文本，初始全隐 ----
 const chipBox = CHIP_TXT.map((_, k) => {
   const c = new VBox(scene, { w: 104, h: 36, d: 18, x: (k - 2.5) * 104 + 320, y: 560, z: 0, color: PALETTE.edge, emissive: PALETTE.edgeEmissive });
@@ -113,7 +109,6 @@ const flyParts = [0, 1, 2].map(() => new THREE.Vector3());
 const flyParticles = (curve, ms) => A(ms, p => parts.forEach((v, i) => v.position.copy(curve.getPoint((p + i * 0.18) % 1, flyParts[i]))));
 const resetSearch = () => {
   box.forEach((b, k) => b.setColor(consumed.includes(k) ? GREEN : PALETTE.node, consumed.includes(k) ? GREEN : PALETTE.nodeEmissive));
-  xMark.sprite.visible = false;
 };
 function resetAll() {
   consumed.length = 0;
@@ -126,7 +121,6 @@ function resetAll() {
   ball.mesh.position.set(40, 330, 0);
   chipBox.forEach(c => { c.mesh.visible = false; });
   chipText.forEach(c => { c.sprite.visible = false; });
-  xMark.sprite.visible = false;
   fxGroup.visible = false;
 }
 
@@ -151,9 +145,9 @@ function* runLZ77() {
   yield W(100);
   yield S(() => { box[1].setColor(GOLD, GOLD); box[2].setColor(GOLD, GOLD); });
   yield W(350);
-  yield S(() => { box[1].setColor(RED, RED); box[2].setColor(RED, RED); xMark.sprite.position.set(120, 368, 10); xMark.sprite.visible = true; status.textContent = '③ 偏移 1：源 [1]="B" ≠ 目标 [2]="A" → 失配'; });
+  yield S(() => { box[1].setColor(RED, RED); box[2].setColor(RED, RED); status.textContent = '③ 偏移 1：源 [1]="B" ≠ 目标 [2]="A" → 失配'; });
   yield W(450);
-  yield S(() => { box[1].setColor(GREEN, GREEN); box[2].setColor(PALETTE.node, PALETTE.nodeEmissive); xMark.sprite.visible = false; });
+  yield S(() => { box[1].setColor(GREEN, GREEN); box[2].setColor(PALETTE.node, PALETTE.nodeEmissive); });
   yield W(100);
   yield S(() => { for (let k = 0; k <= 5; k++) box[k].setColor(GOLD, GOLD); status.textContent = '③ 偏移 2：源 [0..1]="AB" ↔ 目标 [2..5]，连中 4 位'; });
   yield W(500);

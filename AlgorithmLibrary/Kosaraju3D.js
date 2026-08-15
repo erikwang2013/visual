@@ -166,6 +166,7 @@ function* runKosaraju() {
   yield* kosarajuGen();
 }
 
+buildGraph();  // 初始化默认演示体：有向图
 engine.queue(() => runKosaraju());
 panel.addButton('清空', () => { engine.clear(); clearView(); buildGraph(); status.textContent = ''; });
 

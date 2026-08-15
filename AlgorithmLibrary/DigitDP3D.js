@@ -45,8 +45,6 @@ const uBadge = Array.from({ length: 10 }, (_, d) => {
 const countT = new VText(scene, { text: '累计 0', x: 470, y: 430, z: 10, color: GOLD, scale: 0.55 });
 const ansBox = new VBox(scene, { w: 56, h: 56, d: 56, x: 320, y: 360, z: 0, label: '72', color: GOLD, emissive: GOLD });
 ansBox.mesh.visible = false;
-const ansT = new VText(scene, { text: '1..89 = 71', x: 470, y: 360, z: 10, color: GOLD, scale: 0.5 });
-ansT.sprite.visible = false;
 
 // ---- 十位累计序列（BigInt 核验硬编码，勿运行时计算） ----
 const CNT = ['9', '18', '27', '36', '45', '54', '63'];
@@ -61,7 +59,6 @@ function resetAll() {
   uBadge.forEach(t => { t.sprite.visible = false; });
   countT.setText('累计 0');
   ansBox.mesh.visible = false; ansBox.setText('72'); ansBox.setColor(GOLD, GOLD);
-  ansT.sprite.visible = false;
 }
 
 function* runDigitDP() {
@@ -128,10 +125,9 @@ function* runDigitDP() {
     status.textContent = '累计 72 个含 0（十位 0 个位 0 的数即 0 本身）；区间从 1 开始 → 减 1';
   });
   yield W(800);
-  // E2 答案「71」（setText 后重施 GOLD）+ ansT 显示
+  // E2 答案「71」（setText 后重施 GOLD）
   yield S(() => {
     ansBox.setText('71'); ansBox.setColor(GOLD, GOLD);
-    ansT.sprite.visible = true;
     status.textContent = '答案：1..89 中不含数字 7 的数 = 71';
   });
   yield W(1000);

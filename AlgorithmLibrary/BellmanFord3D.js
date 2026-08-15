@@ -124,6 +124,7 @@ function* runBF() {
   yield S(() => { status.textContent = 'Bellman-Ford 演示完成：复杂度 O(VE)，第 V 轮仍更新则存在负环'; });
 }
 
+buildGraph();
 engine.queue(() => runBF());
 panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
 

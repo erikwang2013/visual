@@ -17,7 +17,6 @@ const status = panel.addStatus('就绪');
 const padChips = [110, 320, 530].map((x, i) => new VBox(scene, { w: 200, h: 52, d: 52, x, y: 690, z: 0, label: ['消息 "abc"', '填充：补 1 + 补 0 + 64 位长度', '512 位分组'], color: [BLUE, CYAN, PUR][i], emissive: [BLUE, CYAN, PUR][i] }));
 const roundBoxes = [80, 240, 400, 560].map((x, i) => new VBox(scene, { w: 160, h: 58, d: 58, x, y: 565, z: 0, label: ['F：轮 1~16', 'G：轮 17~32', 'H：轮 33~48', 'I：轮 49~64'][i], color: DIM, emissive: DIM }));
 const regChips = [80, 240, 400, 560].map((x, i) => new VBox(scene, { w: 110, h: 56, d: 56, x, y: 430, z: 0, label: ['A','B','C','D'][i], color: GOLD, emissive: GOLD }));
-const stepT = new VText(scene, { text: '第 1 步', x: 320, y: 470, z: 0, color: GOLD, scale: 0.55 });   // 阶段徽章
 
 const FN = [
   'F(x,y,z) = (x∧y)∨(¬x∧z)',
@@ -37,7 +36,6 @@ function* md5Gen() {
   for (let r = 1; r <= 64; r++) {
     const round = Math.floor((r - 1) / 16);
     roundBoxes[round].setColor(WHITE, WHITE);
-    stepT.setText('第 ' + r + ' 步');
     yield S(() => { status.textContent = '第 ' + r + '/64 步（' + ['F','G','H','I'][round] + ' 轮）：' + FN[round].replace(/x/g, 'b').replace(/y/g, 'c').replace(/z/g, 'd') + '；a = b + ((a + ' + ['F','G','H','I'][round] + '(b,c,d) + M[' + ((r - 1) % 16) + '] + K[' + r + ']) <<< ' + SHIFTS[r - 1] + ')'; });
     yield W(44);
     roundBoxes[round].setColor(DIM, DIM);
@@ -48,7 +46,7 @@ function* md5Gen() {
   yield W(1100);
   yield S(() => { status.textContent = '现状：仍用于文件完整性校验、CDN ETag（低对抗场景）；安全哈希请用 SHA-256/3；复杂度 O(n)，每 64 字节分组 64 步'; });
   yield W(1100);
-  yield S(() => { status.textContent = 'MD5 演示完成：填充 → 64 步压缩 → 128 位摘要'; stepT.setText(''); });
+  yield S(() => { status.textContent = 'MD5 演示完成：填充 → 64 步压缩 → 128 位摘要'; });
   yield W(400);
 }
 
@@ -61,7 +59,6 @@ engine.queue(() => runMD5());
 panel.addButton('清空', () => {
   engine.clear();
   roundBoxes.forEach(c => c.setColor(DIM, DIM));
-  stepT.setText('第 1 步');
   status.textContent = '';
 });
 

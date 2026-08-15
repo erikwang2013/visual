@@ -16,9 +16,6 @@ const ease = p => p * p * (3 - 2 * p);
 
 const SX = [80, 240, 400, 560], SY = 460;
 const states = SX.map((x, i) => new VBox(scene, { w: 80, h: 80, d: 80, x, y: SY, z: 0, label: 's' + i, color: i === 3 ? GREEN : DIM, emissive: i === 3 ? GREEN : 0 }));
-new VText(scene, { text: '终点 +10', x: 560, y: 570, z: 0, color: GREEN, scale: 0.55 });
-new VText(scene, { text: '起点', x: 80, y: 570, z: 0, color: PALETTE.textDim, scale: 0.5 });
-
 // 动作箭头（蓝=右行，红=左行）
 const mkArrow = (x1, x2, y, color, lbl) => {
   const b = new VBox(scene, { w: 150, h: 6, d: 6, x: (x1 + x2) / 2, y, z: 0, label: lbl, color, emissive: color });

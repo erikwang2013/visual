@@ -33,8 +33,6 @@ const chars = S1.split('').map((ch, k) =>
   new VBox(scene, { w: 54, h: 54, d: 54, x: CX(k), y: 470, z: 0, label: ch, color: DIM, emissive: DIM }));
 const codes = S1.split('').map((_, k) =>
   new VText(scene, { text: '', x: CX(k), y: 500, z: 0, color: PALETTE.textDim, scale: 0.42 }));
-const regT = new VText(scene, { text: 'hash 寄存器（32 位）', x: 320, y: 255, z: 0, color: PALETTE.textDim, scale: 0.55 });
-const hT = new VText(scene, { text: 'h = 0', x: 320, y: 382, z: 0, color: GOLD, scale: 0.66 });
 const bits = [...Array(BITS)].map((_, b) =>
   new VBox(scene, { w: 11, h: 11, d: 11, x: 103 + b * 14, y: 300, z: 0, label: b % 4 === 0 ? String(BITS - 1 - b) : '', color: DIM, emissive: DIM }));
 
@@ -48,7 +46,6 @@ function resetAll() {
   chars.forEach((c, k) => { c.setColor(DIM, DIM); c.setText(S1[k]); });
   codes.forEach(t => t.setText(''));
   setBits(0);
-  hT.setText('h = 0');
 }
 
 function* bkdrGen() {
@@ -68,7 +65,6 @@ function* bkdrGen() {
     yield S(() => {
       chars[t].setColor(GOLD, GOLD);
       setBits(s.h);
-      hT.setText('h = ' + s.h);
       status.textContent = '滚入完成：h = ' + s.h + ' —— 乘 31 ≈ 左移 5 位再减自身，前序字符的贡献随位次保留，永不丢失';
     });
     yield W(650);
@@ -79,7 +75,6 @@ function* bkdrGen() {
     chars.forEach((c, k) => { c.setColor(DIM, DIM); c.setText(S2[k]); });
     codes.forEach(t => t.setText(''));
     setBits(0);
-    hT.setText('h = 0');
     status.textContent = '「world」开始：第 1 字符 w（码 119）滚入';
   });
   yield W(500);
@@ -94,7 +89,6 @@ function* bkdrGen() {
     yield S(() => {
       chars[t].setColor(GOLD, GOLD);
       setBits(s.h);
-      hT.setText('h = ' + s.h);
       status.textContent = '滚入完成：h = ' + s.h;
     });
     yield W(650);

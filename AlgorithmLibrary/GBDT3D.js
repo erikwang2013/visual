@@ -25,8 +25,8 @@ Y.forEach((v, i) => {
   yBars.push(new VBar(scene, { w: 52, d: 52, x: XS[i], y: 300, z: 0, height: 0, color: GREEN, emissive: GREEN }));
   yVals.push(new VText(scene, { text: String(v), x: XS[i], y: v * 8 + 318, z: 0, color: PALETTE.textGlow, scale: 0.55 }));
 });
+yBars.forEach((b, i) => b.setHeight(Y[i] * 8));  // 初始化默认演示体：真实值绿条
 const axis = new VBox(scene, { w: 640, h: 2, d: 2, x: 320, y: 300, z: 0, label: '', color: DIM, emissive: 0 });
-const yTitle = new VText(scene, { text: '样本 y₁ ~ y₄', x: 80, y: 288, z: 0, color: PALETTE.textDim, scale: 0.55 });
 
 const f0Line = new VBox(scene, { w: 620, h: 3, d: 3, x: 320, y: 352, z: 0, label: '', color: BLUE, emissive: BLUE });
 f0Line.mesh.visible = false;
@@ -44,9 +44,6 @@ const rVals = R1.map((r, i) => {
   t.sprite.visible = false;
   return t;
 });
-const rTitle = new VText(scene, { text: '残差 r = y − f₀', x: 645, y: 296, z: 0, color: ROSE, scale: 0.55 });
-rTitle.sprite.visible = false;
-
 const leafL = new VBox(scene, { w: 180, h: 36, d: 36, x: 215, y: 245, z: 0, label: '', color: YELLOW, emissive: YELLOW });
 const leafR = new VBox(scene, { w: 180, h: 36, d: 36, x: 425, y: 245, z: 0, label: '', color: YELLOW, emissive: YELLOW });
 [leafL, leafR].forEach(b => (b.mesh.visible = false));
@@ -65,7 +62,6 @@ function resetAll() {
   f0Line.mesh.visible = false; f0Lbl.sprite.visible = false;
   rBars.forEach(b => { b.mesh.visible = false; b.setHeight(0); });
   rVals.forEach(t => (t.sprite.visible = false));
-  rTitle.sprite.visible = false;
   [leafL, leafR].forEach(b => { b.mesh.visible = false; b.mesh.scale.setScalar(1); });
   leafLt.sprite.visible = false; leafRt.sprite.visible = false;
   f1Bars.forEach(b => { b.mesh.visible = false; b.setHeight(0); });
@@ -86,7 +82,6 @@ function* runGBDT() {
   yield W(900);
   yield S(() => {
     rBars.forEach(b => (b.mesh.visible = true));
-    rTitle.sprite.visible = true;
     status.textContent = '第 3 步：决策树的目标换成残差 r = y − f₀（红条：真实值超出/低于蓝线的差距）';
   });
   yield W(300);

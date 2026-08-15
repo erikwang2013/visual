@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
+import { VNode, VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SM23D');
 
@@ -13,7 +13,6 @@ const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
 const status = panel.addStatus('就绪');
-const phaseT = new VText(scene, { text: '等待运行', x: 320, y: 310, z: 0, color: CYAN, scale: 0.55 });   // 阶段徽章（唯一场景文字：演示体标注）
 
 const chip = (v, x, y, color) => new VBox(scene, { w: 140, h: 50, d: 50, x, y, z: 0, label: v, color, emissive: color });
 const ptChips = [110, 250, 390, 530].map((x, i) => chip(['G = (3,6)', '2G = ?', 'P = d·G = ?', '阶 n = 5'][i], x, 720, [BLUE, DIM, DIM, PUR][i]));
@@ -45,21 +44,21 @@ const lamText = (P1, P2) => {
 };
 
 function* sm2Gen() {
-  yield S(() => { status.textContent = 'SM2 国密签名（GB/T 32918，Schnorr 风格）：toy 曲线 y² = x³ + 2x + 3 (mod 97)，G = (3,6)，阶 n = 5 —— 先求公钥 P = d·G'; phaseT.setText('求公钥 P = d·G'); });
+  yield S(() => { status.textContent = 'SM2 国密签名（GB/T 32918，Schnorr 风格）：toy 曲线 y² = x³ + 2x + 3 (mod 97)，G = (3,6)，阶 n = 5 —— 先求公钥 P = d·G' });
   yield W(900);
   const G = [GX, GY];
   const d = 3, z = 4, k = 1;
   const P2 = addPt(G, G);
   ptChips[1].setText('2G = (' + P2[0] + ',' + P2[1] + ')');
   ptChips[1].setColor(WHITE, WHITE);
-  yield S(() => { status.textContent = '2G = G + G：' + lamText(G, G) + ' = ' + ((3 * GX * GX + CA) % P_MOD) + '/' + ((2 * GY) % P_MOD) + ' mod 97 = 59 → (' + P2[0] + ',' + P2[1] + ')'; phaseT.setText('2G = G + G'); });
+  yield S(() => { status.textContent = '2G = G + G：' + lamText(G, G) + ' = ' + ((3 * GX * GX + CA) % P_MOD) + '/' + ((2 * GY) % P_MOD) + ' mod 97 = 59 → (' + P2[0] + ',' + P2[1] + ')' });
   yield W(850);
   const P3 = addPt(P2, G);
   ptChips[2].setText('P = 3G = (' + P3[0] + ',' + P3[1] + ')');
   ptChips[2].setColor(WHITE, WHITE);
-  yield S(() => { status.textContent = '3G = 2G + G：λ = 58 → (' + P3[0] + ',' + P3[1] + ') —— 公钥 P = d·G = 3G；4G = (3,91) = −G、5G = O 确认阶 n = 5'; phaseT.setText('公钥 P = 3G'); });
+  yield S(() => { status.textContent = '3G = 2G + G：λ = 58 → (' + P3[0] + ',' + P3[1] + ') —— 公钥 P = d·G = 3G；4G = (3,91) = −G、5G = O 确认阶 n = 5' });
   yield W(950);
-  yield S(() => { status.textContent = '签名：私钥 d = 3（红）、随机 k = 1（橙）、消息哈希 z = 4（青）；R = kG = 1·G = (3,6) → r = x(R) mod 5 = 3，s = k⁻¹(z + r·d) mod n'; phaseT.setText('签名'); });
+  yield S(() => { status.textContent = '签名：私钥 d = 3（红）、随机 k = 1（橙）、消息哈希 z = 4（青）；R = kG = 1·G = (3,6) → r = x(R) mod 5 = 3，s = k⁻¹(z + r·d) mod n' });
   yield W(900);
   const R = G;
   const r = R[0] % N;
@@ -69,9 +68,9 @@ function* sm2Gen() {
   const s = (z + r * d) * invMod(k, N) % N;
   sigChips[1].setText('s = ' + s);
   sigChips[1].setColor(WHITE, WHITE);
-  yield S(() => { status.textContent = 's = 1⁻¹·(4 + 3×3) mod 5 = 13 mod 5 = ' + s + ' —— 签名 (r,s) = (' + r + ',' + s + ') 随消息发送；k 必须每次换新，泄漏 k 即泄漏私钥 d（复用已被真实攻击）'; phaseT.setText('签名 (r,s)'); });
+  yield S(() => { status.textContent = 's = 1⁻¹·(4 + 3×3) mod 5 = 13 mod 5 = ' + s + ' —— 签名 (r,s) = (' + r + ',' + s + ') 随消息发送；k 必须每次换新，泄漏 k 即泄漏私钥 d（复用已被真实攻击）' });
   yield W(1000);
-  yield S(() => { status.textContent = '验签（只有公钥 P = (80,87)）：t = (r + s) mod n = ' + ((r + s) % N) + '；计算 sG + tP'; phaseT.setText('验签：t = (r+s) mod n'); });
+  yield S(() => { status.textContent = '验签（只有公钥 P = (80,87)）：t = (r + s) mod n = ' + ((r + s) % N) + '；计算 sG + tP' });
   yield W(850);
   const t = (r + s) % N;
   verChips[0].setText('t = (' + r + '+' + s + ') mod 5 = ' + t);
@@ -82,16 +81,16 @@ function* sm2Gen() {
   const res = addPt(sG, tP);
   verChips[1].setText('sG + tP = 3G + P = (' + res[0] + ',' + res[1] + ')');
   verChips[1].setColor(WHITE, WHITE);
-  yield S(() => { status.textContent = 'sG + tP = 3G + 1·P = 3G + 3G = 6G = G（阶 5）→ (' + res[0] + ',' + res[1] + ')，x = ' + res[0]; phaseT.setText('sG + tP'); });
+  yield S(() => { status.textContent = 'sG + tP = 3G + 1·P = 3G + 3G = 6G = G（阶 5）→ (' + res[0] + ',' + res[1] + ')，x = ' + res[0] });
   yield W(900);
   const ok = res[0] === r;
   verChips[2].setText(ok ? '验签通过 ✓' : '验签失败 ✗');
   verChips[2].setColor(ok ? GREEN : RED, ok ? GREEN : RED);
-  yield S(() => { status.textContent = 'x(sG + tP) = ' + res[0] + ' = r = ' + r + ' → 验签通过 ✓（只有知 d 者能造出满足等式的 (r,s) —— 点乘不可逆是安全基石）'; phaseT.setText('验签通过 ✓'); });
+  yield S(() => { status.textContent = 'x(sG + tP) = ' + res[0] + ' = r = ' + r + ' → 验签通过 ✓（只有知 d 者能造出满足等式的 (r,s) —— 点乘不可逆是安全基石）' });
   yield W(1100);
   yield S(() => { status.textContent = '真实 SM2：sm2p256v1 曲线 + SM3 消息摘要，签名 1 次点乘 + 1 次模逆、验签 2 次点乘，均可预计算加速；我国数字证书、电子政务标配'; });
   yield W(1100);
-  yield S(() => { status.textContent = 'SM2 演示完成：P = dG → (r,s) 签名 → sG + tP 验签通过'; phaseT.setText('完成'); });
+  yield S(() => { status.textContent = 'SM2 演示完成：P = dG → (r,s) 签名 → sG + tP 验签通过' });
   yield W(400);
 }
 
@@ -110,7 +109,7 @@ panel.addButton('清空', () => {
   verChips[1].setText('sG + tP = ?');
   verChips[2].setText('验签结果');
   verChips.forEach(c => c.setColor(DIM, DIM));
-  phaseT.setText('等待运行'); status.textContent = '';
+  status.textContent = '';
 });
 
 scene.start(engine);

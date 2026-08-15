@@ -311,7 +311,17 @@ function* runRBT() {
   yield S(() => { status.textContent = '红黑树演示完成：插入 6 节点（case1 变色 + case2/3 旋转）、查找 19 命中、删除红叶子 8 与黑叶子 31（双黑修复）；最终中序 ' + arr.map(n => n.key).join(' → '); });
 }
 
+function initDemo() {
+  insertModel(41); insertModel(38); insertModel(19);
+  findNode(38).color = 'B';
+  const pos = layout();
+  addNodeMesh(findNode(41), pos.get(41));
+  addNodeMesh(findNode(38), pos.get(38));
+  addNodeMesh(findNode(19), pos.get(19));
+  syncEdges();
+}
+initDemo();
 engine.queue(() => runRBT());
-panel.addButton('清空', () => { engine.clear(); clearView(); root = null; status.textContent = ''; });
+panel.addButton('清空', () => { engine.clear(); clearView(); root = null; initDemo(); status.textContent = ''; });
 
 scene.start(engine);

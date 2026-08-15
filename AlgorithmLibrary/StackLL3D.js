@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VNode, VText, tubeBetween } from '../3D/VisualObject3D.js';
+import { VNode, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('StackLL3D');
 
@@ -16,7 +16,7 @@ const status = panel.addStatus('就绪');
 const ease = p => p * p * (3 - 2 * p);
 
 const NODE_X = i => 320 + (i - 2.5) * 104;
-const NODE_Y = 620, TOP_Y = 770, DROP_Y = 890;
+const NODE_Y = 620, DROP_Y = 890;
 const VALUES = [5, 3, 8, 1, 7, 4];
 
 // ---- 节点对象池（峰值 5，池 6）：运行期仅改文字/显隐/变色，绝不 new ----
@@ -29,8 +29,6 @@ for (let i = 0; i < VALUES.length; i++) {
 nodeFree.push(...nodePool);
 
 const nodes = [];            // { v, vn }：自底向上
-const topLbl = new VText(scene, { text: 'Top →', x: 320, y: TOP_Y, z: 0, color: GOLD, scale: 0.55 });
-const emptyT = new VText(scene, { text: '空栈', x: 320, y: NODE_Y, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
 let edgeMeshes = [];
 function syncEdges() {
@@ -42,8 +40,6 @@ function syncEdges() {
 }
 function relayout() {
   nodes.forEach((n, i) => n.vn.moveTo(NODE_X(i), NODE_Y, 0, 380));
-  topLbl.moveTo(nodes.length ? NODE_X(nodes.length - 1) + 110 : 320, TOP_Y, 0, 380);
-  emptyT.visible = nodes.length === 0;
   syncEdges();
 }
 function allocNode(v) {
@@ -97,28 +93,36 @@ function* pop() {
 }
 
 function* runStack() {
-  yield S(() => { status.textContent = '链表栈：Top 固定在链右端 —— push 挂右、pop 摘右，单链表天然 LIFO。演示：push 5,3,8,1,7 → pop×2 → push 4 → pop×2'; });
+  yield S(() => { status.textContent = '链表栈：Top 固定在链右端 —— push 挂右、pop 摘右，单链表天然 LIFO。初始栈 5→3→8→1→7（Top→7），演示：pop×2 → push 4 → pop×2'; });
   yield W(700);
-  for (const v of [5, 3, 8, 1, 7]) yield* push(v);
-  yield S(() => { status.textContent = 'push×5 完成：栈 = ' + stackVals() + '（Top→7）'; });
-  yield W(600);
   yield* pop();
   yield* pop();
   yield* push(4);
   yield* pop();
   yield* pop();
-  yield S(() => { status.textContent = '链表栈演示完成：push×6 + pop×4，最终栈 = ' + stackVals() + '；push/pop 均 O(1)，链表无容量上限，适合深度不确定的递归模拟'; });
+  yield S(() => { status.textContent = '链表栈演示完成：初始栈 5→3→8→1→7，pop×4 + push 1 个（4），最终栈 = ' + stackVals() + '；push/pop 均 O(1)，链表无容量上限，适合深度不确定的递归模拟'; });
   yield W(800);
 }
+
+function initStack() {
+  nodes.forEach(n => { n.vn.mesh.visible = false; n.vn.mesh.scale.setScalar(1); nodeFree.push(n.vn); });
+  nodes.length = 0;
+  for (const v of [5, 3, 8, 1, 7]) {
+    const vn = nodeFree.pop();
+    vn.setText(String(v));
+    vn.setColor(BLUE, BLUE);
+    vn.mesh.position.set(NODE_X(nodes.length), NODE_Y, 0);
+    vn.mesh.visible = true;
+    nodes.push({ v, vn });
+  }
+  syncEdges();
+}
+initStack();
 
 engine.queue(() => runStack());
 panel.addButton('清空', () => {
   engine.clear();
-  nodes.forEach(n => { n.vn.mesh.visible = false; n.vn.mesh.scale.setScalar(1); nodeFree.push(n.vn); });
-  nodes.length = 0;
-  syncEdges();
-  topLbl.sprite.position.set(320, TOP_Y, 0);
-  emptyT.visible = true;
+  initStack();
   status.textContent = '';
 });
 

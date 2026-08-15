@@ -38,14 +38,12 @@ const AXIS_Y = 252;
 // ---- 预建对象（运行期只改 text/color/scale/position/visible，绝不 new）----
 const bars = ACTS.map((a, i) => {
   const b = new VBox(scene, { w: (a[1] - a[0]) * K - 4, h: 20, d: 20, x: 130 + a[0] * K, y: BAR_Y(i), z: 0, label: 'A' + (i + 1), color: DIM, emissive: DIM });
-  b.mesh.visible = false;
   return b;
 });
 tubeBetween(scene, { x: 128, y: AXIS_Y, z: 0 }, { x: 512, y: AXIS_Y, z: 0 }, { color: PALETTE.edge, opacity: 0.5, radius: 1.5 });
 [0, 4, 8, 12, 16].forEach(t =>
   new VText(scene, { text: String(t), x: 128 + t * K, y: 230, z: 0, color: PALETTE.textDim, scale: 0.5 }));
 const lastMarker = new VNode(scene, { radius: 9, x: 128, y: AXIS_Y + 14, z: 0, color: GOLD, emissive: GOLD });
-const countT = new VText(scene, { text: '已选 0 个', x: 660, y: 545, z: 0, color: GOLD, scale: 0.6 });
 
 function* actGen() {
   yield S(() => { status.textContent = '活动选择（贪心）：11 个活动已按结束时间升序排好，每根横条 = 一个活动的时间区间。一间教室最多能排几个互不冲突的活动？'; });
@@ -74,10 +72,7 @@ function* actGen() {
       yield A(240, p => { const e = Math.sin(p * Math.PI); bar.mesh.scale.set(1 + 0.12 * e, 1 + 0.12 * e, 1); });
       bar.mesh.scale.set(1, 1, 1);
       chosen.push(a.id);
-      yield S(() => {
-        countT.setText('已选 ' + chosen.length + ' 个');
-        status.textContent = '选中 A' + a.id + '（金）！last 更新为 ' + a.f + '，last 指针右移 —— 已选：' + chosen.map(id => 'A' + id).join('、');
-      });
+      yield S(() => { status.textContent = '选中 A' + a.id + '（金）！last 更新为 ' + a.f + '，last 指针右移 —— 已选：' + chosen.map(id => 'A' + id).join('、'); });
       yield W(550);
     } else {
       bar.setColor(RED, RED);
@@ -103,7 +98,6 @@ panel.addButton('清空', () => {
   bars.forEach((b, i) => { b.setColor(DIM, DIM); b.setText('A' + (i + 1)); b.mesh.scale.set(1, 1, 1); });
   lastMarker.tweenPos = null;
   lastMarker.mesh.position.set(128, AXIS_Y + 14, 0);
-  countT.setText('已选 0 个');
   status.textContent = '';
 });
 

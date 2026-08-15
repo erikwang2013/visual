@@ -2,7 +2,7 @@
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VText, VBox } from '../3D/VisualObject3D.js';
+import { VBox } from '../3D/VisualObject3D.js';
 import { applyTheme } from '../3D/Glow.js';
 applyTheme('RecFact3D');
 
@@ -12,7 +12,6 @@ const panel = new ControlPanel({ engine });
 
 const GOLD = 0xfcd34d, GREEN = 0x4ade80, CYAN = 0x22d3ee, WHITE = 0xffffff, DIM = 0x334155;
 const status = panel.addStatus('就绪');
-const resultT = new VText(scene, { text: '6! = ?', x: 0, y: 160, z: 0, color: GOLD, scale: 1.4 });
 
 const N = 6;
 const frames = Array.from({ length: N }, (_, i) => new VBox(scene, { w: 340, h: 44, d: 44, x: 320, y: 500 - i * 52, z: 0, label: 'f(' + (N - i) + ') = ' + (N - i) + ' × f(' + (N - i - 1) + ')', color: DIM, emissive: DIM }));
@@ -40,7 +39,6 @@ function* runFact() {
     yield S(() => { status.textContent = '回溯：f(' + k + ') = ' + k + ' × f(' + (k - 1) + ') = ' + k + ' × ' + (val / k) + ' = ' + val + ' —— 弹出第 ' + k + ' 层栈帧（乘法只在回溯阶段发生）'; });
     yield W(750);
   }
-  resultT.setText('6! = 720');
   yield S(() => { status.textContent = '全部回溯完成：f(6) = 6 × 120 = 720 ✓ —— 每层返回值像多米诺一样依次完成'; });
   yield W(1100);
   yield S(() => { status.textContent = '递归与迭代等价：任何递归都能改成循环 + 显式栈；无基线 = 无限递归 → 栈溢出'; });
@@ -53,7 +51,6 @@ engine.queue(() => runFact());
 panel.addButton('清空', () => {
   engine.clear();
   frames.forEach((f, i) => { f.setText('f(' + (N - i) + ') = ' + (N - i) + ' × f(' + (N - i - 1) + ')'); f.setColor(DIM, DIM); });
-  resultT.setText('6! = ?');
   status.textContent = '';
 });
 

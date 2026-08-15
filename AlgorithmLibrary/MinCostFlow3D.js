@@ -161,7 +161,8 @@ function* runMCF() {
   yield* mcfGen();
 }
 
+buildGraph();   // 加载即显示演示体，点播放才动画
 engine.queue(() => runMCF());
-panel.addButton('清空', () => { engine.clear(); clearView(); status.textContent = ''; });
+panel.addButton('清空', () => { engine.clear(); buildGraph(); status.textContent = ''; });
 
 scene.start(engine);

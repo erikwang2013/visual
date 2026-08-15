@@ -49,15 +49,12 @@ const freqRows = FREQ.map((f, i) => new VText(scene, { text: '', x: 320, y: 490 
 const barS = new VBox(scene, { w: 60, h: 16, d: 16, x: 170, y: 390, z: 0, label: '', color: GREEN, emissive: GREEN });
 const barN = new VBox(scene, { w: 60, h: 16, d: 16, x: 170, y: 352, z: 0, label: '', color: ROSE, emissive: ROSE });
 barS.mesh.visible = false; barN.mesh.visible = false;
-const lpT = new VText(scene, { text: '', x: 330, y: 390, z: 0, color: GREEN, scale: 0.55 });
-const hpT = new VText(scene, { text: '', x: 330, y: 352, z: 0, color: ROSE, scale: 0.55 });
 
 function resetAll() {
   mailBoxes.forEach((b, i) => b.setColor(MAILS[i].spam ? GREEN : ROSE, MAILS[i].spam ? GREEN : ROSE));
   testBoxes.forEach(b => b.setColor(PALETTE.node, PALETTE.nodeEmissive));
   freqRows.forEach(t => t.setText(''));
   barS.mesh.visible = false; barN.mesh.visible = false;
-  lpT.setText(''); hpT.setText('');
 }
 function setBar(bar, score) {
   const sx = Math.max((score + 8.8173) / 9.6326, 0.04);
@@ -82,7 +79,6 @@ function* runNB() {
   yield W(1000);
   yield S(() => {
     setBar(barS, 0.8153); setBar(barN, -8.8173);
-    lpT.setText('垃圾 = 0.8153'); hpT.setText('正常 = −8.8173');
     status.textContent = '第 3 步 对数后验（越大越像该类）：垃圾 0.8153 ≫ 正常 −8.8173 → 判为垃圾邮件 ✓';
   });
   yield W(1100);

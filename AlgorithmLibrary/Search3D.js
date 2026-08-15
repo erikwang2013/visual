@@ -2,7 +2,7 @@
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
+import { VBox } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Search3D');
 
@@ -19,13 +19,8 @@ const cells = data.map((v, i) =>
   new VBox(scene, { w: 56, h: 56, d: 40, x: (i - 5.5) * SPX + 320, y: 300, z: 0, label: String(v), color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 const xOf = i => (i - 5.5) * SPX + 320;
 
-const loT = new VText(scene, { text: '', x: 0, y: 378, z: 0, color: ORANGE, scale: 0.9 });
-const hiT = new VText(scene, { text: '', x: 0, y: 378, z: 0, color: ORANGE, scale: 0.9 });
-const midT = new VText(scene, { text: '', x: 0, y: 222, z: 0, color: YELLOW, scale: 0.9 });
-
 function resetAll() {
   cells.forEach(c => c.setColor(PALETTE.node, PALETTE.nodeEmissive));
-  loT.setText(''); hiT.setText(''); midT.setText('');
 }
 
 function* searchGen() {
@@ -34,8 +29,6 @@ function* searchGen() {
   yield W(500);
   let lo = 0, hi = N - 1;
   yield S(() => {
-    loT.setText('lo'); hiT.setText('hi');
-    loT.sprite.position.set(xOf(lo), 378, 0); hiT.sprite.position.set(xOf(hi), 378, 0);
     status.textContent = '第一场：二分查找 target = 41（前提：数组已升序）—— 初始区间 [lo, hi] = [0, 11]';
   });
   yield W(600);
@@ -43,7 +36,6 @@ function* searchGen() {
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
     yield S(() => {
-      midT.setText('mid'); midT.sprite.position.set(xOf(mid), 222, 0);
       cells[mid].setColor(YELLOW, YELLOW);
       status.textContent = 'mid = (lo + hi) / 2 = ' + mid + ' → data[' + mid + '] = ' + data[mid];
     });
@@ -51,7 +43,6 @@ function* searchGen() {
     if (data[mid] === 41) {
       yield S(() => {
         cells[mid].setColor(GREEN, GREEN);
-        midT.setText('命中！');
         status.textContent = 'data[' + mid + '] = 41 = target → 找到，下标 ' + mid + '（3 次比较，log₂12 ≈ 3.6）';
       });
       yield W(700);
@@ -61,12 +52,10 @@ function* searchGen() {
       lo = mid + 1;
       yield S(() => { status.textContent = '41 > data[' + mid + '] → 丢掉左半边，lo 跳到 ' + lo; });
       yield W(500);
-      yield A(350, p => { loT.sprite.position.x = xOf(lo - 1) + (xOf(lo) - xOf(lo - 1)) * easeInOut(p); });
     } else {
       hi = mid - 1;
       yield S(() => { status.textContent = '41 < data[' + mid + '] → 丢掉右半边，hi 缩到 ' + hi; });
       yield W(500);
-      yield A(350, p => { hiT.sprite.position.x = xOf(hi + 1) + (xOf(hi) - xOf(hi + 1)) * easeInOut(p); });
     }
     yield S(() => cells[mid].setColor(PALETTE.node, PALETTE.nodeEmissive));
     yield W(200);
@@ -76,7 +65,6 @@ function* searchGen() {
     yield W(400);
   }
   yield S(() => {
-    loT.setText(''); hiT.setText(''); midT.setText('');
     status.textContent = '二分查找完成：3 次比较找到 41（下标 6）；第二场：线性搜索 target = 56';
   });
   yield W(800);

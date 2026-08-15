@@ -4,17 +4,15 @@ import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VText } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
+import { applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('BTree3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, WHITE = 0xffffff, RED = 0xfb7185, GREEN = 0x4ade80;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：B 树多键节点 + 分裂/借键/合并', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const MAX = 2, MIN = 1;  // 3 阶：节点最多 2 键，非根最少 1 键
 
@@ -48,9 +46,9 @@ function layout() {
     for (const c of n.children) { depth.set(c.id, depth.get(n.id) + 1); q.push(c); }
   }
   for (const [id, xs] of keyIdx) {
-    pos.set(id, new THREE.Vector3(xs.reduce((a, b) => a + b, 0) / xs.length + 360, 525 - depth.get(id) * 95, 0));
+    pos.set(id, new THREE.Vector3(xs.reduce((a, b) => a + b, 0) / xs.length + 320, 800 - depth.get(id) * 80, 0));
   }
-  if (root.keys.length === 0 && !pos.has(root.id)) pos.set(root.id, new THREE.Vector3(360, 525, 0));
+  if (root.keys.length === 0 && !pos.has(root.id)) pos.set(root.id, new THREE.Vector3(320, 800, 0));
   return pos;
 }
 
@@ -135,7 +133,7 @@ function* flyLabel(text, from, to) {
 
 // ---- 插入：下钻 → 写入叶 → 溢出分裂（中间键上移） ----
 function* insertGen(key) {
-  yield S(() => outT.setText('插入 ' + key + '：沿路径下钻到叶'));
+  yield S(() => { status.textContent ='插入 ' + key + '：沿路径下钻到叶'; });
   if (!root) {
     root = mkNode(); root.keys.push(key);
     addNodeVis(root, layout().get(root.id));
@@ -153,13 +151,13 @@ function* insertGen(key) {
   setNodeColor(n.id, GOLD);
   yield W(220);
   let i = 0; while (i < n.keys.length && n.keys[i] < key) i++;
-  if (i < n.keys.length && n.keys[i] === key) { yield S(() => outT.setText(key + ' 已存在，中止')); yield W(400); resetColors(); return; }
+  if (i < n.keys.length && n.keys[i] === key) { yield S(() => { status.textContent =key + ' 已存在，中止'; }); yield W(400); resetColors(); return; }
   n.keys.splice(i, 0, key);
   refreshNodeVisual(n);
-  yield S(() => outT.setText('叶节点写入 ' + key + '（当前 ' + n.keys.join('|') + '）'));
+  yield S(() => { status.textContent ='叶节点写入 ' + key + '（当前 ' + n.keys.join('|') + '）'; });
   yield W(400);
   if (n.keys.length > MAX) {
-    yield S(() => outT.setText('溢出：超过 2 键 → 分裂'));
+    yield S(() => { status.textContent ='溢出：超过 2 键 → 分裂'; });
     yield W(450);
     yield* splitGen(n);
   }
@@ -182,7 +180,7 @@ function* splitGen(n) {
   const from = nodeView.get(n.id).g.position.clone();
   addNodeVis(right, from.clone().add(new THREE.Vector3(0, -70, 0)));
   yield* popIn(nodeView.get(right.id).g);
-  yield S(() => outT.setText('分裂：中间键 ' + promoted + ' 上移，右半区生成新节点'));
+  yield S(() => { status.textContent ='分裂：中间键 ' + promoted + ' 上移，右半区生成新节点'; });
   yield W(450);
   if (!n.parent) {
     const nr = mkNode();
@@ -191,7 +189,7 @@ function* splitGen(n) {
     root = nr;
     addNodeVis(nr, from.clone().add(new THREE.Vector3(0, -70, 0)));
     yield* popIn(nodeView.get(nr.id).g);
-    yield S(() => outT.setText('根分裂：新根生成，含键 ' + promoted));
+    yield S(() => { status.textContent = '根分裂：新根生成，含键 ' + promoted; });
     yield* moveToLayout();
     yield W(450);
   } else {
@@ -204,11 +202,11 @@ function* splitGen(n) {
     yield* flyLabel(String(promoted), fromN, toP);
     refreshNodeVisual(parent);
     setNodeColor(parent.id, GOLD);
-    yield S(() => outT.setText('中间键 ' + promoted + ' 上移进父节点（金色飞行）'));
+    yield S(() => { status.textContent ='中间键 ' + promoted + ' 上移进父节点（金色飞行）'; });
     yield* moveToLayout();
     yield W(450);
     if (parent.keys.length > MAX) {
-      yield S(() => outT.setText('父节点溢出 → 递归分裂'));
+      yield S(() => { status.textContent ='父节点溢出 → 递归分裂'; });
       yield W(400);
       yield* splitGen(parent);
     }
@@ -217,14 +215,14 @@ function* splitGen(n) {
 
 // ---- 查找 ----
 function* searchGen(key) {
-  yield S(() => outT.setText('查找 ' + key + '：沿金色路径下钻'));
+  yield S(() => { status.textContent ='查找 ' + key + '：沿金色路径下钻'; });
   let n = root;
   while (n) {
     setNodeColor(n.id, GOLD);
     yield W(240);
     if (n.keys.includes(key)) {
       setNodeColor(n.id, GREEN);
-      yield S(() => outT.setText('命中 ' + key + '！（绿色闪光，节点 ' + n.keys.join('|') + '）'));
+      yield S(() => { status.textContent ='命中 ' + key + '！（绿色闪光，节点 ' + n.keys.join('|') + '）'; });
       yield W(500);
       resetColors();
       return;
@@ -233,7 +231,7 @@ function* searchGen(key) {
     let i = 0; while (i < n.keys.length && n.keys[i] < key) i++;
     n = n.children[i];
   }
-  yield S(() => outT.setText(key + ' 不存在'));
+  yield S(() => { status.textContent =key + ' 不存在'; });
   yield W(500);
   resetColors();
 }
@@ -241,13 +239,13 @@ function* searchGen(key) {
 // ---- 删除：定位 → 删键 → 下溢借键/合并 ----
 function* deleteGen(key) {
   let n = root;
-  if (!n) { yield S(() => outT.setText('树为空')); yield W(300); return; }
+  if (!n) { yield S(() => { status.textContent ='树为空'; }); yield W(300); return; }
   while (true) {
     setNodeColor(n.id, GOLD);
     yield W(210);
     const i = n.keys.indexOf(key);
     if (i >= 0) break;
-    if (!n.children.length) { yield S(() => outT.setText(key + ' 不存在')); yield W(400); resetColors(); return; }
+    if (!n.children.length) { yield S(() => { status.textContent =key + ' 不存在'; }); yield W(400); resetColors(); return; }
     let ci = 0; while (ci < n.keys.length && n.keys[ci] < key) ci++;
     n = n.children[ci];
   }
@@ -255,7 +253,7 @@ function* deleteGen(key) {
     let pred = n.children[n.keys.indexOf(key)];
     while (pred.children.length) pred = pred.children[pred.children.length - 1];
     const pk = pred.keys[pred.keys.length - 1];
-    yield S(() => outT.setText('内部键 ' + key + '：前驱 ' + pk + ' 上移替换'));
+    yield S(() => { status.textContent ='内部键 ' + key + '：前驱 ' + pk + ' 上移替换'; });
     yield W(500);
     n.keys[n.keys.indexOf(key)] = pk;
     refreshNodeVisual(n);
@@ -267,7 +265,7 @@ function* deleteGen(key) {
   const i = n.keys.indexOf(key);
   n.keys.splice(i, 1);
   refreshNodeVisual(n);
-  yield S(() => outT.setText('删除叶键 ' + key + '（节点剩 ' + (n.keys.length ? n.keys.join('|') : '空') + '）'));
+  yield S(() => { status.textContent ='删除叶键 ' + key + '（节点剩 ' + (n.keys.length ? n.keys.join('|') : '空') + '）'; });
   yield W(400);
   yield* rebalanceGen(n);
   resetColors();
@@ -279,7 +277,7 @@ function* rebalanceGen(n) {
       if (n.children.length === 1) {
         const c = n.children[0];
         root = c; c.parent = null;
-        yield S(() => outT.setText('根空 → 孩子上提，树高 -1'));
+        yield S(() => { status.textContent ='根空 → 孩子上提，树高 -1'; });
         yield* shrinkOut(n.id);
         yield* moveToLayout();
         yield W(400);
@@ -304,7 +302,7 @@ function* rebalanceGen(n) {
     yield* flyLabel(String(lastK), fromL, fromP);
     yield* flyLabel(String(moved), fromP, fromN);
     refreshNodeVisual(parent); refreshNodeVisual(left); refreshNodeVisual(n);
-    yield S(() => outT.setText('借键：左兄弟末键 ' + lastK + ' 上移，父键 ' + moved + ' 下沉'));
+    yield S(() => { status.textContent ='借键：左兄弟末键 ' + lastK + ' 上移，父键 ' + moved + ' 下沉'; });
     yield* moveToLayout();
     yield W(450);
   } else if (right && right.keys.length > MIN) {
@@ -317,7 +315,7 @@ function* rebalanceGen(n) {
     yield* flyLabel(String(firstK), fromR, fromP);
     yield* flyLabel(String(moved), fromP, fromN);
     refreshNodeVisual(parent); refreshNodeVisual(right); refreshNodeVisual(n);
-    yield S(() => outT.setText('借键：右兄弟首键 ' + firstK + ' 上移，父键 ' + moved + ' 下沉'));
+    yield S(() => { status.textContent ='借键：右兄弟首键 ' + firstK + ' 上移，父键 ' + moved + ' 下沉'; });
     yield* moveToLayout();
     yield W(450);
   } else {
@@ -331,7 +329,7 @@ function* rebalanceGen(n) {
       parent.keys.splice(idx - 1, 1);
       parent.children.splice(idx, 1);
       yield* flyLabel(String(midK), fromP, fromS);
-      yield S(() => outT.setText('合并：父键 ' + midK + ' 下沉，节点并入左兄弟'));
+      yield S(() => { status.textContent ='合并：父键 ' + midK + ' 下沉，节点并入左兄弟'; });
       yield W(350);
       yield* shrinkOut(n.id);
       refreshNodeVisual(left); refreshNodeVisual(parent);
@@ -343,7 +341,7 @@ function* rebalanceGen(n) {
       parent.keys.splice(idx, 1);
       parent.children.splice(idx + 1, 1);
       yield* flyLabel(String(midK), fromP, fromN);
-      yield S(() => outT.setText('合并：父键 ' + midK + ' 下沉，右兄弟并入本节点'));
+      yield S(() => { status.textContent ='合并：父键 ' + midK + ' 下沉，右兄弟并入本节点'; });
       yield W(350);
       yield* shrinkOut(sib.id);
       refreshNodeVisual(n); refreshNodeVisual(parent);
@@ -356,10 +354,9 @@ function* rebalanceGen(n) {
 
 function* runBTree() {
   clearView(); root = null;
-  hint.setText('B 树（3 阶）：每节点最多 2 键；溢出分裂，下溢借键/合并');
   yield W(400);
   for (const k of [20, 10, 30, 5, 15, 25, 35, 12, 18]) yield* insertGen(k);
-  yield S(() => outT.setText('9 键插入完成（含 3 次分裂）'));
+  yield S(() => { status.textContent ='9 键插入完成（含 3 次分裂）'; });
   yield W(450);
   yield* searchGen(18);
   yield* deleteGen(5);
@@ -369,14 +366,11 @@ function* runBTree() {
   yield* deleteGen(25);
   yield* deleteGen(20);
   yield S(() => {
-    outT.setText('删除完成：演示合并 / 级联合并 / 借键');
-    hint.setText('B 树完成：保持所有叶同深，查找/插入/删除 O(log n)');
-    status.textContent = 'B 树演示完成：插入 9 键（分裂×3），查找 18 命中，删除 5/12/10（合并级联）、35、25（借键）、20（合并）';
+    status.textContent = 'B 树演示完成：插入 9 键（分裂×3），查找 18 命中，删除 5/12/10（合并级联）、35、25（借键）、20（合并）；所有叶同深，查找/插入/删除 O(log n)';
   });
 }
 
 engine.queue(() => runBTree());
-panel.addButton('清空', () => { engine.clear(); clearView(); root = null; hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；金 = 路径/分裂键飞行，绿 = 命中）');
+panel.addButton('清空', () => { engine.clear(); clearView(); root = null; status.textContent = ''; });
 
 scene.start(engine);

@@ -4,19 +4,19 @@ import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VText, VNode } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { applyTheme } from '../3D/Glow.js';
 applyTheme('BST3D');
 
-const scene = new Scene3D('scene', { cameraPos: [344, 705, 1050], lookAt: [344, 285, 0], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：插入路径金色下钻，新节点从上方降落', x: 760, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 760, y: 430, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const ease = p => p * p * (3 - 2 * p);
 
-const ROOT_Y = 530, STEP_Y = 85, X_STEP = 78;
+const ROOT_Y = 830, STEP_Y = 85, X_STEP = 68;
+const KEYS = [20, 30, 40, 50, 60, 70, 80];
 
 // ---- 纯数据 BST ----
 let root = null; // { key, left, right, parent:key|null }
@@ -66,21 +66,36 @@ function layout() {
   const arr = collect(), pos = new Map();
   arr.forEach((n, i) => {
     const d = depthOf(n);
-    pos.set(n.key, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 10) + 344, ROOT_Y - d * STEP_Y, -d * 6));
+    pos.set(n.key, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 10) + 320, ROOT_Y - d * STEP_Y, -d * 6));
   });
   return pos;
 }
 
-// ---- 视觉 ----
+// ---- 视觉：演示体全部模块级预建，运行期仅显隐/移动/变色 ----
 const nodeView = new Map();  // key -> VNode
 const edgeView = new Map();  // childKey -> tube mesh
+const preNodes = new Map();  // key -> VNode（预建）
+const outTexts = new Map();  // key -> VText（中序输出行，预建）
+KEYS.forEach(k => {
+  const vn = new VNode(scene, { radius: 20, x: 320, y: 870, z: 0, label: String(k), color: BLUE, emissive: BLUE });
+  vn.mesh.visible = false;
+  preNodes.set(k, vn);
+  const t = new VText(scene, { text: String(k), x: 320, y: 330, z: 0, color: GOLD, scale: 0.85 });
+  t.sprite.visible = false;
+  outTexts.set(k, t);
+});
 function clearView() {
-  nodeView.forEach(v => { scene.remove(v.mesh); });
+  preNodes.forEach((vn, k) => { vn.mesh.visible = false; vn.setColor(BLUE, BLUE); vn.setText(String(k)); });
+  outTexts.forEach(t => { t.sprite.visible = false; });
   edgeView.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
   nodeView.clear(); edgeView.clear();
 }
 function addNodeMesh(n, p) {
-  const vn = new VNode(scene, { radius: 20, x: p.x, y: p.y, z: p.z, label: String(n.key), color: BLUE, emissive: BLUE });
+  const vn = preNodes.get(n.key);
+  vn.mesh.visible = true;
+  vn.mesh.position.copy(p);
+  vn.mesh.scale.setScalar(1);
+  vn.setColor(BLUE, BLUE);
   nodeView.set(n.key, vn);
   return vn;
 }
@@ -120,21 +135,22 @@ function* moveToLayout() {
     tasks.push({ vn, from: f, to: p });
   });
   if (!tasks.length) { syncEdges(); return; }
-  yield A(440, pp => tasks.forEach(t => t.vn.mesh.position.lerpVectors(t.from, t.to, pp)));
+  yield A(440, pp => tasks.forEach(t => t.vn.mesh.position.lerpVectors(t.from, t.to, ease(pp))));
   syncEdges();
 }
 
 function* dropIn(vn, p) {
   yield A(480, pp => {
-    vn.mesh.position.y = p.y + 250 * (1 - pp);
-    vn.mesh.scale.setScalar(0.4 + 0.6 * pp);
+    const e = ease(pp);
+    vn.mesh.position.y = p.y + (870 - p.y) * (1 - e);
+    vn.mesh.scale.setScalar(0.4 + 0.6 * e);
   });
   vn.mesh.scale.setScalar(1);
 }
 
 // 插入：路径下钻（金色）→ 降落 → 布局微移
 function* insertGen(key) {
-  yield S(() => outT.setText('插入 ' + key + '：从根沿比较路径下钻'));
+  yield S(() => { status.textContent = '插入 ' + key + '：从根沿比较路径下钻（金色 = 路径节点）'; });
   let cur = root;
   while (cur && cur.key !== key) {
     setNodeColor(cur.key, GOLD);
@@ -143,15 +159,15 @@ function* insertGen(key) {
   }
   if (cur) {
     setNodeColor(cur.key, RED);
-    yield S(() => outT.setText(key + ' 已存在，插入中止（红闪）'));
+    yield S(() => { status.textContent = key + ' 已存在，插入中止（红闪）'; });
     yield W(500);
     resetNodeColors();
     return;
   }
   const n = insertModel(key);
   const pos = layout().get(key);
-  const vn = addNodeMesh(n, new THREE.Vector3(pos.x, pos.y + 250, pos.z));
-  yield S(() => outT.setText('新节点 ' + key + ' 从上方降落，边生长连接'));
+  const vn = addNodeMesh(n, new THREE.Vector3(pos.x, 870, pos.z));
+  yield S(() => { status.textContent = '新节点 ' + key + ' 从上方降落，边生长连接'; });
   yield* dropIn(vn, pos);
   yield* moveToLayout();
   yield* growEdge(n);
@@ -162,21 +178,21 @@ function* growEdge(n) {
   if (!n.parent) return;
   const e = edgeView.get(n.key);
   e.material.opacity = 0;
-  yield A(300, p => { e.material.opacity = 0.7 * p; });
+  yield A(300, p => { e.material.opacity = 0.7 * ease(p); });
 }
 
 // 查找：金色路径，命中绿闪 / 未命中红闪
 function* searchGen(key) {
-  yield S(() => outT.setText('查找 ' + key + '：沿金色路径下钻'));
+  yield S(() => { status.textContent = '查找 ' + key + '：沿金色路径下钻'; });
   let cur = root, path = [];
   while (cur && cur.key !== key) { path.push(cur.key); setNodeColor(cur.key, GOLD); yield W(280); cur = key < cur.key ? cur.left : cur.right; }
   if (cur) {
     setNodeColor(cur.key, GREEN);
-    yield S(() => outT.setText('命中 ' + key + '！（绿色闪光，深度 ' + depthOf(cur) + '）'));
+    yield S(() => { status.textContent = '命中 ' + key + '！（绿色闪光，深度 ' + depthOf(cur) + '）'; });
     yield W(550);
   } else {
     setNodeColor(path[path.length - 1], RED);
-    yield S(() => outT.setText(key + ' 不存在：路径走到底为空（红闪）'));
+    yield S(() => { status.textContent = key + ' 不存在：路径走到底为空（红闪）'; });
     yield W(550);
     setNodeColor(path[path.length - 1], BLUE);
   }
@@ -187,11 +203,11 @@ function* searchGen(key) {
 function* deleteGen(key) {
   const z = findNode(key);
   if (!z) {
-    yield S(() => outT.setText(key + ' 不存在，无法删除'));
+    yield S(() => { status.textContent = key + ' 不存在，无法删除'; });
     yield W(400);
     return;
   }
-  yield S(() => outT.setText('删除 ' + key + '：目标红闪'));
+  yield S(() => { status.textContent = '删除 ' + key + '：目标红闪'; });
   setNodeColor(key, RED);
   yield W(500);
   const two = !!(z.left && z.right);
@@ -200,17 +216,18 @@ function* deleteGen(key) {
   removeModel(key);
   if (two) {
     const pv = nodeView.get(predKey);
-    yield S(() => outT.setText('双子删除：前驱 ' + predKey + ' 飞入节点 ' + key + '（中序前驱复制）'));
-    yield A(450, pp => pv.mesh.position.lerpVectors(pv.mesh.position.clone(), zpos, pp));
+    yield S(() => { status.textContent = '双子删除：前驱 ' + predKey + ' 飞入 ' + key + ' 的位置（中序前驱复制）'; });
+    const from = pv.mesh.position.clone();
+    yield A(450, pp => pv.mesh.position.lerpVectors(from, zpos, ease(pp)));
     pv.mesh.position.copy(zpos);
-    pv.setText(String(key));
-    nodeView.delete(predKey);
-    nodeView.set(key, pv);
     yield W(250);
+    const old = nodeView.get(key);
+    old.mesh.visible = false;
+    nodeView.delete(key);
   } else {
     const vn = nodeView.get(key);
-    yield A(320, p => { vn.mesh.scale.setScalar(1 - p); });
-    scene.remove(vn.mesh);
+    yield A(320, pp => { vn.mesh.scale.setScalar(1 - ease(pp)); });
+    vn.mesh.visible = false;
     nodeView.delete(key);
     yield W(180);
   }
@@ -222,41 +239,39 @@ function* deleteGen(key) {
 // 中序遍历：节点飞到底部输出行
 function* inorderGen() {
   const arr = collect();
-  yield S(() => outT.setText('中序遍历：左 → 根 → 右'));
+  yield S(() => { status.textContent = '中序遍历：左 → 根 → 右，节点依次飞到底部输出行'; });
   yield W(400);
   const tmp = [];
   arr.forEach((n, i) => {
     const f = nodeView.get(n.key).mesh.position.clone();
-    const t = new VText(scene, { text: String(n.key), x: f.x, y: f.y, z: f.z, color: GOLD, scale: 0.85 });
-    tmp.push({ t, from: f, to: new THREE.Vector3((i - (arr.length - 1) / 2) * 82 + 344, 40, 0) });
+    const t = outTexts.get(n.key);
+    t.sprite.visible = true;
+    t.sprite.position.copy(f);
+    tmp.push({ t, from: f, to: new THREE.Vector3((i - (arr.length - 1) / 2) * 82 + 320, 330, 0) });
   });
-  yield A(560, p => tmp.forEach(x => x.t.sprite.position.lerpVectors(x.from, x.to, p)));
-  yield S(() => outT.setText('中序输出：' + arr.map(n => n.key).join(' → ')));
+  yield A(560, p => tmp.forEach(x => x.t.sprite.position.lerpVectors(x.from, x.to, ease(p))));
+  yield S(() => { status.textContent = '中序输出：' + arr.map(n => n.key).join(' → ') + '（左 < 根 < 右，升序）'; });
   yield W(900);
-  tmp.forEach(x => scene.remove(x.t.sprite));
+  tmp.forEach(x => { x.t.sprite.visible = false; });
 }
 
 function* runBST() {
   clearView(); root = null;
-  hint.setText('二叉搜索树：左子树 < 根 < 右子树。插入沿比较路径下钻；查找金色路径；删除红闪');
-  yield W(400);
+  yield S(() => { status.textContent = '二叉搜索树：左子树 < 根 < 右子树。插入沿比较路径下钻，新节点从上方降落；查找命中绿闪 / 缺失红闪；删除收缩或前驱飞入'; });
+  yield W(500);
   for (const k of [50, 30, 70, 20, 40, 60, 80]) yield* insertGen(k);
-  yield S(() => outT.setText('初始树构建完成：7 个节点，左小右大'));
+  yield S(() => { status.textContent = '初始树构建完成：7 个节点，左小右大'; });
   yield W(450);
   yield* searchGen(40);
   yield* searchGen(55);
   yield* deleteGen(20);
   yield* deleteGen(50);
   yield* inorderGen();
-  yield S(() => {
-    outT.setText('');
-    hint.setText('BST 完成：查找/插入 O(h)，h 为树高；退化为链时 O(n)');
-    status.textContent = 'BST 演示完成：插入 7 节点，查找 40 命中 / 55 未命中，删除 20（叶）与 50（双子，前驱 40 上移）';
-  });
+  yield S(() => { status.textContent = 'BST 演示完成：查找/插入 O(h)，h 为树高；退化为链时 O(n)'; });
+  yield W(800);
 }
 
 engine.queue(() => runBST());
-panel.addButton('清空', () => { engine.clear(); clearView(); root = null; hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；金 = 查找路径，红 = 目标/缺失，绿 = 命中）');
+panel.addButton('清空', () => { engine.clear(); clearView(); root = null; status.textContent = ''; });
 
 scene.start(engine);

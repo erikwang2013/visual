@@ -4,19 +4,18 @@ import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VText, VNode } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { applyTheme } from '../3D/Glow.js';
 applyTheme('RadixTree3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：基数树边分裂插入', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: 130, z: 0, color: PALETTE.textGlow, scale: 0.7 });
 
-const ROOT_Y = 520, STEP_Y = 75, X_GAP = 90;
+const ROOT_Y = 830, STEP_Y = 100, X_GAP = 90;
+const E = p => p * p * (3 - 2 * p);
 let nextId = 0;
 const model = new Map();  // id -> { id, end, parent, children: Map(label->node) }
 const root = { id: 'root', end: false, parent: null, children: new Map() };
@@ -28,7 +27,9 @@ function lcp(a, b) {
   return a.slice(0, i);
 }
 
-// ---- 布局：BFS 分层，层内均分 ----
+// ---- 布局：BFS 分层，层内均分；位置写模块级缓冲，运行时零分配 ----
+const posBuf = new Map();
+function posAt(id, x, y) { let v = posBuf.get(id); if (!v) { v = new THREE.Vector3(); posBuf.set(id, v); } v.set(x, y, 0); return v; }
 function layout() {
   const byDepth = [];
   const q = [root];
@@ -38,82 +39,113 @@ function layout() {
     (byDepth[n.depth] = byDepth[n.depth] || []).push(n);
     for (const c of n.children.values()) { c.depth = n.depth + 1; q.push(c); }
   }
-  const pos = new Map();
   for (const d in byDepth) {
     const arr = byDepth[d];
-    arr.forEach((n, i) => pos.set(n.id, new THREE.Vector3(320 + (i - (arr.length - 1) / 2) * X_GAP, ROOT_Y - STEP_Y * n.depth, 0)));
+    arr.forEach((n, i) => posAt(n.id, 320 + (i - (arr.length - 1) / 2) * X_GAP, ROOT_Y - STEP_Y * n.depth));
   }
-  return pos;
+  return posBuf;
 }
 
-// ---- 视觉：球节点 + 边管 + 边标签（公共前缀） ----
-const nodeView = new Map();  // id -> VNode
-const edgeView = new Map();  // 'a->b' -> { tube, lbl }
-function clearView() {
-  nodeView.forEach(v => scene.remove(v.mesh));
-  edgeView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); scene.remove(e.lbl.sprite); });
-  nodeView.clear(); edgeView.clear();
+// ---- 视觉对象池：节点球 / 边管+边标签，模块级预建（峰值 9 节点 8 边，池 10） ----
+const nodePool = [], nodeFree = [];
+function mkNodeVis() {
+  const vn = new VNode(scene, { radius: 17, x: 0, y: 0, z: 0, label: '', color: BLUE, emissive: BLUE });
+  vn.mesh.visible = false;
+  vn.mesh.scale.setScalar(0.01);
+  nodePool.push(vn);
+  return vn;
 }
+const edgePool = [], edgeFree = [];
+function mkEdgeObj() {
+  const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 0, 0), new THREE.Vector3(2, 0, 0)]);
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 10, 2, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.7 }));
+  tube.visible = false;
+  scene.add(tube);
+  const lbl = new VText(scene, { text: '', x: 0, y: 0, z: 0, color: '#ffffff', scale: 0.6 });
+  lbl.sprite.visible = false;
+  const e = { tube, lbl, curve };
+  edgePool.push(e);
+  return e;
+}
+function resetFree() {
+  nodeFree.length = 0; nodePool.forEach(v => { v.mesh.visible = false; v.mesh.scale.setScalar(0.01); });
+  nodeFree.push(...nodePool);
+  edgeFree.length = 0; edgeFree.push(...edgePool);
+}
+function clearView() {
+  resetFree();
+  nodeView.clear();
+}
+const nodeView = new Map();  // id -> VNode
 function addNodeVis(id, p) {
-  const vn = new VNode(scene, { radius: 17, x: p.x, y: p.y, z: p.z, label: '', color: BLUE, emissive: BLUE });
+  const vn = nodeFree.pop();
+  if (!vn) return;
+  vn.mesh.position.copy(p);
+  vn.mesh.scale.setScalar(0.01);
+  vn.mesh.visible = true;
+  vn.setText('');
+  vn.setColor(BLUE, BLUE);
   nodeView.set(id, vn);
   return vn;
 }
-function tube(a, b) {
-  const A = a.clone(), B = b.clone();
-  const mid = new THREE.Vector3((A.x + B.x) / 2, (A.y + B.y) / 2, (A.z + B.z) / 2 + 18);
-  const curve = new THREE.CatmullRomCurve3([A, mid, B]);
-  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 10, 2, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.7 }));
-  scene.add(m);
-  return m;
-}
+function setNodeColor(id, c) { nodeView.get(id).setColor(c, c); }
+function setEnd(id) { const v = nodeView.get(id); v.setColor(GOLD, GOLD); v.setText('★'); }
+function resetNodeColors() { nodeView.forEach((v, id) => { const n = model.get(id); v.setColor(n && n.end ? GOLD : BLUE, n && n.end ? GOLD : BLUE); }); }
 function syncEdges() {
-  edgeView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); scene.remove(e.lbl.sprite); });
-  edgeView.clear();
+  edgeFree.length = 0; edgeFree.push(...edgePool);
   (function walk(n) {
     for (const [label, c] of n.children) {
       if (!nodeView.has(c.id)) continue;
+      const e = edgeFree.pop();
+      if (!e) continue;
       const a = nodeView.get(n.id).mesh.position, b = nodeView.get(c.id).mesh.position;
-      const m = tube(a, b);
-      const midP = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2 - 16, (a.z + b.z) / 2);
-      const lbl = new VText(scene, { text: label, x: midP.x, y: midP.y, z: midP.z, color: PALETTE.textGlow, scale: 0.6 });
-      edgeView.set(n.id + '->' + c.id, { tube: m, lbl });
+      e.curve.points[0].copy(a);
+      e.curve.points[1].set((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2 + 18);
+      e.curve.points[2].copy(b);
+      e.tube.geometry.dispose();
+      e.tube.geometry = new THREE.TubeGeometry(e.curve, 10, 2, 6);
+      e.tube.visible = true;
+      e.lbl.setText(label);
+      e.lbl.sprite.position.set((a.x + b.x) / 2, (a.y + b.y) / 2 - 16, (a.z + b.z) / 2);
+      e.lbl.sprite.visible = true;
       walk(c);
     }
   })(root);
 }
-function setNodeColor(id, c) { nodeView.get(id).setColor(c, c); }
-function setEnd(id) { nodeView.get(id).setColor(GOLD, GOLD); nodeView.get(id).setText('★'); }
-function resetNodeColors() { nodeView.forEach((v, id) => { const n = model.get(id); v.setColor(n && n.end ? GOLD : BLUE, n && n.end ? GOLD : BLUE); }); }
+
+// 运动：任务记录 / 位移走预建池（SV/SV2 为插入用 scratch）
+const TASK_POOL = Array.from({ length: 20 }, () => ({ v: null, from: new THREE.Vector3(), to: new THREE.Vector3() }));
+const SV = new THREE.Vector3(), SV2 = new THREE.Vector3();
 function* moveToLayout() {
   const pos = layout();
   const tasks = [];
-  nodeView.forEach((vn, id) => {
+  let ti = 0;
+  nodeView.forEach((v, id) => {
     const p = pos.get(id);
-    if (!p) return;
-    const f = vn.mesh.position.clone();
-    if (f.distanceTo(p) < 0.5) return;
-    tasks.push({ vn, from: f, to: p });
+    if (!p || v.mesh.position.distanceTo(p) < 0.5) return;
+    const t = TASK_POOL[ti++];
+    t.v = v; t.from.copy(v.mesh.position); t.to.copy(p);
+    tasks.push(t);
   });
   if (!tasks.length) { syncEdges(); return; }
-  yield A(460, pp => tasks.forEach(t => t.vn.mesh.position.lerpVectors(t.from, t.to, pp)));
+  yield A(460, pp => tasks.forEach(t => t.v.mesh.position.lerpVectors(t.from, t.to, E(pp))));
   syncEdges();
 }
 function* popIn(id, from, to) {
   const vn = nodeView.get(id);
   vn.mesh.position.copy(from);
-  vn.mesh.scale.setScalar(0.01);
   yield A(420, pp => {
-    vn.mesh.position.lerpVectors(from, to, pp);
-    vn.mesh.scale.setScalar(0.01 + 0.99 * pp);
+    vn.mesh.position.lerpVectors(from, to, E(pp));
+    vn.mesh.scale.setScalar(0.01 + 0.99 * E(pp));
   });
   vn.mesh.scale.setScalar(1);
 }
 function* shrinkOut(id) {
   const vn = nodeView.get(id);
   if (!vn) return;
-  yield A(320, pp => { vn.mesh.scale.setScalar(1 - pp); });
-  scene.remove(vn.mesh);
+  yield A(320, p => vn.mesh.scale.setScalar(1 - E(p)));
+  vn.mesh.visible = false;
+  nodeFree.push(vn);
   nodeView.delete(id);
   model.delete(id);
 }
@@ -162,7 +194,7 @@ function insertModel(word) {
   return { lit, splits, created, targetId: cur.id, existed };
 }
 function* insertGen(word) {
-  yield S(() => outT.setText('插入 "' + word + '"'));
+  yield S(() => { status.textContent = '插入 "' + word + '"'; });
   const { lit, splits, created, targetId } = insertModel(word);
   for (const [a, b] of lit) {
     if (nodeView.has(a)) setNodeColor(a, GOLD);
@@ -172,29 +204,28 @@ function* insertGen(word) {
   yield W(200);
   const pos = layout();
   for (const s of splits) {
-    yield S(() => outT.setText('边分裂：剩余 "' + s.common + '" 与边 "' + s.oldLabel + '" 公共前缀 "' + s.common + '" → 拆出中间节点'));
-    edgeView.delete(s.parent.id + '->' + s.oldChild.id);
+    yield S(() => { status.textContent = '边分裂：剩余 "' + s.common + '" 与边 "' + s.oldLabel + '" 公共前缀 "' + s.common + '" → 拆出中间节点'; });
     yield W(350);
-    const from = new THREE.Vector3((nodeView.get(s.parent.id).mesh.position.x + nodeView.get(s.oldChild.id).mesh.position.x) / 2, (nodeView.get(s.parent.id).mesh.position.y + nodeView.get(s.oldChild.id).mesh.position.y) / 2, 0);
-    const to = pos.get(s.mid.id) || from;
-    addNodeVis(s.mid.id, from);
-    yield* popIn(s.mid.id, from, to);
-    yield S(() => outT.setText('中间节点就位：旧边 "' + s.oldLabel + '" 拆为 "' + s.common + '" + "' + s.rest + '"'));
+    SV.set((nodeView.get(s.parent.id).mesh.position.x + nodeView.get(s.oldChild.id).mesh.position.x) / 2, (nodeView.get(s.parent.id).mesh.position.y + nodeView.get(s.oldChild.id).mesh.position.y) / 2, 0);
+    const to = pos.get(s.mid.id) || SV;
+    addNodeVis(s.mid.id, SV);
+    yield* popIn(s.mid.id, SV, to);
+    yield S(() => { status.textContent = '中间节点就位：旧边 "' + s.oldLabel + '" 拆为 "' + s.common + '" + "' + s.rest + '"'; });
     yield* moveToLayout();
     yield W(400);
   }
   for (const c of created) {
     const to = pos.get(c.child.id);
-    const from = to.clone().add(new THREE.Vector3(0, 140, 0));
-    addNodeVis(c.child.id, from);
-    yield S(() => outT.setText('新叶子 "' + c.label + '" 从上方降落'));
-    yield* popIn(c.child.id, from, to);
+    SV2.copy(to); SV2.y += 140;
+    addNodeVis(c.child.id, SV2);
+    yield S(() => { status.textContent = '新叶子 "' + c.label + '" 从上方降落'; });
+    yield* popIn(c.child.id, SV2, to);
     yield W(250);
   }
   if (created.length === 0 && splits.length === 0) yield W(300);
   yield* moveToLayout();
   setEnd(targetId);
-  yield S(() => outT.setText('插入完成：' + word + ' 端节点标记 ★（金色）'));
+  yield S(() => { status.textContent = '插入完成：' + word + ' 端节点标记 ★（金色）'; });
   yield W(450);
   resetNodeColors();
   yield W(200);
@@ -202,7 +233,7 @@ function* insertGen(word) {
 
 // ---- 查找：金色路径下钻 ----
 function* searchGen(word) {
-  yield S(() => outT.setText('查找 "' + word + '"：沿边标签下钻'));
+  yield S(() => { status.textContent = '查找 "' + word + '"：沿边标签下钻'; });
   const lit = [];
   let cur = root, rem = word;
   while (rem.length > 0) {
@@ -211,7 +242,7 @@ function* searchGen(word) {
       const common = lcp(rem, label);
       if (common && common.length === label.length) { next = child; nlabel = label; break; }
     }
-    if (!next) { yield S(() => outT.setText('无匹配边，' + word + ' 不存在（红闪）')); yield W(500); resetNodeColors(); return; }
+    if (!next) { yield S(() => { status.textContent = '无匹配边，' + word + ' 不存在（红闪）'; }); yield W(500); resetNodeColors(); return; }
     lit.push([cur.id, next.id]);
     cur = next;
     rem = rem.slice(nlabel.length);
@@ -219,10 +250,10 @@ function* searchGen(word) {
   for (const [a, b] of lit) { setNodeColor(a, GOLD); setNodeColor(b, GOLD); yield W(220); }
   if (cur.end) {
     setNodeColor(cur.id, GREEN);
-    yield S(() => outT.setText('命中：' + word + ' 存在（绿色闪光）'));
+    yield S(() => { status.textContent = '命中：' + word + ' 存在（绿色闪光）'; });
     yield W(500);
   } else {
-    yield S(() => outT.setText('路径走完但非端节点：' + word + ' 不存在'));
+    yield S(() => { status.textContent = '路径走完但非端节点：' + word + ' 不存在'; });
     yield W(500);
   }
   resetNodeColors();
@@ -230,7 +261,7 @@ function* searchGen(word) {
 
 // ---- 删除：端标记移除 → 收缩空节点 → 单子边压缩合并 ----
 function* deleteGen(word) {
-  yield S(() => outT.setText('删除 "' + word + '"：沿路径下钻'));
+  yield S(() => { status.textContent = '删除 "' + word + '"：沿路径下钻'; });
   const trail = [];
   let cur = root, rem = word;
   while (rem.length > 0) {
@@ -239,31 +270,29 @@ function* deleteGen(word) {
       const common = lcp(rem, label);
       if (common && common.length === label.length) { next = child; nlabel = label; break; }
     }
-    if (!next) { yield S(() => outT.setText(word + ' 不存在')); yield W(400); return; }
+    if (!next) { yield S(() => { status.textContent = word + ' 不存在'; }); yield W(400); return; }
     trail.push([cur.id, next.id]);
     cur = next;
     rem = rem.slice(nlabel.length);
   }
-  if (!cur.end) { yield S(() => outT.setText(word + ' 不存在')); yield W(400); return; }
+  if (!cur.end) { yield S(() => { status.textContent = word + ' 不存在'; }); yield W(400); return; }
   for (const [a, b] of trail) { setNodeColor(a, GOLD); setNodeColor(b, GOLD); yield W(200); }
   cur.end = false;
   nodeView.get(cur.id).setText('');
-  yield S(() => outT.setText('移除 ' + word + ' 的端标记（红闪）'));
+  yield S(() => { status.textContent = '移除 ' + word + ' 的端标记（红闪）'; });
   setNodeColor(cur.id, RED);
   yield W(400);
-  // 收缩空节点链
   let node = cur;
   while (node !== root && node.children.size === 0) {
     const parent = node.parent;
     const lbl = [...parent.children.entries()].find(([, c]) => c === node)[0];
     parent.children.delete(lbl);
-    yield S(() => outT.setText('节点变空：边 "' + lbl + '" 移除，节点收缩消失'));
+    yield S(() => { status.textContent = '节点变空：边 "' + lbl + '" 移除，节点收缩消失'; });
     yield* shrinkOut(node.id);
     yield* moveToLayout();
     yield W(350);
     node = parent;
   }
-  // 单子节点压缩合并边标签
   if (node !== root && node.children.size === 1) {
     const parent = node.parent;
     const upLabel = [...parent.children.entries()].find(([, c]) => c === node)[0];
@@ -271,7 +300,7 @@ function* deleteGen(word) {
     parent.children.delete(upLabel);
     parent.children.set(upLabel + downLabel, child);
     child.parent = parent;
-    yield S(() => outT.setText('单子压缩：边 "' + upLabel + '" 与 "' + downLabel + '" 合并为 "' + upLabel + downLabel + '"'));
+    yield S(() => { status.textContent = '单子压缩：边 "' + upLabel + '" 与 "' + downLabel + '" 合并为 "' + upLabel + downLabel + '"'; });
     yield* shrinkOut(node.id);
     yield* moveToLayout();
     yield W(400);
@@ -280,22 +309,27 @@ function* deleteGen(word) {
   yield W(250);
 }
 
-// ---- 打印单词：收集后飞到底部 ----
+// ---- 打印单词：池化标签从上方飞到底部 ----
+const wordFly = Array.from({ length: 6 }, () => { const t = new VText(scene, { text: '', x: 0, y: 0, z: 0, color: GOLD, scale: 0.9 }); t.sprite.visible = false; return t; });
 function* printGen() {
   const words = [];
   (function dfs(n, prefix) {
     if (n.end) words.push(prefix);
     for (const [label, c] of n.children) dfs(c, prefix + label);
   })(root, '');
-  yield S(() => outT.setText('共 ' + words.length + ' 个单词：' + words.join('、')));
+  yield S(() => { status.textContent = '共 ' + words.length + ' 个单词：' + words.join('、'); });
   const tmp = [];
   words.forEach((w, i) => {
-    const t = new VText(scene, { text: w, x: 0, y: 530, z: 0, color: GOLD, scale: 0.9 });
-    tmp.push({ t, to: new THREE.Vector3(320 + (i - (words.length - 1) / 2) * 150, 80, 0) });
+    const t = wordFly[i];
+    t.setText(w);
+    t.sprite.position.set(320, 700, 0);
+    t.sprite.visible = true;
+    tmp.push({ t, to: new THREE.Vector3(320 + (i - (words.length - 1) / 2) * 70, 320, 0) });
   });
-  yield A(500, p => tmp.forEach(x => x.t.sprite.position.lerpVectors(new THREE.Vector3(0, 530, 0), x.to, p)));
+  const from = SV.set(320, 700, 0);
+  yield A(500, p => tmp.forEach(x => x.t.sprite.position.lerpVectors(from, x.to, E(p))));
   yield W(800);
-  tmp.forEach(x => scene.remove(x.t.sprite));
+  tmp.forEach(x => x.t.sprite.visible = false);
 }
 
 function* runRadix() {
@@ -304,23 +338,22 @@ function* runRadix() {
   model.clear(); model.set(root.id, root);
   nextId = 0;
   addNodeVis(root.id, new THREE.Vector3(320, ROOT_Y, 0));
-  hint.setText('基数树：边标签 = 公共前缀串；插入触发边分裂');
-  yield W(300);
+  yield S(() => { status.textContent = '基数树（压缩前缀树）：蓝球 = 节点，白字 = 边前缀标签，★ = 单词端节点；6 个单词依次插入'; });
+  yield W(400);
   for (const w of ['romane', 'romulus', 'romanus', 'romani', 'romanesco', 'robin']) yield* insertGen(w);
-  yield S(() => outT.setText('6 个单词插入完成：3 次边分裂 + 3 次新叶'));
+  yield S(() => { status.textContent = '6 个单词插入完成：3 次边分裂 + 3 次新叶'; });
   yield W(450);
   yield* searchGen('romanus');
   yield* deleteGen('romanus');
   yield* printGen();
-  yield S(() => {
-    outT.setText('');
-    hint.setText('基数树完成：前缀共享，查找 O(|word|)，空间节省于公共前缀');
-    status.textContent = '基数树演示完成：插入 romane/romulus/romanus/romani/romanesco/robin（分裂 ×3），查找 romanus 命中，删除后压缩合并';
-  });
+  yield S(() => { status.textContent = '基数树演示完成：插入 romane/romulus/romanus/romani/romanesco/robin（边分裂×3），查找 romanus 命中，删除后收缩+单子压缩；前缀共享，查找 O(|word|)'; });
+  yield W(800);
 }
 
+for (let i = 0; i < 10; i++) mkNodeVis();
+for (let i = 0; i < 10; i++) mkEdgeObj();
+resetFree();
 engine.queue(() => runRadix());
-panel.addButton('清空', () => { engine.clear(); clearView(); root.children.clear(); model.clear(); model.set(root.id, root); nextId = 0; hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；白字 = 边前缀标签，★ = 单词端节点，金 = 路径）');
+panel.addButton('清空', () => { engine.clear(); clearView(); root.children.clear(); model.clear(); model.set(root.id, root); nextId = 0; status.textContent = ''; });
 
 scene.start(engine);

@@ -1,20 +1,18 @@
-// AlgorithmLibrary/Trie3D.js — 字典树：白色曲线边 + 新节点生长 + 金色查找路径 + 词尾脉动光圈（function* 生成器驱动）
+// AlgorithmLibrary/Trie3D.js — 字典树：白色曲线边 + 新节点生长 + 金色查找路径 + 词尾脉动光圈（function* 生成器驱动，解说入状态栏）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VText, VNode, VTorus } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { applyTheme } from '../3D/Glow.js';
 applyTheme('Trie3D');
 
-const scene = new Scene3D('scene', { cameraPos: [260, 500, 900], lookAt: [260, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, WHITE = 0xffffff;
 const status = panel.addStatus('');
-const outT = new VText(scene, { text: '', x: 700, y: 440, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
 
 const WORDS = ['cat', 'car', 'card', 'do', 'dog'];
 const SEARCH = 'car', MISS = 'cap', DEL = 'cat';
@@ -39,7 +37,7 @@ WORDS.forEach(insert);
 function leafCount(n) { return n.children.length ? n.children.reduce((s, c) => s + leafCount(c), 0) : 1; }
 const pos = new Map();
 function place(n, lo, hi) {
-  pos.set(n, { x: ((lo + hi) / 2 - (WORDS.length - 1) / 2) * SP + 260, y: ROOT_Y - n.depth * STEP_Y });
+  pos.set(n, { x: ((lo + hi) / 2 - (WORDS.length - 1) / 2) * SP + 320, y: ROOT_Y - n.depth * STEP_Y });
   let acc = lo;
   n.children.forEach(c => { place(c, acc, acc + leafCount(c)); acc += leafCount(c); });
 }
@@ -95,14 +93,13 @@ function resetAll() {
   nodeView.forEach(vn => vn.mesh.scale.setScalar(1));
   ring.forEach(r => { r.mesh.visible = false; r.mesh.scale.setScalar(1); });
   star.forEach(s => s.sprite.visible = false);
-  outT.setText('');
 }
 
-const growNode = (n, p) => nodeView.get(n).mesh.scale.setScalar(0.05 + 0.95 * p);
+const growNode = (n, p) => nodeView.get(n).mesh.scale.setScalar(0.05 + 0.95 * p * p * (3 - 2 * p));
 const pulseRing = (n) => A(500, p => { const r = ring.get(n).mesh; r.scale.setScalar(1 + 0.25 * Math.sin(p * Math.PI * 2)); });
 
 function* insertWord(word) {
-  yield S(() => outT.setText(`插入 "${word}"：逐字符下钻，新节点从父节点生长（缩放动画）`));
+  yield S(() => { status.textContent = '插入 "' + word + '"：逐字符下钻，新节点从父节点生长（缩放动画）'; });
   yield W(400);
   let cur = root;
   for (const ch of word) {
@@ -115,7 +112,7 @@ function* insertWord(word) {
     yield S(() => {
       nodeView.get(cur).setColor(GOLD, GOLD);
       edgeView.get(cur).material.color.setHex(GOLD);
-      outT.setText(`插入 "${word}"：→ '${ch}'（深度 ${cur.depth}）`);
+      status.textContent = '插入 "' + word + '"：→ \'' + ch + '\'（深度 ' + cur.depth + '）';
     });
     yield W(320);
   }
@@ -123,7 +120,7 @@ function* insertWord(word) {
     ring.get(cur).mesh.position.set(pos.get(cur).x, pos.get(cur).y, 0);
     ring.get(cur).mesh.visible = true;
     star.get(cur).sprite.visible = true;
-    outT.setText(`"${word}" 词尾节点出现脉动光圈 ★`);
+    status.textContent = '"' + word + '" 词尾节点出现脉动光圈 ★';
   });
   yield* pulseRing(cur);
   yield W(250);
@@ -137,10 +134,11 @@ function* walkPath(word, color, revealMissing) {
       if (revealMissing) {
         yield S(() => {
           nodeView.get(cur).setColor(RED, RED);
-          outT.setText(`查找 "${word}"：字符 '${ch}' 在节点 '${cur.ch || '根'}' 下不存在 —— 路径中断`);
+          status.textContent = '查找 "' + word + '"：字符 \'' + ch + '\' 在节点 \'' + (cur.ch || '根') + '\' 下不存在 —— 路径中断';
         });
         yield W(600);
         yield S(() => nodeView.get(cur).setColor(BLUE, BLUE));
+        yield W(200);
       }
       return null;
     }
@@ -148,7 +146,7 @@ function* walkPath(word, color, revealMissing) {
     yield S(() => {
       nodeView.get(cur).setColor(color, color);
       edgeView.get(cur).material.color.setHex(color);
-      outT.setText(`查找 "${word}"：→ '${ch}'`);
+      status.textContent = '查找 "' + word + '"：→ \'' + ch + '\'';
     });
     yield W(380);
   }
@@ -156,30 +154,31 @@ function* walkPath(word, color, revealMissing) {
 }
 
 function* searchWord(word) {
-  yield S(() => outT.setText(`查找 "${word}"：沿金色路径下钻`));
+  yield S(() => { status.textContent = '查找 "' + word + '"：沿金色路径下钻'; });
   yield W(300);
   const end = yield* walkPath(word, GOLD, true);
   if (!end) {
-    yield S(() => outT.setText(`查找 "${word}"：未命中（路径中断，红闪 = 缺失处）`));
+    yield S(() => { status.textContent = '查找 "' + word + '"：未命中（路径中断，红闪 = 缺失处）'; });
     yield W(500);
   } else if (!end.end) {
-    yield S(() => outT.setText(`查找 "${word}"：前缀存在但非完整单词 —— 未命中`));
+    yield S(() => { status.textContent = '查找 "' + word + '"：前缀存在但非完整单词 —— 未命中'; });
     yield W(500);
   } else {
     yield S(() => {
       ring.get(end).mesh.visible = true;
       star.get(end).sprite.visible = true;
-      outT.setText(`查找 "${word}"：命中！词尾光圈脉动`);
+      status.textContent = '查找 "' + word + '"：命中！词尾光圈脉动';
     });
     yield* pulseRing(end);
     yield W(250);
     yield S(() => { ring.get(end).mesh.visible = false; star.get(end).sprite.visible = false; });
+    yield W(200);
   }
   yield S(resetPath);
 }
 
 function* deleteWord(word) {
-  yield S(() => outT.setText(`删除 "${word}"：移除词尾标记`));
+  yield S(() => { status.textContent = '删除 "' + word + '"：移除词尾标记'; });
   yield W(300);
   const end = yield* walkPath(word, RED, false);
   if (end) {
@@ -187,31 +186,33 @@ function* deleteWord(word) {
       ring.get(end).mesh.visible = false;
       star.get(end).sprite.visible = false;
       nodeView.get(end).setColor(RED, RED);
-      outT.setText(`已删除 "${word}"：★ 与光圈消失（节点保留供复用）`);
+      status.textContent = '已删除 "' + word + '"：★ 与光圈消失（节点保留供复用）';
     });
     yield W(600);
     yield S(() => nodeView.get(end).setColor(BLUE, BLUE));
+    yield W(200);
   }
   yield S(resetPath);
 }
 
 function* runTrie() {
   yield S(resetAll);
-  yield S(() => { hint.setText('字典树：白色曲线边 = 字符转移。插入时新节点从父节点生长；查找时路径变金色；词尾节点脉动光圈 ★'); });
+  yield W(200);
+  yield S(() => { status.textContent = '字典树：插入时新节点从父节点生长；查找时路径变金色；词尾节点脉动光圈 ★'; });
   yield W(500);
-  for (const w of WORDS) yield* insertWord(w);
-  yield* searchWord(SEARCH);
-  yield* searchWord(MISS);
-  yield* deleteWord(DEL);
-  yield S(() => {
-    outT.setText(`剩余单词：car, card, do, dog（共 4 个）`);
-    hint.setText('复杂度 O(L)：L 为单词长度；插入/查找/删除都只沿一条路径下钻');
-    status.textContent = 'Trie 演示完成：5 词插入，查找 "car" 命中、"cap" 未命中，删除 "cat" 后剩余 4 词';
-  });
+  for (const w of WORDS) { yield* insertWord(w); yield W(200); }
+  yield* searchWord(SEARCH); yield W(200);
+  yield* searchWord(MISS); yield W(200);
+  yield* deleteWord(DEL); yield W(200);
+  yield S(() => { status.textContent = '剩余单词：car, card, do, dog（共 4 个）'; });
+  yield W(400);
+  yield S(() => { status.textContent = '复杂度 O(L)：L 为单词长度；插入/查找/删除都只沿一条路径下钻'; });
+  yield W(500);
+  yield S(() => { status.textContent = 'Trie 演示完成：5 词插入，查找 "car" 命中、"cap" 未命中，删除 "cat" 后剩余 4 词'; });
+  yield W(400);
 }
 
 engine.queue(() => runTrie());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；金球 = 根，蓝球 = 字母节点，金环 = 词尾脉动光圈）');
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

@@ -4,19 +4,17 @@ import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VText } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
+import { applyTheme, glowMaterial } from '../3D/Glow.js';
 applyTheme('Treap3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, WHITE = 0xffffff, GREEN = 0x4ade80, ORANGE = 0xfb923c, PURPLE = 0xc084fc;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Treap 堆性质修复（旋转）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: 280, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-const ROOT_Y = 560, STEP_Y = 95, X_STEP = 84;
+const ROOT_Y = 800, STEP_Y = 70, X_STEP = 70;
 
 // ---- 纯数据模型：BST 键 + 优先级（小顶堆性质：父 prio < 子 prio） ----
 let nextId = 0;
@@ -34,7 +32,7 @@ function layout() {
   const arr = collect(), pos = new Map();
   arr.forEach((n, i) => {
     const d = depthOf(n);
-    pos.set(n.id, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 10), ROOT_Y - d * STEP_Y, -d * 6));
+    pos.set(n.id, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 8) + 320, ROOT_Y - d * STEP_Y, -d * 6));
   });
   return pos;
 }
@@ -131,8 +129,9 @@ function* moveToLayout() {
   syncEdges();
 }
 function* dropIn(g, p) {
+  const startY = Math.min(p.y + 250, 830);
   yield A(480, pp => {
-    g.position.y = p.y + 250 * (1 - pp);
+    g.position.y = startY + (p.y - startY) * pp;
     g.scale.setScalar(0.4 + 0.6 * pp);
   });
   g.scale.setScalar(1);
@@ -146,18 +145,18 @@ function* growEdge(n) {
 
 // ---- 插入：BST 下降 → 降落 → 堆性质冒泡旋转 ----
 function* insertGen(key, prio) {
-  yield S(() => outT.setText('插入 ' + key + '（优先级 ' + prio + '）：沿 BST 比较路径下钻'));
+  yield S(() => { status.textContent ='插入 ' + key + '（优先级 ' + prio + '）：沿 BST 比较路径下钻'; });
   let cur = root;
   while (cur && cur.key !== key) {
     setNodeColor(cur.id, GOLD);
     yield W(220);
     cur = key < cur.key ? cur.left : cur.right;
   }
-  if (cur) { setNodeColor(cur.id, GOLD); yield S(() => outT.setText(key + ' 已存在')); yield W(450); resetColors(); return; }
+  if (cur) { setNodeColor(cur.id, GOLD); yield S(() => { status.textContent =key + ' 已存在'; }); yield W(450); resetColors(); return; }
   const n = insertModel(key, prio);
   const pos = layout().get(n.id);
-  const g = addNodeVis(n, new THREE.Vector3(pos.x, pos.y + 250, pos.z));
-  yield S(() => outT.setText('新节点 ' + key + ' 降落：键 ' + key + ' 满足 BST，优先级 ' + prio + ' 待验证'));
+  const g = addNodeVis(n, new THREE.Vector3(pos.x, Math.min(pos.y + 250, 830), pos.z));
+  yield S(() => { status.textContent ='新节点 ' + key + ' 降落：键 ' + key + ' 满足 BST，优先级 ' + prio + ' 待验证'; });
   yield* dropIn(g, pos);
   yield* moveToLayout();
   yield* growEdge(n);
@@ -169,7 +168,7 @@ function* insertGen(key, prio) {
     if (z.prio >= p.prio) break;
     setNodeColor(z.id, ORANGE); setNodeColor(p.id, ORANGE);
     const dir = p.left === z ? '右' : '左';
-    yield S(() => outT.setText('堆性质破坏：' + z.key + ' 优先级 ' + z.prio + ' < 父 ' + p.key + ' 的 ' + p.prio + ' → ' + dir + '旋 ' + p.key));
+    yield S(() => { status.textContent = '堆性质破坏：' + z.key + ' 优先级 ' + z.prio + ' < 父 ' + p.key + ' 的 ' + p.prio + ' → ' + dir + '旋 ' + p.key; });
     yield W(500);
     if (p.left === z) rotateRight(p); else rotateLeft(p);
     yield* moveToLayout();
@@ -177,7 +176,7 @@ function* insertGen(key, prio) {
     z = findNode(z.key);
   }
   setNodeColor(n.id, GREEN);
-  yield S(() => outT.setText('插入 ' + key + ' 完成：BST + 堆性质均满足（绿闪）'));
+  yield S(() => { status.textContent ='插入 ' + key + ' 完成：BST + 堆性质均满足（绿闪）'; });
   yield W(450);
   resetColors();
   yield W(150);
@@ -185,7 +184,6 @@ function* insertGen(key, prio) {
 
 function* randomizeGen() {
   clearView(); root = null; model.clear(); nextId = 0;
-  hint.setText('Treap：键满足 BST，优先级满足小顶堆；插入后旋转修复');
   yield W(300);
   const used = new Set();
   const pairs = [];
@@ -198,27 +196,22 @@ function* randomizeGen() {
   }
   for (const [k, p] of pairs) yield* insertGen(k, p);
   yield S(() => {
-    outT.setText('随机 8 键构建完成');
     status.textContent = 'Treap 随机演示：' + pairs.map(([k, p]) => k + '(' + p + ')').join(' ') + '，所有节点满足堆性质';
   });
 }
 
 function* runTreap() {
   clearView(); root = null; model.clear(); nextId = 0;
-  hint.setText('Treap = Tree + Heap：键决定 BST 位置，随机优先级决定堆形状');
   yield W(400);
   for (const [k, p] of [[10, 30], [20, 50], [30, 10], [25, 5], [5, 1]]) yield* insertGen(k, p);
   const arr = collect();
   yield S(() => {
-    outT.setText('最终中序：' + arr.map(n => n.key).join(' → '));
-    hint.setText('Treap 完成：插入 5 键触发 4 次旋转（左旋/右旋修复堆性质）');
-    status.textContent = 'Treap 演示完成：插入 (10,30)(20,50)(30,10)(25,5)(5,1)，30 左旋、25 两次左旋、5 两次右旋，堆性质保持';
+    status.textContent = 'Treap 演示完成：插入 (10,30)(20,50)(30,10)(25,5)(5,1)，30 左旋、25 两次左旋、5 两次右旋，堆性质保持；最终中序 ' + arr.map(n => n.key).join(' → ');
   });
 }
 
 engine.queue(() => runTreap());
 panel.addButton('随机化', () => engine.start(randomizeGen()));
-panel.addButton('清空', () => { engine.clear(); clearView(); root = null; model.clear(); nextId = 0; hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；键标签白字在上，优先级紫字在下；橙 = 旋转目标，绿 = 完成）');
+panel.addButton('清空', () => { engine.clear(); clearView(); root = null; model.clear(); nextId = 0; status.textContent = ''; });
 
 scene.start(engine);

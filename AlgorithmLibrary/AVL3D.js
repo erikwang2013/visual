@@ -4,19 +4,19 @@ import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VText, VNode } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { applyTheme } from '../3D/Glow.js';
 applyTheme('AVL3D');
 
-const scene = new Scene3D('scene', { cameraPos: [345, 653, 1000], lookAt: [345, 233, 0], fov: 55 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：AVL 平衡因子标签 + 旋转修复', x: 760, y: 600, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, WHITE = 0xffffff, YELLOW = 0xfde047;
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 760, y: 470, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const ease = p => p * p * (3 - 2 * p);
 
-const ROOT_Y = 300, STEP_Y = 70, X_STEP = 56;
+const ROOT_Y = 830, STEP_Y = 70, X_STEP = 48;
+const KEYS = [50, 30, 70, 20, 10, 60, 80, 90, 75, 15];
 
 // ---- 纯数据 AVL ----
 let root = null; // { key, left, right, parent:key|null }
@@ -70,27 +70,39 @@ function layout() {
   const arr = collect(), pos = new Map();
   arr.forEach((n, i) => {
     const d = depthOf(n);
-    pos.set(n.key, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 6) + 345, ROOT_Y - d * STEP_Y, -d * 6));
+    pos.set(n.key, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 5) + 320, ROOT_Y - d * STEP_Y, -d * 6));
   });
   return pos;
 }
 
-// ---- 视觉：球 + 键标签 + 平衡因子标签（子节点跟随移动） ----
+// ---- 视觉：球 + 键标签 + 平衡因子标签（子节点跟随移动），全部模块级预建 ----
 const nodeView = new Map();  // key -> VNode
 const bfView = new Map();    // key -> VText sprite
 const edgeView = new Map();  // childKey -> tube mesh
+const preNodes = new Map();  // key -> VNode（预建）
+const preBFs = new Map();    // key -> VText（预建）
+KEYS.forEach(k => {
+  const vn = new VNode(scene, { radius: 19, x: 320, y: 870, z: 0, label: String(k), color: BLUE, emissive: BLUE });
+  vn.mesh.visible = false;
+  const bf = new VText(scene, { text: '0', x: 0, y: 0, z: 0, color: YELLOW, scale: 0.55 });
+  scene.remove(bf.sprite);
+  bf.sprite.position.set(0, 62, 0);
+  vn.mesh.add(bf.sprite);
+  preNodes.set(k, vn); preBFs.set(k, bf);
+});
 function clearView() {
-  nodeView.forEach(v => scene.remove(v.mesh));
+  preNodes.forEach((vn, k) => { vn.mesh.visible = false; vn.setColor(BLUE, BLUE); vn.setText(String(k)); preBFs.get(k).setText('0'); });
   edgeView.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
   nodeView.clear(); edgeView.clear(); bfView.clear();
 }
 function addNodeMesh(n, p) {
-  const vn = new VNode(scene, { radius: 19, x: p.x, y: p.y, z: p.z, label: String(n.key), color: BLUE, emissive: BLUE });
-  const bf = new VText(scene, { text: '0', x: 0, y: 0, z: 0, color: PALETTE.yellow, scale: 0.55 });
-  scene.remove(bf.sprite);
-  bf.sprite.position.set(0, 62, 0);
-  vn.mesh.add(bf.sprite);
-  nodeView.set(n.key, vn); bfView.set(n.key, bf);
+  const vn = preNodes.get(n.key);
+  vn.mesh.visible = true;
+  vn.mesh.position.copy(p);
+  vn.mesh.scale.setScalar(1);
+  vn.setColor(BLUE, BLUE);
+  nodeView.set(n.key, vn);
+  bfView.set(n.key, preBFs.get(n.key));
   return vn;
 }
 function updateBFLabels() {
@@ -129,30 +141,32 @@ function* moveToLayout() {
     tasks.push({ vn, from: f, to: p });
   });
   if (!tasks.length) { syncEdges(); return; }
-  yield A(460, pp => tasks.forEach(t => t.vn.mesh.position.lerpVectors(t.from, t.to, pp)));
+  yield A(460, pp => tasks.forEach(t => t.vn.mesh.position.lerpVectors(t.from, t.to, ease(pp))));
   syncEdges();
 }
 function* dropIn(vn, p) {
   yield A(480, pp => {
-    vn.mesh.position.y = p.y + 250 * (1 - pp);
-    vn.mesh.scale.setScalar(0.4 + 0.6 * pp);
+    const e = ease(pp);
+    vn.mesh.position.y = p.y + (870 - p.y) * (1 - e);
+    vn.mesh.scale.setScalar(0.4 + 0.6 * e);
   });
   vn.mesh.scale.setScalar(1);
 }
 
 // 插入：下钻 → 降落 → 回溯修复失衡（旋转动画）
 function* insertGen(key) {
-  yield S(() => outT.setText('插入 ' + key + '：沿比较路径下钻'));
+  yield S(() => { status.textContent = '插入 ' + key + '：沿比较路径下钻（金色 = 路径节点）'; });
   let cur = root;
   while (cur && cur.key !== key) {
     setNodeColor(cur.key, GOLD);
     yield W(240);
     cur = key < cur.key ? cur.left : cur.right;
   }
-  if (cur) { setNodeColor(cur.key, RED); yield S(() => outT.setText(key + ' 已存在')); yield W(450); resetNodeColors(); return; }
+  if (cur) { setNodeColor(cur.key, RED); yield S(() => { status.textContent = key + ' 已存在'; }); yield W(450); resetNodeColors(); return; }
   const n = insertModel(key);
   const pos = layout().get(key);
-  const vn = addNodeMesh(n, new THREE.Vector3(pos.x, pos.y + 250, pos.z));
+  const vn = addNodeMesh(n, new THREE.Vector3(pos.x, 870, pos.z));
+  yield S(() => { status.textContent = '新节点 ' + key + ' 从上方降落，边生长连接'; });
   yield* dropIn(vn, pos);
   yield* moveToLayout();
   yield* growEdge(n);
@@ -169,7 +183,7 @@ function* insertGen(key) {
       : (height(p.right.right) >= height(p.right.left) ? 'RR' : 'RL');
     const pivot = p.key;
     setNodeColor(pivot, RED);
-    yield S(() => outT.setText('节点 ' + pivot + ' 失衡 BF=' + (b > 0 ? '+' + b : b) + ' → ' + type + ' 旋转修复'));
+    yield S(() => { status.textContent = '节点 ' + pivot + ' 失衡 BF=' + (b > 0 ? '+' + b : b) + ' → ' + type + ' 旋转修复'; });
     yield W(600);
     if (type === 'LL') rotateRight(p);
     else if (type === 'LR') { rotateLeft(p.left); rotateRight(p); }
@@ -177,7 +191,7 @@ function* insertGen(key) {
     else { rotateRight(p.right); rotateLeft(p); }
     yield* moveToLayout();
     setNodeColor(pivot, GREEN);
-    yield S(() => outT.setText(type + ' 旋转完成：' + pivot + ' 已平衡（绿闪）'));
+    yield S(() => { status.textContent = type + ' 旋转完成：' + pivot + ' 已平衡（绿闪）'; });
     yield W(500);
     updateBFLabels();
     break;
@@ -190,20 +204,20 @@ function* growEdge(n) {
   if (!n.parent) return;
   const e = edgeView.get(n.key);
   e.material.opacity = 0;
-  yield A(280, p => { e.material.opacity = 0.7 * p; });
+  yield A(280, p => { e.material.opacity = 0.7 * ease(p); });
 }
 
 function* searchGen(key) {
-  yield S(() => outT.setText('查找 ' + key + '：沿金色路径下钻'));
+  yield S(() => { status.textContent = '查找 ' + key + '：沿金色路径下钻'; });
   let cur = root, path = [];
   while (cur && cur.key !== key) { path.push(cur.key); setNodeColor(cur.key, GOLD); yield W(260); cur = key < cur.key ? cur.left : cur.right; }
   if (cur) {
     setNodeColor(cur.key, GREEN);
-    yield S(() => outT.setText('命中 ' + key + '！（绿色闪光，深度 ' + depthOf(cur) + '）'));
+    yield S(() => { status.textContent = '命中 ' + key + '！（绿色闪光，深度 ' + depthOf(cur) + '）'; });
     yield W(500);
   } else {
     setNodeColor(path[path.length - 1], RED);
-    yield S(() => outT.setText(key + ' 不存在（红闪）'));
+    yield S(() => { status.textContent = key + ' 不存在（红闪）'; });
     yield W(500);
   }
   resetNodeColors();
@@ -211,20 +225,21 @@ function* searchGen(key) {
 
 function* deleteLeaf(key) {
   const z = findNode(key);
-  if (!z) { yield S(() => outT.setText(key + ' 不存在')); yield W(400); return; }
-  yield S(() => outT.setText('删除叶节点 ' + key + '：红闪后收缩消失'));
+  if (!z) { yield S(() => { status.textContent = key + ' 不存在'; }); yield W(400); return; }
+  yield S(() => { status.textContent = '删除节点 ' + key + '：红闪后收缩消失，子树顶替'; });
   setNodeColor(key, RED);
   yield W(450);
   root = (function rec(node) {
     if (!node) return null;
     if (key < node.key) { node.left = rec(node.left); if (node.left) node.left.parent = node.key; }
     else if (key > node.key) { node.right = rec(node.right); if (node.right) node.right.parent = node.key; }
-    else return null;
+    else if (!node.left) { if (node.right) node.right.parent = node.parent; return node.right; }
+    else if (!node.right) { if (node.left) node.left.parent = node.parent; return node.left; }
     return node;
   })(root);
   const vn = nodeView.get(key);
-  yield A(300, p => { vn.mesh.scale.setScalar(1 - p); });
-  scene.remove(vn.mesh);
+  yield A(300, pp => { vn.mesh.scale.setScalar(1 - ease(pp)); });
+  vn.mesh.visible = false;
   nodeView.delete(key); bfView.delete(key);
   yield* moveToLayout();
   updateBFLabels();
@@ -234,32 +249,30 @@ function* deleteLeaf(key) {
 
 function* runAVL() {
   clearView(); root = null;
-  hint.setText('AVL 树：每个节点带平衡因子标签（黄字），|BF|>1 红闪失衡，四种旋转修复');
-  yield W(400);
+  yield S(() => { status.textContent = 'AVL 树：每个节点带平衡因子标签（黄字），|BF| > 1 红闪失衡，四种旋转修复'; });
+  yield W(500);
   for (const k of [50, 30, 70, 20, 10]) yield* insertGen(k);
-  yield S(() => outT.setText('插入 10 触发 LL 失衡 → 右旋 30（已完成）'));
+  yield S(() => { status.textContent = '插入 10 触发 LL 失衡 → 右旋 30 修复 ✓，全部 |BF| ≤ 1'; });
   yield W(300);
   for (const k of [60, 80, 90]) yield* insertGen(k);
-  yield S(() => outT.setText('插入 90 触发 RR 失衡 → 左旋 70（已完成）'));
+  yield S(() => { status.textContent = '插入 60、80、90：回溯检查各节点 |BF| < 2，树保持平衡'; });
   yield W(300);
   yield* insertGen(75);
-  yield S(() => outT.setText('插入 75 触发 RL 失衡 → 右旋 80 + 左旋 70（已完成）'));
+  yield S(() => { status.textContent = '插入 75：逐层回溯，各节点 |BF| ≤ 1，无需旋转'; });
   yield W(300);
   yield* insertGen(15);
-  yield S(() => outT.setText('插入 15 触发 LR 失衡 → 左旋 10 + 右旋 20（已完成）'));
+  yield S(() => { status.textContent = '插入 15：逐层回溯，各节点 |BF| ≤ 1，无需旋转'; });
   yield W(300);
   yield* searchGen(75);
   yield* deleteLeaf(10);
   const arr = collect();
-  yield S(() => {
-    outT.setText('最终中序：' + arr.map(n => n.key).join(' → ') + '，全部 |BF| ≤ 1');
-    hint.setText('AVL 完成：自平衡保证树高 O(log n)，旋转共 4 种：LL/RR 单旋，LR/RL 双旋');
-    status.textContent = 'AVL 演示完成：插入 9 节点展示 LL/RR/RL/LR 四种旋转，查找 75 命中，删除叶节点 10';
-  });
+  yield S(() => { status.textContent = '最终中序：' + arr.map(n => n.key).join(' → ') + '，全部 |BF| ≤ 1'; });
+  yield W(500);
+  yield S(() => { status.textContent = 'AVL 演示完成：插入 10 节点并 LL 旋转修复，查找 75 命中，删除节点 10（子树 15 顶替）；自平衡保证树高 O(log n)'; });
+  yield W(600);
 }
 
 engine.queue(() => runAVL());
-panel.addButton('清空', () => { engine.clear(); clearView(); root = null; hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；黄字 = 平衡因子，红 = 失衡，绿 = 修复完成）');
+panel.addButton('清空', () => { engine.clear(); clearView(); root = null; status.textContent = ''; });
 
 scene.start(engine);

@@ -4,19 +4,20 @@ import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VText, VNode } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { applyTheme } from '../3D/Glow.js';
 applyTheme('SplayTree3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, ORANGE = 0xfb923c, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Splay 伸展到根（zig/zig-zig/zig-zag）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
-const outT = new VText(scene, { text: '', x: 0, y: 250, z: 0, color: PALETTE.textGlow, scale: 0.62 });
 
-const ROOT_Y = 560, STEP_Y = 85, X_STEP = 80;
+const ROOT_Y = 700, STEP_Y = 85, X_STEP = 80;
+const tmpV = new THREE.Vector3();
+const inoT = [];  // 中序数字标注（预建，最多 5 个键）
+for (let i = 0; i < 5; i++) inoT.push(new VText(scene, { text: '', x: 0, y: 0, z: 0, color: GOLD, scale: 0.85 }));
 
 // ---- 纯数据模型（parent 键引用） ----
 let root = null;
@@ -68,7 +69,7 @@ function layout() {
   const arr = collect(), pos = new Map();
   arr.forEach((n, i) => {
     const d = depthOf(n);
-    pos.set(n.key, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 10), ROOT_Y - d * STEP_Y, -d * 6));
+    pos.set(n.key, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 10) + 320, ROOT_Y - d * STEP_Y, -d * 6));
   });
   return pos;
 }
@@ -146,36 +147,35 @@ function* splayGen(x) {
     const g = p.parent != null ? findNode(p.parent) : null;
     if (!g) {
       setNodeColor(x.key, ORANGE); setNodeColor(p.key, ORANGE);
-      const dir = x === p.left ? '右' : '左';
-      yield S(() => outT.setText('zig 单旋：' + x.key + ' 是 ' + p.key + ' 的' + (x === p.left ? '左' : '右') + '子 → ' + dir + '旋 ' + p.key));
+      yield S(() => { status.textContent = 'zig 单旋：' + x.key + ' 是 ' + p.key + ' 的' + (x === p.left ? '左' : '右') + '子 → ' + (x === p.left ? '右' : '左') + '旋 ' + p.key; });
       yield W(480);
       if (x === p.left) rotateRight(p); else rotateLeft(p);
       yield* moveToLayout();
       yield W(220);
     } else if (x === p.left && p === g.left) {
       setNodeColor(x.key, ORANGE); setNodeColor(p.key, ORANGE); setNodeColor(g.key, RED);
-      yield S(() => outT.setText('zig-zig 同侧双旋：' + x.key + '→' + p.key + '→' + g.key + ' 都是左子 → 右旋 ' + g.key + ' 再右旋 ' + p.key));
+      yield S(() => { status.textContent = 'zig-zig 同侧双旋：' + x.key + '→' + p.key + '→' + g.key + ' 都是左子 → 右旋 ' + g.key + ' 再右旋 ' + p.key; });
       yield W(550);
       rotateRight(g); rotateRight(p);
       yield* moveToLayout();
       yield W(220);
     } else if (x === p.right && p === g.right) {
       setNodeColor(x.key, ORANGE); setNodeColor(p.key, ORANGE); setNodeColor(g.key, RED);
-      yield S(() => outT.setText('zig-zig 同侧双旋：' + x.key + '→' + p.key + '→' + g.key + ' 都是右子 → 左旋 ' + g.key + ' 再左旋 ' + p.key));
+      yield S(() => { status.textContent = 'zig-zig 同侧双旋：' + x.key + '→' + p.key + '→' + g.key + ' 都是右子 → 左旋 ' + g.key + ' 再左旋 ' + p.key; });
       yield W(550);
       rotateLeft(g); rotateLeft(p);
       yield* moveToLayout();
       yield W(220);
     } else if (x === p.right && p === g.left) {
       setNodeColor(x.key, ORANGE); setNodeColor(p.key, ORANGE); setNodeColor(g.key, RED);
-      yield S(() => outT.setText('zig-zag 之字双旋：' + x.key + ' 是 ' + p.key + ' 右子、' + p.key + ' 是 ' + g.key + ' 左子 → 左旋 ' + p.key + ' 再右旋 ' + g.key));
+      yield S(() => { status.textContent = 'zig-zag 之字双旋：' + x.key + ' 是 ' + p.key + ' 右子、' + p.key + ' 是 ' + g.key + ' 左子 → 左旋 ' + p.key + ' 再右旋 ' + g.key; });
       yield W(550);
       rotateLeft(p); rotateRight(g);
       yield* moveToLayout();
       yield W(220);
     } else {
       setNodeColor(x.key, ORANGE); setNodeColor(p.key, ORANGE); setNodeColor(g.key, RED);
-      yield S(() => outT.setText('zig-zag 之字双旋：' + x.key + ' 是 ' + p.key + ' 左子、' + p.key + ' 是 ' + g.key + ' 右子 → 右旋 ' + p.key + ' 再左旋 ' + g.key));
+      yield S(() => { status.textContent = 'zig-zag 之字双旋：' + x.key + ' 是 ' + p.key + ' 左子、' + p.key + ' 是 ' + g.key + ' 右子 → 右旋 ' + p.key + ' 再左旋 ' + g.key; });
       yield W(550);
       rotateRight(p); rotateLeft(g);
       yield* moveToLayout();
@@ -188,18 +188,19 @@ function* splayGen(x) {
 
 // ---- 插入：下钻 → 降落 → 伸展到根 ----
 function* insertGen(key) {
-  yield S(() => outT.setText('插入 ' + key + '：沿比较路径下钻'));
+  yield S(() => { status.textContent = '插入 ' + key + '：沿比较路径下钻'; });
   let cur = root;
   while (cur && cur.key !== key) {
     setNodeColor(cur.key, GOLD);
     yield W(240);
     cur = key < cur.key ? cur.left : cur.right;
   }
-  if (cur) { setNodeColor(cur.key, GOLD); yield S(() => outT.setText(key + ' 已存在')); yield W(450); resetColors(); return; }
+  if (cur) { setNodeColor(cur.key, GOLD); yield S(() => { status.textContent = key + ' 已存在'; }); yield W(450); resetNodeColors(); return; }
   const n = insertModel(key);
   const pos = layout().get(key);
-  const vn = addNodeMesh(n, new THREE.Vector3(pos.x, pos.y + 250, pos.z));
-  yield S(() => outT.setText('新节点 ' + key + ' 降落，然后伸展到根'));
+  tmpV.set(pos.x, pos.y + 250, pos.z);
+  const vn = addNodeMesh(n, tmpV);
+  yield S(() => { status.textContent = '新节点 ' + key + ' 降落，然后伸展到根'; });
   yield* dropIn(vn, pos);
   yield* moveToLayout();
   yield* growEdge(n);
@@ -210,16 +211,16 @@ function* insertGen(key) {
 
 // ---- 查找：下钻 → 命中伸展 / 未命中不伸展 ----
 function* searchGen(key) {
-  yield S(() => outT.setText('查找 ' + key + '：沿金色路径下钻'));
+  yield S(() => { status.textContent = '查找 ' + key + '：沿金色路径下钻'; });
   let cur = root;
   while (cur && cur.key !== key) { setNodeColor(cur.key, GOLD); yield W(260); cur = key < cur.key ? cur.left : cur.right; }
   if (cur) {
     setNodeColor(cur.key, GREEN);
-    yield S(() => outT.setText('命中 ' + key + '：伸展到根（近期访问加速）'));
+    yield S(() => { status.textContent = '命中 ' + key + '：伸展到根（近期访问加速）'; });
     yield W(450);
     yield* splayGen(cur);
   } else {
-    yield S(() => outT.setText(key + ' 不存在（红闪，无伸展）'));
+    yield S(() => { status.textContent = key + ' 不存在（红闪，无伸展）'; });
     yield W(500);
   }
   resetNodeColors();
@@ -228,12 +229,12 @@ function* searchGen(key) {
 // ---- 删除：目标伸展到根 → 收缩移除 → 左子树最大伸展为根挂接右子树 ----
 function* deleteGen(key) {
   const z = findNode(key);
-  if (!z) { yield S(() => outT.setText(key + ' 不存在')); yield W(400); return; }
-  yield S(() => outT.setText('删除 ' + key + '：先伸展到根'));
+  if (!z) { yield S(() => { status.textContent = key + ' 不存在'; }); yield W(400); return; }
+  yield S(() => { status.textContent = '删除 ' + key + '：先伸展到根'; });
   yield W(450);
   yield* splayGen(z);
   setNodeColor(key, RED);
-  yield S(() => outT.setText(key + ' 已在根：移除根节点，左右子树合并'));
+  yield S(() => { status.textContent = key + ' 已在根：移除根节点，左右子树合并'; });
   yield W(450);
   const vn = nodeView.get(key);
   yield A(300, p => { vn.mesh.scale.setScalar(1 - p); });
@@ -259,7 +260,7 @@ function* deleteGen(key) {
     m.right = R;
     if (R) R.parent = m.key;
   }
-  yield S(() => outT.setText('合并：左子树最大 ' + (L ? (function (r) { while (r.right) r = r.right; return r.key; })(L) : '—') + ' 为新根，右子树挂接'));
+  yield S(() => { status.textContent = '合并：左子树最大 ' + (L ? (function (r) { while (r.right) r = r.right; return r.key; })(L) : '—') + ' 为新根，右子树挂接'; });
   yield* moveToLayout();
   resetNodeColors();
   yield W(300);
@@ -268,38 +269,35 @@ function* deleteGen(key) {
 // ---- 中序输出 ----
 function* inorderGen() {
   const arr = collect();
-  yield S(() => outT.setText('中序遍历：' + arr.map(n => n.key).join(' → ')));
+  yield S(() => { status.textContent = '中序遍历：' + arr.map(n => n.key).join(' → '); });
   const tmp = [];
   arr.forEach((n, i) => {
-    const f = nodeView.get(n.key).mesh.position.clone();
-    const t = new VText(scene, { text: String(n.key), x: f.x, y: f.y, z: f.z, color: GOLD, scale: 0.85 });
-    tmp.push({ t, from: f, to: new THREE.Vector3((i - (arr.length - 1) / 2) * 82, 70, 0) });
+    const t = inoT[i];
+    t.setText(String(n.key));
+    const f = nodeView.get(n.key).mesh.position;
+    t.sprite.position.copy(f);
+    tmp.push({ t, fx: f.x, fy: f.y, tx: (i - (arr.length - 1) / 2) * 82 + 320 });
   });
-  yield A(560, p => tmp.forEach(x => x.t.sprite.position.lerpVectors(x.from, x.to, p)));
+  yield A(560, pp => tmp.forEach(x => x.t.sprite.position.set(x.fx + (x.tx - x.fx) * pp, x.fy + (330 - x.fy) * pp, 0)));
   yield W(900);
-  tmp.forEach(x => scene.remove(x.t.sprite));
+  tmp.forEach(x => x.t.setText(''));
 }
 
 function* runSplay() {
   clearView(); root = null;
-  hint.setText('伸展树：每次访问（插入/查找/删除）都把节点旋到根，近期访问者更快');
+  yield S(() => { status.textContent = '伸展树：每次访问（插入/查找/删除）都把节点旋到根，近期访问者更快'; });
   yield W(400);
   for (const k of [50, 30, 70, 20, 40]) yield* insertGen(k);
-  yield S(() => outT.setText('5 键插入完成（每次插入后伸展到根）'));
+  yield S(() => { status.textContent = '5 键插入完成（每次插入后伸展到根）'; });
   yield W(400);
   yield* searchGen(20);
   yield* searchGen(35);
   yield* deleteGen(30);
   yield* inorderGen();
-  yield S(() => {
-    outT.setText('');
-    hint.setText('Splay 完成：访问节点伸展到根；摊还 O(log n)');
-    status.textContent = 'Splay 演示完成：插入 50/30/70/20/40（每次伸展），查找 20（zig-zig）与 35（未命中），删除 30（根合并）';
-  });
+  yield S(() => { status.textContent = 'Splay 演示完成：插入 50/30/70/20/40（每次伸展）、查找 20（zig-zig）与 35（未命中）、删除 30（根合并）；摊还 O(log n)'; });
 }
 
 engine.queue(() => runSplay());
-panel.addButton('清空', () => { engine.clear(); clearView(); root = null; hint.setText('已清空，可重新运行'); status.textContent = ''; outT.setText(''); });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；橙 = 旋转节点，红 = 祖父/目标，金 = 路径，绿 = 命中）');
+panel.addButton('清空', () => { engine.clear(); clearView(); root = null; status.textContent = ''; });
 
 scene.start(engine);

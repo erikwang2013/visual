@@ -2,18 +2,17 @@
 // draw.io 风格实体图标：服务器机架（正面 2 槽）= 节点，名称标签浮在机架前方
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
+import { GeneratorEngine, W, S } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
+import { VBox, VText } from '../3D/VisualObject3D.js';
 import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Gossip3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：Gossip 传播', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
+const GREEN = 0x4ade80, YELLOW = 0xfacc15, DIM = 0x334155;
 const status = panel.addStatus('就绪');
 
 // draw.io 风格节点：机架 + 正面 2 槽
@@ -52,23 +51,19 @@ const nodes = [0, 1, 2, 3, 4, 5].map((i) => {
   const p = pos(i);
   return makeNode(p.x, p.y);
 });
-const nodeLabel = [0, 1, 2, 3, 4, 5].map((i) => {
+[0, 1, 2, 3, 4, 5].forEach((i) => {
   const p = pos(i);
-  return new VText(scene, { text: 'N' + i, x: p.x, y: p.y, z: 20, color: PALETTE.textGlow, scale: 0.55 });
+  new VText(scene, { text: 'N' + i, x: p.x, y: p.y, z: 20, color: PALETTE.textGlow, scale: 0.55 });
 });
-new VText(scene, { text: '6 个节点，每轮随机闲聊 2 人（fanout=2）', x: 700, y: 480, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 
 // 聊天连线（每轮显示）
 const line = new VBox(scene, { w: 200, h: 2.5, d: 2.5, x: 320, y: 355, z: 0, label: '', color: YELLOW, emissive: YELLOW });
 line.mesh.visible = false;
 
-const roundT = new VText(scene, { text: '', x: 320, y: 385, z: 0, color: PALETTE.textGlow, scale: 0.6, wrapChars: 7 });
-const stepT = new VText(scene, { text: '', x: 700, y: 430, z: 0, color: PALETTE.textGlow, scale: 0.6, wrapChars: 8 });
-
-// 每轮聊天对（从 N0 出发模拟）与知情数
+// 每轮聊天对（从 N0 出发模拟）
 const ROUNDS = [
-  { pairs: [[0, 1], [0, 2]], known: 3, desc: 'N0 把消息告诉 N1、N2 → 知情 1 → 3' },
-  { pairs: [[0, 3], [1, 4], [2, 5]], known: 6, desc: '3 个知情者各聊 2 人 → 3 → 6 全部知情' },
+  { pairs: [[0, 1], [0, 2]] },
+  { pairs: [[0, 3], [1, 4], [2, 5]] },
 ];
 const lineTo = (a, b) => {
   const p1 = pos(a), p2 = pos(b);
@@ -81,49 +76,37 @@ const lineTo = (a, b) => {
 function resetAll() {
   nodes.forEach(b => b.setColor(DIM, false));
   line.mesh.visible = false;
-  roundT.setText(''); stepT.setText('');
 }
 
 function* gossipGen() {
   resetAll();
-  yield S(() => hint.setText('Gossip：消息像流言一样扩散 — 每轮与随机几人分享，对数轮全群皆知'));
-  yield S(() => { stepT.setText('起始：N0 得知新消息（集群变更/新路由），其余节点不知情'); });
-  yield W(500);
-  yield S(() => {
-    nodes[0].setColor(YELLOW, true);
-    roundT.setText('t = 0：知情数 1');
-    stepT.setText('N0 持有消息，准备开始「闲聊」');
-  });
+  yield S(() => { status.textContent = 'Gossip（谣言传播）：消息像流言一样扩散 — 每轮与随机几人分享，对数轮全群皆知；无中心、容错强。初始：N0 得知新消息（集群变更/新路由），其余节点不知情（知情 1/6）'; });
+  yield W(700);
+  yield S(() => { nodes[0].setColor(YELLOW, true); status.textContent = 't=0：N0 持有消息，准备开始「闲聊」— 知情 1/6'; });
   yield W(900);
   yield S(() => {
     ROUNDS[0].pairs.forEach(([a, b]) => lineTo(a, b));
     nodes[1].setColor(GREEN, true); nodes[2].setColor(GREEN, true);
-    roundT.setText('t = 1：知情数 3');
-    stepT.setText('第 1 轮：N0 与 N1、N2 闲聊，把消息带过去 — 知情者翻三倍');
+    status.textContent = 't=1 第 1 轮：N0 与 N1、N2 闲聊，把消息带过去 — 知情 3/6（fanout=2，知情者翻三倍）';
   });
   yield W(900);
   yield S(() => {
     line.mesh.visible = false;
     ROUNDS[1].pairs.forEach(([a, b]) => lineTo(a, b));
     nodes[3].setColor(GREEN, true); nodes[4].setColor(GREEN, true); nodes[5].setColor(GREEN, true);
-    roundT.setText('t = 2：知情数 6（全群知情）');
-    stepT.setText('第 2 轮：N0、N1、N2 三人各自再聊 2 人 → N3、N4、N5 全部知情');
+    status.textContent = 't=2 第 2 轮：N0、N1、N2 三人各自再聊 2 人 → N3、N4、N5 知情 — 知情 6/6，全群知情';
   });
   yield W(900);
   yield S(() => {
     line.mesh.visible = false;
-    stepT.setText('传播完成：2 轮（log₂6 ≈ 2.6）全网知情 — 无需中心，任何节点挂了都不影响');
-    hint.setText('Gossip 无中心、容错强 — Cassandra/Redis Cluster 的节点发现与状态同步靠它');
+    status.textContent = '传播完成：2 轮（log₂6 ≈ 2.6）全网知情 — 每轮消息数 O(n)，无需中心节点，任何节点挂了都不影响；Cassandra/Redis Cluster 的节点发现与状态同步靠它';
   });
-  yield W(800);
-  yield S(() => {
-    status.textContent = 'Gossip 完成：6 节点 fanout=2，t0=1 → t1=3 → t2=6 全知，2 轮对数收敛';
-  });
+  yield W(900);
+  yield S(() => { status.textContent = 'Gossip 演示完成：6 节点 fanout=2，知情数 1 → 3 → 6，2 轮对数收敛（log₂6≈2.6）；每轮消息 O(n)、无中心、容错强'; });
   yield W(600);
 }
 
 engine.queue(() => gossipGen());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；黄=消息源，绿=已知情，连线=本轮闲聊）');
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

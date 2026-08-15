@@ -1,19 +1,18 @@
-// AlgorithmLibrary/ZAB3D.js — ZAB：Leader 选举 + 事务广播，zxid 严格有序（ZooKeeper 核心）（function* 生成器驱动）
+// AlgorithmLibrary/ZAB3D.js — ZAB：Leader 选举 + 事务广播，zxid 严格有序（ZooKeeper 核心）（function* 生成器驱动，解说入状态栏）
 // draw.io 风格实体图标：服务器机架（正面 2 槽）= 节点，角色标签浮在机架前方
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
+import { GeneratorEngine, W, S } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
+import { VBox, VText } from '../3D/VisualObject3D.js';
 import { glowMaterial, PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ZAB3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：ZAB 协议', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
 // draw.io 风格节点：机架 + 正面 2 槽
@@ -43,19 +42,12 @@ function makeNode(x, y) {
 }
 
 const NX = [80, 200, 320, 440, 560];
-const nodes = NX.map((x, i) => makeNode(x, 300));
-const nodeLabel = NX.map((x, i) => new VText(scene, { text: 'F' + (i + 1), x, y: 300, z: 22, color: PALETTE.textGlow, scale: 0.58 }));
-new VText(scene, { text: '5 节点集群：F1 当选 Leader（epoch 2）', x: 0, y: 385, z: 0, color: PALETTE.textDim, scale: 0.7 });
-
-const logT = new VText(scene, { text: '', x: 0, y: 200, z: 0, color: PALETTE.textGlow, scale: 0.7 });
-const stepT = new VText(scene, { text: '', x: 0, y: 160, z: 0, color: PALETTE.textGlow, scale: 0.75 });
-const eqT = new VText(scene, { text: '', x: 0, y: 120, z: 0, color: PALETTE.textDim, scale: 0.68 });
-const ackT = new VText(scene, { text: '', x: 0, y: 80, z: 0, color: PALETTE.textDim, scale: 0.68 });
+const nodes = NX.map((x, i) => makeNode(x, 430));
+const nodeLabel = NX.map((x, i) => new VText(scene, { text: 'F' + (i + 1), x, y: 430, z: 22, color: PALETTE.textGlow, scale: 0.58 }));
 
 // 广播连线（Leader → 每个 follower）
 const bcast = NX.slice(1).map((x, i) => {
-  const b = new VBox(scene, { w: 200, h: 3, d: 3, x: (NX[0] + x) / 2, y: 230, z: 0, label: '', color: BLUE, emissive: BLUE });
-  b.mesh.rotation.z = 0;
+  const b = new VBox(scene, { w: 200, h: 3, d: 3, x: (NX[0] + x) / 2, y: 360, z: 0, label: '', color: BLUE, emissive: BLUE });
   b.mesh.scale.set(Math.abs(x - NX[0]) / 200, 1, 1);
   b.mesh.visible = false;
   return b;
@@ -65,61 +57,54 @@ function resetAll() {
   nodes.forEach(b => b.setColor(PALETTE.node, false));
   nodeLabel.forEach((t, i) => t.setText('F' + (i + 1)));
   bcast.forEach(b => (b.mesh.visible = false));
-  logT.setText(''); stepT.setText(''); eqT.setText(''); ackT.setText('');
 }
 
 function* zabGen() {
   resetAll();
-  yield S(() => hint.setText('ZAB：先选 Leader，所有写事务走 Leader 广播 — ZooKeeper 的顺序一致性保证'));
-  yield S(() => { stepT.setText('第 1 步：集群启动，全部进入选举状态（各自投自己）'); });
+  yield S(() => { status.textContent = 'ZAB（ZooKeeper Atomic Broadcast）：先选 Leader，所有写事务走 Leader 广播，zxid 严格有序。F1-F5 启动进入选举，各自投自己'; });
   yield W(600);
   yield S(() => {
     nodes[0].setColor(YELLOW, true);
     nodeLabel[0].setText('Leader');
-    logT.setText('F1 得 3 票（自己 + F2 + F5）→ 当选 Leader，epoch = 2');
-    stepT.setText('第 2 步：多数票选举 — F1 成为 Leader，其他成为 Follower');
+    status.textContent = '选举：F1 得 3 票（自己 + F2 + F5）> 多数 → 当选 Leader，epoch = 2；其余成为 Follower';
   });
   yield W(800);
   yield S(() => {
     bcast.forEach(b => (b.mesh.visible = true));
-    logT.setText('zxid = 2:1   set(a) = 1');
-    stepT.setText('第 3 步：写请求 set(a)=1 → Leader 生成事务 (epoch:seq) = (2:1) 广播给所有 Follower');
+    status.textContent = '写请求 set(a)=1 → Leader 生成事务 zxid = 2:1，广播给所有 Follower';
   });
   yield W(800);
   yield S(() => {
     nodes.slice(1).forEach(b => b.setColor(BLUE, true));
-    eqT.setText('Follower 写本地日志并回 ACK → Leader 收到多数 ACK 后广播 COMMIT');
-    ackT.setText('ACK ✓✓✓ → COMMIT：全部节点应用 set(a)=1');
+    status.textContent = 'Follower 写本地日志并回 ACK → Leader 收到多数 ACK 后广播 COMMIT，全部节点应用 set(a)=1';
   });
   yield W(900);
   yield S(() => {
     nodes.slice(1).forEach(b => b.setColor(PALETTE.node, false));
-    logT.setText('zxid = 2:2   set(b) = 2');
-    stepT.setText('第 4 步：下一个写请求 set(b)=2 → zxid 递增为 2:2（顺序永不回退）');
+    status.textContent = '下一个写请求 set(b)=2 → zxid 递增为 2:2（epoch:seq 全序，永不回退）';
   });
   yield W(900);
   yield S(() => {
-    nodes[3].setColor(ROSE, true); nodeLabel[3].setText('F3 ✗');
-    stepT.setText('故障：F3 宕机，丢失了 2:2 事务');
+    nodes[3].setColor(ROSE, true);
+    nodeLabel[3].setText('F3 ✗');
+    status.textContent = '故障：F3 宕机，丢失 2:2 事务';
   });
   yield W(900);
   yield S(() => {
     bcast.forEach(b => (b.mesh.visible = false));
     nodes[0].setColor(GREEN, true);
-    stepT.setText('恢复：Leader 发现 F3 落后 → 让 F3 从 Leader 补同步缺失的 2:2');
-    eqT.setText('ZAB 恢复模式：先同步日志对齐，再进入广播模式 — 保证不丢已提交事务');
+    status.textContent = '恢复：Leader 发现 F3 落后 → ZAB 恢复模式，F3 从 Leader 补同步缺失的 2:2，先对齐日志再回到广播模式';
   });
   yield W(900);
   yield S(() => {
-    nodes[3].setColor(PALETTE.node, false); nodeLabel[3].setText('F3');
-    status.textContent = 'ZAB 完成：选举 F1（epoch=2）→ 广播 2:1、2:2 → F3 崩溃后补同步恢复一致';
-    hint.setText('ZAB 与 Raft 齐名 — ZooKeeper 用它的 zxid 全序保证实现分布式锁/协调');
+    nodes[3].setColor(PALETTE.node, false);
+    nodeLabel[3].setText('F3');
+    status.textContent = 'ZAB 演示完成：选举 F1（epoch=2，3/5 票）→ zxid 2:1、2:2 全序广播 → F3 崩溃后补同步恢复一致，不丢已提交事务';
   });
   yield W(600);
 }
 
 engine.queue(() => zabGen());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；黄=Leader，蓝=广播/ACK，红=故障节点，绿=恢复）');
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

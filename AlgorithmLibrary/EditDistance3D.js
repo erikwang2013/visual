@@ -1,4 +1,4 @@
-// AlgorithmLibrary/EditDistance3D.js — 编辑距离：S="CART"→T="CRAT" 的 5×5 DP 表逐格填，三源（青=上/橙=左/紫=对角）依次高亮、金=当前格、方向字符放大动画、绿=回溯路径（function* 生成器驱动）
+// AlgorithmLibrary/EditDistance3D.js — 编辑距离：S="CART"→T="CRAT" 的 5×5 DP 表逐格填，三源（青=上/橙=左/紫=对角）依次高亮、金=当前格、方向字符放大动画、绿=回溯路径（function* 生成器驱动，解说入状态栏）
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
@@ -12,7 +12,6 @@ const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc084fc, WHITE = 0xffffff;
 const status = panel.addStatus('就绪');
-panel.addLabel('（拖拽旋转视角，滚轮缩放；青=上源，橙=左源，紫=对角源，金=当前格，绿=回溯路径）');
 
 const SA = 'CART', TB = 'CRAT';   // SA 行串 / TB 列串（不叫 S/T，避免遮蔽生成器助手 S）
 const N = SA.length, M = TB.length;   // 列数 / 行数（均 4）
@@ -89,8 +88,7 @@ function resetAll() {
 buildTable();   // 规范②：模块加载即显示 25 盒全 '0' BLUE + 9 表头，点播放才动画
 
 function* runED() {
-  yield S(resetAll);
-  yield S(() => { status.textContent = '编辑距离：把 S="CART" 变成 T="CRAT" 的最少操作数；d[i][j] = min(上+1 删, 左+1 插, 对角 +0 匹配/+1 替换)'; });
+  yield S(() => { resetAll(); status.textContent = '编辑距离：把 S="CART" 变成 T="CRAT" 的最少操作数；d[i][j] = min(上+1 删, 左+1 插, 对角 +0 匹配/+1 替换)'; });
   yield W(900);
   // Phase 1 初始化：首行全插入
   yield S(() => { status.textContent = '初始化：首行 d[0][j]=j——空串 → T 前 j 字符需插入 j 次（全插入）'; });
@@ -117,17 +115,13 @@ function* runED() {
       dp[i][j] = v;
       const dir = v === diag ? '↖' : v === up ? '↑' : '←';   // 对角优先
       const cx = BX(j), cy = BY(i), msg = CELL_MSG[i + '-' + j];
-      yield S(() => { dirT.sprite.visible = false; setCellColor(i, j, GOLD); });
-      yield S(() => setCellColor(i - 1, j, CYAN));
+      yield S(() => { dirT.sprite.visible = false; setCellColor(i, j, GOLD); setCellColor(i - 1, j, CYAN); });
       yield W(150);
-      yield S(() => setCellColor(i - 1, j, BLUE));
-      yield S(() => setCellColor(i, j - 1, ORANGE));
+      yield S(() => { setCellColor(i - 1, j, BLUE); setCellColor(i, j - 1, ORANGE); });
       yield W(150);
-      yield S(() => setCellColor(i, j - 1, BLUE));
-      yield S(() => setCellColor(i - 1, j - 1, PUR));
+      yield S(() => { setCellColor(i, j - 1, BLUE); setCellColor(i - 1, j - 1, PUR); });
       yield W(150);
-      yield S(() => setCellColor(i - 1, j - 1, BLUE));
-      yield S(() => { dirT.setText(dir); dirT.sprite.position.set(cx - 24, cy - 24, 0); dirT.sprite.visible = true; status.textContent = msg; });
+      yield S(() => { setCellColor(i - 1, j - 1, BLUE); dirT.setText(dir); dirT.sprite.position.set(cx - 24, cy - 24, 0); dirT.sprite.visible = true; status.textContent = msg; });
       yield A(220, p => { dirT.sprite.scale.copy(BS).multiplyScalar(0.3 + 0.7 * easeInOut(p)); });
       yield S(() => { setCell(i, j, v); dirT.sprite.visible = false; });
       yield W(120);
@@ -138,25 +132,17 @@ function* runED() {
   yield W(700);
   yield S(() => { setCellColor(4, 4, GOLD); status.textContent = '回溯：d[4][4]=2：S[3]=T=T[3] 匹配 → 走对角到 (3,3)'; });
   yield W(450);
-  yield S(() => setCellColor(4, 4, GREEN));
-  yield S(() => { setCellColor(3, 3, GOLD); status.textContent = '回溯：d[3][3]=2：上 2 / 左 2 / 对角 2 三源并列 → 对角优先（替换 R→A）→ (2,2)'; });
+  yield S(() => { setCellColor(4, 4, GREEN); setCellColor(3, 3, GOLD); status.textContent = '回溯：d[3][3]=2：上 2 / 左 2 / 对角 2 三源并列 → 对角优先（替换 R→A）→ (2,2)'; });
   yield W(450);
-  yield S(() => setCellColor(3, 3, GREEN));
-  yield S(() => { setCellColor(2, 2, GOLD); status.textContent = '回溯：d[2][2]=1：对角 0+1=1 最小 → 替换 A→R → (1,1)'; });
+  yield S(() => { setCellColor(3, 3, GREEN); setCellColor(2, 2, GOLD); status.textContent = '回溯：d[2][2]=1：对角 0+1=1 最小 → 替换 A→R → (1,1)'; });
   yield W(450);
-  yield S(() => setCellColor(2, 2, GREEN));
-  yield S(() => { setCellColor(1, 1, GOLD); status.textContent = '回溯：d[1][1]=0：S[0]=C=T[0] 匹配 → 保持 C → (0,0)'; });
+  yield S(() => { setCellColor(2, 2, GREEN); setCellColor(1, 1, GOLD); status.textContent = '回溯：d[1][1]=0：S[0]=C=T[0] 匹配 → 保持 C → (0,0)'; });
   yield W(450);
-  yield S(() => setCellColor(1, 1, GREEN));
-  yield S(() => { setCellColor(0, 0, GOLD); status.textContent = '回溯：到达 (0,0)，路径完成：保持 C、替换 A→R、替换 R→A、保持 T'; });
+  yield S(() => { setCellColor(1, 1, GREEN); setCellColor(0, 0, GOLD); status.textContent = '回溯：到达 (0,0)，路径完成：保持 C、替换 A→R、替换 R→A、保持 T'; });
   yield W(450);
-  yield S(() => setCellColor(0, 0, GREEN));
-  // Phase 4 完成
-  yield S(() => setCellColor(4, 4, GOLD));
-  yield S(() => { status.textContent = '编辑距离(CART, CRAT) = 2'; });
+  yield S(() => { setCellColor(0, 0, GREEN); setCellColor(4, 4, GOLD); status.textContent = '编辑距离(CART, CRAT) = 2'; });
   yield W(450);
-  yield S(() => setCellColor(4, 4, GREEN));
-  yield S(() => { status.textContent = '编辑距离(CART, CRAT) = 2：保持 C、替换 A→R、替换 R→A、保持 T（O(nm) 时间、O(nm) 空间）'; });
+  yield S(() => { setCellColor(4, 4, GREEN); status.textContent = '编辑距离演示完成：S="CART"→T="CRAT" 最小编辑距离 = 2，操作：保持 C、替换 A→R、替换 R→A、保持 T（O(nm) 时间/空间）'; });
   yield W(600);
 }
 

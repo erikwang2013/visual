@@ -1,20 +1,19 @@
-// AlgorithmLibrary/SuffixAutomaton3D.js — 后缀自动机：六边形状态逐一生长 + 蓝色转移曲线粒子流 + 橙色后缀链接虚线（function* 生成器驱动）
+// AlgorithmLibrary/SuffixAutomaton3D.js — 后缀自动机：六边形状态逐一生长 + 蓝色转移曲线粒子流 + 橙色后缀链接虚线（function* 生成器驱动，解说入状态栏）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VText, VTorus } from '../3D/VisualObject3D.js';
+import { VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('SuffixAutomaton3D');
 
-const scene = new Scene3D('scene', { cameraPos: [260, 500, 900], lookAt: [260, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, CYAN = 0x67e8f9, ORANGE = 0xfb923c;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
-const status = panel.addStatus('');
-const outT = new VText(scene, { text: '', x: 700, y: 440, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const status = panel.addStatus('就绪');
+const E = p => p * p * (3 - 2 * p);
 
 const TXT = 'abab';
 
@@ -43,10 +42,12 @@ for (const ch of TXT) {
   last = cur;
   steps.push(op);
 }
+const TRANS_COUNT = states.reduce((s, st) => s + Object.keys(st.next).length, 0);
+const LINK_COUNT = steps.reduce((s, op) => s + op.linkChg.length, 0);
 
 // ---- 之字形布局 ----
-const posX = states.map((_, i) => -300 + i * 150 + 260);
-const posY = states.map((_, i) => 260 - (i % 2) * 140);
+const posX = states.map((_, i) => -300 + i * 150 + 320);
+const posY = states.map((_, i) => 560 - (i % 2) * 140);
 
 // ---- 六边形状态节点（CylinderGeometry 6 段，旋转后六边形面朝相机） ----
 const hexes = states.map((s, i) => {
@@ -96,35 +97,44 @@ let fxGroup = new THREE.Group();
 scene.add(fxGroup);
 const clearFx = () => { scene.remove(fxGroup); fxGroup = new THREE.Group(); scene.add(fxGroup); };
 
+// 金色粒子对象池（模块级预建，运行期复用）
+const PARTS = Array.from({ length: 6 }, () => {
+  const v = new THREE.Mesh(new THREE.SphereGeometry(4, 8, 8),
+    new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.9 }));
+  v.visible = false;
+  fxGroup.add(v);
+  return v;
+});
+let partIdx = 0;
+function* flowAlong(e, count = 3, ms = 420) {
+  const parts = [];
+  for (let i = 0; i < count; i++) {
+    const v = PARTS[partIdx++ % PARTS.length];
+    v.visible = true; fxGroup.add(v);
+    parts.push(v);
+  }
+  yield A(ms, p => parts.forEach((v, i) => v.position.copy(e.curve.getPoint((p + i * 0.18) % 1))));
+  parts.forEach(v => { v.visible = false; });
+}
+
+const pulseHex = (hx) => A(500, p => { hx.mesh.scale.setScalar(1 + 0.2 * Math.sin(p * Math.PI * 2)); });
+
 function resetAll() {
   clearFx();
   hexes.forEach((hx, i) => { hx.mesh.visible = i === 0; hx.mesh.scale.setScalar(1); hexColor(hx, i === 0 ? GOLD : CYAN); hx.lbl.sprite.visible = i === 0; });
   nextEdge.forEach(e => { e.mesh.visible = false; e.lbl.sprite.visible = false; });
   linkLine.forEach(l => { l.visible = false; l.material.opacity = 0; });
-  outT.setText('');
 }
-
-// 金色粒子沿曲线流动
-function flowAlong(e, count = 3, ms = 420) {
-  const parts = [];
-  for (let i = 0; i < count; i++) {
-    const v = new THREE.Mesh(new THREE.SphereGeometry(4, 8, 8),
-      new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.9 }));
-    parts.push(v); fxGroup.add(v);
-  }
-  return A(ms, p => parts.forEach((v, i) => v.position.copy(e.curve.getPoint((p + i * 0.18) % 1))));
-}
-
-const pulseHex = (hx) => A(500, p => { hx.mesh.scale.setScalar(1 + 0.2 * Math.sin(p * Math.PI * 2)); });
 
 function* runSAM() {
   yield S(resetAll);
-  yield S(() => { hint.setText('后缀自动机：在线加字符构建。六边形状态逐一生长 → 沿后缀链补转移（蓝曲线+金粒子）→ 新后缀链接（橙虚线）。状态数 ≤ 2n−1'); });
+  yield W(200);
+  yield S(() => { status.textContent = '后缀自动机：在线逐字符构建 "abab"。六边形状态逐一生长 → 沿后缀链补转移（蓝曲线+金粒子）→ 设新后缀链接（橙虚线）'; });
   yield W(500);
   for (const op of steps) {
     const hx = hexes[op.cur];
-    yield S(() => outT.setText(`第 ${op.cur} 个字符 '${op.ch}'：新状态 ${op.cur} 诞生（len = ${states[op.cur].len}）`));
-    yield A(400, p => { hx.mesh.visible = true; hx.mesh.scale.setScalar(0.05 + 0.95 * p); });
+    yield S(() => { status.textContent = `第 ${op.cur} 个字符 '${op.ch}'：新状态 ${op.cur} 诞生（len = ${states[op.cur].len}）`; });
+    yield A(400, p => { hx.mesh.visible = true; hx.mesh.scale.setScalar(0.05 + 0.95 * E(p)); });
     yield S(() => { hexColor(hx, GOLD); hx.lbl.sprite.visible = true; });
     yield* pulseHex(hx);
     yield W(150);
@@ -134,31 +144,27 @@ function* runSAM() {
         e.mesh.visible = true;
         e.lbl.sprite.visible = true;
         hexColor(hexes[p], GOLD);
-        outT.setText(`状态 ${p} 缺 '${op.ch}' 转移 → 补边 ${p}→${op.cur}`);
+        status.textContent = `状态 ${p} 缺 '${op.ch}' 转移 → 补边 ${p}→${op.cur}`;
       });
       yield* flowAlong(e);
       yield W(280);
       yield S(() => hexColor(hexes[p], CYAN));
+      yield W(150);
     }
     for (const [from, to] of op.linkChg) {
       const l = linkLine.get(`${from}->${to}`);
-      yield S(() => outT.setText(`后缀链接：${from} → ${to}（读最长真后缀后所在状态）`));
-      yield A(400, p => { l.visible = true; l.material.opacity = 0.9 * p; });
+      yield S(() => { status.textContent = `后缀链接：${from} → ${to}（指向最长真后缀所在状态）`; });
+      yield A(400, p => { l.visible = true; l.material.opacity = 0.9 * E(p); });
       yield W(300);
     }
-    yield S(() => { hexColor(hx, CYAN); });
+    yield S(() => hexColor(hx, CYAN));
     yield W(250);
   }
-  const transCount = states.reduce((s, st) => s + Object.keys(st.next).length, 0);
-  yield S(() => {
-    outT.setText(`SAM 完成：${states.length} 状态、${transCount} 条转移、${steps.reduce((s, op) => s + op.linkChg.length, 0)} 条后缀链接`);
-    hint.setText('用途：所有子串索引、最长公共子串、字典序第 k 小子串。状态数 ≤ 2n−1，转移数 ≤ 3n−4');
-    status.textContent = `SAM("abab") 构建完成：5 状态、4 条 link（橙）、5 条转移（蓝）`;
-  });
+  yield S(() => { status.textContent = `后缀自动机演示完成：SAM("abab") 共 ${states.length} 状态、${TRANS_COUNT} 条转移（蓝曲线）、${LINK_COUNT} 条后缀链接（橙虚线）；状态数 ≤ 2n−1，可索引全部子串`; });
+  yield W(600);
 }
 
 engine.queue(() => runSAM());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；六边形 = 状态，蓝曲线 = 转移（金粒子流动），橙虚线 = 后缀链接）');
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

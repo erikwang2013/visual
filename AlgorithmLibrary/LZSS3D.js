@@ -1,19 +1,18 @@
-// AlgorithmLibrary/LZSS3D.js — LZSS：两行输入 + 字面/匹配双模式 + 青色匹配弧 + 金色粒子流（function* 生成器驱动）
+// AlgorithmLibrary/LZSS3D.js — LZSS：两行输入盒 + 字面/匹配双模式 + 青色匹配弧 + 金色粒子流（function* 生成器驱动，解说入状态栏）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, VTorus } from '../3D/VisualObject3D.js';
+import { VBox, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('LZSS3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, CYAN = 0x67e8f9, GOLD = 0xfcd34d;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
-const status = panel.addStatus('');
+const status = panel.addStatus('就绪');
 
 const INPUT = 'the cat sat on the mat';
 const SP = 26, BOX = 24;
@@ -23,9 +22,6 @@ for (let i = 0; i < INPUT.length; i++) {
   const p = pos(i);
   boxes.push(new VBox(scene, { w: BOX, h: BOX, d: BOX, x: p.x, y: p.y, z: 0, label: INPUT[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 }
-new VText(scene, { text: '输入（22 字符）', x: 60, y: 510, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const outText = new VText(scene, { text: '', x: 320, y: 260, z: 0, color: PALETTE.textGlow, scale: 0.8 });
-const ratioT = new VText(scene, { text: '', x: 320, y: 195, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
 const tokens = [
   { type: 'lit', n: 9 },
@@ -39,48 +35,54 @@ const LIT_STARTS = [0, 12, 19];
 const ring = new VTorus(scene, { radius: 17, x: 0, y: 470, color: GOLD });
 ring.mesh.visible = false;
 
-let fxGroup = new THREE.Group();
+// ---- 虚线匹配弧池 ×2 + 金色粒子池 ×6：模块级预建，fxGroup 统一显隐 ----
+const fxGroup = new THREE.Group();
+fxGroup.visible = false;
 scene.add(fxGroup);
-const clearFx = () => { scene.remove(fxGroup); fxGroup = new THREE.Group(); scene.add(fxGroup); };
-
-function flowLine(pA, pB, count = 3, ms = 380) {
-  const parts = [];
-  for (let i = 0; i < count; i++) {
-    const v = new THREE.Mesh(new THREE.SphereGeometry(3, 8, 8),
-      new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.9 }));
-    parts.push(v); fxGroup.add(v);
+const mkArc = () => {
+  const v0 = new THREE.Vector3(), v1 = new THREE.Vector3(), v2 = new THREE.Vector3();
+  const curve = new THREE.QuadraticBezierCurve3(v0, v1, v2);
+  const geo = new THREE.BufferGeometry();
+  const line = new THREE.Line(geo, new THREE.LineDashedMaterial({ color: CYAN, dashSize: 4, gapSize: 3, transparent: true, opacity: 0.9 }));
+  return { v0, v1, v2, curve, geo, line };
+};
+const arcs = [mkArc(), mkArc()];
+arcs.forEach(a => fxGroup.add(a.line));
+const setArc = (a, srcI, dstI) => {
+  const pA = pos(srcI), pB = pos(dstI);
+  a.v0.set(pA.x, pA.y, 18);
+  a.v1.set((pA.x + pB.x) / 2, (pA.y + pB.y) / 2, 42);
+  a.v2.set(pB.x, pB.y, 18);
+  a.geo.setFromPoints(a.curve.getPoints(16));
+  a.line.computeLineDistances();
+};
+const parts = [0, 1, 2, 3, 4, 5].map(() => {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(3, 8, 8), new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.9 }));
+  fxGroup.add(m);
+  return m;
+});
+const flyParts = [0, 1, 2, 3, 4, 5].map(() => new THREE.Vector3());
+const flyParticles = (arc, base, ms) => A(ms, p => {
+  for (let j = 0; j < 3; j++) {
+    parts[base + j].position.copy(arc.curve.getPoint((p + j * 0.18) % 1, flyParts[base + j]));
   }
-  return A(ms, p => parts.forEach((v, i) => v.position.copy(pA.clone().lerp(pB, (p + i * 0.18) % 1))));
-}
-
-function matchArc(srcI, dstI) {
-  const pA = new THREE.Vector3(pos(srcI).x, pos(srcI).y, 18);
-  const pB = new THREE.Vector3(pos(dstI).x, pos(dstI).y, 18);
-  const mid = new THREE.Vector3((pA.x + pB.x) / 2, (pA.y + pB.y) / 2, 42);
-  const curve = new THREE.QuadraticBezierCurve3(pA, mid, pB);
-  const mat = new THREE.LineDashedMaterial({ color: CYAN, dashSize: 4, gapSize: 3, transparent: true, opacity: 0.9 });
-  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(16)), mat);
-  line.computeLineDistances();
-  fxGroup.add(line);
-  return [pA, pB];
-}
+});
 
 function resetAll() {
-  clearFx();
+  fxGroup.visible = false;
   for (const b of boxes) b.setColor(PALETTE.node, PALETTE.nodeEmissive);
   ring.mesh.visible = false;
-  outText.setText('');
-  ratioT.setText('');
 }
 
 function* runCompress() {
-  yield S(resetAll);
-  yield S(() => { hint.setText('LZSS：遇到可匹配的历史内容输出指针，否则输出原文字节'); });
-  yield W(400);
-  const parts = [];
-  let outBytes = 0, litK = 0;
-  for (let idx = 0; idx < tokens.length; idx++) {
-    const t = tokens[idx];
+  yield S(() => {
+    resetAll();
+    status.textContent = 'LZSS 压缩：' + INPUT + '（22 字符）：窗口内找到重复 → 输出指针 M(偏移,长度)，否则输出字面量';
+  });
+  yield W(600);
+  const partsOut = [];
+  let outBytes = 0, litK = 0, arcK = 0;
+  for (const t of tokens) {
     if (t.type === 'lit') {
       const startIdx = LIT_STARTS[litK++];
       const p0 = pos(startIdx);
@@ -88,14 +90,14 @@ function* runCompress() {
       yield A(300, p => { ring.mesh.position.x = p0.x; ring.mesh.position.y = p0.y; });
       yield S(() => {
         for (let i = 0; i < t.n; i++) boxes[startIdx + i].setColor(BLUE, BLUE);
-        hint.setText('字面 ' + t.n + ' 个字符直接写入输出（' + INPUT.slice(startIdx, startIdx + t.n) + '）');
+        status.textContent = '字面 ' + t.n + ' 个字符直接写入输出（' + INPUT.slice(startIdx, startIdx + t.n) + '）';
       });
       yield W(600);
       yield S(() => {
         for (let i = 0; i < t.n; i++) boxes[startIdx + i].setColor(GREEN, GREEN);
-        parts.push(INPUT.slice(startIdx, startIdx + t.n));
-        outText.setText('输出：' + parts.join(' '));
+        partsOut.push(INPUT.slice(startIdx, startIdx + t.n));
         outBytes += t.n;
+        status.textContent = '输出：' + partsOut.join(' ');
       });
       yield W(400);
     } else {
@@ -105,33 +107,31 @@ function* runCompress() {
       yield S(() => {
         for (let i = t.src[0]; i <= t.src[1]; i++) boxes[i].setColor(YELLOW, YELLOW);
         for (let i = t.dst[0]; i <= t.dst[1]; i++) boxes[i].setColor(GREEN, GREEN);
-        hint.setText('窗口内找到重复：「' + INPUT.slice(t.dst[0], t.dst[1] + 1) + '」= 距 ' + t.off + ' 处，长 ' + t.len + ' → 指针 M(' + t.off + ',' + t.len + ')');
+        setArc(arcs[arcK], t.dst[0], t.src[0]);
+        fxGroup.visible = true;
+        status.textContent = '窗口内找到重复：「' + INPUT.slice(t.dst[0], t.dst[1] + 1) + '」= 距 ' + t.off + ' 处，长 ' + t.len + ' → 指针 M(' + t.off + ',' + t.len + ')';
       });
-      const [pA, pB] = matchArc(t.dst[0], t.src[0]);
-      yield* flowLine(pA, pB, 3, 420);
+      yield flyParticles(arcs[arcK], arcK * 3, 420);
+      arcK++;
       yield W(700);
       yield S(() => {
-        parts.push('M(' + t.off + ',' + t.len + ')');
-        outText.setText('输出：' + parts.join(' '));
+        partsOut.push('M(' + t.off + ',' + t.len + ')');
         outBytes += 2;
+        status.textContent = '输出：' + partsOut.join(' ');
       });
       yield W(400);
     }
   }
   const ratio = (INPUT.length / outBytes).toFixed(2);
   yield S(() => {
-    clearFx();
+    fxGroup.visible = false;
     ring.mesh.visible = false;
-    outText.setText('输出：' + parts.join(' '));
-    ratioT.setText('22 字节 → ' + outBytes + ' 字节（' + ratio + '× 压缩，指针 2 字节/个）');
-    status.textContent = 'LZSS 压缩完成：' + INPUT + ' → ' + parts.join(' ');
-    hint.setText('解压：字面直接输出，指针按 (距离,长度) 回读窗口内容即可还原');
+    status.textContent = 'LZSS 演示完成：' + INPUT + '（22 字节）→ ' + outBytes + ' 字节（' + ratio + '× 压缩）：' + partsOut.join(' ');
   });
   yield W(500);
 }
 
 engine.queue(() => runCompress());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；黄 = 源匹配，绿 = 目标，青虚线 = 匹配弧；LZSS 是 LZ77 的改进版）');
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

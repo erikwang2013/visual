@@ -1,4 +1,4 @@
-// AlgorithmLibrary/ACAutomaton3D.js — AC 自动机：Trie 白曲线边 + BFS fail 红色锯齿虚线 + 主串逐字符跳转 + 命中星爆（function* 生成器驱动）
+// AlgorithmLibrary/ACAutomaton3D.js — AC 自动机：Trie 白曲线边 + BFS fail 红色锯齿虚线 + 主串逐字符跳转 + 命中星爆（function* 生成器驱动，解说入状态栏）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
@@ -7,14 +7,12 @@ import { VBox, VText, VNode, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('ACAutomaton3D');
 
-const scene = new Scene3D('scene', { cameraPos: [260, 500, 900], lookAt: [260, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
-const status = panel.addStatus('');
-const outT = new VText(scene, { text: '', x: 700, y: 440, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const status = panel.addStatus('就绪');
 
 const WORDS = ['he', 'she', 'his', 'hers'];
 const TEXT = 'ushers';
@@ -129,11 +127,36 @@ const textBoxes = [...TEXT].map((ch, i) => {
   const idx = new VText(scene, { text: String(i), x: (i - (TEXT.length - 1) / 2) * 70 + 300, y: 96, z: 0, color: PALETTE.textDim, scale: 0.45 });
   return { box: b, idx };
 });
-new VText(scene, { text: '主串', x: 70, y: 140, z: 0, color: PALETTE.textDim, scale: 0.6 });
 
-let fxGroup = new THREE.Group();
+// ---- 特效：复用对象池 ----
+const fxGroup = new THREE.Group();
 scene.add(fxGroup);
-const clearFx = () => { scene.remove(fxGroup); fxGroup = new THREE.Group(); scene.add(fxGroup); };
+const clearFx = () => { while (fxGroup.children.length) fxGroup.remove(fxGroup.children[0]); };
+
+const goldParts = Array.from({ length: 4 }, () => new THREE.Mesh(new THREE.SphereGeometry(4, 8, 8),
+  new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.9 })));
+const _pt = new THREE.Vector3();
+function flowAlong(edgeMesh, count = 3, ms = 420) {
+  const curve = curves.get(edgeMesh);
+  goldParts.forEach((v, i) => { v.visible = i < count; fxGroup.add(v); });
+  return A(ms, p => goldParts.forEach((v, i) => { if (i < count) v.position.copy(curve.getPoint((p + i * 0.18) % 1, _pt)); }));
+}
+
+const burstDirs = Array.from({ length: 8 }, (_, i) => { const a = (i / 8) * Math.PI * 2; return new THREE.Vector3(Math.cos(a), Math.sin(a), 0); });
+const burstLines = burstDirs.map(() => new THREE.Line(
+  new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 20), new THREE.Vector3(0, 0, 20)]),
+  new THREE.LineBasicMaterial({ color: GOLD, transparent: true, opacity: 0.95 })));
+function starburst(x, y) {
+  burstLines.forEach((l, i) => {
+    l.geometry.attributes.position.setXYZ(0, x, y, 20);
+    l.geometry.attributes.position.needsUpdate = true;
+    l.visible = true; fxGroup.add(l);
+  });
+  return A(600, p => burstLines.forEach((l, i) => {
+    l.geometry.attributes.position.setXYZ(1, x + burstDirs[i].x * 95 * p, y + burstDirs[i].y * 95 * p, 20);
+    l.geometry.attributes.position.needsUpdate = true;
+  }));
+}
 
 function resetAll() {
   clearFx();
@@ -143,43 +166,13 @@ function resetAll() {
   ring.forEach(r => { r.mesh.visible = false; r.mesh.scale.setScalar(1); });
   star.forEach(s => s.sprite.visible = false);
   textBoxes.forEach(tb => tb.box.setColor(BLUE, BLUE));
-  outT.setText('');
 }
 const resetPath = () => {
   nodeView.forEach(vn => vn.setColor(BLUE, BLUE));
   edgeView.forEach(e => e.material.color.setHex(WHITE));
 };
-const growNode = (n, p) => nodeView.get(n).mesh.scale.setScalar(0.05 + 0.95 * p);
+const growNode = (n, p) => nodeView.get(n).mesh.scale.setScalar(0.05 + 0.95 * p * p * (3 - 2 * p));
 const pulseRing = (n) => A(500, p => { const r = ring.get(n).mesh; r.scale.setScalar(1 + 0.25 * Math.sin(p * Math.PI * 2)); });
-
-// 金色粒子沿曲线流动
-function flowAlong(edgeMesh, count = 3, ms = 420) {
-  const curve = curves.get(edgeMesh);
-  const parts = [];
-  for (let i = 0; i < count; i++) {
-    const v = new THREE.Mesh(new THREE.SphereGeometry(4, 8, 8),
-      new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.9 }));
-    parts.push(v); fxGroup.add(v);
-  }
-  return A(ms, p => parts.forEach((v, i) => v.position.copy(curve.getPoint((p + i * 0.18) % 1))));
-}
-
-// 星爆：8 条金色放射线从命中字符向外生长
-function starburst(x, y) {
-  const lines = [];
-  for (let i = 0; i < 8; i++) {
-    const ang = (i / 8) * Math.PI * 2;
-    const dir = new THREE.Vector3(Math.cos(ang), Math.sin(ang), 0);
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, y, 20), new THREE.Vector3(x, y, 20)]),
-      new THREE.LineBasicMaterial({ color: GOLD, transparent: true, opacity: 0.95 }));
-    fxGroup.add(line);
-    lines.push({ line, dir });
-  }
-  return A(600, p => lines.forEach(({ line, dir }) => {
-    line.geometry.attributes.position.setXYZ(1, x + dir.x * 95 * p, y + dir.y * 95 * p, 20);
-    line.geometry.attributes.position.needsUpdate = true;
-  }));
-}
 
 // 主串匹配步骤预计算
 const matchSteps = [];
@@ -203,7 +196,7 @@ function* buildTriePhase() {
     for (const ch of w) {
       const n = cur.next[ch];
       if (nodeView.get(n).mesh.scale.x < 0.5) {
-        yield S(() => outT.setText(`插入 "${w}"：新节点 '${ch}' 从父节点生长`));
+        yield S(() => status.textContent = `插入 "${w}"：新节点 '${ch}' 从父节点生长`);
         yield A(400, p => growNode(n, p));
         yield W(100);
       }
@@ -219,7 +212,7 @@ function* buildTriePhase() {
       ring.get(cur).mesh.position.set(pos.get(cur).x, pos.get(cur).y, 0);
       ring.get(cur).mesh.visible = true;
       star.get(cur).sprite.visible = true;
-      outT.setText(`"${w}" 插入完成：词尾 ★`);
+      status.textContent = `"${w}" 插入完成：词尾 ★`;
     });
     yield* pulseRing(cur);
     yield W(200);
@@ -229,25 +222,25 @@ function* buildTriePhase() {
 }
 
 function* failPhase() {
-  yield S(() => outT.setText('BFS 构建 fail 指针：逐节点脉冲，红色锯齿虚线 = 失配跳转目标'));
+  yield S(() => status.textContent = 'BFS 构建 fail 指针：逐节点脉冲，红色锯齿虚线 = 失配跳转目标');
   yield W(400);
   for (const [n, f] of failEdges) {
     const line = failView.get(n);
     yield S(() => {
       nodeView.get(n).setColor(RED, RED);
-      outT.setText(`fail('${n.ch}') → ${f === root ? '根' : f.ch}：失配时沿此跳转`);
+      status.textContent = `fail('${n.ch}') → ${f === root ? '根' : f.ch}：失配时沿此跳转`;
     });
     yield A(400, p => { line.visible = true; line.material.opacity = 0.35 + 0.55 * p; });
     yield W(350);
     yield S(() => nodeView.get(n).setColor(BLUE, BLUE));
     yield W(100);
   }
-  yield S(() => outT.setText('fail 构建完成：失配指针全部就位（红色锯齿虚线）'));
+  yield S(() => status.textContent = 'fail 构建完成：失配指针全部就位（红色锯齿虚线）');
   yield W(350);
 }
 
 function* matchPhase() {
-  yield S(() => outT.setText(`扫描主串 "${TEXT}"：逐字符沿自动机跳转`));
+  yield S(() => status.textContent = `扫描主串 "${TEXT}"：逐字符沿自动机跳转`);
   yield W(350);
   for (const st of matchSteps) {
     if (st.t === 'go') {
@@ -256,7 +249,7 @@ function* matchPhase() {
         textBoxes[st.i].box.setColor(GOLD, GOLD);
         nodeView.get(n).setColor(GOLD, GOLD);
         edgeView.get(n).material.color.setHex(GOLD);
-        outT.setText(`T[${st.i}]='${st.ch}'：转移 → '${n.ch}'`);
+        status.textContent = `T[${st.i}]='${st.ch}'：转移 → '${n.ch}'`;
       });
       yield* flowAlong(edgeView.get(n));
       yield W(300);
@@ -267,23 +260,21 @@ function* matchPhase() {
         textBoxes[st.i].box.setColor(RED, RED);
         nodeView.get(n).setColor(RED, RED);
         line.material.opacity = 1;
-        outT.setText(`失配：'${n.ch}' 无出边 '${TEXT[st.i]}'，沿 fail 跳转`);
+        status.textContent = `失配：'${n.ch}' 无出边 '${TEXT[st.i]}'，沿 fail 跳转`;
       });
       yield W(500);
       yield S(() => { line.material.opacity = 0.9; nodeView.get(n).setColor(BLUE, BLUE); });
     } else if (st.t === 'stay') {
       yield S(() => {
         textBoxes[st.i].box.setColor(GOLD, GOLD);
-        outT.setText(`T[${st.i}]='${TEXT[st.i]}'：根无此出边，停留根节点`);
+        status.textContent = `T[${st.i}]='${TEXT[st.i]}'：根无此出边，停留根节点`;
       });
       yield W(350);
       yield S(() => textBoxes[st.i].box.setColor(BLUE, BLUE));
     } else {
       const word = st.node.word, start = st.i - word.length + 1;
       const bx = textBoxes[st.i].box.mesh.position.x;
-      yield S(() => {
-        outT.setText(`命中 "${word}" @${start}！星爆特效 + 命中区间变绿`);
-      });
+      yield S(() => status.textContent = `命中 "${word}" @${start}！星爆特效 + 命中区间变绿`);
       yield* starburst(bx, 140);
       yield S(() => {
         for (let k = start; k <= st.i; k++) textBoxes[k].box.setColor(GREEN, GREEN);
@@ -296,26 +287,25 @@ function* matchPhase() {
       yield W(150);
     }
   }
-  yield S(() => outT.setText(`扫描结束："she"@1、"hers"@2 命中`));
+  yield S(() => status.textContent = `扫描结束："she"@1、"hers"@2 命中`);
   yield W(400);
 }
 
 function* runAC() {
   yield S(resetAll);
-  yield S(() => { hint.setText('AC 自动机：模式串建 Trie（白曲线边），BFS 建 fail 指针（红锯齿虚线），主串逐字符跳转，命中星爆'); });
+  yield W(200);
+  yield S(() => status.textContent = 'AC 自动机：模式串建 Trie（白曲线边），BFS 建 fail 指针（红锯齿虚线），主串逐字符跳转，命中星爆');
   yield W(500);
   yield* buildTriePhase();
   yield* failPhase();
   yield* matchPhase();
-  yield S(() => {
-    outT.setText('复杂度 O(n + m + k)：主串线性扫描，fail 指针保证不回退');
-    hint.setText('多模式匹配三阶段：建 Trie → BFS 补 fail → 扫描主串。失配跳转复用已匹配前缀，是 KMP 思想的多模式版');
-    status.textContent = `AC 结果：主串 "ushers" 中 "she"@1、"hers"@2 命中（星爆）`;
-  });
+  yield S(() => status.textContent = '复杂度 O(n + m + k)：主串线性扫描，fail 指针保证不回退');
+  yield W(400);
+  yield S(() => status.textContent = 'AC 自动机演示完成：4 模式词建 Trie + fail；扫描 "ushers" 命中 "she"@1、"hers"@2（星爆），复杂度 O(n+m+k)');
+  yield W(400);
 }
 
 engine.queue(() => runAC());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；白边 = Trie 转移，红锯齿 = fail 指针，金球 = 当前节点，星爆 = 命中）');
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

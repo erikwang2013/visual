@@ -1,4 +1,4 @@
-// AlgorithmLibrary/RLE3D.js — 游程编码：金环扫描 + 游程高亮 + 计数球生长 + 粒子流（function* 生成器驱动）
+// AlgorithmLibrary/RLE3D.js — 游程编码：金环扫描 + 游程高亮 + 计数标注 + 粒子流（function* 生成器驱动，解说入状态栏）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
@@ -7,13 +7,12 @@ import { VBox, VText, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('RLE3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, GOLD = 0xfcd34d, YELLOW = 0xfacc15;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
-const status = panel.addStatus('');
+const status = panel.addStatus('就绪');
 
 const TXT = 'AAAABBBCCDAA';
 const SP = 54, X0 = -TXT.length * SP / 2 + SP / 2 + 320;
@@ -21,9 +20,6 @@ const boxes = [];
 for (let i = 0; i < TXT.length; i++) {
   boxes.push(new VBox(scene, { w: 44, h: 44, d: 44, x: X0 + i * SP, y: 390, z: 0, label: TXT[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 }
-new VText(scene, { text: '输入（12 字符）', x: X0 - 240, y: 390, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const outText = new VText(scene, { text: '', x: 320, y: 240, z: 0, color: PALETTE.textGlow, scale: 0.85 });
-const ratioT = new VText(scene, { text: '', x: 320, y: 180, z: 0, color: PALETTE.textDim, scale: 0.7 });
 
 const runs = [];
 for (let i = 0; i < TXT.length; ) {
@@ -37,72 +33,73 @@ const ring = new VTorus(scene, { radius: 32, x: X0, y: 390, color: GOLD });
 ring.mesh.visible = false;
 const countTexts = runs.map(r => new VText(scene, { text: '', x: X0 + (r.start + (r.len - 1) / 2) * SP, y: 475, z: 0, color: GREEN, scale: 0.9 }));
 
-let fxGroup = new THREE.Group();
+// 粒子流小球：模块级预建复用，A 回调内仅改 position
+const fxGroup = new THREE.Group();
 scene.add(fxGroup);
-const clearFx = () => { scene.remove(fxGroup); fxGroup = new THREE.Group(); scene.add(fxGroup); };
+const flowParts = [];
+for (let i = 0; i < 3; i++) {
+  const v = new THREE.Mesh(new THREE.SphereGeometry(3.5, 8, 8),
+    new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.9 }));
+  v.visible = false;
+  fxGroup.add(v);
+  flowParts.push(v);
+}
+const clearFx = () => flowParts.forEach(v => { v.visible = false; });
 
-function flowLine(pA, pB, count = 3, ms = 380) {
-  const parts = [];
-  for (let i = 0; i < count; i++) {
-    const v = new THREE.Mesh(new THREE.SphereGeometry(3.5, 8, 8),
-      new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.9 }));
-    parts.push(v); fxGroup.add(v);
-  }
-  return A(ms, p => parts.forEach((v, i) => v.position.copy(pA.clone().lerp(pB, (p + i * 0.18) % 1))));
+const flowV = runs.map(r => ({ s: X0 + r.start * SP, e: X0 + (r.start + r.len - 1) * SP }));
+function* flowLine(d, ms = 380) {
+  const { s, e } = flowV[d];
+  flowParts.forEach(v => v.visible = true);
+  yield A(ms, p => flowParts.forEach((v, i) => { const t = (p + i * 0.18) % 1; v.position.set(s + (e - s) * t, 390, 20); }));
+  flowParts.forEach(v => v.visible = false);
 }
 
 function resetAll() {
   clearFx();
   for (const b of boxes) b.setColor(PALETTE.node, PALETTE.nodeEmissive);
   ring.mesh.visible = false;
+  ring.mesh.scale.setScalar(1);
   countTexts.forEach(t => t.setText(''));
-  outText.setText('');
-  ratioT.setText('');
 }
 
 function* runCompress() {
   yield S(resetAll);
-  yield S(() => { hint.setText('RLE：扫描序列，连续相同字符压缩为「字符 + 出现次数」'); });
-  yield W(400);
+  yield W(200);
+  yield S(() => { status.textContent = 'RLE 游程编码：扫描序列，连续相同字符压缩为「字符 + 出现次数」'; });
+  yield W(500);
   for (let d = 0; d < runs.length; d++) {
     const r = runs[d];
     const cx = X0 + (r.start + (r.len - 1) / 2) * SP;
     yield S(() => {
       ring.mesh.visible = true;
-      hint.setText(`扫描游程 ${d + 1}/${runs.length}：从第 ${r.start} 位开始`);
+      ring.mesh.position.x = cx;
+      status.textContent = '扫描游程 ' + (d + 1) + '/' + runs.length + '：金环定位到第 ' + r.start + ' 位';
     });
-    yield A(450, p => { ring.mesh.position.x = cx; });
-    yield W(150);
+    yield W(500);
     yield S(() => {
       for (let i = r.start; i < r.start + r.len; i++) boxes[i].setColor(YELLOW, YELLOW);
-      hint.setText('连续 ' + r.len + ' 个「' + r.ch + '」→ 记作 ' + r.ch + r.len);
+      status.textContent = '连续 ' + r.len + ' 个「' + r.ch + '」→ 记作 ' + r.ch + r.len;
     });
-    const pA = new THREE.Vector3(X0 + r.start * SP, 390, 20);
-    const pB = new THREE.Vector3(X0 + (r.start + r.len - 1) * SP, 390, 20);
-    yield* flowLine(pA, pB);
+    yield W(600);
+    yield* flowLine(d);
     yield A(300, p => { ring.mesh.scale.setScalar(1 + 0.18 * Math.sin(p * Math.PI * 2)); });
     yield S(() => {
       for (let i = r.start; i < r.start + r.len; i++) boxes[i].setColor(GREEN, GREEN);
       countTexts[d].setText(r.ch + '×' + r.len);
-      outText.setText('压缩结果：' + runs.slice(0, d + 1).map(x => x.ch + x.len).join(' '));
-      hint.setText(`游程 ${d + 1} 完成：「${r.ch}」×${r.len} 已记作 ${r.ch}${r.len}`);
+      status.textContent = '游程 ' + (d + 1) + ' 完成：「' + r.ch + '」×' + r.len + ' 已记作 ' + r.ch + r.len;
     });
-    yield W(420);
+    yield W(500);
   }
-  const out = runs.map(r => r.ch + r.len).join(' ');
+  const out = runs.map(r => r.ch + r.len).join('');
   yield S(() => {
     clearFx();
     ring.mesh.visible = false;
-    outText.setText('压缩结果：' + out);
-    ratioT.setText('12 字符 → ' + out.replace(/ /g, '').length + ' 个字符（' + (TXT.length / out.replace(/ /g, '').length).toFixed(2) + '× 压缩）');
-    hint.setText('解压时把每个「字符+计数」展开为连续字符即可还原');
-    status.textContent = 'RLE 压缩完成：' + TXT + ' → ' + out;
+    status.textContent = 'RLE 演示完成：' + TXT + ' → ' + runs.map(r => r.ch + r.len).join(' ') + '（' + TXT.length + ' → ' + out.length + ' 字符，' + (TXT.length / out.length).toFixed(2) + '× 压缩，可无损还原）';
   });
   yield W(500);
 }
 
 engine.queue(() => runCompress());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；金环 = 扫描位置，绿色计数 = 游程长度）');
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

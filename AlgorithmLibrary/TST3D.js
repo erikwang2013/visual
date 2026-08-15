@@ -1,20 +1,18 @@
-// AlgorithmLibrary/TST3D.js — 三叉搜索树：左/中/右三叉 + 流动粒子流 + 词尾光圈（function* 生成器驱动）
+// AlgorithmLibrary/TST3D.js — 三叉搜索树：左/中/右三叉 + 流动粒子流 + 词尾光圈（function* 生成器驱动，解说入状态栏）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VText, VNode, VTorus } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { applyTheme } from '../3D/Glow.js';
 applyTheme('TST3D');
 
-const scene = new Scene3D('scene', { cameraPos: [260, 500, 900], lookAt: [260, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, CYAN = 0x67e8f9, ORANGE = 0xfb923c, WHITE = 0xffffff;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
-const status = panel.addStatus('');
-const outT = new VText(scene, { text: '', x: 700, y: 440, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
+const status = panel.addStatus('就绪');
 
 const WORDS = ['sea', 'seat', 'see', 'sock'];
 const SEARCH = 'see', MISS = 'set';
@@ -51,7 +49,7 @@ function leafCount(n) {
 }
 const pos = new Map();
 function place(n, lo, hi) {
-  pos.set(n, { x: ((lo + hi) / 2 - (WORDS.length - 1) / 2) * SP + 260, y: ROOT_Y - n.depth * STEP_Y });
+  pos.set(n, { x: ((lo + hi) / 2 - (WORDS.length - 1) / 2) * SP + 320, y: ROOT_Y - n.depth * STEP_Y });
   const lc = n.left ? leafCount(n.left) : 0, mc = n.mid ? leafCount(n.mid) : 0;
   let acc = lo;
   if (n.left) { place(n.left, acc, acc + lc); acc += lc; }
@@ -92,8 +90,8 @@ new VNode(scene, { radius: 24, x: pos.get(root).x, y: ROOT_Y, label: '根', colo
     buildView(c);
   }
 })(root);
-new VText(scene, { text: '青 = 左子树（字符 <），白 = 中子树（=），橙 = 右子树（字符 >）', x: 700, y: 330, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 12 });
 
+// 词尾：脉动光圈 + ★
 const ring = new Map(), star = new Map();
 (function buildEndViews(n) {
   if (n.end) {
@@ -109,9 +107,18 @@ const ring = new Map(), star = new Map();
   if (n.right) buildEndViews(n.right);
 })(root);
 
-let fxGroup = new THREE.Group();
-scene.add(fxGroup);
-const clearFx = () => { scene.remove(fxGroup); fxGroup = new THREE.Group(); scene.add(fxGroup); };
+// 流动粒子流：预建 3 个金球，运行期只改位置（scratch 向量池避免逐帧分配）
+const flowParts = [];
+const partSV = [];
+for (let i = 0; i < 3; i++) {
+  const v = new THREE.Mesh(new THREE.SphereGeometry(4, 8, 8),
+    new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.9 }));
+  v.visible = false;
+  scene.add(v);
+  flowParts.push(v);
+  partSV.push(new THREE.Vector3());
+}
+const clearFx = () => flowParts.forEach(v => { v.visible = false; });
 
 function resetPath() {
   nodeView.forEach(vn => vn.setColor(BLUE, BLUE));
@@ -123,28 +130,22 @@ function resetAll() {
   nodeView.forEach(vn => vn.mesh.scale.setScalar(1));
   ring.forEach(r => { r.mesh.visible = false; r.mesh.scale.setScalar(1); });
   star.forEach(s => s.sprite.visible = false);
-  outT.setText('');
 }
 
 const growNode = (n, p) => nodeView.get(n).mesh.scale.setScalar(0.05 + 0.95 * p);
-const pulseRing = (n) => A(500, p => { const r = ring.get(n).mesh; r.scale.setScalar(1 + 0.25 * Math.sin(p * Math.PI * 2)); });
-
-// 流动粒子流：金色小球沿曲线依次滑过
-function flowAlong(edgeMesh, count = 3, ms = 420) {
+function* pulseRing(n) {
+  yield A(500, p => { const r = ring.get(n).mesh; r.scale.setScalar(1 + 0.25 * Math.sin(p * Math.PI * 2)); });
+}
+function* flowAlong(edgeMesh, ms = 420) {
   const curve = curves.get(edgeMesh);
-  const parts = [];
-  for (let i = 0; i < count; i++) {
-    const v = new THREE.Mesh(new THREE.SphereGeometry(4, 8, 8),
-      new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.9 }));
-    parts.push(v); fxGroup.add(v);
-  }
-  return A(ms, p => parts.forEach((v, i) => v.position.copy(curve.getPoint((p + i * 0.18) % 1))));
+  flowParts.forEach(v => { v.visible = true; });
+  yield A(ms, p => flowParts.forEach((v, i) => v.position.copy(curve.getPoint((p + i * 0.18) % 1, partSV[i]))));
 }
 
 const edgeKindOf = (n, parent) => n === parent.mid ? '中' : n === parent.left ? '左' : '右';
 
 function* insertWord(word) {
-  yield S(() => outT.setText(`插入 "${word}"：逐字符下钻，新节点从父节点生长`));
+  yield S(() => { status.textContent = '插入 "' + word + '"：逐字符下钻，新节点从父节点生长'; });
   yield W(350);
   let cur = root;
   for (const ch of word) {
@@ -165,7 +166,7 @@ function* insertWord(word) {
     yield S(() => {
       nodeView.get(cur).setColor(GOLD, GOLD);
       edge.material.color.setHex(GOLD);
-      outT.setText(`插入 "${word}"：'${ch}' 走${edgeKindOf(cur, parent)} → 第 ${cur.depth} 层`);
+      status.textContent = '插入 "' + word + '"：\'' + ch + '\' 走' + edgeKindOf(cur, parent) + ' → 第 ' + cur.depth + ' 层';
     });
     yield* flowAlong(edge);
     yield W(260);
@@ -174,7 +175,7 @@ function* insertWord(word) {
     ring.get(cur).mesh.position.set(pos.get(cur).x, pos.get(cur).y, 0);
     ring.get(cur).mesh.visible = true;
     star.get(cur).sprite.visible = true;
-    outT.setText(`"${word}" 插入完成：词尾光圈 ★`);
+    status.textContent = '"' + word + '" 插入完成：词尾光圈 ★';
   });
   yield* pulseRing(cur);
   yield W(200);
@@ -183,7 +184,7 @@ function* insertWord(word) {
 }
 
 function* searchWord(word) {
-  yield S(() => outT.setText(`查找 "${word}"：逐字符比较，字符 < 走左 / > 走右 / = 走中`));
+  yield S(() => { status.textContent = '查找 "' + word + '"：逐字符比较，字符 < 走左 / > 走右 / = 走中'; });
   yield W(350);
   let cur = root;
   for (const ch of word) {
@@ -193,7 +194,7 @@ function* searchWord(word) {
     let guard = 0;
     while (cur.ch !== ch) {
       const cmp = ch < cur.ch ? '<' : '>';
-      yield S(() => outT.setText(`查找 "${word}"：'${ch}' ${cmp} '${cur.ch}' → 走${edgeKindOf(cur, parent)}`));
+      yield S(() => { status.textContent = '查找 "' + word + '"：\'' + ch + '\' ' + cmp + ' \'' + cur.ch + '\' → 走' + edgeKindOf(cur, parent); });
       yield W(300);
       const next = ch < cur.ch ? cur.left : cur.right;
       if (!next) { cur = null; break; }
@@ -204,7 +205,7 @@ function* searchWord(word) {
     yield S(() => {
       nodeView.get(cur).setColor(GOLD, GOLD);
       edgeView.get(cur).material.color.setHex(GOLD);
-      outT.setText(`查找 "${word}"：'${ch}' = '${cur.ch}' → 走中，深度 ${cur.depth}`);
+      status.textContent = '查找 "' + word + '"：\'' + ch + '\' = \'' + cur.ch + '\' → 走中，深度 ' + cur.depth;
     });
     yield* flowAlong(edgeView.get(cur));
     yield W(300);
@@ -213,7 +214,7 @@ function* searchWord(word) {
     yield S(() => {
       ring.get(cur).mesh.visible = true;
       star.get(cur).sprite.visible = true;
-      outT.setText(`查找 "${word}"：命中！词尾光圈脉动`);
+      status.textContent = '查找 "' + word + '"：命中！词尾光圈脉动';
     });
     yield* pulseRing(cur);
     yield W(200);
@@ -221,7 +222,7 @@ function* searchWord(word) {
   } else {
     yield S(() => {
       if (cur) nodeView.get(cur).setColor(RED, RED);
-      outT.setText(`查找 "${word}"：未命中（'${word[word.length - 1]}' 无对应子树，红闪 = 断点）`);
+      status.textContent = '查找 "' + word + '"：未命中（\'' + word[word.length - 1] + '\' 无对应子树，红闪 = 断点）';
     });
     yield W(550);
     if (cur) nodeView.get(cur).setColor(BLUE, BLUE);
@@ -232,20 +233,19 @@ function* searchWord(word) {
 
 function* runTST() {
   yield S(resetAll);
-  yield S(() => { hint.setText('三叉搜索树（TST）：每节点三指针，字符 < 走左 / > 走右 / = 走中；插入时新节点生长，查找成功路径金色，粒子流沿边流动'); });
+  yield W(200);
+  yield S(() => { status.textContent = '三叉搜索树（TST）：每节点三指针，青边 = 字符 < 走左 / 白边 = = 走中 / 橙边 = > 走右；插入时新节点生长，查找成功路径金色，粒子流沿边流动'; });
   yield W(500);
   for (const w of WORDS) yield* insertWord(w);
   yield* searchWord(SEARCH);
   yield* searchWord(MISS);
-  yield S(() => {
-    outT.setText(`"see" 命中：s→e→e；"set" 在 't'>'e' 处无右子树 → 未命中`);
-    hint.setText('复杂度 O(L·logS) 平均：每次比较三选一；TST 兼有 Trie（共享前缀）与 BST（按字符序分叉）的优点');
-    status.textContent = 'TST 结果：查找 "see" 命中（路径 s→e→e）；"set" 未命中';
-  });
+  yield S(() => { status.textContent = '"see" 命中：路径 s→e→e，词尾 ★ 脉动；"set" 在 \'t\' > \'e\' 处无右子树 → 未命中；平均复杂度 O(L·logS)，TST 兼有 Trie 前缀共享与 BST 字符序分叉的优点'; });
+  yield W(600);
+  yield S(() => { status.textContent = 'TST 演示完成：插入 4 词（sea/seat/see/sock），查找 "see" 命中（s→e→e）、"set" 未命中，词尾 ★ 共 4 个'; });
+  yield W(800);
 }
 
 engine.queue(() => runTST());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空画布'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；青/白/橙边 = 左/中/右三叉，金球 = 查找路径）');
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

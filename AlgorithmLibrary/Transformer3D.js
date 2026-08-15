@@ -1,99 +1,147 @@
-// AlgorithmLibrary/Transformer3D.js — 自注意力：Q 查询 K，加权聚合 V（Attention Is All You Need）（function* 生成器驱动）
+// AlgorithmLibrary/Transformer3D.js — Transformer 自注意力：Q/K 缩放点积得分 → softmax 权重 → 对 V 加权聚合，双头合并（function* 生成器驱动）
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
+import { VNode, VBox, VText, VTorus } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('Transformer3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：自注意力', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
+const BLUE = 0x60a5fa, GOLD = 0xfcd34d, ORANGE = 0xfb923c, GREEN = 0x4ade80, YELLOW = 0xfacc15, DIM = 0x334155;
 const status = panel.addStatus('就绪');
+const ease = p => p * p * (3 - 2 * p);
 
-const TX = [160, 320, 480];
-const tk = TX.map((x, i) => new VBox(scene, { w: 60, h: 60, d: 60, x, y: 485, z: 0, label: '词' + (i + 1), color: BLUE, emissive: BLUE }));
-new VText(scene, { text: '词向量', x: 40, y: 485, z: 0, color: PALETTE.textDim, scale: 0.5 });
+const TX = [120, 220, 320, 420, 520], TOK_Y = 600, QUERY = 2;   // 词₃ 为查询 token
+const KV = [[1, 0], [0, 1], [2, 1], [1, 2], [1, 1]];            // 键 = 值
+const S1 = [1.41, 0.71, 3.54, 2.83, 2.12];                      // 头1 得分 q₃·k/√2
+const A1 = [0.06, 0.03, 0.52, 0.26, 0.13];                      // 头1 softmax 权重
+const S2 = [0.71, 0.71, 2.12, 2.12, 1.41];                      // 头2 得分
+const A2 = [0.08, 0.08, 0.34, 0.34, 0.16];                      // 头2 softmax 权重
+const LINE_T = [0, 1, 3, 4];                                    // 连线指向的 token 下标（不含自身）
 
-// Q / K / V 三行：q₁=(1,0)；k₁=(1,0) k₂=(0,1) k₃=(2,1)；v 与 k 相同
-const KV = [['(1,0)', '(0,1)', '(2,1)']];
-const YROWS = [430, 375, 320];
-const qkv = [
-  ['(1,0)', '(?,?)', '(?,?)'].map((lab, c) => new VBox(scene, { w: 52, h: 52, d: 30, x: TX[c], y: YROWS[0], z: 0, label: lab, color: DIM, emissive: 0 })),
-  KV[0].map((lab, c) => new VBox(scene, { w: 52, h: 52, d: 30, x: TX[c], y: YROWS[1], z: 0, label: lab, color: DIM, emissive: 0 })),
-  KV[0].map((lab, c) => new VBox(scene, { w: 52, h: 52, d: 30, x: TX[c], y: YROWS[2], z: 0, label: lab, color: DIM, emissive: 0 }))
-];
-new VText(scene, { text: 'Q 查询', x: 40, y: 430, z: 0, color: PALETTE.textDim, scale: 0.5 });
-new VText(scene, { text: 'K 键', x: 40, y: 375, z: 0, color: PALETTE.textDim, scale: 0.5 });
-new VText(scene, { text: 'V 值', x: 40, y: 320, z: 0, color: PALETTE.textDim, scale: 0.5 });
+// token 球池 + Q/K/得分/权重/输出 盒子池：运行期仅改文字/颜色/显隐/缩放
+const tok = TX.map((x, i) => new VNode(scene, { radius: 20, x, y: TOK_Y, z: 0, label: '词' + (i + 1), color: BLUE, emissive: BLUE }));
+const kBox = KV.map((kv, i) => new VBox(scene, { w: 46, h: 46, d: 30, x: TX[i], y: 510, z: 0, label: 'k' + (i + 1) + '=(' + kv + ')', color: DIM, emissive: 0 }));
+const qBox = new VBox(scene, { w: 120, h: 48, d: 30, x: TX[QUERY], y: 450, z: 0, label: 'q₃=(2,1)', color: DIM, emissive: 0 });
+const sBox = TX.map(x => new VBox(scene, { w: 46, h: 40, d: 30, x, y: 380, z: 0, label: '?', color: DIM, emissive: 0 }));
+const aBox = TX.map(x => new VBox(scene, { w: 46, h: 40, d: 30, x, y: 315, z: 0, label: '?', color: DIM, emissive: 0 }));
+const outBox = new VBox(scene, { w: 110, h: 48, d: 30, x: 320, y: 250, z: 0, label: '输出₃', color: GREEN, emissive: GREEN });
+outBox.mesh.visible = false;
+const valT = new VText(scene, { text: '', x: 320, y: 200, z: 0, color: GREEN, scale: 0.55 });
+valT.sprite.visible = false;
 
-const scoreBoxes = [0.71, 0, 1.41].map((v, i) => new VBox(scene, { w: 52, h: 36, d: 30, x: TX[i], y: 272, z: 0, label: '?', color: DIM, emissive: 0 }));
-const attBoxes = [0.284, 0.14, 0.576].map((v, i) => new VBox(scene, { w: 52, h: 36, d: 30, x: TX[i], y: 226, z: 0, label: '?', color: DIM, emissive: 0 }));
-new VText(scene, { text: '得分 s₁（缩放后）', x: 40, y: 272, z: 0, color: PALETTE.textDim, scale: 0.5 });
-new VText(scene, { text: 'softmax 权重', x: 40, y: 226, z: 0, color: PALETTE.textDim, scale: 0.5 });
+// 注意力连线池：词₃ → 其余 4 词（线宽/颜色 ∝ 权重）
+const mkLine = x2 => {
+  const b = new VBox(scene, { w: 200, h: 4, d: 4, x: 0, y: 0, z: 0, label: '', color: DIM, emissive: 0 });
+  b.mesh.scale.set(Math.abs(x2 - TX[QUERY]) / 200, 1, 1);
+  b.mesh.position.set((x2 + TX[QUERY]) / 2, TOK_Y, 0);
+  b.mesh.visible = false;
+  return b;
+};
+const lines = [TX[0], TX[1], TX[3], TX[4]].map(mkLine);
+const ring = new VTorus(scene, { radius: 26, x: TX[QUERY], y: TOK_Y, z: 0, color: GOLD });
+ring.mesh.visible = false;
 
-const ctx = new VBox(scene, { w: 90, h: 40, d: 40, x: 320, y: 220, z: 0, label: '输出₁ = (1.436, 0.716)', color: GREEN, emissive: GREEN });
-ctx.mesh.visible = false;
-new VText(scene, { text: '加权聚合 → 上下文向量', x: 40, y: 220, z: 0, color: PALETTE.textDim, scale: 0.5 });
+new VText(scene, { text: 'K 键 = V 值', x: 40, y: 510, z: 0, color: PALETTE.textDim, scale: 0.5 });
+new VText(scene, { text: '得分 s', x: 40, y: 380, z: 0, color: PALETTE.textDim, scale: 0.5 });
+new VText(scene, { text: 'softmax α', x: 40, y: 315, z: 0, color: PALETTE.textDim, scale: 0.5 });
+new VText(scene, { text: '输出', x: 40, y: 250, z: 0, color: PALETTE.textDim, scale: 0.5 });
 
-const stepT = new VText(scene, { text: '', x: 700, y: 430, z: 0, color: PALETTE.textGlow, scale: 0.6, wrapChars: 8 });
-
-const sT = [0.71, 0, 1.41], aT = [0.284, 0.14, 0.576];
+const wCol = w => (w >= 0.25 ? GOLD : w >= 0.1 ? ORANGE : DIM);
+const wEm = w => (wCol(w) === DIM ? 0 : wCol(w));
 
 function resetAll() {
-  tk.forEach(b => b.setColor(BLUE, BLUE));
-  qkv.forEach((row, r) => row.forEach((b, c) => {
-    b.setColor(DIM, 0);
-    b.setText(r === 0 ? (c === 0 ? '(1,0)' : '(?,?)') : KV[0][c]);
-  }));
-  scoreBoxes.forEach(b => { b.setColor(DIM, 0); b.setText('?'); });
-  attBoxes.forEach(b => { b.setColor(DIM, 0); b.setText('?'); });
-  ctx.mesh.visible = false;
-  stepT.setText('');
+  tok.forEach(n => n.setColor(BLUE, BLUE));
+  kBox.forEach(b => b.setColor(DIM, 0));
+  qBox.setColor(DIM, 0); qBox.setText('q₃=(2,1)');
+  sBox.forEach(b => { b.setColor(DIM, 0); b.setText('?'); });
+  aBox.forEach(b => { b.setColor(DIM, 0); b.setText('?'); });
+  outBox.mesh.visible = false; outBox.setColor(GREEN, GREEN);
+  valT.sprite.visible = false;
+  lines.forEach(b => { b.mesh.visible = false; b.mesh.scale.y = 1; b.setColor(DIM, 0); });
+  ring.mesh.visible = false; ring.mesh.scale.setScalar(1);
 }
 
-function* attnGen() {
+function* tweenLines(wts) {
+  yield A(420, p => {
+    const e = ease(p);
+    lines.forEach((ln, i) => { ln.mesh.scale.y = 1 + 5 * wts[LINE_T[i]] * e; });
+    ring.mesh.scale.setScalar(0.85 + wts[QUERY] * e);
+  });
+  lines.forEach((ln, i) => ln.setColor(wCol(wts[LINE_T[i]]), wEm(wts[LINE_T[i]])));
+}
+
+function* runAttn() {
   resetAll();
-  yield S(() => hint.setText('Transformer 自注意力：每个词生成 Q/K/V，Q 问所有 K，加权聚合 V — 长依赖的答案'));
-  yield S(() => { stepT.setText('只看词₁ 的计算：q₁ = (1,0)，与 3 个键 k₁ k₂ k₃ 做点积'); });
-  yield W(500);
+  yield S(() => { status.textContent = 'Transformer 自注意力：词₃ 生成查询 q₃ = (2,1)，与全部 5 个键 K 做缩放点积得注意力权重，再对值 V 加权求和（此处 V = K）'; });
+  yield W(900);
   yield S(() => {
-    qkv[0][0].setColor(BLUE, BLUE);
-    stepT.setText('q₁ = (1,0)（蓝色高亮）— 每个词生成自己的查询向量');
+    tok[QUERY].setColor(GOLD, GOLD);
+    qBox.setColor(GOLD, GOLD);
+    status.textContent = '查询：词₃ 经 W_Q 投影得 q₃ = (2,1)（金）— 它决定"词₃ 最关心什么"';
   });
   yield W(900);
   yield S(() => {
-    qkv[1].forEach(b => b.setColor(BLUE, BLUE));
-    stepT.setText('键 k = [(1,0), (0,1), (2,1)]：点积 q₁·k 衡量词₁ 与每个词的相关性');
+    kBox.forEach(b => b.setColor(BLUE, BLUE));
+    status.textContent = '键：K 行 = 各词的键向量（蓝）— 点积 q₃·kᵢ 衡量词₃ 与每个词的相关性';
   });
   yield W(900);
   yield S(() => {
-    scoreBoxes.forEach((b, i) => { b.setColor(YELLOW, YELLOW); b.setText(String(sT[i])); });
-    stepT.setText('得分 s₁ = q₁·k / √dₖ = [1, 0, 2] / 1.41 = [0.71, 0, 1.41] — 词₁ 最关注词₃！');
+    sBox.forEach((b, i) => { b.setText(String(S1[i])); b.setColor(YELLOW, YELLOW); });
+    status.textContent = '得分：s₃ᵢ = q₃·kᵢ/√dₖ（√2 ≈ 1.41）→ [1.41, 0.71, 3.54, 2.83, 2.12]，词₃ 与自己相关性最高';
+  });
+  yield W(1000);
+  yield S(() => {
+    aBox.forEach((b, i) => { b.setText(String(A1[i])); b.setColor(wCol(A1[i]), wEm(A1[i])); });
+    lines.forEach(ln => { ln.mesh.visible = true; });
+    ring.mesh.visible = true;
+    status.textContent = 'softmax 归一化 → 权重 α = [0.06, 0.03, 0.52, 0.26, 0.13]（线粗/色亮 ∝ 权重）— 词₃ 把 52% 注意力给了自己';
+  });
+  yield* tweenLines(A1);
+  yield W(700);
+  yield S(() => {
+    outBox.mesh.visible = true;
+    valT.sprite.visible = true;
+    valT.setText('(1.49, 1.20)');
+    status.textContent = '聚合：输出₃ = 0.06v₁ + 0.03v₂ + 0.52v₃ + 0.26v₄ + 0.13v₅ = (1.49, 1.20) — 携带全场信息的上下文向量';
+  });
+  yield W(1000);
+  yield S(() => {
+    qBox.setText('q₃=(1,1)');
+    sBox.forEach((b, i) => { b.setText(String(S2[i])); });
+    status.textContent = '多头：头 2 用不同投影 q₃ = (1,1)，得分 [0.71, 0.71, 2.12, 2.12, 1.41] — 各头关注模式不同';
   });
   yield W(900);
   yield S(() => {
-    attBoxes.forEach((b, i) => { b.setColor(YELLOW, YELLOW); b.setText(String(aT[i])); });
-    stepT.setText('softmax 归一化 → [0.284, 0.14, 0.576] — 词₃ 分到 57.6% 的注意力');
+    aBox.forEach((b, i) => { b.setText(String(A2[i])); b.setColor(wCol(A2[i]), wEm(A2[i])); });
+    status.textContent = '头 2 权重 α′ = [0.08, 0.08, 0.34, 0.34, 0.16] — 注意力更分散，同时关注词₃、词₄';
+  });
+  yield* tweenLines(A2);
+  yield W(700);
+  yield S(() => {
+    outBox.setColor(BLUE, BLUE);
+    valT.setText('(1.26, 1.26)');
+    status.textContent = '头 2 聚合：0.08v₁ + 0.08v₂ + 0.34v₃ + 0.34v₄ + 0.16v₅ = (1.26, 1.26)';
   });
   yield W(900);
   yield S(() => {
-    ctx.mesh.visible = true;
-    stepT.setText('聚合：输出₁ = 0.284·v₁ + 0.14·v₂ + 0.576·v₃ = (1.436, 0.716) — 携带了词₃ 的信息');
+    outBox.setColor(GOLD, GOLD);
+    valT.setText('(1.38, 1.23)', { color: GOLD });
+    status.textContent = '合并：双头输出拼接后经线性层 → 输出₃ = (1.38, 1.23) — 不同头捕捉不同的关联模式';
   });
   yield W(900);
-  yield S(() => {
-    status.textContent = '自注意力完成：得分 [0.71,0,1.41] → softmax [0.284,0.14,0.576] → 输出 (1.436,0.716)';
-    hint.setText('自注意力让每个词直接"看到"所有词 — GPT/BERT 的核心，一举解决 RNN 长序列遗忘');
-  });
-  yield W(600);
+  yield S(() => { status.textContent = 'Transformer 演示完成：词₃ 注意力 α=[0.06,0.03,0.52,0.26,0.13] → 输出 (1.49,1.20)，双头合并 (1.38,1.23)；自注意力 O(n²·d)'; });
+  yield W(800);
 }
 
-engine.queue(() => attnGen());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；蓝=Q/K/V 矩阵，黄=注意力得分与权重，绿=输出）');
+engine.queue(() => runAttn());
+panel.addButton('清空', () => {
+  engine.clear();
+  resetAll();
+  status.textContent = '';
+});
 
 scene.start(engine);

@@ -1,33 +1,51 @@
-// AlgorithmLibrary/LinearRegression3D.js — 线性回归：梯度下降最小化均方误差，直线逐步拟合数据（function* 生成器驱动）
+// AlgorithmLibrary/LinearRegression3D.js — 线性回归：梯度下降最小化均方误差，直线逐迭代拟合数据（function* 生成器驱动，解说入状态栏）
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, tubeBetween } from '../3D/VisualObject3D.js';
+import { VNode, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('LinearRegression3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, DIM = 0x334155, RED = 0xf87171;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：线性回归', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
 
+const GREEN = 0x4ade80, RED = 0xf87171;
+const ease = p => p * p * (3 - 2 * p);
 const PTS = [[-240, -100], [-180, -60], [-120, -50], [-60, -5], [0, 25], [60, 55], [120, 70], [180, 115], [240, 145]];
-const pts = PTS.map(p => new VBox(scene, { w: 24, h: 24, d: 24, x: p[0] + 320, y: p[1] + 330, z: 0, label: '', color: GREEN, emissive: GREEN }));
-const line = new VBox(scene, { w: 560, h: 6, d: 6, x: 320, y: 330, z: 0, label: '', color: PALETTE.highlight, emissive: PALETTE.highlightEmissive });
-const lossT = new VText(scene, { text: '', x: 700, y: 420, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
-const eqT = new VText(scene, { text: '', x: 700, y: 360, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
+const N = PTS.length;
 
-function setLine(w, b) {
-  const x1 = 50, x2 = 590, y1 = w * (x1 - 320) + b + 330, y2 = w * (x2 - 320) + b + 330;
-  const L = Math.hypot(x2 - x1, y2 - y1);
-  line.mesh.scale.x = L / 560;
-  line.mesh.rotation.z = Math.atan2(y2 - y1, x2 - x1);
-  line.mesh.position.set((x1 + x2) / 2, (y1 + y2) / 2, 0);
+// 数据点（常驻）
+const pts = PTS.map(p => new VNode(scene, { radius: 13, x: p[0] + 320, y: p[1] + 330, z: 0, label: '', color: GREEN, emissive: GREEN }));
+// 拟合线：预建 X 向细管（长 540），运行期仅改 scale/rotation/position
+const lineCurve = new THREE.CatmullRomCurve3([new THREE.Vector3(-270, 0, 0), new THREE.Vector3(270, 0, 0)]);
+const line = new THREE.Mesh(new THREE.TubeGeometry(lineCurve, 4, 3, 6, false), new THREE.MeshBasicMaterial({ color: PALETTE.highlight }));
+line.visible = false;
+scene.add(line);
+// 残差虚线池：每点 4 段（段为 Y 向细管长 40），峰值 9×4 = 36、池 37
+const SEGS = 4, SEG_LEN = 40, FRAC = [0.125, 0.375, 0.625, 0.875];
+const resPool = [];
+for (let i = 0; i < N; i++) {
+  for (let s = 0; s < SEGS; s++) {
+    const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, -SEG_LEN / 2, 0), new THREE.Vector3(0, SEG_LEN / 2, 0)]);
+    const t = new THREE.Mesh(new THREE.TubeGeometry(curve, 3, 1.4, 5, false), new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0.5 }));
+    t.visible = false;
+    scene.add(t);
+    resPool.push(t);
+  }
 }
+{
+  const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, -SEG_LEN / 2, 0), new THREE.Vector3(0, SEG_LEN / 2, 0)]);
+  const t = new THREE.Mesh(new THREE.TubeGeometry(curve, 3, 1.4, 5, false), new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0.5 }));
+  t.visible = false;
+  scene.add(t);
+  resPool.push(t);
+}
+// 参数徽标（数据标签）
+const eqT = new VText(scene, { text: '', x: 60, y: 570, z: 0, color: PALETTE.textGlow, scale: 0.55 });
+const lossT = new VText(scene, { text: '', x: 60, y: 520, z: 0, color: PALETTE.textDim, scale: 0.5 });
 
 // 预计算梯度下降轨迹：坐标归一化到 [-1,1] 保证收敛，采样时还原为显示值
 const X = PTS.map(([x, y]) => [x / 240, y / 240]);
@@ -46,49 +64,69 @@ for (let i = 0; i < 300; i++) {
 steps.push({ w, b: b * 240, mse: lastMse });
 const FW = w, FB = b * 240;
 
-let residuals = [];
-function clearResiduals() {
-  residuals.forEach(t => { scene.remove(t); if (t.geometry) t.geometry.dispose(); if (t.material) t.material.dispose(); });
-  residuals = [];
+function setLine(ww, bb, grow = 1) {
+  const x1 = 50, x2 = 590;
+  const y1 = ww * (x1 - 320) + bb + 330, y2 = ww * (x2 - 320) + bb + 330;
+  const L = Math.hypot(x2 - x1, y2 - y1);
+  line.scale.x = (L / 540) * grow;
+  line.rotation.z = Math.atan2(y2 - y1, x2 - x1);
+  line.position.set((x1 + x2) / 2, (y1 + y2) / 2, 0);
 }
-function drawResiduals(ww, bb) {
-  clearResiduals();
-  for (const [x, y] of PTS) {
-    residuals.push(tubeBetween(scene, new THREE.Vector3(x + 320, y + 330, 0), new THREE.Vector3(x + 320, ww * x + bb + 330, 0), { color: RED, opacity: 0.45, radius: 1.2 }));
+
+function updateResiduals(ww, bb) {
+  for (let i = 0; i < N; i++) {
+    const [x, y] = PTS[i];
+    const dy = ww * x + bb - y;
+    const L = Math.abs(dy);
+    for (let s = 0; s < SEGS; s++) {
+      const t = resPool[i * SEGS + s];
+      if (L < 24) { t.visible = false; continue; }
+      t.visible = true;
+      t.position.set(x + 320, y + 330 + dy * FRAC[s], 0);
+      t.scale.y = (0.25 * L) / SEG_LEN;
+    }
   }
 }
 
 function resetAll() {
-  clearResiduals();
-  setLine(0, 0);
-  lossT.setText('');
+  resPool.forEach(t => { t.visible = false; t.scale.y = 1; });
+  line.visible = true;
+  line.scale.x = 0.001;
+  line.rotation.z = 0;
+  line.position.set(320, 330, 0);
   eqT.setText('');
+  lossT.setText('');
 }
 
-function* lrGen() {
+function* runLR() {
   resetAll();
-  yield S(() => hint.setText('线性回归：y = wx + b。用梯度下降反复微调 w、b，让均方误差 MSE 越来越小'));
-  yield S(() => { eqT.setText('红色竖线 = 残差（预测值 - 真实值），MSE 即残差平方的平均'); });
-  yield W(450);
-  for (let i = 0; i < steps.length; i++) {
-    const s = steps[i];
-    yield S(() => {
-      setLine(s.w, s.b);
-      drawResiduals(s.w, s.b);
-      lossT.setText('迭代 ' + i * 30 + '：MSE = ' + s.mse.toFixed(1) + '，w = ' + s.w.toFixed(3) + '，b = ' + s.b.toFixed(1));
-      if (i > 0) hint.setText('MSE 从 ' + steps[0].mse.toFixed(0) + ' 降到 ' + s.mse.toFixed(1) + '：直线正逐步贴近数据');
+  yield S(() => { status.textContent = '线性回归：y = wx + b。梯度下降反复微调 w、b 使均方误差 MSE 最小 —— 演示 9 个数据点的最小二乘拟合'; });
+  yield W(900);
+  yield S(() => { status.textContent = '初始：w = 0、b = 0（水平线），MSE = ' + steps[0].mse.toFixed(1) + ' —— 开始梯度下降'; });
+  yield W(700);
+  for (let i = 1; i < steps.length; i++) {
+    const a = steps[i - 1], s = steps[i];
+    yield A(560, p => {
+      const e = ease(p);
+      setLine(a.w + (s.w - a.w) * e, a.b + (s.b - a.b) * e, i === 1 ? e : 1);
+      updateResiduals(a.w + (s.w - a.w) * e, a.b + (s.b - a.b) * e);
     });
-    yield W(500);
+    yield W(300);
+    if (i === 1 || i === 2 || i === 5 || i === steps.length - 1) {
+      const desc = i === 1 ? ' —— 一步大梯度直抵最优附近' : (i === 2 ? ' —— 已收敛（梯度≈0），继续微调' : (i === 5 ? ' —— 残差平方均值已最小' : ' —— 最终参数'));
+      yield S(() => {
+        eqT.setText('y = ' + s.w.toFixed(2) + 'x + ' + s.b.toFixed(1));
+        lossT.setText('MSE = ' + s.mse.toFixed(1));
+        status.textContent = '迭代 ' + (i * 30) + '：w = ' + s.w.toFixed(3) + '、b = ' + s.b.toFixed(1) + '，MSE = ' + s.mse.toFixed(1) + desc;
+      });
+      yield W(650);
+    }
   }
-  yield S(() => {
-    status.textContent = '训练完成：y = ' + FW.toFixed(2) + 'x + ' + FB.toFixed(2) + '，MSE = ' + lastMse.toFixed(1) + '（从 ' + steps[0].mse.toFixed(0) + ' 下降）';
-    hint.setText('梯度方向 = 误差曲面最陡上升方向，沿反方向走小步即可下降；学习率太大易震荡');
-  });
-  yield W(600);
+  yield S(() => { status.textContent = 'LinearRegression 演示完成：y = ' + FW.toFixed(2) + 'x + ' + FB.toFixed(2) + '，MSE 从 ' + steps[0].mse.toFixed(1) + ' 降至 ' + lastMse.toFixed(1) + '；复杂度：每轮梯度 O(n)，收敛轮数取决于学习率'; });
+  yield W(1000);
 }
 
-engine.queue(() => lrGen());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；多变量线性回归同理，只是参数更多）');
+engine.queue(() => runLR());
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

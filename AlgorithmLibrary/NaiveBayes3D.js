@@ -1,4 +1,5 @@
-// AlgorithmLibrary/NaiveBayes3D.js — 朴素贝叶斯：词频计数 + 条件概率分类（垃圾邮件识别）（function* 生成器驱动）
+// AlgorithmLibrary/NaiveBayes3D.js — 朴素贝叶斯分类：词频统计 + 拉普拉斯平滑 + 对数后验比较（垃圾邮件识别）（function* 生成器驱动，解说入状态栏）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
@@ -6,12 +7,11 @@ import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('NaiveBayes3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：朴素贝叶斯', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
+const GREEN = 0x4ade80, ROSE = 0xfb7185, BLUE = 0x67e8f9;
 const status = panel.addStatus('就绪');
 
 // 4 封训练邮件：绿=垃圾 2 封，红=正常 2 封
@@ -23,77 +23,78 @@ const MAILS = [
 ];
 const mailBoxes = [];
 MAILS.forEach((m, i) => {
-  const x = 125 + i * 130;
-  mailBoxes.push(new VBox(scene, { w: 110, h: 58, d: 60, x, y: 408, z: 0, label: '', color: m.spam ? GREEN : ROSE, emissive: m.spam ? GREEN : ROSE }));
-  new VText(scene, { text: m.words, x, y: 408, z: 33, color: PALETTE.textDim, scale: 0.42 });
+  const x = 95 + i * 150;
+  mailBoxes.push(new VBox(scene, { w: 128, h: 54, d: 62, x, y: 700, z: 0, label: '', color: m.spam ? GREEN : ROSE, emissive: m.spam ? GREEN : ROSE }));
+  new VText(scene, { text: m.words, x, y: 700, z: 36, color: PALETTE.textDim, scale: 0.42 });
 });
-new VText(scene, { text: '训练集：4 封（绿=垃圾 · 红=正常）', x: 700, y: 515, z: 0, color: PALETTE.textDim, scale: 0.4, wrapChars: 10 });
+const lblS = new VText(scene, { text: '垃圾', x: 66, y: 742, z: 0, color: GREEN, scale: 0.5 });
+const lblN = new VText(scene, { text: '正常', x: 66, y: 706, z: 0, color: ROSE, scale: 0.5 });
 
+// 待测邮件「offer win now」3 个词条
 const TEST = ['offer', 'win', 'now'];
 const testBoxes = [];
 for (let i = 0; i < 3; i++) {
-  testBoxes.push(new VBox(scene, { w: 110, h: 46, d: 50, x: 180 + i * 140, y: 341, z: 0, label: TEST[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+  testBoxes.push(new VBox(scene, { w: 104, h: 40, d: 46, x: 210 + i * 130, y: 592, z: 0, label: TEST[i], color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
 }
-new VText(scene, { text: '待测邮件：「offer win now」', x: 700, y: 475, z: 0, color: PALETTE.textDim, scale: 0.4, wrapChars: 10 });
 
-// 词频与平滑后条件概率（垃圾词数 6 / 正常词数 4，词表 9）
+// 词频统计与平滑后条件概率（垃圾总词数 6 / 正常总词数 4，词表 9）
 const FREQ = [
   { w: 'offer', sc: 2, hc: 0, pS: '3/15', pH: '1/13' },
   { w: 'win',   sc: 2, hc: 0, pS: '3/15', pH: '1/13' },
   { w: 'now',   sc: 1, hc: 0, pS: '2/15', pH: '1/13' },
 ];
-new VText(scene, { text: '词频统计（垃圾/正常）→ 拉普拉斯平滑', x: 700, y: 445, z: 0, color: PALETTE.textDim, scale: 0.4, wrapChars: 10 });
-const freqRows = FREQ.map((f, i) => new VText(scene, { text: '', x: 320, y: 293 - i * 22, z: 0, color: PALETTE.textGlow, scale: 0.45 }));
+const freqRows = FREQ.map((f, i) => new VText(scene, { text: '', x: 320, y: 490 - i * 36, z: 0, color: PALETTE.textGlow, scale: 0.45 }));
 
-const stepT = new VText(scene, { text: '', x: 700, y: 375, z: 0, color: PALETTE.textGlow, scale: 0.5, wrapChars: 10 });
-const barL = new VBox(scene, { w: 90, h: 18, d: 18, x: 415, y: 219, z: 0, label: '', color: GREEN, emissive: GREEN });
-const barR = new VBox(scene, { w: 340, h: 18, d: 18, x: 170, y: 219, z: 0, label: '', color: ROSE, emissive: ROSE });
-barL.mesh.visible = false; barR.mesh.visible = false;
-const lpT = new VText(scene, { text: '', x: 700, y: 320, z: 0, color: GREEN, scale: 0.5, wrapChars: 10 });
-const hpT = new VText(scene, { text: '', x: 700, y: 288, z: 0, color: ROSE, scale: 0.5, wrapChars: 10 });
+// 对数后验对比条（垃圾绿 / 正常红，宽度 ∝ 得分）
+const barS = new VBox(scene, { w: 60, h: 16, d: 16, x: 170, y: 390, z: 0, label: '', color: GREEN, emissive: GREEN });
+const barN = new VBox(scene, { w: 60, h: 16, d: 16, x: 170, y: 352, z: 0, label: '', color: ROSE, emissive: ROSE });
+barS.mesh.visible = false; barN.mesh.visible = false;
+const lpT = new VText(scene, { text: '', x: 330, y: 390, z: 0, color: GREEN, scale: 0.55 });
+const hpT = new VText(scene, { text: '', x: 330, y: 352, z: 0, color: ROSE, scale: 0.55 });
 
 function resetAll() {
-  for (let i = 0; i < MAILS.length; i++) mailBoxes[i].setColor(MAILS[i].spam ? GREEN : ROSE, MAILS[i].spam ? GREEN : ROSE);
-  for (const b of testBoxes) b.setColor(PALETTE.node, PALETTE.nodeEmissive);
-  for (const t of freqRows) t.setText('');
-  barL.mesh.visible = false; barR.mesh.visible = false;
+  mailBoxes.forEach((b, i) => b.setColor(MAILS[i].spam ? GREEN : ROSE, MAILS[i].spam ? GREEN : ROSE));
+  testBoxes.forEach(b => b.setColor(PALETTE.node, PALETTE.nodeEmissive));
+  freqRows.forEach(t => t.setText(''));
+  barS.mesh.visible = false; barN.mesh.visible = false;
   lpT.setText(''); hpT.setText('');
-  stepT.setText('');
+}
+function setBar(bar, score) {
+  const sx = Math.max((score + 8.8173) / 9.6326, 0.04);
+  bar.mesh.scale.x = sx;
+  bar.mesh.position.x = 170 + 30 * sx;
+  bar.mesh.visible = true;
 }
 
-function* nbGen() {
+function* runNB() {
   resetAll();
-  yield S(() => hint.setText('朴素贝叶斯：P(类|邮件) ∝ P(类)·ΠP(词|类) — 垃圾过滤经典'));
+  yield S(() => { status.textContent = '朴素贝叶斯：P(类|邮件) ∝ P(类)·Π P(词|类)。训练集 4 封（绿=垃圾 2，红=正常 2），待测「offer win now」，先验 P(垃圾)=P(正常)=0.5'; });
+  yield W(900);
   yield S(() => {
-    for (let i = 0; i < MAILS.length; i++) mailBoxes[i].setColor(MAILS[i].spam ? GREEN : ROSE, MAILS[i].spam ? GREEN : ROSE);
-    stepT.setText('训练：统计各词出现次数（词表 9 词）');
-  });
-  yield W(700);
-  yield S(() => {
-    for (const b of testBoxes) b.setColor(BLUE, BLUE);
-    stepT.setText('求两个类别的后验概率，谁大判谁');
-  });
-  yield W(800);
-  yield S(() => {
-    FREQ.forEach((f, i) => { freqRows[i].setText(f.w + '：垃圾 ' + f.sc + ' 次 · 正常 ' + f.hc + ' 次   →   平滑后 ' + f.pS + ' / ' + f.pH); });
-    stepT.setText('先验 0.5；P(词|类) = (次数+1)/(总词数+词表)');
+    testBoxes.forEach(b => b.setColor(BLUE, BLUE));
+    status.textContent = '第 1 步 词频统计：offer 2/0、win 2/0、now 1/0（垃圾/正常）；垃圾邮件总词数 6、正常 4，词表 9 词';
   });
   yield W(900);
   yield S(() => {
-    barL.mesh.visible = true; barR.mesh.visible = true;
+    FREQ.forEach((f, i) => { freqRows[i].setText(f.w + '：垃圾 ' + f.sc + ' · 正常 ' + f.hc + ' → 平滑后 ' + f.pS + ' / ' + f.pH); });
+    status.textContent = '第 2 步 拉普拉斯平滑：P(词|类) = (次数+1)/(该类总词数+词表)，未出现的词也有小概率 1/13';
+  });
+  yield W(1000);
+  yield S(() => {
+    setBar(barS, 0.8153); setBar(barN, -8.8173);
     lpT.setText('垃圾 = 0.8153'); hpT.setText('正常 = −8.8173');
-    stepT.setText('对数后验（越大越像该类）：垃圾 0.8153 ≫ 正常 −8.8173 → 判垃圾 ✓');
+    status.textContent = '第 3 步 对数后验（越大越像该类）：垃圾 0.8153 ≫ 正常 −8.8173 → 判为垃圾邮件 ✓';
   });
+  yield W(1100);
+  yield S(() => { status.textContent = 'NaiveBayes 演示完成：「offer win now」→ 垃圾邮件（0.8153 > −8.8173），先验 0.5 × 平滑条件概率连乘；复杂度：训练与分类均 O(d)，d 为特征数'; });
   yield W(900);
-  yield S(() => {
-    status.textContent = '朴素贝叶斯完成：测试「offer win now」→ 垃圾邮件（0.8153 > −8.8173）';
-    hint.setText('朴素贝叶斯：词独立假设，计算快、可增量训练 — 文本分类经典');
-  });
-  yield W(600);
 }
 
-engine.queue(() => nbGen());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；条件概率用词频 + 拉普拉斯平滑计算，取对数避免下溢）');
+engine.queue(() => runNB());
+panel.addButton('清空', () => {
+  engine.clear();
+  resetAll();
+  status.textContent = '';
+});
 
 scene.start(engine);

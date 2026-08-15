@@ -1,18 +1,18 @@
-// AlgorithmLibrary/DecisionTree3D.js — 决策树（ID3）：按信息增益选特征递归分裂，直到子集纯化（function* 生成器驱动）
+// AlgorithmLibrary/DecisionTree3D.js — 决策树（ID3）：按信息增益最大特征递归分裂，子集纯化即叶节点（function* 生成器驱动，模块级预建对象池）
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, tubeBetween } from '../3D/VisualObject3D.js';
+import { VNode, VBox, VText, tubeBetween } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('DecisionTree3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const GREEN = 0x4ade80, RED = 0xf87171, YELLOW = 0xfacc15, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：决策树（ID3）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
+const GREEN = 0x4ade80, RED = 0xf87171, GOLD = 0xfcd34d;
 const status = panel.addStatus('就绪');
+const ease = p => p * p * (3 - 2 * p);
 
 // 8 个样本：天气/温度/湿度/风 → 是否打球
 const DATA = [
@@ -27,15 +27,12 @@ const DATA = [
 ];
 const FEATS = [['w', '天气'], ['t', '温度'], ['h', '湿度'], ['wnd', '风']];
 
-const SP = 70, X0 = -3.5 * SP + 320;
-const sboxes = DATA.map((d, i) => new VBox(scene, { w: 40, h: 40, d: 40, x: X0 + i * SP, y: 240, z: 0, label: 'S' + (i + 1), color: d.play === '是' ? GREEN : RED, emissive: d.play === '是' ? GREEN : RED }));
-const sfeat = DATA.map((d, i) => new VText(scene, { text: d.w + d.t + d.h + d.wnd, x: X0 + i * SP, y: 275, z: 0, color: PALETTE.textDim, scale: 0.55 }));
-new VText(scene, { text: '样本（绿=打球 红=不打）', x: 10, y: 310, z: 0, color: PALETTE.textDim, scale: 0.7 });
-const calcT = new VText(scene, { text: '', x: 700, y: 440, z: 0, color: PALETTE.textGlow, scale: 0.5, wrapChars: 8 });
+// ---- 样本区（模块级预建，绿=打球 红=不打）----
+const SP = 72, X0 = 320 - 3.5 * SP;
+const sboxes = DATA.map((d, i) => new VBox(scene, { w: 40, h: 40, d: 40, x: X0 + i * SP, y: 235, z: 0, label: 'S' + (i + 1), color: d.play === '是' ? GREEN : RED, emissive: d.play === '是' ? GREEN : RED }));
+const sfeat = DATA.map((d, i) => new VText(scene, { text: d.w + d.t + d.h + d.wnd, x: X0 + i * SP, y: 272, z: 0, color: PALETTE.textDim, scale: 0.5 }));
 
-const nodeObjs = [];
-const edgeObjs = [];
-
+// ---- 真实 ID3 递归建树（纯数据 + 固定布局坐标，模块级一次算好生成步骤）----
 const ent = a => {
   const n = a.length;
   if (!n) return 0;
@@ -43,13 +40,13 @@ const ent = a => {
   a.forEach(v => m[v] = (m[v] || 0) + 1);
   return -Object.values(m).reduce((s, c) => s + (c / n) * Math.log2(c / n), 0);
 };
-
-// 真实 ID3：递归计算，同时记录动画步骤
+const cov = rows => rows.map(r => DATA.indexOf(r) + 1).join('/');
 const steps = [];
-function id3(rows, depth, px, py, label) {
+let nodeIdx = 0, edgeIdx = 0;
+function buildTree(rows, px, py, dx, branch) {
   const ys = rows.map(r => r.play);
   if (new Set(ys).size === 1) {
-    steps.push({ kind: 'leaf', label: ys[0], x: px, y: py, rows });
+    steps.push({ kind: 'leaf', idx: nodeIdx++, branch, label: ys[0], x: px, y: py, rows });
     return;
   }
   const H = ent(ys);
@@ -63,72 +60,111 @@ function id3(rows, depth, px, py, label) {
     gains.push({ name, g });
     if (g > bestGain) { bestGain = g; best = { key, name, groups }; }
   }
-  steps.push({ kind: 'calc', label, H, gains, best: best.name, rows });
-  steps.push({ kind: 'node', label: best.name, x: px, y: py, rows });
-  let c = 0;
+  steps.push({ kind: 'calc', branch, H, gains, best: best.name, rows });
+  steps.push({ kind: 'node', idx: nodeIdx++, label: best.name, x: px, y: py, rows,
+    groups: Object.keys(best.groups).map(v => v + '(' + cov(best.groups[v]) + ')') });
   const vals = Object.keys(best.groups);
-  for (const val of vals) {
-    const cx = px + (c - (vals.length - 1) / 2) * 130;
-    steps.push({ kind: 'edge', from: [px, py], to: [cx, py - 90], label: val });
-    id3(best.groups[val], depth + 1, cx, py - 90, val + '=' + val);
-    c++;
-  }
+  vals.forEach((val, i) => {
+    const cx = px + (i - (vals.length - 1) / 2) * dx * 2;
+    steps.push({ kind: 'edge', eidx: edgeIdx++, label: val, from: [px, py], to: [cx, py - 130] });
+    buildTree(best.groups[val], cx, py - 130, dx / 2, val);
+  });
 }
-id3(DATA, 0, 320, 500, '根');
+buildTree(DATA, 320, 830, 110, null);
+
+// ---- 对象池：全部节点球 / 连线管 / 分支标签，模块级按最终位置预建，运行期只改显隐/颜色/缩放 ----
+const treePool = steps.filter(s => s.kind === 'node' || s.kind === 'leaf').map(s => {
+  const base = s.kind === 'leaf' ? (s.label === '是' ? GREEN : RED) : PALETTE.node;
+  const vn = new VNode(scene, { radius: s.kind === 'leaf' ? 20 : 23, x: s.x, y: s.y, z: 0, label: s.label, color: base, emissive: base });
+  vn.mesh.visible = false;
+  return vn;
+});
+const tubes = steps.filter(s => s.kind === 'edge').map(s => {
+  const t = tubeBetween(scene, [s.from[0], s.from[1], 0], [s.to[0], s.to[1], 0], { color: PALETTE.edge, opacity: 0.55, radius: 2.2 });
+  t.visible = false;
+  return t;
+});
+const edgeLbls = steps.filter(s => s.kind === 'edge').map(s => {
+  const mx = (s.from[0] + s.to[0]) / 2, my = (s.from[1] + s.to[1]) / 2;
+  const t = new VText(scene, { text: s.label, x: s.from[0] === s.to[0] ? mx + 30 : mx, y: my + 8, z: 0, color: GOLD, scale: 0.5 });
+  t.sprite.visible = false;
+  return t;
+});
 
 function resetAll() {
-  for (const o of nodeObjs) o.remove();
-  nodeObjs.length = 0;
-  for (const o of edgeObjs) o.remove();
-  edgeObjs.length = 0;
-  sboxes.forEach((b, i) => { b.setColor(DATA[i].play === '是' ? GREEN : RED, DATA[i].play === '是' ? GREEN : RED); b.setHighlight(false); });
-  calcT.setText('');
+  for (const vn of treePool) { vn.mesh.visible = false; vn.mesh.scale.setScalar(1); }
+  for (const t of tubes) { t.visible = false; t.material.opacity = 0.55; }
+  for (const l of edgeLbls) { l.sprite.visible = false; l.sprite.scale.setScalar(1); }
+  sboxes.forEach((b, i) => { b.setHighlight(false); b.setColor(DATA[i].play === '是' ? GREEN : RED, DATA[i].play === '是' ? GREEN : RED); });
+}
+function setSamples(rows) {
+  sboxes.forEach((b, i) => {
+    if (rows.includes(DATA[i])) b.setHighlight(true);
+    else b.setColor(DATA[i].play === '是' ? GREEN : RED, DATA[i].play === '是' ? GREEN : RED);
+  });
+}
+function* dropNode(s) {
+  const vn = treePool[s.idx];
+  vn.mesh.visible = true;
+  vn.mesh.position.set(s.x, 960, 0);
+  vn.mesh.scale.setScalar(0.4);
+  yield A(420, p => {
+    const e = ease(p);
+    vn.mesh.position.y = 960 + (s.y - 960) * e;
+    vn.mesh.scale.setScalar(0.4 + 0.6 * e);
+  });
+  vn.mesh.scale.setScalar(1);
+}
+function* showEdge(s) {
+  const t = tubes[s.eidx], lbl = edgeLbls[s.eidx];
+  t.visible = true;
+  t.material.opacity = 0;
+  lbl.sprite.visible = true;
+  lbl.sprite.scale.setScalar(0.01);
+  yield A(320, p => {
+    t.material.opacity = 0.55 * ease(p);
+    lbl.sprite.scale.setScalar(0.01 + 0.99 * ease(p));
+  });
 }
 
-function* treeGen() {
+function* runDecisionTree() {
   resetAll();
-  yield S(() => hint.setText('ID3：每个节点计算各特征的信息增益，选增益最大的特征分裂，子集纯则成为叶节点'));
-  yield W(400);
+  yield S(() => { status.textContent = '决策树（ID3）：8 个样本按 天气/温度/湿度/风 判断是否打球；递归选择信息增益最大的特征分裂，子集纯化即叶节点'; });
+  yield W(800);
   for (const s of steps) {
     if (s.kind === 'calc') {
       yield S(() => {
-        const gl = s.gains.map(g => g.name + ':' + g.g.toFixed(3)).join('  ');
-        calcT.setText('H(' + (s.label || '全体') + ') = ' + s.H.toFixed(3) + '；增益 ' + gl);
-        hint.setText('当前子集熵 H = ' + s.H.toFixed(3) + '，特征信息增益：' + gl + ' → 选 ' + s.best + ' 分裂');
+        const cnt = s.rows.reduce((m, r) => (m[r.play] = (m[r.play] || 0) + 1, m), {});
+        const gl = s.gains.map(g => g.name + ' ' + g.g.toFixed(3)).join('  ');
+        const head = s.branch ? '「' + s.branch + '」分支子集（样本 ' + cov(s.rows) + '）' : '根子集（是 ' + (cnt.是 || 0) + ' / 否 ' + (cnt.否 || 0) + '）';
+        status.textContent = head + '：熵 H=' + s.H.toFixed(3) + '，信息增益 ' + gl + ' → 选「' + s.best + '」';
       });
-      yield W(500);
+      yield W(950);
     } else if (s.kind === 'node') {
+      yield* dropNode(s);
+      setSamples(s.rows);
       yield S(() => {
-        const b = new VBox(scene, { w: 78, h: 46, d: 30, x: s.x, y: s.y, z: 0, label: s.label, color: PALETTE.node, emissive: PALETTE.nodeEmissive });
-        nodeObjs.push(b);
-        sboxes.forEach((box, i) => box.setHighlight(s.rows.includes(DATA[i])));
-        hint.setText('以「' + s.label + '」为划分特征，该分支覆盖的样本高亮');
+        status.textContent = (s.idx === 0 ? '根节点' : '子节点') + '：以「' + s.label + '」分裂，分支 ' + s.groups.join('、') + '；当前子集样本高亮';
       });
-      yield W(450);
+      yield W(650);
     } else if (s.kind === 'edge') {
-      yield S(() => {
-        edgeObjs.push(tubeBetween(scene, s.from, [s.to[0], s.to[1], 0], { color: PALETTE.edge, opacity: 0.5, radius: 2 }));
-      });
-      yield W(180);
-    } else {
-      yield S(() => {
-        const b = new VBox(scene, { w: 60, h: 46, d: 30, x: s.x, y: s.y, z: 0, label: s.label, color: s.label === '是' ? GREEN : RED, emissive: s.label === '是' ? GREEN : RED });
-        nodeObjs.push(b);
-        hint.setText('子集已纯化（全为「' + s.label + '」）→ 叶节点，停止分裂');
-      });
+      yield* showEdge(s);
+      yield S(() => { status.textContent = '沿分支「' + s.label + '」生长连线，子集进入下一层'; });
       yield W(350);
+    } else {
+      yield* dropNode(s);
+      setSamples(s.rows);
+      yield S(() => {
+        status.textContent = '分支「' + s.branch + '」样本 ' + cov(s.rows) + ' 全为「' + s.label + '」→ 子集已纯化，生成叶节点「' + s.label + '」';
+      });
+      yield W(650);
     }
   }
-  yield S(() => {
-    const root = steps.find(s => s.kind === 'node');
-    status.textContent = '决策树构建完成：根节点选「' + root.label + '」，叶节点全部纯化';
-    hint.setText('新样本沿树逐层判断即可分类；信息增益 = H(子集) - H(特征划分后的加权熵)');
-  });
-  yield W(600);
+  yield S(() => { status.textContent = 'DecisionTree 演示完成：8 样本（5 是 3 否）按信息增益分裂 2 层（湿度 → 天气）、4 片叶全部纯化，规则 湿度=中→是、湿度=高 再按 晴/雨→否 阴→是；复杂度 建树 O(m·n·log n)、预测 O(树深)'; });
+  yield W(800);
 }
 
-engine.queue(() => treeGen());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；C4.5 用增益率、CART 用基尼系数，同为贪心选特征）');
+engine.queue(() => runDecisionTree());
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

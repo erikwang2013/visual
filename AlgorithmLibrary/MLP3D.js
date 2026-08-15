@@ -1,96 +1,95 @@
-// AlgorithmLibrary/MLP3D.js — MLP 感知机：2-2-1 网络解决 XOR（前向 + 反向传播）（function* 生成器驱动，全流程动画）
+// AlgorithmLibrary/MLP3D.js — MLP 多层感知机：4-4-2 网络前向传播 + 反向传播梯度更新（function* 生成器驱动）
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
+import { VNode, VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('MLP3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：多层感知机', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
+const BLUE = 0x60a5fa, RED = 0xfb7185, GREEN = 0x4ade80, DIM = 0x334155;
 const status = panel.addStatus('就绪');
 
-// 网络骨架：输入层 2 节点 → 隐藏层 2 节点 → 输出 1 节点
-const i1 = new VBox(scene, { w: 56, h: 56, d: 56, x: 120, y: 390, z: 0, label: 'x₁ = 1', color: BLUE, emissive: BLUE });
-const i2 = new VBox(scene, { w: 56, h: 56, d: 56, x: 120, y: 210, z: 0, label: 'x₂ = 1', color: BLUE, emissive: BLUE });
-const h1 = new VBox(scene, { w: 56, h: 56, d: 56, x: 320, y: 390, z: 0, label: 'h₁', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
-const h2 = new VBox(scene, { w: 56, h: 56, d: 56, x: 320, y: 210, z: 0, label: 'h₂', color: PALETTE.node, emissive: PALETTE.nodeEmissive });
-const out = new VBox(scene, { w: 56, h: 56, d: 56, x: 520, y: 300, z: 0, label: 'ŷ', color: GREEN, emissive: GREEN });
+// 网络拓扑：输入 4 → 隐藏 4（σ 激活）→ 输出 2（softmax）
+const LX = 120, HX = 320, OX = 520;
+const NODE_Y = i => 460 + (i - 1.5) * 132;
+const OUT_Y = i => 460 + (i - 0.5) * 66;
+const X_VAL = [0.5, 0.8, 0.2, 0.9];   // 样本输入 x
+const HID_A = [0.58, 0.64, 0.51, 0.71]; // 前向① 激活值
+const OUT_P = [0.32, 0.68];            // 前向② softmax 输出
 
-const link = (x1, y1, x2, y2) => {
-  const b = new VBox(scene, { w: 200, h: 3, d: 3, x: 0, y: 0, z: 0, label: '', color: DIM, emissive: 0 });
-  const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
-  const len = Math.hypot(x2 - x1, y2 - y1);
+// 节点池：输入/隐藏/输出 10 球，运行期仅改文字/颜色
+const inN = X_VAL.map((v, i) => new VNode(scene, { radius: 22, x: LX, y: NODE_Y(i), z: 0, label: 'x' + (i + 1) + '=' + v, color: BLUE, emissive: BLUE }));
+const hidN = HID_A.map((v, i) => new VNode(scene, { radius: 22, x: HX, y: NODE_Y(i), z: 0, label: 'h' + (i + 1), color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+const outN = OUT_P.map((v, i) => new VNode(scene, { radius: 22, x: OX, y: OUT_Y(i), z: 0, label: 'ŷ' + (i + 1), color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+
+// 连线池：4×4 + 4×2 = 24 条，运行期仅改显隐/颜色
+const mkLink = (x1, y1, x2, y2) => {
+  const b = new VBox(scene, { w: 200, h: 4, d: 4, x: 0, y: 0, z: 0, label: '', color: DIM, emissive: 0 });
   b.mesh.rotation.z = Math.atan2(y2 - y1, x2 - x1);
-  b.mesh.scale.set(len / 200, 1, 1);
-  b.mesh.position.set(cx, cy, 0);
+  b.mesh.scale.set(Math.hypot(x2 - x1, y2 - y1) / 200, 1, 1);
+  b.mesh.position.set((x1 + x2) / 2, (y1 + y2) / 2, 0);
   b.mesh.visible = false;
   return b;
 };
-const L1 = [link(120, 390, 320, 390), link(120, 390, 320, 210), link(120, 210, 320, 390), link(120, 210, 320, 210)];
-const L2 = [link(320, 390, 520, 300), link(320, 210, 520, 300)];
-new VText(scene, { text: '输入层', x: 60, y: 455, z: 0, color: PALETTE.textDim, scale: 0.55 });
-new VText(scene, { text: '隐藏层（σ 激活）', x: 320, y: 445, z: 0, color: PALETTE.textDim, scale: 0.55 });
-new VText(scene, { text: '输出层', x: 580, y: 455, z: 0, color: PALETTE.textDim, scale: 0.55 });
-new VText(scene, { text: 'XOR：输入相同 → 0，不同 → 1（线性不可分）', x: 0, y: 485, z: 0, color: PALETTE.textDim, scale: 0.7 });
+const L1 = [], L2 = [];
+for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) L1.push(mkLink(LX, NODE_Y(i), HX, NODE_Y(j)));
+for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) L2.push(mkLink(HX, NODE_Y(i), OX, OUT_Y(j)));
 
-const eq1T = new VText(scene, { text: '', x: 0, y: 355, z: 0, color: PALETTE.textDim, scale: 0.68 });
-const eq2T = new VText(scene, { text: '', x: 0, y: 245, z: 0, color: PALETTE.textDim, scale: 0.68 });
-const stepT = new VText(scene, { text: '', x: 0, y: 135, z: 0, color: PALETTE.textGlow, scale: 0.75 });
+new VText(scene, { text: '输入层', x: LX, y: 730, z: 0, color: PALETTE.textDim, scale: 0.5 });
+new VText(scene, { text: '隐藏层 σ', x: HX, y: 730, z: 0, color: PALETTE.textDim, scale: 0.5 });
+new VText(scene, { text: '输出层 softmax', x: OX, y: 730, z: 0, color: PALETTE.textDim, scale: 0.5 });
 
 function resetAll() {
-  h1.setText('h₁'); h2.setText('h₂'); out.setText('ŷ');
-  i1.setColor(BLUE, BLUE); i2.setColor(BLUE, BLUE);
-  h1.setColor(PALETTE.node, PALETTE.nodeEmissive); h2.setColor(PALETTE.node, PALETTE.nodeEmissive);
-  out.setColor(GREEN, GREEN);
-  [...L1, ...L2].forEach(b => (b.mesh.visible = false));
-  eq1T.setText(''); eq2T.setText(''); stepT.setText('');
+  [...L1, ...L2].forEach(b => { b.mesh.visible = false; b.setColor(DIM, 0); });
+  inN.forEach((n, i) => { n.setColor(BLUE, BLUE); n.setText('x' + (i + 1) + '=' + X_VAL[i]); });
+  hidN.forEach((n, i) => { n.setColor(PALETTE.node, PALETTE.nodeEmissive); n.setText('h' + (i + 1)); });
+  outN.forEach((n, i) => { n.setColor(PALETTE.node, PALETTE.nodeEmissive); n.setText('ŷ' + (i + 1)); });
 }
 
-function* mlpGen() {
+function* runMLP() {
   resetAll();
-  yield S(() => hint.setText('MLP：前向算预测，反向算梯度，梯度下降更新权重 — 深度学习的三板斧'));
-  yield S(() => { stepT.setText('网络：2 输入 → 2 隐藏（σ 激活）→ 1 输出。当前样本 (1,1)，目标 0'); });
-  yield W(800);
-  yield S(() => {
-    L1.forEach(b => (b.mesh.visible = true));
-    h1.setText('h₁ = 0.69'); h2.setText('h₂ = 0.75');
-    eq1T.setText('前向①：z₁ = W₁x + b₁ = [0.8, 1.1] → σ 激活 → a₁ = [0.69, 0.75]');
-    stepT.setText('输入沿连线传到隐藏层（连线点亮）');
-  });
+  yield S(() => { status.textContent = 'MLP 多层感知机 4-4-2：前向传播算预测，反向传播算梯度，梯度下降更新权重。样本 x = (0.5, 0.8, 0.2, 0.9)，目标类别 2'; });
   yield W(900);
   yield S(() => {
-    L2.forEach(b => (b.mesh.visible = true));
-    out.setText('ŷ = 0.552');
-    eq2T.setText('前向②：z₂ = 0.7×0.69 − 0.5×0.75 + 0.1 = 0.208 → ŷ = σ(z₂) = 0.552（目标 0，偏了）');
-    stepT.setText('输出 ŷ = 0.552：离目标 0 有差距 → 损失误差开始反向传播');
+    L1.forEach(b => { b.mesh.visible = true; });
+    hidN.forEach((n, i) => n.setText('h' + (i + 1) + '=' + HID_A[i].toFixed(1)));
+    status.textContent = '前向①：z₁ = W₁x + b₁ → σ 激活 → a₁ = (0.58, 0.64, 0.51, 0.71)，输入→隐藏 16 条连线点亮';
+  });
+  yield W(1100);
+  yield S(() => {
+    L2.forEach(b => { b.mesh.visible = true; });
+    outN.forEach((n, i) => { n.setText('ŷ' + (i + 1) + '=' + OUT_P[i].toFixed(1)); n.setColor(GREEN, GREEN); });
+    status.textContent = '前向②：z₂ = W₂a₁ + b₂ = (−0.35, 0.42) → softmax → ŷ = (0.32, 0.68)，argmax = 类别 2，命中目标';
+  });
+  yield W(1100);
+  yield S(() => {
+    L2.forEach(b => b.setColor(RED, RED));
+    status.textContent = '反向①：交叉熵损失 L = −ln ŷ₂ ≈ 0.39；输出层梯度 δ₂ = ŷ − y = (0.32, −0.32)（红）沿 8 条连线回传';
   });
   yield W(1000);
   yield S(() => {
-    [...L1, ...L2].forEach(b => b.setColor(ROSE, ROSE));
-    stepT.setText('反向传播：δ₂ = (ŷ−y)·σ′(z₂) = 0.552×0.448×0.552 ≈ 0.1365（红）→ 误差沿原路摊回每个权重');
-    eq1T.setText('隐藏层梯度 δ₁ = [0.0204, −0.0128] — 误差被权重分配');
+    L1.forEach(b => b.setColor(RED, RED));
+    status.textContent = '反向②：δ₁ = (W₂ᵀδ₂) ⊙ σ′(z₁) ≈ (−0.013, 0.008, −0.007, 0.011)，误差经全部 16 条连线摊回输入层';
   });
   yield W(1000);
   yield S(() => {
     [...L1, ...L2].forEach(b => b.setColor(DIM, 0));
-    eq2T.setText('更新（lr = 0.5）：w₂ → [0.653, −0.551]；w₁ → [[0.490, 0.390],[0.606, 0.306]]');
-    stepT.setText('梯度下降一步：误差小的权重微调、误差大的权重多调 → 下次预测更准');
+    status.textContent = '更新：w ← w − lr·δ·a（lr = 0.5）— 误差越大的权重调整越多，24 条权重同步微调，多轮后损失下降';
   });
   yield W(900);
-  yield S(() => {
-    status.textContent = 'MLP 完成：XOR 前向 ŷ=0.552 → 反向 δ₂=0.1365 → 更新权重，多轮后 ŷ→0';
-    hint.setText('一层感知机解不了 XOR，加隐藏层 + 非线性激活就能 — 深度学习兴起的关键洞察');
-  });
-  yield W(600);
+  yield S(() => { status.textContent = 'MLP 演示完成：样本 x=(0.5,0.8,0.2,0.9) 前向 ŷ=(0.32,0.68) 命中类别 2；反向 δ₂=(0.32,−0.32) 回传更新 4×4+4×2 权重；前向/反向各 O(L·N²)'; });
+  yield W(800);
 }
 
-engine.queue(() => mlpGen());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；黄线=前向传播，红线=反向传播梯度）');
+engine.queue(() => runMLP());
+panel.addButton('清空', () => {
+  engine.clear();
+  resetAll();
+  status.textContent = '';
+});
 
 scene.start(engine);

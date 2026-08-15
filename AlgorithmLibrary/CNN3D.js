@@ -1,108 +1,100 @@
-// AlgorithmLibrary/CNN3D.js — CNN：卷积核滑动提取特征 + 最大池化降维（function* 生成器驱动，4 窗口滑动动画）
+// AlgorithmLibrary/CNN3D.js — CNN：卷积核在输入上滑动提取特征 + 最大池化降维（function* 生成器驱动，4 窗口滑动动画）
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, easeInOut } from '../3D/VisualObject3D.js';
+import { VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('CNN3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
 const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：卷积神经网络（3×3 输入）', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
 const status = panel.addStatus('就绪');
+const ease = p => p * p * (3 - 2 * p);
 
-// 输入 3×3 图像（0=暗，1=亮）：1 0 1 / 0 1 0 / 1 0 1（X 形十字）
+// 输入 3×3 图像（0=暗，1=亮）：X 形十字 1 0 1 / 0 1 0 / 1 0 1
 const IMG = [[1, 0, 1], [0, 1, 0], [1, 0, 1]];
-const SCL = 0.72, OFFX = 320, OFFY = 400;
-const cols = [-130, 0, 130].map(v => v * SCL + OFFX), rows = [130, 0, -130].map(v => v * SCL + OFFY);
+const KER = [[1, 0], [0, 1]];
+const CONV_VAL = [[2, 0], [0, 2]];
+const SZ = 56, GAP = 66, INX = 115, MIDX = 330, OUTX = 545, CY = 460;
+
+// ---- 模块级预建全部对象（峰值=池），运行期仅改文字/颜色/显隐/位置 ----
+const cols = [INX - GAP, INX, INX + GAP], rows = [CY + GAP, CY, CY - GAP];
 const imgBoxes = [];
 for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
   const v = IMG[r][c];
-  imgBoxes.push(new VBox(scene, { w: 66, h: 66, d: 30, x: cols[c], y: rows[r], z: 0, label: String(v), color: v ? GREEN : DIM, emissive: v ? GREEN : 0 }));
+  imgBoxes.push(new VBox(scene, { w: SZ, h: SZ, d: 24, x: cols[c], y: rows[r], z: 0, label: String(v), color: v ? GREEN : DIM, emissive: v ? GREEN : 0 }));
 }
-new VText(scene, { text: '输入图像 3×3（X 形十字）', x: cols[0], y: 545, z: 0, color: PALETTE.textDim, scale: 0.45, wrapChars: 8 });
+new VText(scene, { text: '输入 3×3', x: INX, y: CY + 150, z: 0, color: PALETTE.textDim, scale: 0.5 });
 
-// 2×2 卷积核 [[1,0],[0,1]]
-const KER = [[1, 0], [0, 1]];
-const kcols = [280, 370].map(v => v * SCL + OFFX), krows = [130, 40].map(v => v * SCL + OFFY);
-const kerBoxes = KER.map((row, r) => row.map((v, c) => new VBox(scene, { w: 60, h: 60, d: 26, x: kcols[c], y: krows[r], z: 0, label: String(v), color: v ? YELLOW : DIM, emissive: v ? YELLOW : 0 })));
-new VText(scene, { text: '卷积核 2×2（黄=1）', x: kcols[0], y: 545, z: 0, color: PALETTE.textDim, scale: 0.45, wrapChars: 8 });
+const kcols = [MIDX - 28, MIDX + 28], krows = [CY + 28, CY - 28];
+const kerBoxes = KER.map((row, r) => row.map((v, c) => new VBox(scene, { w: 50, h: 50, d: 20, x: kcols[c], y: krows[r], z: 0, label: String(v), color: v ? YELLOW : DIM, emissive: v ? YELLOW : 0 })));
+new VText(scene, { text: '卷积核 2×2', x: MIDX, y: CY + 150, z: 0, color: PALETTE.textDim, scale: 0.5 });
 
-// 2×2 特征图（初始暗，滑动后点亮）
-const CONV_VAL = [[2, 0], [0, 2]];
-const convBoxes = CONV_VAL.map((row, r) => row.map((v, c) => new VBox(scene, { w: 60, h: 60, d: 26, x: kcols[c], y: 306.4 - r * 66, z: 0, label: '?', color: DIM, emissive: 0 })));
-new VText(scene, { text: '特征图 2×2（卷积结果）', x: kcols[0], y: 360, z: 0, color: PALETTE.textDim, scale: 0.45, wrapChars: 8 });
+const fcols = [OUTX - 28, OUTX + 28], frows = [CY + 28, CY - 28];
+const convBoxes = CONV_VAL.map((row, r) => row.map((v, c) => new VBox(scene, { w: 50, h: 50, d: 20, x: fcols[c], y: frows[r], z: 0, label: '?', color: DIM, emissive: 0 })));
+new VText(scene, { text: '特征图 2×2', x: OUTX, y: CY + 150, z: 0, color: PALETTE.textDim, scale: 0.5 });
 
-// 最大池化输出
-const poolBox = new VBox(scene, { w: 60, h: 60, d: 26, x: 320, y: 338.8, z: 0, label: 'max = 2', color: BLUE, emissive: BLUE });
+const poolBox = new VBox(scene, { w: 54, h: 54, d: 20, x: OUTX, y: CY - 175, z: 0, label: 'max=2', color: BLUE, emissive: BLUE });
 poolBox.mesh.visible = false;
-new VText(scene, { text: '最大池化 → 1×1', x: 320, y: 385, z: 0, color: PALETTE.textDim, scale: 0.45, wrapChars: 8 });
+new VText(scene, { text: '池化 1×1', x: OUTX, y: CY - 245, z: 0, color: PALETTE.textDim, scale: 0.5 });
 
-// 卷积窗口高亮（4 个 2×2 窗口）
-const winBox = new VBox(scene, { w: 141, h: 141, d: 10, x: 320, y: 400, z: 0, label: '', color: YELLOW, emissive: YELLOW });
+// 卷积窗口高亮（池 1，滑动复用）
+const winBox = new VBox(scene, { w: 2 * SZ + 12, h: 2 * SZ + 12, d: 6, x: 0, y: 0, z: 14, label: '', color: YELLOW, emissive: YELLOW });
 winBox.mesh.visible = false;
-const stepT = new VText(scene, { text: '', x: 700, y: 430, z: 0, color: PALETTE.textGlow, scale: 0.55, wrapChars: 8 });
-const eqT = new VText(scene, { text: '', x: 700, y: 300, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
 
-const idx = (r, c) => r * 3 + c;
-function setWindow(r0, c0) {
-  winBox.mesh.position.set(cols[c0], rows[r0], 10);
-  winBox.mesh.visible = true;
-}
-function setConv(r, c) {
-  convBoxes[r][c].setColor(GREEN, GREEN);
-  convBoxes[r][c].setText(String(CONV_VAL[r][c]));
-}
+// 2×2 窗口 4 个位置（左上/右上/左下/右下）的中心
+const WPOS = [[0, 0], [0, 1], [1, 0], [1, 1]].map(([r, c]) => [(cols[c] + cols[c + 1]) / 2, (rows[r] + rows[r + 1]) / 2]);
+const WIN_TXT = [
+  '窗口①（左上）：1·1+0·0+0·0+1·1 = 2 → 特征图左上 = 2',
+  '窗口②（右上）：1·0+0·1+0·1+1·0 = 0 → 特征图右上 = 0',
+  '窗口③（左下）：0·1+1·0+1·0+0·1 = 0 → 特征图左下 = 0',
+  '窗口④（右下）：0·0+1·1+1·1+0·0 = 2 → 特征图右下 = 2'
+];
+
 function resetAll() {
-  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
-    const v = IMG[r][c], i = idx(r, c);
-    imgBoxes[i].setColor(v ? GREEN : DIM, v ? GREEN : 0);
-    imgBoxes[i].setText(String(v));
-  }
+  imgBoxes.forEach((b, i) => { const v = IMG[Math.floor(i / 3)][i % 3]; b.setColor(v ? GREEN : DIM, v ? GREEN : 0); b.setText(String(v)); });
   kerBoxes.forEach((row, r) => row.forEach((b, c) => { const v = KER[r][c]; b.setColor(v ? YELLOW : DIM, v ? YELLOW : 0); }));
   convBoxes.forEach(row => row.forEach(b => { b.setColor(DIM, 0); b.setText('?'); }));
   winBox.mesh.visible = false;
   poolBox.mesh.visible = false;
-  stepT.setText(''); eqT.setText('');
+  poolBox.mesh.scale.setScalar(1);
 }
 
-function* cnnGen() {
+function* runCnn() {
   resetAll();
-  yield S(() => hint.setText('CNN：卷积核滑动提取局部特征（卷积），再池化浓缩 — 图像识别的基石'));
-  yield S(() => { stepT.setText('把 2×2 卷积核[[1,0],[0,1]] 放到图像左上角，逐位置滑动（黄色窗口）'); });
+  let wx = WPOS[0][0] - 220, wy = WPOS[0][1];
+  yield S(() => { status.textContent = 'CNN：卷积核（黄色 2×2）在输入图像上逐位置滑动，相乘求和提取局部特征，最后最大池化降维'; });
   yield W(800);
-  yield S(() => { setWindow(0, 0); stepT.setText('位置①：元素相乘相加 1·1+0·0+0·0+1·1 = 2 → 特征图左上 = 2'); });
-  yield W(800);
-  yield S(() => { setWindow(0, 1); stepT.setText('位置②：1·0+0·1+0·1+1·0 = 0 → 特征图右上 = 0'); });
-  yield W(800);
-  yield S(() => { setWindow(1, 0); stepT.setText('位置③：0·1+1·0+1·0+0·1 = 0 → 特征图左下 = 0'); });
-  yield W(800);
-  yield S(() => { setWindow(1, 1); stepT.setText('位置④：0·0+1·1+1·1+0·0 = 2 → 特征图右下 = 2'); });
-  yield W(800);
+  for (let i = 0; i < 4; i++) {
+    const tx = WPOS[i][0], ty = WPOS[i][1];
+    yield S(() => { winBox.mesh.visible = true; status.textContent = '卷积：' + WIN_TXT[i]; });
+    yield A(430, p => { const e = ease(p); winBox.mesh.position.set(wx + (tx - wx) * e, wy + (ty - wy) * e, 14); });
+    wx = tx; wy = ty;
+    yield W(420);
+  }
   yield S(() => {
     winBox.mesh.visible = false;
-    setConv(0, 0); setConv(0, 1); setConv(1, 0); setConv(1, 1);
-    stepT.setText('全部滑动完：特征图 [[2,0],[0,2]] — 亮像素间的对角关系被提取出来');
+    convBoxes.forEach((row, r) => row.forEach((b, c) => { b.setColor(GREEN, GREEN); b.setText(String(CONV_VAL[r][c])); }));
+    status.textContent = '4 个窗口全部滑完：特征图 [[2,0],[0,2]] —— X 形对角关系被提取出来';
   });
-  yield W(900);
+  yield W(800);
   yield S(() => {
     poolBox.mesh.visible = true;
-    stepT.setText('最大池化 2×2：取特征图最大值 max(2,0,0,2) = 2 → 图像浓缩为 1×1');
-    eqT.setText('CNN 核心：卷积提特征（局部性+共享权重）+ 池化降维（抗平移）→ 全连接层分类');
+    poolBox.mesh.scale.setScalar(0.2);
+    status.textContent = '最大池化：取 2×2 特征图最大值 max(2,0,0,2) = 2 → 图像浓缩为 1×1 输出';
   });
-  yield W(900);
+  yield A(420, p => { poolBox.mesh.scale.setScalar(0.2 + 0.8 * ease(p)); });
+  yield W(800);
   yield S(() => {
-    status.textContent = 'CNN 完成：3×3 图像 × 2×2 核 → 特征图 [[2,0],[0,2]] → 最大池化 → 2';
-    hint.setText('CNN 参数少（核共享）、自动提特征 — LeNet 手写数字识别就是这套');
+    status.textContent = 'CNN 演示完成：3×3 输入 × 2×2 核 → 特征图 [[2,0],[0,2]] → 池化输出 2；复杂度：卷积 O(n²·k²) + 池化 O(n²)';
   });
-  yield W(600);
+  yield W(800);
 }
 
-engine.queue(() => cnnGen());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；黄窗=卷积窗口滑动，特征图=卷积结果，池化=降维）');
+engine.queue(() => runCnn());
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

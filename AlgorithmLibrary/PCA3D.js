@@ -1,99 +1,116 @@
-// AlgorithmLibrary/PCA3D.js — PCA：协方差矩阵特征分解找主成分方向（function* 生成器驱动）
+// AlgorithmLibrary/PCA3D.js — PCA：协方差矩阵特征分解求主成分，样本投影降维（function* 生成器驱动，解说入状态栏）
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
+import { GeneratorEngine, W, S } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText } from '../3D/VisualObject3D.js';
+import { VNode, VBox, VText } from '../3D/VisualObject3D.js';
 import { PALETTE, applyTheme } from '../3D/Glow.js';
 applyTheme('PCA3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 500, 900], lookAt: [320, 500, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 
-const GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x67e8f9, ROSE = 0xfb7185, DIM = 0x334155;
-const hint = new VText(scene, { text: '点击「▶ 演示」开始：PCA 降维', x: 700, y: 560, z: 0, color: PALETTE.textGlow, scale: 0.7, wrapChars: 7 });
+const BLUE = 0x60a5fa, VIOLET = 0xa78bfa, ROSE = 0xfb7185, GOLD = 0xfcd34d, YELLOW = 0xfacc15;
 const status = panel.addStatus('就绪');
 
-const PTS = [[1, 2], [2, 1], [3, 4], [4, 3], [5, 6]]; // (x, y)
+// ---- 样本点池：5 个二维点 + 均值（静态演示体） ----
+const PTS = [[1, 2], [2, 1], [3, 4], [4, 3], [5, 6]];
 const WX = v => 320 + (v - 3) * 55, WY = v => 380 - (v - 3.2) * 55;
-const pts = PTS.map(([x, y], i) => new VBox(scene, { w: 32, h: 32, d: 32, x: WX(x), y: WY(y), z: 0, label: 'p' + i, color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
-const mean = new VBox(scene, { w: 40, h: 40, d: 40, x: 320, y: 380, z: 0, label: '均值', color: YELLOW, emissive: YELLOW });
-new VText(scene, { text: '5 个样本点，均值 (3, 3.2)（黄块）', x: 700, y: 310, z: 0, color: PALETTE.textDim, scale: 0.45, wrapChars: 8 });
+const pts = PTS.map((p, i) => new VNode(scene, { radius: 16, x: WX(p[0]), y: WY(p[1]), z: 0, label: 'p' + i, color: PALETTE.node, emissive: PALETTE.nodeEmissive }));
+const mean = new VNode(scene, { radius: 20, x: 320, y: 380, z: 0, label: '均值', color: YELLOW, emissive: YELLOW });
 
-// 主成分 1：特征向量 (0.619, 0.785) × 长度 95
-const E1 = [0.619, -0.785];
-const AXIS_LEN = 95;
-const axis = new VBox(scene, { w: 200, h: 4, d: 4, x: 0, y: 0, z: 0, label: '', color: BLUE, emissive: BLUE });
-axis.mesh.rotation.z = Math.atan2(E1[1], E1[0]);
-axis.mesh.scale.set(AXIS_LEN / 200, 1, 1);
-axis.mesh.position.set((E1[0] * AXIS_LEN) / 2 + 320, (E1[1] * AXIS_LEN) / 2 + 380, 0);
-axis.mesh.visible = false;
-const axisT = new VText(scene, { text: '', x: 320 + E1[0] * (AXIS_LEN + 28), y: 380 + E1[1] * (AXIS_LEN + 28), z: 0, color: BLUE, scale: 0.55 });
+// ---- 主轴池：特征向量 e1=(0.619,0.785) λ1=5.67、e2=(-0.785,0.619) λ2=0.53（屏幕方向 y 翻转） ----
+const E1 = [0.619, 0.785], E2 = [-0.785, 0.619];
+const SC = 55;
+const D1 = [E1[0], -E1[1]], D2 = [E2[0], -E2[1]];
+const axis1 = new VBox(scene, { w: 400, h: 5, d: 5, x: 320, y: 380, z: 0, label: '', color: BLUE, emissive: BLUE });
+axis1.mesh.rotation.z = Math.atan2(D1[1], D1[0]);
+axis1.mesh.scale.set(7.2 * SC / 400, 1, 1);
+axis1.mesh.visible = false;
+const tip1 = { x: 320 + 3.6 * D1[0] * SC, y: 380 + 3.6 * D1[1] * SC };
+const arrow1 = new THREE.Mesh(new THREE.ConeGeometry(11, 26, 12), new THREE.MeshBasicMaterial({ color: BLUE }));
+arrow1.rotation.z = Math.atan2(D1[0], D1[1]);
+arrow1.position.set(tip1.x, tip1.y, 0);
+arrow1.visible = false;
+scene.add(arrow1);
+const axis2 = new VBox(scene, { w: 200, h: 4, d: 4, x: 320, y: 380, z: 0, label: '', color: VIOLET, emissive: VIOLET });
+axis2.mesh.rotation.z = Math.atan2(D2[1], D2[0]);
+axis2.mesh.scale.set(3.2 * SC / 200, 1, 1);
+axis2.mesh.visible = false;
+const tip2 = { x: 320 + 1.6 * D2[0] * SC, y: 380 + 1.6 * D2[1] * SC };
+const arrow2 = new THREE.Mesh(new THREE.ConeGeometry(9, 20, 12), new THREE.MeshBasicMaterial({ color: VIOLET }));
+arrow2.rotation.z = Math.atan2(D2[0], D2[1]);
+arrow2.position.set(tip2.x, tip2.y, 0);
+arrow2.visible = false;
+scene.add(arrow2);
+const axis1T = new VText(scene, { text: '第一主成分', x: tip1.x + D1[0] * 34, y: tip1.y + D1[1] * 34, z: 0, color: BLUE, scale: 0.5 });
+axis1T.sprite.visible = false;
+const axis2T = new VText(scene, { text: '第二主成分', x: tip2.x + D2[0] * 30, y: tip2.y + D2[1] * 30, z: 0, color: VIOLET, scale: 0.45 });
+axis2T.sprite.visible = false;
 
-const covT = new VText(scene, { text: '', x: 700, y: 250, z: 0, color: PALETTE.textDim, scale: 0.5, wrapChars: 8 });
-
-// 投影：p0、p4 到主成分轴的连线 + 投影点
-const PROJ = { 0: -2.18, 4: 3.436 };
-const projPts = [], projLines = [];
-[0, 4].forEach(i => {
-  const t = PROJ[i];
-  const px = 320 + t * 0.619 * 55, py = 380 - t * 0.785 * 55;
+// ---- 投影池：每点投影线（玫瑰）+ 投影点（金），t = (p-μ)·e₁ ----
+const T = PTS.map(([x, y]) => (x - 3) * E1[0] + (y - 3.2) * E1[1]);
+const projPts = T.map(t => ({ x: 320 + t * E1[0] * SC, y: 380 - t * E1[1] * SC }));
+const projLines = [], projDots = [];
+for (let i = 0; i < PTS.length; i++) {
   const src = { x: WX(PTS[i][0]), y: WY(PTS[i][1]) };
-  const line = new VBox(scene, { w: 200, h: 2, d: 2, x: 0, y: 0, z: 0, label: '', color: ROSE, emissive: ROSE });
-  const cx = (src.x + px) / 2, cy = (src.y + py) / 2;
-  const len = Math.hypot(px - src.x, py - src.y);
-  line.mesh.rotation.z = Math.atan2(py - src.y, px - src.x);
-  line.mesh.scale.set(Math.max(len / 200, 0.05), 1, 1);
-  line.mesh.position.set(cx, cy, 0);
+  const dst = projPts[i];
+  const dx = dst.x - src.x, dy = dst.y - src.y;
+  const line = new VBox(scene, { w: 200, h: 2, d: 2, x: (src.x + dst.x) / 2, y: (src.y + dst.y) / 2, z: 0, label: '', color: ROSE, emissive: ROSE });
+  line.mesh.rotation.z = Math.atan2(dy, dx);
+  line.mesh.scale.set(Math.max(Math.hypot(dx, dy) / 200, 0.03), 1, 1);
   line.mesh.visible = false;
   projLines.push(line);
-  const pp = new VBox(scene, { w: 22, h: 22, d: 22, x: px, y: py, z: 0, label: '', color: YELLOW, emissive: YELLOW });
-  pp.mesh.visible = false;
-  projPts.push(pp);
-});
-const stepT = new VText(scene, { text: '', x: 320, y: 555, z: 0, color: PALETTE.textGlow, scale: 0.72, wrapChars: 7 });
+  const dot = new VNode(scene, { radius: 10, x: src.x, y: src.y, z: 0, label: '', color: GOLD, emissive: GOLD });
+  dot.mesh.visible = false;
+  projDots.push(dot);
+}
 
 function resetAll() {
-  pts.forEach(b => b.setColor(PALETTE.node, PALETTE.nodeEmissive));
-  mean.setColor(YELLOW, YELLOW);
-  axis.mesh.visible = false; axisT.setText('');
-  covT.setText('');
-  projLines.forEach(b => (b.mesh.visible = false));
-  projPts.forEach(b => (b.mesh.visible = false));
-  stepT.setText('');
+  pts.forEach(n => n.setColor(PALETTE.node, PALETTE.nodeEmissive));
+  axis1.mesh.visible = false; axis2.mesh.visible = false;
+  arrow1.visible = false; arrow2.visible = false;
+  axis1T.sprite.visible = false; axis2T.sprite.visible = false;
+  projLines.forEach(l => (l.mesh.visible = false));
+  projDots.forEach((d, i) => { d.mesh.position.set(WX(PTS[i][0]), WY(PTS[i][1]), 0); d.mesh.visible = false; });
 }
 
-function* pcaGen() {
+function* runPca() {
   resetAll();
-  yield S(() => hint.setText('PCA：找方差最大的方向（信息最多的方向），把数据投影过去降维'));
-  yield S(() => { stepT.setText('原始数据：5 个二维点，想压成一条线（一维）'); });
-  yield W(500);
+  yield S(() => { status.textContent = 'PCA：主成分分析降维 —— 5 个二维样本（p0..p4），找方差最大的方向作为主成分，把数据投影过去压缩维度'; });
+  yield W(800);
+  yield S(() => { status.textContent = '样本均值 μ=(3, 3.2)（黄块）；去中心化后协方差矩阵 Σ = [[2.5, 2.5], [2.5, 3.7]]，对角线=各轴方差、非对角线=相关性'; });
+  yield W(950);
   yield S(() => {
-    covT.setText('去中心化后：协方差矩阵 [[2.5, 2.5],[2.5, 3.7]] → 特征分解求主方向');
-    stepT.setText('协方差矩阵描述数据沿各方向的波动幅度');
+    axis1.mesh.visible = true; arrow1.visible = true; axis1T.sprite.visible = true;
+    status.textContent = '特征分解：λ₁=5.67 → 特征向量 (0.619, 0.785)（蓝轴=第一主成分，数据最分散的方向）';
   });
-  yield W(650);
+  yield W(800);
   yield S(() => {
-    axis.mesh.visible = true;
-    axisT.setText('主成分 1');
-    stepT.setText('特征分解：λ₁ = 5.67，特征向量 (0.619, 0.785) → 数据最分散的方向（蓝轴）');
+    axis2.mesh.visible = true; arrow2.visible = true; axis2T.sprite.visible = true;
+    status.textContent = 'λ₂=0.53 → 特征向量 (-0.785, 0.619)（紫轴=第二主成分，与第一主成分正交）；λ₁/(λ₁+λ₂) = 91.5%，只丢 8.5% 方差即可降一维';
   });
-  yield W(700);
+  yield W(800);
   yield S(() => {
-    projLines.forEach(b => (b.mesh.visible = true));
-    projPts.forEach(b => (b.mesh.visible = true));
-    stepT.setText('把每个点投影到蓝轴（红虚线 = 投影误差）→ 二维降成一维坐标');
+    for (let i = 0; i < PTS.length; i++) {
+      projLines[i].mesh.visible = true;
+      projDots[i].mesh.visible = true;
+      projDots[i].moveTo(projPts[i].x, projPts[i].y, 0, 700);
+    }
+    status.textContent = '把每个样本正交投影到第一主成分轴（玫瑰虚线=投影误差，黄点从原位滑到轴上）：一维坐标 t = (p-μ)·e₁';
   });
-  yield W(700);
+  yield W(900);
   yield S(() => {
-    status.textContent = 'PCA 完成：主成分 1 保留 91.5% 方差（λ₁=5.67，λ₂=0.53），二维→一维';
-    hint.setText('λ₁/(λ₁+λ₂) = 91.5%：只丢 8.5% 信息就降一维 — 人脸识别/数据可视化常用');
+    const order = T.map((t, i) => ({ t, i })).sort((a, b) => a.t - b.t).map(o => 'p' + o.i);
+    status.textContent = '降维结果：5 点沿蓝轴按 t 排开 = ' + order.join(' → ') + '（t = ' + T.map(t => t.toFixed(2)).join(', ') + '），二维 → 一维';
   });
-  yield W(600);
+  yield W(850);
+  yield S(() => { status.textContent = 'PCA 演示完成：特征分解 λ₁=5.67、λ₂=0.53，主成分 1 保留 91.5% 方差，5 点降为一维坐标；复杂度：协方差矩阵 O(n·d²) + 特征分解 O(d³)，d=特征数'; });
+  yield W(900);
 }
 
-engine.queue(() => pcaGen());
-panel.addButton('清空', () => { engine.clear(); resetAll(); hint.setText('已清空，可重新运行'); status.textContent = ''; });
-panel.addLabel('（拖拽旋转视角，滚轮缩放；蓝轴 = 主成分方向，红虚线 = 投影误差）');
+engine.queue(() => runPca());
+panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
 
 scene.start(engine);

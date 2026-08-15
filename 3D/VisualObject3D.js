@@ -2,10 +2,34 @@
 import * as THREE from 'three';
 import { glowMaterial, makeTextSprite, setSpriteText, PALETTE } from './Glow.js';
 
-// 构造即注册：Scene3D 每帧调用 tickVisuals 推进 moveTo/pulse 补间
+// 构造即注册：Scene3D 每帧调用 tickVisuals 推进 moveTo/pulse 补间。
+// 页面清空时直接 scene.remove(mesh)，对象不会执行自己的 remove()，
+// 因此每帧检查根对象是否仍挂在场景中；脱离场景超过 ORPHAN_FRAMES 帧视为死对象，
+// 定期压实数组——否则反复 播放/清空 后 registry 无限增长，每帧迭代大量死对象。
 const registry = [];
+const ORPHAN_FRAMES = 60; // 暂时移出场景再放回的宽限帧数
+let deadCount = 0;
 function register(o) { registry.push(o); }
-export function tickVisuals(dt) { for (const o of registry) o.update(dt); }
+export function tickVisuals(dt) {
+  for (let i = 0; i < registry.length; i++) {
+    const o = registry[i];
+    if (o._dead) continue;
+    const root = o.mesh || o.group || o.sprite;
+    if (root && !root.parent) {
+      if (++o._orphan > ORPHAN_FRAMES) { o._dead = true; deadCount++; }
+      continue;
+    }
+    if (root) o._orphan = 0;
+    o.update(dt);
+  }
+  if (deadCount > 256 && deadCount > (registry.length >> 2)) {
+    const keep = [];
+    for (const o of registry) if (!o._dead) keep.push(o);
+    registry.length = 0;
+    for (const k of keep) registry.push(k);
+    deadCount = 0;
+  }
+}
 
 // ---- 通用补间辅助 ----
 export function tween(obj, key, from, to, t, easing = easeInOut) {
@@ -58,7 +82,7 @@ export class VNode {
       else this.mesh.scale.setScalar(1 + this.pulseVal.strength * Math.sin(p * Math.PI));
     }
   }
-  remove() { this.scene.remove(this.mesh); }
+  remove() { this._dead = true; this.scene.remove(this.mesh); }
 }
 
 // ---- 盒子（数组元素/表格单元等） ----
@@ -106,7 +130,7 @@ export class VBox {
       if (p >= 1) this.tweenPos = null;
     }
   }
-  remove() { this.scene.remove(this.mesh); }
+  remove() { this._dead = true; this.scene.remove(this.mesh); }
 }
 
 // ---- 柱状体（排序/柱状图） ----
@@ -135,7 +159,7 @@ export class VBar {
     if (on) this.setColor(PALETTE.highlight, PALETTE.highlightEmissive);
     else this.setColor(PALETTE.node, PALETTE.nodeEmissive);
   }
-  remove() { this.scene.remove(this.mesh); }
+  remove() { this._dead = true; this.scene.remove(this.mesh); }
 }
 
 // ---- 两点间管状连线 ----
@@ -172,7 +196,7 @@ export class VTorus {
       if (p >= 1) this.tweenPos = null;
     }
   }
-  remove() { this.scene.remove(this.mesh); }
+  remove() { this._dead = true; this.scene.remove(this.mesh); }
 }
 
 // ---- 文字 Sprite ----
@@ -195,7 +219,7 @@ export class VText {
       if (p >= 1) this.tweenPos = null;
     }
   }
-  remove() { this.scene.remove(this.sprite); }
+  remove() { this._dead = true; this.scene.remove(this.sprite); }
 }
 
 // ---- 3D 箭头（top 指示器等） ----
@@ -223,7 +247,7 @@ export class VArrow {
       if (p >= 1) this.tweenPos = null;
     }
   }
-  remove() { this.scene.remove(this.group); }
+  remove() { this._dead = true; this.scene.remove(this.group); }
 }
 
 // 引擎统一更新所有对象

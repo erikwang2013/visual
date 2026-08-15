@@ -37,15 +37,30 @@ export function wrapLines(text, maxChars) {
   return lines;
 }
 
-export function textTexture(text, opts = {}) {
+// 文字纹理缓存：同一 (文字, 字号, 换行, 颜色, 辉光) 只建一次 canvas 纹理。
+// 动画高频 setText 时文字值大量重复（数字/短标注），缓存命中避免每次 new canvas + GPU 上传；
+// 纹理由缓存独占，逐出时才 dispose（setSpriteText 不再主动 dispose，防止误伤共享纹理）。
+const TEXT_CACHE_MAX = 256;
+const textCache = new Map(); // key -> { tex, textWidth }
+function resolveColor(opts) {
+  return typeof opts.color === 'number' ? '#' + opts.color.toString(16).padStart(6, '0') : (opts.color || PALETTE.text);
+}
+function buildTextEntry(text, opts) {
   const size = opts.size || 256;
   const fontSize = opts.fontSize || Math.floor(size * 0.34);
+  const wrapChars = opts.wrapChars || 0;
+  const color = resolveColor(opts);
+  const glow = opts.glow || PALETTE.textGlow;
+  const key = `${size}|${fontSize}|${wrapChars}|${color}|${glow}|${text}`;
+  let entry = textCache.get(key);
+  if (entry) return entry;
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   ctx.font = `bold ${fontSize}px "Noto Sans SC", "Microsoft YaHei", sans-serif`;
-  const lines = wrapLines(String(text), opts.wrapChars || 0);
+  const lines = wrapLines(String(text), wrapChars);
   const pad = Math.ceil(fontSize * 0.62); // 辉光留白，防止长文本被画布边缘裁掉
-  const w = Math.max(size, ...lines.map(l => Math.ceil(ctx.measureText(l).width) + pad * 2));
+  const textWidth = Math.max(...lines.map(l => Math.ceil(ctx.measureText(l).width) + pad * 2));
+  const w = Math.max(size, textWidth);
   const lineH = Math.floor(size * 0.5);
   canvas.width = w;
   canvas.height = lineH * lines.length;
@@ -53,8 +68,6 @@ export function textTexture(text, opts = {}) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const color = typeof opts.color === 'number' ? '#' + opts.color.toString(16).padStart(6, '0') : (opts.color || PALETTE.text);
-  const glow = opts.glow || PALETTE.textGlow;
   ctx.shadowColor = glow;
   ctx.shadowBlur = 12;
   ctx.fillStyle = color;
@@ -62,24 +75,31 @@ export function textTexture(text, opts = {}) {
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
-  return tex;
+  if (textCache.size >= TEXT_CACHE_MAX) {
+    const oldest = textCache.keys().next().value;
+    textCache.get(oldest).tex.dispose();
+    textCache.delete(oldest);
+  }
+  entry = { tex, textWidth };
+  textCache.set(key, entry);
+  return entry;
+}
+
+export function textTexture(text, opts = {}) {
+  return buildTextEntry(text, opts).tex;
 }
 
 // 长文本自动换行 + 高度/宽度钳制，避免名称互相遮挡或伸出视野
-function layoutScale(text, opts) {
+function layoutScale(text, opts, textWidthPx) {
   const wrapChars = opts.wrapChars ?? (String(text).length > 14 ? 14 : 0);
   const lines = wrapChars ? Math.max(1, Math.ceil(String(text).length / wrapChars)) : 1;
   const base = opts.scale || 1;
   let s = base;
   const maxH = opts.maxH ?? (lines > 1 ? 96 : 120);
   if (lines > 1) s *= Math.min(1, maxH / (50 * lines));
-  if (opts.maxWidth) {
-    const size = opts.size || 256;
-    const fontSize = opts.fontSize || Math.floor(size * 0.34);
-    const c = document.createElement('canvas');
-    const ctx = c.getContext('2d');
-    ctx.font = `bold ${fontSize}px "Noto Sans SC", "Microsoft YaHei", sans-serif`;
-    const w1 = 100 * (Math.max(...wrapLines(String(text), wrapChars).map(l => Math.ceil(ctx.measureText(l).width) + Math.ceil(fontSize * 0.62) * 2)) / 256);
+  // 宽度直接复用 buildTextEntry 已测好的文本宽度，不再另建 canvas 量字
+  if (opts.maxWidth && textWidthPx !== undefined) {
+    const w1 = 100 * (textWidthPx / 256);
     s *= Math.min(1, opts.maxWidth / w1);
   }
   return s;
@@ -90,27 +110,27 @@ function spriteAspect(tex) {
 }
 
 export function makeTextSprite(text, opts = {}) {
-  const tex = textTexture(text, { ...opts, wrapChars: opts.wrapChars ?? (String(text).length > 14 ? 14 : 0) });
+  const entry = buildTextEntry(text, { ...opts, wrapChars: opts.wrapChars ?? (String(text).length > 14 ? 14 : 0) });
   // depthTest:false 保证文字标注始终显示在最上层，不被柱子/节点/方块遮挡
-  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false });
+  const mat = new THREE.SpriteMaterial({ map: entry.tex, transparent: true, depthWrite: false, depthTest: false });
   const sprite = new THREE.Sprite(mat);
   sprite.userData.text = text;
   // renderOrder 最大：文字在透明通道最后绘制，不被管状连线/高亮环/交换光束等透明几何盖住
   sprite.renderOrder = 999;
-  const scale = layoutScale(text, opts);
-  const [w, h] = spriteAspect(tex);
+  const scale = layoutScale(text, opts, entry.textWidth);
+  const [w, h] = spriteAspect(entry.tex);
   sprite.scale.set(100 * scale * w, 50 * scale * h, 1);
   return sprite;
 }
 
 export function setSpriteText(sprite, text, opts = {}) {
   sprite.userData.text = text;
-  const tex = textTexture(text, { ...opts, wrapChars: opts.wrapChars ?? (String(text).length > 14 ? 14 : 0) });
-  const old = sprite.material.map; if (old) old.dispose();
-  sprite.material.map = tex;
+  const entry = buildTextEntry(text, { ...opts, wrapChars: opts.wrapChars ?? (String(text).length > 14 ? 14 : 0) });
+  // 旧纹理不 dispose：同一文字可能被多个 sprite 共享，统一由缓存逐出时释放
+  sprite.material.map = entry.tex;
   sprite.material.needsUpdate = true;
-  const scale = layoutScale(text, opts);
-  const [w, h] = spriteAspect(tex);
+  const scale = layoutScale(text, opts, entry.textWidth);
+  const [w, h] = spriteAspect(entry.tex);
   sprite.scale.set(100 * scale * w, 50 * scale * h, 1);
 }
 

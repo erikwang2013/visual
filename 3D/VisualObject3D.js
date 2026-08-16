@@ -66,7 +66,7 @@ export class VNode {
     else this.setColor(PALETTE.node, PALETTE.nodeEmissive);
   }
   moveTo(x, y, z, duration = 500) { this.tweenPos = { from: this.mesh.position.clone(), to: new THREE.Vector3(x, y, z), t: 0, d: duration, done: false }; }
-  pulse(strength = 0.25) { this.pulseVal = { t: 0, d: 600, strength, done: false }; }
+  pulse(strength = 0.25) { this.pulseVal = { t: 0, d: 600, strength, done: false, base: this.mesh.scale.clone() }; }
   update(dt) {
     if (this.tweenPos) {
       this.tweenPos.t += dt * 1000;
@@ -78,8 +78,12 @@ export class VNode {
     if (this.pulseVal) {
       this.pulseVal.t += dt * 1000;
       const p = this.pulseVal.t / this.pulseVal.d;
-      if (p >= 1) { this.mesh.scale.set(1, 1, 1); this.pulseVal = null; }
-      else this.mesh.scale.setScalar(1 + this.pulseVal.strength * Math.sin(p * Math.PI));
+      const b = this.pulseVal.base;
+      if (p >= 1) { this.mesh.scale.copy(b); this.pulseVal = null; }
+      else {
+        const k = 1 + this.pulseVal.strength * Math.sin(p * Math.PI);
+        this.mesh.scale.set(b.x * k, b.y * k, b.z * k);
+      }
     }
   }
   remove() { this._dead = true; this.scene.remove(this.mesh); }
@@ -100,6 +104,7 @@ export class VBox {
       this.label = makeTextSprite(opts.label, { scale: 1, wrapChars: 8, maxWidth: Math.max(this.w * 1.2, 110) });
       this.label.position.set(0, 0, this.d / 2 + 14);
       this.mesh.add(this.label);
+      this.label.userData.baseY = this.label.scale.y;
     }
     scene.add(this.mesh);
   }
@@ -111,6 +116,13 @@ export class VBox {
       this.mesh.add(this.label);
     }
     setSpriteText(this.label, text, { scale: 1, wrapChars: 8, maxWidth: Math.max(this.w * 1.2, 110) });
+    this.label.userData.baseY = this.label.scale.y;
+    this.label.scale.y = this.label.userData.baseY / this.mesh.scale.y;
+  }
+  // 拉伸柱高时反向补偿文字标签，保持标签 world 尺寸恒定
+  setScaleY(s) {
+    this.mesh.scale.y = s;
+    if (this.label) this.label.scale.y = (this.label.userData.baseY || 1) / s;
   }
   setColor(color, emissive) {
     const m = this.mesh.material;

@@ -24,7 +24,7 @@ for (let i = 0; i < N; i++) {
 function renderAmps() {
   amps.forEach((a, i) => {
     const sh = Math.max(Math.abs(a) * SZ, 0.04);
-    bars[i].mesh.scale.y = sh;
+    bars[i].setScaleY(sh);
     bars[i].mesh.position.y = 360 + 20 * sh;
     bars[i].setColor(a < 0 ? RED : GREEN, a < 0 ? RED : GREEN);
     ampT[i].setText((a * a * 100).toFixed(1) + '%');

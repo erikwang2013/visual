@@ -18,14 +18,14 @@ const GLOBAL = 5, LOCAL = 2, BAR_Y = 430;
 const bars = ENERGY.map((e, i) => {
   const color = i === GLOBAL ? GREEN : i === LOCAL ? YELLOW : BLUE;
   const b = new VBox(scene, { w: 44, h: 12, d: 12, x: 50 + i * 60, y: BAR_Y, z: 0, label: String(e), color, emissive: color });
-  b.mesh.scale.y = (e * 20) / 12; b.mesh.position.y = BAR_Y + (e * 20) / 2;
+  b.setScaleY((e * 20) / 12); b.mesh.position.y = BAR_Y + (e * 20) / 2;
   return b;
 });
 const ballX = i => 50 + i * 60;
 const ballY = i => BAR_Y + (ENERGY[i] * 20) / 2 + 22;
 const ball = new VBox(scene, { w: 30, h: 30, d: 30, x: 50, y: ballY(0), z: 20, label: '', color: ROSE, emissive: ROSE });
 const gammaBar = new VBox(scene, { w: 40, h: 4, d: 4, x: 700, y: 320, z: 0, label: '', color: ROSE, emissive: ROSE });
-const setGamma = g => { gammaBar.setText('Γ ' + g.toFixed(1)); gammaBar.mesh.scale.y = 1 + g * 3; };
+const setGamma = g => { gammaBar.setText('Γ ' + g.toFixed(1)); gammaBar.setScaleY(1 + g * 3); };
 const resetBars = () => bars.forEach((b, i) => { const c = i === GLOBAL ? GREEN : i === LOCAL ? YELLOW : BLUE; b.setColor(c, c); });
 
 function* qaGen() {

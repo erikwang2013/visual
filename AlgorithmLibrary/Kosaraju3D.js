@@ -52,7 +52,7 @@ function buildGraph() {
     const p = posOf(i);
     const vn = new VNode(scene, { radius: 20, x: p.x, y: p.y, z: p.z, label: String(i), color: BLUE, emissive: BLUE });
     nodeView.set(i, vn);
-    const fT = new VText(scene, { text: '', x: 0, y: 46, z: 0, color: CYAN, scale: 0.58 });
+    const fT = new VText(scene, { text: '', x: 0, y: 72, z: 0, color: CYAN, scale: 0.58 });
     vn.mesh.add(fT.sprite);
     finView.set(i, fT);
   }

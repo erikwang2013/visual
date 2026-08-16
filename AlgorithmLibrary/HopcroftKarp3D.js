@@ -41,7 +41,7 @@ function buildGraph() {
   for (let i = 0; i < NL; i++) {
     const vn = new VNode(scene, { radius: 20, x: LX, y: LY[i], z: 0, label: 'L' + i, color: BLUE, emissive: BLUE });
     nodeView.set('L' + i, vn);
-    const dT = new VText(scene, { text: '', x: 0, y: 46, z: 0, color: CYAN, scale: 0.55 });
+    const dT = new VText(scene, { text: '', x: 0, y: 72, z: 0, color: CYAN, scale: 0.55 });
     vn.mesh.add(dT.sprite);
     distView.set('L' + i, dT);
   }

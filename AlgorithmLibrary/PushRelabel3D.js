@@ -38,7 +38,7 @@ function buildGraph() {
     const [x, y, z] = POS[i];
     const vn = new VNode(scene, { radius: 21, x, y, z, label: NAME[i], color: BLUE, emissive: BLUE });
     nodeView.set(i, vn);
-    const eT = new VText(scene, { text: '', x: 0, y: 48, z: 0, color: WHITE, scale: 0.58 });
+    const eT = new VText(scene, { text: '', x: 0, y: 72, z: 0, color: WHITE, scale: 0.58 });
     vn.mesh.add(eT.sprite);
     exView.set(i, eT);
   }

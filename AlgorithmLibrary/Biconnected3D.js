@@ -40,7 +40,7 @@ function buildGraph() {
     const [x, y, z] = POS[i];
     const vn = new VNode(scene, { radius: 21, x, y, z, label: String(i), color: BLUE, emissive: BLUE });
     nodeView.set(i, vn);
-    const dT = new VText(scene, { text: '', x: 0, y: 46, z: 0, color: CYAN, scale: 0.58 });
+    const dT = new VText(scene, { text: '', x: 0, y: 72, z: 0, color: CYAN, scale: 0.58 });
     vn.mesh.add(dT.sprite);
     dlView.set(i, dT);
   }

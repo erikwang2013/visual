@@ -25,13 +25,26 @@ const distView = new Map();   // 'L0' -> dist 标签
 const queueBoxes = [];
 let pairL = [], pairR = [], dist = [];
 
-function tube(a, b) {
-  const curve = new THREE.CatmullRomCurve3([a, b]);
-  return new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
+function tubeMesh(curve, a, b, r) {
+  const mat = new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 });
+  const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 4, r, 6), mat);
+  const d = new THREE.Vector3().subVectors(b, a).normalize();
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(r * 2.8, r * 6.4, 8), mat);
+  cone.position.copy(b).addScaledVector(d, -r * 9.6);
+  cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
+  scene.add(mesh);
+  scene.add(cone);
+  mesh.cone = cone;
+  return mesh;
 }
+
+function tube(a, b, radius) {
+  return tubeMesh(new THREE.CatmullRomCurve3([a, b]), a, b, radius || 2.5);
+}
+
 function clearView() {
   nodeView.forEach(v => scene.remove(v.mesh));
-  edgeView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); });
+  edgeView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); if (e.tube.cone) { scene.remove(e.tube.cone); e.tube.cone.geometry.dispose(); } });
   queueBoxes.forEach(e => scene.remove(e.box.mesh));
   nodeView.clear(); edgeView.clear(); queueBoxes.length = 0;
 }

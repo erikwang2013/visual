@@ -23,14 +23,27 @@ const edgeView = new Map();   // edgeIdx -> { tube, lbl }
 const resView = new Map();    // 'u->v' -> { tube, lbl } 反向残余边
 let flow = [];
 
-function tube(a, b, radius) {
-  const curve = new THREE.CatmullRomCurve3([a, b]);
-  return new THREE.Mesh(new THREE.TubeGeometry(curve, 4, radius || 2.5, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 }));
+function tubeMesh(curve, a, b, r) {
+  const mat = new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.55 });
+  const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 4, r, 6), mat);
+  const d = new THREE.Vector3().subVectors(b, a).normalize();
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(r * 2.8, r * 6.4, 8), mat);
+  cone.position.copy(b).addScaledVector(d, -r * 9.6);
+  cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
+  scene.add(mesh);
+  scene.add(cone);
+  mesh.cone = cone;
+  return mesh;
 }
+
+function tube(a, b, radius) {
+  return tubeMesh(new THREE.CatmullRomCurve3([a, b]), a, b, radius || 2.5);
+}
+
 function clearView() {
   nodeView.forEach(v => scene.remove(v.mesh));
-  edgeView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); scene.remove(e.lbl.sprite); });
-  resView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); scene.remove(e.lbl.sprite); });
+  edgeView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); if (e.tube.cone) { scene.remove(e.tube.cone); e.tube.cone.geometry.dispose(); } scene.remove(e.lbl.sprite); });
+  resView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); if (e.tube.cone) { scene.remove(e.tube.cone); e.tube.cone.geometry.dispose(); } scene.remove(e.lbl.sprite); });
   nodeView.clear(); edgeView.clear(); resView.clear();
 }
 function buildGraph() {
@@ -55,7 +68,7 @@ function setEdgeColor(i, c, op) { const e = edgeView.get(i); e.tube.material.col
 function setEdgeLbl(i) { const [u, v, c] = E[i]; edgeView.get(i).lbl.setText(flow[i] + '/' + c); }
 function resetEdgeColors() { edgeView.forEach(e => { e.tube.material.color.setHex(WHITE); e.tube.material.opacity = 0.55; }); }
 function refreshResidual() {
-  resView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); scene.remove(e.lbl.sprite); });
+  resView.forEach(e => { scene.remove(e.tube); e.tube.geometry.dispose(); e.tube.material.dispose(); if (e.tube.cone) { scene.remove(e.tube.cone); e.tube.cone.geometry.dispose(); } scene.remove(e.lbl.sprite); });
   resView.clear();
   for (let i = 0; i < E.length; i++) {
     if (flow[i] === 0) continue;

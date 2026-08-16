@@ -24,8 +24,18 @@ tubeBetween(scene, { x: 0, y: AXIS_Y, z: 0 }, { x: 640, y: AXIS_Y, z: 0 }, { col
 for (let c = 0; c <= 200; c += 50) {
   new VText(scene, { text: String(c), x: xOf(c), y: AXIS_Y - 26, z: 0, color: PALETTE.textDim, scale: 0.34 });
 }
-const reqNodes = REQ.map(c => new VNode(scene, { x: xOf(c), y: AXIS_Y, z: 0, radius: 11, label: String(c), color: CYAN, emissive: CYAN }));
-const head = new VNode(scene, { x: xOf(START), y: AXIS_Y, z: 0, radius: 17, label: '头 53', color: GOLD, emissive: GOLD });
+// 请求标签按柱面值奇偶分上下两带：相邻请求 65/67、122/124 只隔 ~6 单位，同带必互相压盖
+const sortedUp = new Set(REQ.slice().sort((a, b) => a - b).filter((_, i) => i % 2 === 0));
+const reqNodes = REQ.map(c => new VNode(scene, { x: xOf(c), y: AXIS_Y, z: 0, radius: 11, color: CYAN, emissive: CYAN }));
+reqNodes.forEach((vn, i) => {
+  const up = sortedUp.has(REQ[i]);
+  const lb = new VText(scene, { text: String(REQ[i]), x: 0, y: up ? 28 : -50, z: 0, scale: 0.5 });
+  vn.mesh.add(lb.sprite);
+});
+// 磁头标签提到刻度带与请求标签之上（+75），避免停在请求柱面时压住请求数字
+const head = new VNode(scene, { x: xOf(START), y: AXIS_Y, z: 0, radius: 17, color: GOLD, emissive: GOLD });
+const headLbl = new VText(scene, { text: '头 53', x: 0, y: 75, z: 0, scale: 0.6 });
+head.mesh.add(headLbl.sprite);
 let visited = new Set();
 
 function* sstfGen() {

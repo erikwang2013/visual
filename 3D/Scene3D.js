@@ -20,7 +20,9 @@ export class Scene3D {
       container.innerHTML = '<div class="webgl-error">当前浏览器不支持 WebGL，无法显示 3D 动画。<br><a href="index.html">返回目录</a></div>';
       throw e;
     }
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // 移动端（粗指针或窄屏）降低渲染上限，减少 GPU 负载与发热；桌面行为不变
+    const dprCap = (matchMedia('(pointer: coarse)').matches || matchMedia('(max-width: 900px)').matches) ? 1.5 : 2;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, dprCap));
     this.renderer.setSize(this.width, this.height);
     container.appendChild(this.renderer.domElement);
 

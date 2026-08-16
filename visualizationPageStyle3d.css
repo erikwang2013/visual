@@ -61,3 +61,33 @@ footer { text-align:center; padding:6px; font-size:12px; color:#64748b; backgrou
     "header" "controls" "scene" "result" "playbar" "aside"; }
   #side-panel { border-left:none; border-top:1px solid rgba(59,130,246,.2); max-height:170px; }
 }
+
+/* 矮屏/横屏（手机横持）：压缩纵向占用，播放条保持在首屏内 */
+@media (max-width: 900px) and (max-height: 500px) {
+  #header { padding:4px 14px; }
+  #controls { padding:4px 14px; }
+  #result-bar { padding:3px 14px; min-height:24px; }
+  #playbar { padding:4px 14px; }
+  #scene { min-height:45vh; }
+  #side-panel { max-height:120px; padding:8px 12px; }
+}
+
+/* 触屏设备：放大可点目标到 40px 触控规范 */
+@media (pointer: coarse) {
+  .algo-btn, .play-btn { min-height:40px; padding:8px 14px; }
+  .algo-input { height:38px; }
+  .algo-select-input { min-height:38px; padding:6px 10px; }
+}
+
+/* 窄屏（≤600px）：播放条弹性布局、行内留白收窄 */
+@media (max-width: 600px) {
+  #header { padding:6px 12px; gap:10px; }
+  #header h1 { font-size:14px; }
+  #controls { padding:6px 12px; }
+  .algo-btn { padding:7px 12px; }
+  .algo-input { width:96px; }
+  #result-bar { padding:5px 12px; }
+  #playbar { padding:6px 12px; }
+  .speed-slider { flex:1 1 100px; max-width:200px; width:auto; }
+  .play-btn { min-height:40px; }
+}

@@ -105,6 +105,21 @@
   }
   #toTop.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
   #toTop:hover { border-color: #22d3ee; box-shadow: 0 0 18px rgba(34, 211, 238, 0.5); }
+
+  /* 移动端：单列卡片、main 全宽、目录默认收起、标题缩放 */
+  @media (max-width: 900px) {
+    main { max-width: 100%; padding: 44vh 14px 44px; }
+    .grid { grid-template-columns: 1fr; }
+    #overlay h1 { font-size: clamp(28px, 7.5vw, 40px); letter-spacing: 3px; }
+    #overlay .sub { font-size: 14px; letter-spacing: 1px; }
+    #overlay .hint { font-size: 12px; }
+    .cat h2 { font-size: 17px; scroll-margin-top: 64px; }
+    .navpanel { width: 200px; }
+    #navToggle {
+      min-width: 44px; min-height: 40px; display: flex; align-items: center; justify-content: center;
+      padding: 10px 12px; font-size: 14px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -455,6 +470,10 @@
   const panel = document.getElementById('navpanel');
   const toggle = document.getElementById('navToggle');
   if (panel && toggle) {
+    if (window.matchMedia('(max-width: 900px)').matches) {
+      panel.classList.remove('open');
+      toggle.textContent = '☰ 目录';
+    }
     toggle.addEventListener('click', function () {
       const open = panel.classList.toggle('open');
       toggle.textContent = open ? '✕ 收起' : '☰ 目录';
@@ -527,7 +546,8 @@ const toTop = document.getElementById('toTop');
 window.addEventListener('scroll', () => toTop.classList.toggle('show', window.scrollY > 420), { passive: true });
 toTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
-const scene = new Scene3D('hero', { cameraPos: [0, 130, 330], fov: 50, ground: true, stars: true });
+const isCoarse = window.matchMedia('(pointer: coarse)').matches;
+const scene = new Scene3D('hero', { cameraPos: [0, 130, 330], fov: 50, ground: true, stars: true, starCount: isCoarse ? 120 : 400 });
 const world = scene.scene;
 
 const core = new THREE.Mesh(

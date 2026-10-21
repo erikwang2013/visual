@@ -79,6 +79,8 @@ export class Scene3D {
     window.addEventListener('resize', () => this.resize());
     // 打赏弹框打开时暂停渲染，避免弹框后面继续跑 3D 动画（省 GPU、降低弹框首帧开销）
     this.paused = document.body.classList.contains('donate-open');
+    this.frameHooks = [];
+    this.resizeHooks = [];
     window.addEventListener('donate:open', () => this.pause());
     window.addEventListener('donate:close', () => this.resume());
     if (typeof ResizeObserver !== 'undefined') {
@@ -140,11 +142,28 @@ export class Scene3D {
       const dt = Math.min(clock.getDelta(), 0.05);
       if (engine) engine.tick(dt);
       tickVisuals(dt);
+      for (const fn of this.frameHooks) fn(dt);
       this.followLight.position.copy(this.camera.position);
       this.controls.update();
       this.renderer.render(this.scene, this.camera);
     };
     loop();
+  }
+
+  onFrame(fn) {
+    this.frameHooks.push(fn);
+    return () => {
+      const i = this.frameHooks.indexOf(fn);
+      if (i >= 0) this.frameHooks.splice(i, 1);
+    };
+  }
+
+  onResize(fn) {
+    this.resizeHooks.push(fn);
+    return () => {
+      const i = this.resizeHooks.indexOf(fn);
+      if (i >= 0) this.resizeHooks.splice(i, 1);
+    };
   }
 
   pause() { this.paused = true; }
@@ -157,6 +176,7 @@ export class Scene3D {
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    for (const fn of this.resizeHooks) fn();
   }
 
   add(obj) { this.scene.add(obj); }

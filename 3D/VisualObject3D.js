@@ -47,15 +47,16 @@ export class VNode {
     this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.radius, 24, 18), mat);
     this.mesh.position.set(opts.x ?? 0, opts.y ?? 0, opts.z ?? 0);
     this.label = null;
+    this.labelScale = opts.labelScale ?? 1.1;
     this.text = opts.label || '';
     if (opts.label !== undefined && opts.label !== null && opts.label !== '') {
-      this.label = makeTextSprite(opts.label, { scale: 1.1, wrapChars: 6, maxWidth: this.radius * 5.5 });
+      this.label = makeTextSprite(opts.label, { scale: this.labelScale, wrapChars: 6, maxWidth: this.radius * 5.5 });
       this.label.position.set(0, this.radius + 18, 0);
       this.mesh.add(this.label);
     }
     scene.add(this.mesh);
   }
-  setText(text) { if (this.label) setSpriteText(this.label, text, { scale: 1.1, wrapChars: 6, maxWidth: this.radius * 5.5 }); }
+  setText(text) { if (this.label) setSpriteText(this.label, text, { scale: this.labelScale, wrapChars: 6, maxWidth: this.radius * 5.5 }); }
   setColor(color, emissive) {
     const m = this.mesh.material;
     m.color.setHex(color);

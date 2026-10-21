@@ -1,171 +1,270 @@
-// AlgorithmLibrary/RadixSort3D.js — 基数排序（LSD）：10 桶 + 数字环按位旋转 90° + 收集重连成链（function* 生成器驱动，解说入状态栏）
+// AlgorithmLibrary/RadixSort3D.js — 基数排序（LSD）：数字小球瀑布式落入 0-9 桶，再按桶序收成有序河。
+// 每趟按个位/十位/百位稳定分桶；桶计数与当前序列实时进面板。
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
+import { GeneratorEngine, W, S } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VText } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
+import { applyTheme } from '../3D/Glow.js';
+import { StoryDirector } from '../3D/director/StoryDirector.js';
+import { InputKit } from '../3D/director/InputKit.js';
+import { SortStage } from '../3D/director/SortStage.js';
 applyTheme('RadixSort3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 640, 980], lookAt: [320, 360, 0], fov: 50 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-
-const BASE = 0x60a5fa, GOLD = 0xfcd34d, OK = 0x4ade80, CYAN = 0x22d3ee;
+const input = new InputKit(panel);
 const status = panel.addStatus('就绪');
 
-const DATA = [170, 45, 75, 90, 802, 24, 2, 66, 745, 91, 351, 488, 611, 223, 990];
-const N = DATA.length;
-const SP = 46, X0 = 78;
-const slotX = i => X0 + i * SP;
-const BX = d => 67 + d * 74;
-const digitOf = (v, pass) => Math.floor(v / (10 ** pass)) % 10;
-const NAMES = ['个位', '十位', '百位'];
+const N = 15;
+const SEED = [170, 45, 75, 90, 802, 24, 2, 66, 745, 91, 351, 488, 611, 223, 990];
+const NAMES = ['个位', '十位', '百位', '千位'];
+const C = { base: 0x60a5fa, active: 0xfbbf24, sorted: 0x4ade80, chain: 0xfde047 };
+const SHOT_HOOK = { pos: [320, 640, 980], target: [320, 360, 0], ms: 900 };
+const SHOT_BUCKETS = { pos: [320, 810, 540], target: [320, 300, -60], ms: 750 };
+const SHOT_SIDE = { pos: [720, 430, 780], target: [320, 390, 0], ms: 700 };
+const SHOT_FINAL = { pos: [320, 620, 1140], target: [320, 360, 0], ms: 900 };
 
-const spheres = [];
-for (let i = 0; i < N; i++) {
-  const v = DATA[i];
-  const g = new THREE.Group();
-  const s = new THREE.Mesh(new THREE.SphereGeometry(16, 20, 20), glowMaterial(BASE, { emissive: BASE }));
-  g.add(s);
-  const lbl = new VText(scene, { text: String(v), x: 0, y: 0, z: 0, color: '#ffffff', scale: 0.55 });
-  scene.remove(lbl.sprite); g.add(lbl.sprite);
-  const ring = new THREE.Group();
-  ring.add(new THREE.Mesh(new THREE.TorusGeometry(21, 1.8, 8, 32), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.85 })));
-  const mark = new THREE.Mesh(new THREE.SphereGeometry(2.6, 8, 8), new THREE.MeshBasicMaterial({ color: GOLD }));
-  mark.position.x = 21;
-  ring.add(mark);
-  const dLbl = new VText(scene, { text: '?', x: 0, y: 37, z: 0, color: '#fcd34d', scale: 0.5 });
-  scene.remove(dLbl.sprite); g.add(dLbl.sprite);
-  g.add(ring);
-  g.position.set(slotX(i), 320, 0);
-  scene.add(g);
-  spheres.push({ g, s, lbl, dLbl, ring, value: v });
-}
-const setSphColor = (p, c) => { p.s.material.color.setHex(c); p.s.material.emissive.setHex(c); };
+const stage = new SortStage(scene, { n: N, cx: 320, baseY: 520, spacing: 44 });
+stage.buildBalls(SEED, { radius: 16, labelScale: 0.38 });
+stage.balls.forEach((ball, i) => ball.group.position.copy(stage.rowPos(i)));
+stage.buildBuckets(10, { cx: 320, y: 250, z: -60, gap: 64, radius: 26, height: 190 });
 
-const buckets = [];
-for (let d = 0; d < 10; d++) {
-  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(34, 34, 240, 20), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.13 }));
-  cyl.position.set(BX(d), 400, -50);
-  scene.add(cyl);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(34, 2.2, 8, 28), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.7 }));
-  rim.position.set(BX(d), 520, -50);
-  rim.rotation.x = Math.PI / 2;
-  scene.add(rim);
-  new VText(scene, { text: String(d), x: BX(d), y: 224, z: -50, color: PALETTE.textDim, scale: 0.7 });
-}
+let seed = SEED.slice();
+let order = stage.balls.slice();
+let buckets = Array.from({ length: 10 }, () => []);
+let maxDigits = 3;
+let passNo = 0;
+let activeBucket = -1;
+let activeIdx = -1;
+let note = '按位分桶，再按桶序收集';
 
-// ---- 金链对象池：N-1 根直管，模块级预建，运行期仅更新曲线/再生几何 ----
-const chainPool = [];
-for (let i = 0; i < N - 1; i++) {
-  const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 0, 0)]);
-  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 2, 1.8, 6, false), new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0 }));
-  m.visible = false;
-  scene.add(m);
-  chainPool.push({ m, curve });
+const director = new StoryDirector(scene, {
+  title: '基数排序 · 桶阵',
+  total: 8,
+  legend: [
+    { label: '待分桶', color: '#60a5fa' },
+    { label: '当前元素', color: '#fbbf24' },
+    { label: '已有序', color: '#4ade80' },
+    { label: '有序链', color: '#fde047' },
+    { label: '当前桶', color: '#22d3ee' },
+  ],
+  onReplay: () => restart(true),
+});
+
+const digitOf = (v, p) => Math.floor(v / (10 ** p)) % 10;
+const digitCount = () => Math.max(1, String(Math.max(0, ...seed)).length);
+
+function stateBlocks() {
+  const counts = Array.from({ length: 10 }, (_, d) => (buckets[d] ? buckets[d].length : 0));
+  return {
+    blocks: [
+      { type: 'kv', label: '轮次', items: [
+        { k: '当前位', v: passNo < maxDigits ? NAMES[passNo] : '—' },
+        { k: '轮次', v: `${Math.min(passNo + 1, maxDigits)}/${maxDigits}` },
+        { k: '元素', v: order.length },
+        { k: '稳定', v: '是' },
+      ] },
+      { type: 'chips', label: '0-9 桶（数量）', items: counts.map((n, d) => ({
+        text: `${d}×${n}`,
+        cls: d === activeBucket ? 'current' : (n ? 'open' : ''),
+      })) },
+      { type: 'dist', label: '序列', values: order.map((b) => b.value), current: activeIdx },
+      { type: 'text', label: '当前', value: note },
+    ],
+    footer: '不变量：<b>每轮收集后低 k 位有序；稳定分桶保住前一轮顺序</b>',
+  };
 }
-function* fadeChains() {
-  yield A(260, p => chainPool.forEach(c => { c.m.material.opacity = 0.4 * (1 - p); }));
-  chainPool.forEach(c => { c.m.visible = false; });
-}
-function* linkChain() {
-  for (let i = 0; i < N - 1; i++) {
-    const a = spheres[i].g.position, b = spheres[i + 1].g.position;
-    const c = chainPool[i];
-    c.curve.points[0].copy(a);
-    c.curve.points[1].copy(b);
-    c.m.geometry.dispose();
-    c.m.geometry = new THREE.TubeGeometry(c.curve, 2, 1.8, 6, false);
-    c.m.visible = true;
-  }
-  yield A(400, p => chainPool.forEach(c => { c.m.material.opacity = 0.4 * p; }));
+function refresh(text) {
+  if (text !== undefined) note = text;
+  director.stateUpdate(stateBlocks());
 }
 
-function* fly(sph, from, to, opts = {}) {
-  const lift = opts.lift ?? 70, ms = opts.ms ?? 420;
-  yield A(ms, p => {
-    sph.g.position.set(
-      from.x + (to.x - from.x) * p,
-      from.y + (to.y - from.y) * p + lift * Math.sin(Math.PI * p),
-      from.z + (to.z - from.z) * p);
+function* beginRadix() {
+  passNo = 0;
+  buckets = Array.from({ length: 10 }, () => []);
+  activeBucket = -1;
+  activeIdx = -1;
+  maxDigits = digitCount();
+  order = stage.balls.slice();
+  stage.balls.forEach((ball, i) => {
+    stage.setBallValue(ball, seed[i]);
+    stage.setBallColor(ball, C.base);
+    stage.setBallDigit(ball, '');
+    ball.group.position.copy(stage.rowPos(i));
   });
+  stage.hideChain();
+  note = '0-9 桶待命';
+  refresh();
+  director.chapter('建立');
+  yield S(() => director.beat({
+    title: '不比较也能排序？',
+    why: '基数排序把数字按位拆开，逐个丢进 0-9 桶，再按桶序收回；从最低位开始。',
+    stateText: `当前位 ${NAMES[0]} · 桶 0-9 待命`,
+    progress: 0,
+    camera: SHOT_HOOK,
+    annotations: [
+      { id: 'hook', text: '数字卡片 + 0-9 桶', anchor: () => new THREE.Vector3(320, 430, -60), offset: [0, -20] },
+      { id: 'why', text: '从低位开始，为什么？', anchor: () => new THREE.Vector3(320, 600, 0), offset: [0, -20], className: 'gold' },
+    ],
+  }));
+  for (let d = 0; d < 10; d++) stage.setBucketActive(d, true);
+  yield W(420);
+  for (let d = 0; d < 10; d++) stage.setBucketActive(d, false);
+  yield W(120);
 }
 
-function resetAll() {
-  chainPool.forEach(c => { c.m.visible = false; c.m.material.opacity = 0; });
-  for (let i = 0; i < N; i++) {
-    const p = spheres[i];
-    p.g.position.set(slotX(i), 320, 0);
-    p.g.rotation.set(0, 0, 0);
-    p.ring.rotation.y = 0;
-    p.dLbl.setText('?');
-    setSphColor(p, BASE);
+function* radixPass(p) {
+  passNo = p;
+  const name = NAMES[p] || `第 ${p + 1} 位`;
+  director.chapter(`第 ${p + 1} 趟 · ${name}`);
+  stage.hideChain();
+  buckets = Array.from({ length: 10 }, () => []);
+  activeBucket = -1;
+  activeIdx = -1;
+  for (const ball of order) {
+    stage.setBallColor(ball, C.base);
+    stage.setBallDigit(ball, String(digitOf(ball.value, p)));
   }
-}
+  yield S(() => director.beat({
+    title: `按${name}分桶`,
+    why: p === 0
+      ? '最低位先分桶；每一趟只关心当前这一位，桶内顺序保持进入顺序。'
+      : '高位优先级更高；稳定分桶让低位已排好的顺序在高位相同时保持不变。',
+    stateText: `第 ${p + 1}/${maxDigits} 趟 · 当前位 ${name}`,
+    progress: 1 + p * 2,
+    camera: SHOT_BUCKETS,
+    annotations: [{ id: 'pass', text: `按${name}分桶`, anchor: () => new THREE.Vector3(320, 190, -60), offset: [0, -20], className: 'gold' }],
+  }));
+  yield W(400);
 
-function* pass(passNo) {
-  yield* fadeChains();
-  yield A(420, pp => spheres.forEach(p => { p.ring.rotation.y = Math.PI / 2 * pp; }));
-  yield S(() => {
-    spheres.forEach(p => { p.ring.rotation.y = 0; p.dLbl.setText(String(digitOf(p.value, passNo))); });
-    status.textContent = '第 ' + (passNo + 1) + ' 趟：按' + NAMES[passNo] + '分桶（环旋转 90° 指向当前位）';
-  });
-  yield W(450);
-  const buckets = Array.from({ length: 10 }, () => []);
-  for (let i = 0; i < N; i++) {
-    const p = spheres[i];
-    const d = digitOf(p.value, passNo);
-    setSphColor(p, GOLD);
-    yield S(() => { status.textContent = 'a[' + i + ']=' + p.value + ' 的' + NAMES[passNo] + ' = ' + d + '，飞入桶 ' + d; });
-    yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: BX(d), y: 304 + buckets[d].length * 30, z: -50 }, { lift: 90 });
-    buckets[d].push(p);
-    yield W(90);
+  for (let i = 0; i < order.length; i++) {
+    const ball = order[i];
+    const d = digitOf(ball.value, p);
+    activeIdx = i;
+    activeBucket = d;
+    stage.setBallColor(ball, C.active);
+    stage.setBucketActive(d, true);
+    const to = stage.bucketSlot(d, buckets[d].length);
+    refresh(`a[${i}]=${ball.value} 的${name} = ${d} → 桶 ${d}`);
+    director.annotations.set('digit', { text: `${name} = ${d}`, anchor: () => to.clone().add(new THREE.Vector3(0, 54, 0)), offset: [0, -18] });
+    yield stage.flyBall(ball, to, { lift: 80, ms: 330 });
+    ball.group.position.copy(to);
+    buckets[d].push(ball);
+    stage.setBallColor(ball, C.base);
+    stage.setBucketActive(d, false);
+    yield W(40);
   }
-  yield S(() => { status.textContent = '按桶 0→9 顺序收集回主行（重连成链）'; });
-  yield W(320);
+  activeBucket = -1;
+  activeIdx = -1;
+
+  yield S(() => director.beat({
+    title: p === 0 ? '按桶序收集：低位有序' : '收集：稳定保住前序',
+    why: '从桶 0 到桶 9 依次收回主行；同桶内保持进入顺序，所以分桶是稳定的。',
+    stateText: `桶内元素 ${order.length} 个 · 收集到主行`,
+    progress: 2 + p * 2,
+    camera: SHOT_SIDE,
+    annotations: [{ id: 'collect', text: '桶 0→9 依次收集', anchor: () => new THREE.Vector3(320, 430, -60), offset: [0, -20], className: 'gold' }],
+  }));
+  yield W(280);
+
+  const next = [];
   let k = 0;
   for (let d = 0; d < 10; d++) {
-    for (const p of buckets[d]) {
-      yield S(() => { status.textContent = '桶 ' + d + ' → 主行 [' + k + ']'; });
-      yield* fly(p, { x: p.g.position.x, y: p.g.position.y, z: p.g.position.z }, { x: slotX(k), y: 320, z: 0 }, { lift: 55, ms: 340 });
-      setSphColor(p, BASE);
+    for (const ball of buckets[d]) {
+      next.push(ball);
+      activeIdx = k;
+      refresh(`桶 ${d} → 主行 [${k}]`);
+      const target = stage.rowPos(k);
+      yield stage.flyBall(ball, target, { lift: 55, ms: 270 });
+      ball.group.position.copy(target);
       k++;
-      yield W(70);
     }
   }
-  yield* linkChain();
-  yield W(250);
+  order = next;
+  activeIdx = -1;
+  stage.linkChain(order, C.chain, 0.38);
+  refresh(`第 ${p + 1} 趟完成：低 ${p + 1} 位有序`);
+  yield W(220);
 }
 
-function* randomizeGen() {
-  yield S(resetAll);
-  yield S(() => { status.textContent = '随机生成 0..999 的数'; });
-  yield W(400);
-  for (let i = 0; i < N; i++) {
-    const v = Math.floor(Math.random() * 1000);
-    spheres[i].value = v;
-    spheres[i].lbl.setText(String(v));
-    yield W(60);
-  }
-  yield S(() => { status.textContent = '随机化完成：15 个数取值 0..999'; });
-  yield W(400);
+function* finishRadix() {
+  order.forEach((ball) => stage.setBallColor(ball, C.sorted));
+  stage.linkChain(order, C.chain, 0.52);
+  director.chapter('结算');
+  yield S(() => director.beat({
+    title: '整列有序',
+    why: `${maxDigits} 趟 LSD：每趟按一位稳定分桶，收集后整体升序。`,
+    stateText: `${N} 个元素 · ${maxDigits} 趟 · O(kn)`,
+    progress: 7,
+    camera: SHOT_FINAL,
+    annotations: [
+      { id: 'done', text: 'LSD 基数排序完成', anchor: () => new THREE.Vector3(320, 620, 0), offset: [0, -20], className: 'final' },
+      { id: 'chain', text: '有序河', anchor: () => new THREE.Vector3(320, 570, 0), offset: [0, -20], className: 'gold' },
+    ],
+  }));
+  refresh('完成');
+  status.textContent = `基数排序完成：${maxDigits} 趟 LSD · ${N} 个元素升序 [${order.map((b) => b.value).join(', ')}]`;
+  director.setProgress(8);
+  yield W(750);
+  director.chapter('复盘');
+  yield S(() => director.beat({
+    title: '非比较排序的边界',
+    why: 'O(kn) 快于比较排序下界，但要求键可按位拆分；稳定是 LSD 正确性的前提。',
+    stateText: 'O(kn) · 稳定 · 需要额外桶空间',
+    progress: 8,
+    camera: SHOT_FINAL,
+    annotations: [],
+  }));
+  yield W(600);
 }
 
-function* runRadixSort() {
-  yield S(resetAll);
-  yield S(() => { status.textContent = 'LSD 基数排序：从个位到百位逐趟按位分桶，数字环旋转 90° 指向当前位'; });
-  yield W(400);
-  for (let passNo = 0; passNo < 3; passNo++) yield* pass(passNo);
-  yield S(() => {
-    spheres.forEach(p => setSphColor(p, OK));
-    status.textContent = '基数排序演示完成：15 个数，个位/十位/百位 3 趟 LSD 稳定桶排，结果 ' + spheres.map(p => p.value).join(', ');
+function* runRadix() {
+  yield* beginRadix();
+  for (let p = 0; p < maxDigits; p++) yield* radixPass(p);
+  yield* finishRadix();
+}
+
+function resetStage() {
+  maxDigits = digitCount();
+  order = stage.balls.slice();
+  stage.balls.forEach((ball, i) => {
+    stage.setBallValue(ball, seed[i]);
+    stage.setBallColor(ball, C.base);
+    stage.setBallDigit(ball, '');
+    ball.group.position.copy(stage.rowPos(i));
   });
-  yield W(900);
+  buckets = Array.from({ length: 10 }, () => []);
+  passNo = 0;
+  activeBucket = -1;
+  activeIdx = -1;
+  note = '按位分桶，再按桶序收集';
+  stage.hideChain();
+  director.stateUpdate(stateBlocks());
+  status.textContent = '';
 }
 
-panel.addButton('随机化', () => engine.start(randomizeGen()));
-panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
-engine.queue(() => runRadixSort());
+function restart(autoPlay = true) {
+  engine.clear();
+  director.reset();
+  resetStage();
+  engine.queue(() => runRadix());
+  if (autoPlay) engine.toggle();
+}
 
+input.addButton('随机', () => {
+  seed = Array.from({ length: N }, () => Math.floor(Math.random() * 1000));
+  restart(true);
+});
+input.addButton('清空', () => { engine.clear(); director.reset(); resetStage(); });
+panel.addInput('自定义: 170,45,75', (text) => {
+  const nums = text.split(/[^0-9]+/).filter(Boolean).map(Number).filter((n) => n >= 0 && n <= 999);
+  if (nums.length < 2) { status.textContent = '请输入至少 2 个 0..999 的整数'; return; }
+  seed = Array.from({ length: N }, (_, i) => nums[i % nums.length]);
+  restart(true);
+  status.textContent = `自定义数组已循环补齐为 ${N} 个元素`;
+}, 90);
+
+resetStage();
+engine.queue(() => runRadix());
 scene.start(engine);

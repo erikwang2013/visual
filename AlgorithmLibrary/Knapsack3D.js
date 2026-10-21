@@ -1,261 +1,420 @@
-// AlgorithmLibrary/Knapsack3D.js — 0/1 背包 DP：物品盒一行 + 容量盒 + DP 表逐格填（不含 vs 含两路弧线），
-// 回溯 (4,8)→(3,3)→(2,3)→(1,0)，选中物品橙色上浮入结果槽（function* 生成器驱动，坐标/文案依 /tmp/knapsack_design.md）
+// AlgorithmLibrary/Knapsack3D.js — 0/1 背包：物品盒 + 容量列 DP 表 + 含/不含双依赖箭头 + 金色回溯 + 地形拉伸。
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
 import { VBox, VText } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { applyTheme } from '../3D/Glow.js';
+import { StoryDirector } from '../3D/director/StoryDirector.js';
+import { InputKit } from '../3D/director/InputKit.js';
+import { TableStage } from '../3D/director/TableStage.js';
 applyTheme('Knapsack3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [440, 660, 900], lookAt: [320, 470, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-
-const GOLD = 0xfde047, GREEN = 0x4ade80, YELLOW = 0xfacc15, BLUE = 0x60a5fa, CYAN = 0x67e8f9, ORANGE = 0xfb923c;
+const input = new InputKit(panel);
 const status = panel.addStatus('就绪');
 
-// ---- 数据（全部硬编码，勿运行时计算 dp；数值依设计 §3 帧表） ----
-const W_ = [2, 3, 4, 5], V_ = [3, 4, 5, 6];
-const BOX_X = [160, 270, 390, 510];
-const cellX = c => 128 + c * 56;
-const cellY = r => 690 - r * 44;
-// 每格 C1 文案 / 格值 / 模式：t=含更优 s=不含更优 tie=平局 i=放不下
-const MSG = {
-  '1,1': 'dp[1][1]：w2 大于容量 1，放不下，只能不含=dp[0][1]=0',
-  '1,2': 'dp[1][2]：不含=dp[0][2]=0，含=dp[0][0]+3=0+3=3',
-  '1,3': 'dp[1][3]：不含=dp[0][3]=0，含=dp[0][1]+3=0+3=3',
-  '1,4': 'dp[1][4]：不含=dp[0][4]=0，含=dp[0][2]+3=0+3=3',
-  '1,5': 'dp[1][5]：不含=dp[0][5]=0，含=dp[0][3]+3=0+3=3',
-  '1,6': 'dp[1][6]：不含=dp[0][6]=0，含=dp[0][4]+3=0+3=3',
-  '1,7': 'dp[1][7]：不含=dp[0][7]=0，含=dp[0][5]+3=0+3=3',
-  '1,8': 'dp[1][8]：不含=dp[0][8]=0，含=dp[0][6]+3=0+3=3',
-  '2,1': 'dp[2][1]：w3 大于容量 1，放不下，只能不含=dp[1][1]=0',
-  '2,2': 'dp[2][2]：w3 大于容量 2，放不下，只能不含=dp[1][2]=3',
-  '2,3': 'dp[2][3]：不含=dp[1][3]=3，含=dp[1][0]+4=0+4=4',
-  '2,4': 'dp[2][4]：不含=dp[1][4]=3，含=dp[1][1]+4=0+4=4',
-  '2,5': 'dp[2][5]：不含=dp[1][5]=3，含=dp[1][2]+4=3+4=7',
-  '2,6': 'dp[2][6]：不含=dp[1][6]=3，含=dp[1][3]+4=3+4=7',
-  '2,7': 'dp[2][7]：不含=dp[1][7]=3，含=dp[1][4]+4=3+4=7',
-  '2,8': 'dp[2][8]：不含=dp[1][8]=3，含=dp[1][5]+4=3+4=7',
-  '3,1': 'dp[3][1]：w4 大于容量 1，放不下，只能不含=dp[2][1]=0',
-  '3,2': 'dp[3][2]：w4 大于容量 2，放不下，只能不含=dp[2][2]=3',
-  '3,3': 'dp[3][3]：w4 大于容量 3，放不下，只能不含=dp[2][3]=4',
-  '3,4': 'dp[3][4]：不含=dp[2][4]=4，含=dp[2][0]+5=0+5=5',
-  '3,5': 'dp[3][5]：不含=dp[2][5]=7，含=dp[2][1]+5=0+5=5',
-  '3,6': 'dp[3][6]：不含=dp[2][6]=7，含=dp[2][2]+5=3+5=8',
-  '3,7': 'dp[3][7]：不含=dp[2][7]=7，含=dp[2][3]+5=4+5=9',
-  '3,8': 'dp[3][8]：不含=dp[2][8]=7，含=dp[2][4]+5=4+5=9',
-  '4,1': 'dp[4][1]：w5 大于容量 1，放不下，只能不含=dp[3][1]=0',
-  '4,2': 'dp[4][2]：w5 大于容量 2，放不下，只能不含=dp[3][2]=3',
-  '4,3': 'dp[4][3]：w5 大于容量 3，放不下，只能不含=dp[3][3]=4',
-  '4,4': 'dp[4][4]：w5 大于容量 4，放不下，只能不含=dp[3][4]=5',
-  '4,5': 'dp[4][5]：不含=dp[3][5]=7，含=dp[3][0]+6=0+6=6',
-  '4,6': 'dp[4][6]：不含=dp[3][6]=8，含=dp[3][1]+6=0+6=6',
-  '4,7': 'dp[4][7]：不含=dp[3][7]=9，含=dp[3][2]+6=3+6=9，两路相同取 9',
-  '4,8': 'dp[4][8]：不含=dp[3][8]=9，含=dp[3][3]+6=4+6=10',
-};
-const VAL = { // 每格最终值（r1..r4 × c1..c8）
-  '1,1': 0, '1,2': 3, '1,3': 3, '1,4': 3, '1,5': 3, '1,6': 3, '1,7': 3, '1,8': 3,
-  '2,1': 0, '2,2': 3, '2,3': 4, '2,4': 4, '2,5': 7, '2,6': 7, '2,7': 7, '2,8': 7,
-  '3,1': 0, '3,2': 3, '3,3': 4, '3,4': 5, '3,5': 7, '3,6': 8, '3,7': 9, '3,8': 9,
-  '4,1': 0, '4,2': 3, '4,3': 4, '4,4': 5, '4,5': 7, '4,6': 8, '4,7': 9, '4,8': 10,
-};
-const MODE = {
-  '1,1': 'i', '1,2': 't', '1,3': 't', '1,4': 't', '1,5': 't', '1,6': 't', '1,7': 't', '1,8': 't',
-  '2,1': 'i', '2,2': 'i', '2,3': 't', '2,4': 't', '2,5': 't', '2,6': 't', '2,7': 't', '2,8': 't',
-  '3,1': 'i', '3,2': 'i', '3,3': 'i', '3,4': 't', '3,5': 's', '3,6': 't', '3,7': 't', '3,8': 't',
-  '4,1': 'i', '4,2': 'i', '4,3': 'i', '4,4': 'i', '4,5': 's', '4,6': 's', '4,7': 'tie', '4,8': 't',
-};
+const BASE = 0x60a5fa, DIM = 0x475569, SKIP = 0x67e8f9, TAKE = 0xfb923c, TIE = 0x22d3ee, GOLD = 0xfde047, YELLOW = 0xfacc15;
+let WEIGHTS = [2, 3, 4, 5];
+let VALUES = [3, 4, 5, 6];
+let CAP = 8;
+let stage = null;
+let items = [];
+let itemVals = [];
+let tray = null;
+let shelfLabel = null;
+let capText = null;
+let resultText = null;
+let dp = [];
+let selected = [];
+let cur = null;
 
-// ---- E1 物品盒（label 内嵌 w2..w5）+ E2 价值文本 v3..v6 ----
-const boxes = W_.map((w, i) => new VBox(scene, { w: 56, h: 56, d: 24, x: BOX_X[i], y: 800, z: 0, label: 'w' + w, color: BLUE, emissive: BLUE }));
-boxes.forEach(b => { b.label.scale.multiplyScalar(0.7); });
-const boxVal = V_.map((v, i) => new VText(scene, { text: 'v' + v, x: BOX_X[i], y: 762, z: 0, color: PALETTE.text, scale: 0.4 }));
+const ease = (p) => p * p * (3 - 2 * p);
 
-// ---- E3 容量盒（C=8→C=3→C=0，轴右端） ----
-const capBox = new VBox(scene, { w: 72, h: 72, d: 28, x: 600, y: 800, z: 0, label: 'C=8', color: ORANGE, emissive: ORANGE });
-capBox.label.scale.multiplyScalar(0.4);
+const director = new StoryDirector(scene, {
+  title: '0/1 背包 · 地形',
+  total: 8,
+  legend: [
+    { label: '不含', color: '#67e8f9' },
+    { label: '含', color: '#fb923c' },
+    { label: '当前格', color: '#22d3ee' },
+    { label: '回溯路径', color: '#fde047' },
+  ],
+  onReplay: () => restart(true),
+});
 
-// ---- E4 容量刻度 0..8 + E5 行头 i0..i4 ----
-for (let c = 0; c <= 8; c++) new VText(scene, { text: String(c), x: cellX(c), y: 734, z: 0, color: PALETTE.textDim, scale: 0.38 });
-for (let r = 0; r <= 4; r++) new VText(scene, { text: 'i' + r, x: 56, y: cellY(r), z: 0, color: PALETTE.textDim, scale: 0.38 });
-
-// ---- E6 DP 表 45 格：行 0 灰格 '0'；其余 36 格暗边、label 隐藏 ----
-const cells = [];
-for (let r = 0; r <= 4; r++) {
-  cells[r] = [];
-  for (let c = 0; c <= 8; c++) {
-    const isRow0 = r === 0;
-    const cell = new VBox(scene, { w: 50, h: 40, d: 14, x: cellX(c), y: cellY(r), z: 0, label: isRow0 ? '0' : undefined, color: PALETTE.edge, emissive: PALETTE.edgeEmissive });
-    cell.mesh.material.transparent = true;
-    cell.mesh.material.opacity = isRow0 ? 0.55 : 0.35;
-    cells[r][c] = cell;
-  }
+function newDp() {
+  return Array.from({ length: WEIGHTS.length + 1 }, () => new Array(CAP + 1).fill(0));
 }
 
-// ---- E7 结果槽托盘 + E8 mini 格（选中显示 i2/i4） ----
-const tray = new VBox(scene, { w: 560, h: 64, d: 10, x: 320, y: 400, z: 0, color: PALETTE.edge, emissive: PALETTE.edgeEmissive });
-tray.mesh.material.transparent = true;
-tray.mesh.material.opacity = 0.12;
-const mini = BOX_X.map(x => {
-  const m = new VBox(scene, { w: 40, h: 40, d: 12, x, y: 400, z: 0, color: PALETTE.edge, emissive: PALETTE.edgeEmissive });
-  m.mesh.material.transparent = true;
-  m.mesh.material.opacity = 0.35;
-  return m;
-});
+function state() {
+  const n = WEIGHTS.length;
+  const rowIdx = cur ? cur.i : 0;
+  const row = dp[rowIdx] || [];
+  const sel = selected.slice().reverse().map((i) => ({ text: 'i' + i + ':w' + WEIGHTS[i - 1] + 'v' + VALUES[i - 1], cls: 'done' }));
+  const item = cur && cur.i > 0 ? { k: '重量/价值', v: WEIGHTS[cur.i - 1] + ' / ' + VALUES[cur.i - 1] } : { k: '重量/价值', v: '—' };
+  return {
+    blocks: [
+      { type: 'kv', label: '当前格', items: cur ? [{ k: '物品/容量', v: cur.i + ' / ' + cur.c }, item] : [{ k: '物品/容量', v: '—' }, item] },
+      { type: 'kv', label: '候选', items: cur ? [
+        { k: '不含', v: cur.skip },
+        { k: '含', v: cur.take !== null ? cur.take : cur.i > 0 ? '放不下' : '—' },
+      ] : [{ k: '不含', v: '—' }, { k: '含', v: '—' }] },
+      { type: 'chips', label: 'dp 行 ' + rowIdx, items: row.map((v, c) => ({ text: c + ':' + v, cls: cur && c === cur.c ? 'current' : '' })) },
+      { type: 'chips', label: '已选物品', items: sel, empty: '—' },
+      { type: 'text', label: '最优价值', value: String(dp[n][CAP]) },
+    ],
+    footer: 'dp[i][c] = 前 i 件、容量 c 的最优价值',
+  };
+}
 
-// ---- E9 弧线池 ×3（CYAN 不含 / ORANGE 含 / GOLD 回溯）+ 3 金粒子（fxGroup 统一显隐） ----
-const fxGroup = new THREE.Group();
-fxGroup.visible = false;
-scene.add(fxGroup);
-const mkArc = color => {
-  const v0 = new THREE.Vector3(), v1 = new THREE.Vector3(), v2 = new THREE.Vector3();
-  const curve = new THREE.QuadraticBezierCurve3(v0, v1, v2);
-  const geo = new THREE.BufferGeometry();
-  const line = new THREE.Line(geo, new THREE.LineDashedMaterial({ color, dashSize: 6, gapSize: 4, transparent: true, opacity: 0.9 }));
-  return { v0, v1, v2, curve, geo, line };
-};
-const arcs = [mkArc(CYAN), mkArc(ORANGE), mkArc(GOLD)];
-arcs.forEach(a => fxGroup.add(a.line));
-const setArc = (a, x0, y0, x1, y1) => {
-  a.v0.set(x0, y0, 18); a.v2.set(x1, y1, 18);
-  a.v1.set((x0 + x1) / 2, (y0 + y1) / 2 + 16, 18);
-  a.geo.setFromPoints(a.curve.getPoints(24));
-  a.line.computeLineDistances();
-};
-const parts = [0, 1, 2].map(() => {
-  const m = new THREE.Mesh(new THREE.SphereGeometry(4, 8, 8), new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.9 }));
-  fxGroup.add(m);
-  return m;
-});
-const flyPts = [0, 1, 2].map(() => new THREE.Vector3());
-const flyParticles = (curves, ms) => A(ms, p => {
-  const e = ease(p);
-  curves.forEach((cv, i) => { cv.getPoint((e + i * 0.18) % 1, flyPts[i]); parts[i].position.set(flyPts[i].x, flyPts[i].y, 20); });
-});
-const lerp = (a, b, p) => a + (b - a) * p;
-const ease = p => p * p * (3 - 2 * p);
+function cellShot(i, c, ms = 720) {
+  return { pos: [stage.xOf(c) + 250, stage.yOf(i) + 210, 560], target: [stage.xOf(c), stage.yOf(i), 0], ms };
+}
 
-// ---- 工具：mini 显值 / 弧发射（先隐藏全组防串显）/ 格显数 ----
-const setMini = (m, text) => {
-  m.setText(text);
-  m.label.visible = true;
-  m.label.scale.multiplyScalar(0.36);
-  m.setColor(ORANGE, ORANGE);
-};
-const fireArc = (k, x0, y0, x1, y1) => {
-  fxGroup.visible = false;
-  arcs.forEach((a, i) => { a.line.visible = i === k; });
-  setArc(arcs[k], x0, y0, x1, y1);
-  fxGroup.visible = true;
-};
-const setCellVal = (r, c, v, col) => {
-  cells[r][c].setText(String(v));
-  cells[r][c].label.scale.multiplyScalar(0.5);
-  cells[r][c].setColor(col, col);
-};
+const SHOT_ESTABLISH = { pos: [500, 700, 900], target: [320, 480, 0], ms: 900 };
+const SHOT_TOP = { pos: [320, 960, 600], target: [320, 490, 0], ms: 850 };
+const SHOT_FILL = { pos: [450, 700, 900], target: [320, 470, 0], ms: 750 };
+const SHOT_BACK = { pos: [570, 620, 760], target: [320, 450, 0], ms: 850 };
+const SHOT_TERRAIN = { pos: [660, 430, 820], target: [320, 400, 0], ms: 950 };
+const SHOT_FINAL = { pos: [420, 580, 940], target: [320, 440, 0], ms: 950 };
 
-// ---- 全复位（清空按钮与生成器首帧共用；设计 §4 全部 9 项） ----
-function resetAll() {
-  boxes.forEach((b, i) => { b.moveTo(BOX_X[i], 800, 0, 300); b.setColor(BLUE, BLUE); b.mesh.scale.setScalar(1); });
-  boxVal.forEach((t, i) => t.moveTo(BOX_X[i], 762, 0, 300));
-  capBox.setText('C=8');
-  capBox.setColor(ORANGE, ORANGE);
-  for (let r = 1; r <= 4; r++) for (let c = 0; c <= 8; c++) { if (cells[r][c].label) cells[r][c].label.visible = false; cells[r][c].setColor(PALETTE.edge, PALETTE.edgeEmissive); }
-  for (let c = 0; c <= 8; c++) { cells[0][c].setText('0'); cells[0][c].setColor(PALETTE.edge, PALETTE.edgeEmissive); }
-  mini.forEach(m => { if (m.label) m.label.visible = false; m.setColor(PALETTE.edge, PALETTE.edgeEmissive); });
-  fxGroup.visible = false;
-  arcs.forEach(a => setArc(a, 0, 0, 0, 0));
-  parts.forEach(p => p.position.set(0, 0, 0));
-  status.textContent = '';
+// 文字纹理与 Sprite 几何全站共享，只释放物品盒/文字的私有几何和材质。
+function release(scene, obj) {
+  if (!obj) return;
+  const root = obj.mesh || obj.sprite;
+  obj.remove();
+  scene.remove(root);
+  root.traverse((o) => {
+    if (o.geometry && !o.isSprite) o.geometry.dispose();
+    if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose());
+  });
+}
+
+function clearBuild() {
+  if (stage) stage.dispose();
+  for (const o of [...items, ...itemVals, tray, shelfLabel, capText, resultText]) release(scene, o);
+  items = []; itemVals = []; tray = null; shelfLabel = null; capText = null; resultText = null;
+}
+
+function itemX(k) {
+  const n = WEIGHTS.length;
+  const left = stage.x0 - stage.cw / 2;
+  const right = stage.x0 + CAP * stage.stepX + stage.cw / 2;
+  return left + ((k + 0.5) * (right - left)) / n;
+}
+
+function build() {
+  clearBuild();
+  const n = WEIGHTS.length;
+  const cellW = Math.min(46, (470 - 6 * CAP) / (CAP + 1));
+  stage = new TableStage(scene, {
+    rows: n + 1, cols: CAP + 1, origin: [320, 430, 0],
+    cellW, cellH: 36, gapX: 6, gapY: 6, color: BASE, textScale: 0.5,
+    rowLabels: WEIGHTS.map((w, i) => 'w' + w + ' v' + VALUES[i]),
+    colLabels: Array.from({ length: CAP + 1 }, (_, c) => String(c)),
+    colLabelOffset: 0, rowLabelOffset: 54, arrows: 12,
+  });
+  for (let c = 0; c <= CAP; c++) stage.setValue(0, c, 0, DIM);
+  for (let i = 1; i <= n; i++) stage.setValue(i, 0, 0, DIM);
+
+  const itemY = stage.y0 + stage.ch / 2 + 120;
+  items = WEIGHTS.map((w, i) => {
+    const b = new VBox(scene, { w: 56, h: 52, d: 24, x: itemX(i), y: itemY, z: 0, label: 'w' + w, color: BASE, emissive: BASE });
+    b.label.scale.multiplyScalar(0.55);
+    return b;
+  });
+  itemVals = VALUES.map((v, i) => new VText(scene, {
+    text: 'v' + v, x: itemX(i), y: itemY - 42, z: 0, color: '#cbd5e1', scale: 0.42,
+  }));
+  items.forEach((b) => { b.homeY = itemY; });
+
+  const shelfY = itemY + 112;
+  tray = new VBox(scene, {
+    w: stage.cw + CAP * stage.stepX + 30, h: 58, d: 8, x: 320, y: shelfY, z: 0,
+    color: 0x0a0f2e, emissive: 0x0a0f2e,
+  });
+  tray.mesh.material.transparent = true;
+  tray.mesh.material.opacity = 0.35;
+  shelfLabel = new VText(scene, { text: '已选背包', x: stage.x0 - stage.cw / 2 - 66, y: shelfY, z: 0, color: '#fde047', scale: 0.44 });
+  capText = new VText(scene, {
+    text: 'C = ' + CAP,
+    x: stage.x0 + CAP * stage.stepX + stage.cw / 2 + 62,
+    y: itemY, z: 0, color: '#fb923c', scale: 0.55,
+  });
+  resultText = new VText(scene, { text: '最大价值 = —', x: 320, y: stage.yOf(n) - 56, z: 0, color: '#fde047', scale: 0.62 });
+
+  dp = newDp();
+  selected = [];
+  cur = null;
+  director.stateUpdate(state());
+}
+
+function fillCell(i, c) {
+  const w = WEIGHTS[i - 1], v = VALUES[i - 1];
+  const skip = dp[i - 1][c];
+  const take = c >= w ? dp[i - 1][c - w] + v : null;
+  const best = take !== null && take > skip ? take : skip;
+  dp[i][c] = best;
+  stage.clearArrows();
+  stage.arrow(i - 1, c, i, c, SKIP);
+  if (take !== null) stage.arrow(i - 1, c - w, i, c, TAKE);
+  stage.focus(i, c);
+  const color = take !== null && take > skip ? TAKE : take === skip ? TIE : BASE;
+  stage.setValue(i, c, best, color);
+  cur = { i, c, skip, take, best };
+  director.stateUpdate(state());
+  director.setBeatState('dp[' + i + '][' + c + '] = max(不含 ' + skip + ', 含 ' +
+    (take === null ? '—' : take) + ') = ' + best);
+  return { skip, take, best };
 }
 
 function* runKnapsack() {
-  yield S(resetAll);
-  yield S(() => { status.textContent = '0/1 背包：4 件物品 w2v3、w3v4、w4v5、w5v6，背包容量 8，每件只能取 0/1 次，求最大价值'; });
-  yield W(1500);
-  yield S(() => { status.textContent = '第 0 行全 0：空背包价值为 0'; });
+  director.reset();
+  stage.reset();
+  dp = newDp();
+  selected = [];
+  cur = null;
+  for (let c = 0; c <= CAP; c++) stage.setValue(0, c, 0, DIM);
+  for (let i = 1; i <= WEIGHTS.length; i++) stage.setValue(i, 0, 0, DIM);
+  items.forEach((b) => { b.moveTo(itemX(items.indexOf(b)), b.homeY, 0, 260); b.setColor(BASE, BASE); });
+  itemVals.forEach((t) => t.moveTo(t.sprite.position.x, b0Y(), 0, 260));
+  if (resultText) resultText.setText('最大价值 = —', { color: '#fde047' });
+  if (capText) capText.setText('C = ' + CAP, { color: '#fb923c' });
+  director.stateUpdate(state());
+
+  director.chapter('建立');
+  yield S(() => director.beat({
+    title: '物品与容量',
+    why: '每件物品只有取 / 不取两种选择；容量 c 是约束，dp 表回答“前 i 件、容量 c 最多值多少”。',
+    stateText: WEIGHTS.length + ' 件物品 · 容量 ' + CAP,
+    progress: 0,
+    camera: SHOT_ESTABLISH,
+    annotations: [
+      { id: 'items', text: WEIGHTS.map((w, i) => 'w' + w + '/v' + VALUES[i]).join('  '), anchor: () => new THREE.Vector3(320, items[0].mesh.position.y + 62, 0), offset: [0, -20], className: 'gold' },
+      { id: 'cap', text: '容量 C = ' + CAP, anchor: () => new THREE.Vector3(capText.sprite.position.x, capText.sprite.position.y + 26, 0), offset: [0, -18] },
+      { id: 'hook', text: '带走哪些，价值最大？', anchor: () => new THREE.Vector3(320, 700, 0), offset: [0, -22], className: 'final' },
+    ],
+  }));
   yield W(800);
-  for (let r = 1; r <= 4; r++) {
-    const w = W_[r - 1], v = V_[r - 1];
-    yield S(() => {
-      boxes.forEach(b => b.setColor(BLUE, BLUE));
-      boxes[r - 1].setColor(YELLOW, YELLOW);
-      status.textContent = '第 ' + r + ' 行：物品' + r + ' 重量 ' + w + ' 价值 ' + v + '，逐格递推 dp[r][c]=max(不含, 含)';
+
+  director.chapter('初始化');
+  for (let c = 0; c <= CAP; c++) stage.setColor(0, c, YELLOW);
+  yield S(() => director.beat({
+    title: '第 0 行全 0',
+    why: '没有物品可选时，任何容量的最优价值都是 0；容量 0 同理。',
+    stateText: 'dp[0][*] = 0 · dp[*][0] = 0',
+    progress: 1,
+    camera: SHOT_TOP,
+    annotations: [{ id: 'zero', text: '无物品 / 无容量 → 价值 0', anchor: () => new THREE.Vector3(320, 700, 0), offset: [0, -20] }],
+  }));
+  yield W(550);
+  for (let c = 0; c <= CAP; c++) stage.setColor(0, c, DIM);
+
+  // 第 2 拍：第一件物品 w2 v3 在容量 2 上的完整递推
+  items[0].setColor(YELLOW, YELLOW);
+  const first = fillCell(1, Math.min(WEIGHTS[0], CAP));
+  const fc = Math.min(WEIGHTS[0], CAP);
+  const takeTxt = first.take === null ? '放不下' : String(first.take);
+  yield S(() => director.beat({
+    title: '含 vs 不含',
+    why: '不含 = 上一行同容量；含 = 留出 w 的容量后的最优值 + 本件价值。两条箭头就是这两个候选。',
+    stateText: 'dp[1][' + fc + '] = max(不含 ' + first.skip + ', 含 ' + takeTxt + ') = ' + first.best,
+    progress: 2,
+    camera: cellShot(1, fc),
+    annotations: [
+      { id: 'skip', text: '不含：正上方', anchor: () => stage.anchor(0, fc), offset: [0, -16] },
+      { id: 'take', text: first.take === null ? '容量不足 → 只能不含' : '含：左上 + v' + VALUES[0], anchor: () => stage.anchor(0, Math.max(0, fc - WEIGHTS[0])), offset: [0, -16], className: 'gold' },
+    ],
+  }));
+  yield W(900);
+
+  // 第 3 拍：较大值落格，然后填完整表
+  yield S(() => {
+    director.chapter('选择');
+    director.beat({
+      title: '取较大值落格',
+      why: '0/1 背包每件只能取一次，所以“含”只能从上一行转移——这正是不等式约束的来源。',
+      stateText: 'dp[1][' + fc + '] = ' + first.best + '（' +
+        (first.take === null ? '本格放不下' : first.take > first.skip ? '含更优' : first.take === first.skip ? '两路相同' : '不含更优') + '）',
+      progress: 3,
+      camera: SHOT_FILL,
+      annotations: [{ id: 'land', text: '最大值写入当前格', anchor: () => stage.anchor(1, fc), offset: [0, -18], className: 'final' }],
     });
-    yield W(500);
-    for (let c = 1; c <= 8; c++) {
-      const key = r + ',' + c, val = VAL[key], mode = MODE[key];
-      const hasTake = c >= w;
-      // C1：当前格 CYAN；c≥w 时 ORANGE 弧 (r-1,c-w)→(r,c) 与 CYAN 弧 (r-1,c)→(r,c) 同显；不足格只显 CYAN 弧
-      yield S(() => {
-        fxGroup.visible = false;
-        cells[r][c].setColor(CYAN, CYAN);
-        arcs[0].line.visible = true;
-        setArc(arcs[0], cellX(c), cellY(r - 1), cellX(c), cellY(r));
-        arcs[1].line.visible = hasTake;
-        if (hasTake) setArc(arcs[1], cellX(c - w), cellY(r - 1), cellX(c), cellY(r));
-        arcs[2].line.visible = false;
-        fxGroup.visible = true;
-        status.textContent = MSG[key];
-      });
-      yield flyParticles(hasTake ? [arcs[0].curve, arcs[1].curve, arcs[0].curve] : [arcs[0].curve, arcs[0].curve, arcs[0].curve], 450);
-      // C2：弧隐藏；填值；take>skip→ORANGE 否则 BLUE（平局归 BLUE）
-      yield S(() => {
-        fxGroup.visible = false;
-        setCellVal(r, c, val, mode === 't' ? ORANGE : BLUE);
-        status.textContent = '→ 取 max = ' + val + (mode === 't' ? '（含更优）' : mode === 'tie' ? '（两路相同）' : '（不含更优）');
-      });
-      yield W(300);
+  });
+  yield A(450, (p) => { stage.ring.scale.setScalar(1 + 0.22 * Math.sin(p * Math.PI)); });
+  stage.ring.scale.setScalar(1);
+
+  for (let i = 1; i <= WEIGHTS.length; i++) {
+    items.forEach((b, k) => b.setColor(k === i - 1 ? YELLOW : BASE, k === i - 1 ? YELLOW : BASE));
+    for (let c = 1; c <= CAP; c++) {
+      if (i === 1 && c === fc) continue;
+      yield S(() => fillCell(i, c));
+      if (c % 3 === 0) yield W(100);
     }
   }
-  // B1：回溯起点 (4,8)
-  yield S(() => { cells[4][8].setColor(GOLD, GOLD); status.textContent = '回溯：从 dp[4][8]=10 倒推，10≠dp[3][8]=9 → 选物品4（w5v6），容量 8−5=3'; });
+  items.forEach((b) => b.setColor(BASE, BASE));
+  stage.clearArrows();
+  stage.hideFocus();
+  director.setProgress(3.6);
+  director.setBeatState('填表完成 · dp[' + WEIGHTS.length + '][' + CAP + '] = ' + dp[WEIGHTS.length][CAP]);
+
+  // 第 4 拍：回溯
+  director.chapter('回溯');
+  stage.clearArrows();
+  selected = [];
+  let i = WEIGHTS.length, c = CAP;
+  const cursorAt = (ri, rc) => {
+    const skip = ri > 0 ? dp[ri - 1][rc] : 0;
+    const w = ri > 0 ? WEIGHTS[ri - 1] : 0;
+    const v = ri > 0 ? VALUES[ri - 1] : 0;
+    const take = ri > 0 && rc >= w ? dp[ri - 1][rc - w] + v : null;
+    return { i: ri, c: rc, skip, take, best: dp[ri][rc] };
+  };
+  cur = cursorAt(i, c);
+  yield S(() => director.beat({
+    title: '从右下角回溯',
+    why: 'dp[i][c] 与 dp[i-1][c] 不同 ⇒ 这件物品被选中，跳到 (i-1, c-w)；相同 ⇒ 没选，直接上移。',
+    stateText: 'dp[' + i + '][' + c + '] = ' + dp[i][c] + ' · 开始回走',
+    progress: 4,
+    camera: SHOT_BACK,
+    annotations: [{ id: 'back', text: '值变小 → 选了这件', anchor: () => stage.anchor(i, c), offset: [0, -18], className: 'gold' }],
+  }));
+  yield W(500);
+  while (i > 0) {
+    const w = WEIGHTS[i - 1], v = VALUES[i - 1];
+    stage.setColor(i, c, GOLD);
+    const skip = dp[i - 1][c];
+    const take = c >= w ? dp[i - 1][c - w] + v : null;
+    let move;
+    if (take !== null && dp[i][c] === take && take > skip) {
+      selected.push(i);
+      stage.arrow(i - 1, Math.max(0, c - w), i, c, GOLD);
+      items[i - 1].setColor(TAKE, TAKE);
+      items[i - 1].moveTo(itemX(i - 1), items[i - 1].homeY + 112, 0, 480);
+      itemVals[i - 1].setText('v' + v, { color: '#fb923c' });
+      itemVals[i - 1].moveTo(itemX(i - 1), items[i - 1].homeY + 74, 0, 480);
+      c -= w;
+      move = '选中物品 ' + i + '（w' + w + ' v' + v + '）· 剩余容量 ' + c;
+    } else {
+      stage.arrow(i - 1, c, i, c, GOLD);
+      move = '物品 ' + i + ' 未选 · 行上移';
+    }
+    i--;
+    stage.focus(i, c);
+    cur = cursorAt(i, c);
+    if (capText) capText.setText('C = ' + c, { color: '#fb923c' });
+    yield S(() => {
+      director.stateUpdate(state());
+      director.setBeatState(move);
+    });
+    yield W(430);
+  }
+
+  // 第 5 拍：地形与不变量
+  const total = dp[WEIGHTS.length][CAP];
+  yield S(() => director.beat({
+    title: '表格变地形：每格都是子问题最优',
+    why: '地形高度就是 dp 值；每个格子在“前 i 件、容量 c”下都取到了最优，最优子结构把答案托到右下角。',
+    stateText: '不变量：dp[i][c] = 前 i 件、容量 c 的最大价值',
+    progress: 6,
+    camera: SHOT_TERRAIN,
+    annotations: [{ id: 'ridge', text: '选/不选两条路在山脊汇合', anchor: () => new THREE.Vector3(320, 640, 0), offset: [0, -22], className: 'final' }],
+  }));
+  yield A(950, (p) => {
+    const e = ease(p);
+    for (let r = 0; r <= WEIGHTS.length; r++) {
+      for (let cc = 0; cc <= CAP; cc++) stage.setExtrude(r, cc, 1 + dp[r][cc] * 0.12 * e);
+    }
+  });
+  yield W(500);
+
+  // 第 6 拍：结算
+  const chosen = selected.slice().reverse();
+  const totalW = chosen.reduce((s, k) => s + WEIGHTS[k - 1], 0);
+  yield S(() => {
+    if (resultText) resultText.setText('最大价值 ' + total, { color: '#fde047' });
+    director.chapter('结算');
+    director.beat({
+      title: '最大价值 = ' + total,
+      why: '回溯选中的物品总重不超过容量；dp 表保证这是所有 0/1 组合里的最大值。',
+      stateText: '物品 ' + (chosen.length ? chosen.join('+') : '无') + ' · 总重 ' + totalW + ' / ' + CAP + ' · 价值 ' + total,
+      progress: 7,
+      camera: SHOT_FINAL,
+      annotations: [{ id: 'res', text: '最大价值 ' + total, anchor: () => new THREE.Vector3(320, resultText.sprite.position.y + 26, 0), offset: [0, -20], className: 'final' }],
+    });
+    director.stateUpdate(state());
+  });
+  status.textContent = '0/1 背包：容量 ' + CAP + '，选物品 ' + (chosen.length ? chosen.join('+') : '无') +
+    '，总重 ' + totalW + '，最大价值 ' + total + ' · O(nC)';
+  yield W(1000);
+
+  director.chapter('复盘');
+  yield S(() => director.beat({
+    title: '0/1 背包不能贪心',
+    why: '按单位价值贪心可能先拿小件而错过更优组合；DP 枚举“取/不取”的所有子问题，用 O(nC) 保证最优。',
+    stateText: 'O(nC) 时间/空间 · ' + (WEIGHTS.length * CAP) + ' 个子问题',
+    progress: 8,
+    camera: SHOT_FINAL,
+    annotations: [],
+  }));
   yield W(700);
-  // B2：物品4 上浮橙色 + mini4 'i4' + 容量 C=3 + GOLD 弧 (4,8)→(3,3)
-  yield S(() => {
-    boxes[3].moveTo(BOX_X[3], 846, 0, 500); boxes[3].setColor(ORANGE, ORANGE);
-    boxVal[3].moveTo(BOX_X[3], 808, 0, 500);
-    setMini(mini[3], 'i4');
-    capBox.setText('C=3');
-    capBox.setColor(ORANGE, ORANGE);
-    fireArc(2, cellX(8), cellY(4), cellX(3), cellY(3));
-  });
-  yield flyParticles([arcs[2].curve, arcs[2].curve, arcs[2].curve], 500);
-  yield W(300);
-  // B3：格(3,3) GOLD + GOLD 弧 (3,3)→(2,3)，未选行上移
-  yield S(() => {
-    cells[3][3].setColor(GOLD, GOLD);
-    fireArc(2, cellX(3), cellY(3), cellX(3), cellY(2));
-    status.textContent = 'dp[3][3]=4=dp[2][3]=4 → 物品3 未选，行上移';
-  });
-  yield flyParticles([arcs[2].curve, arcs[2].curve, arcs[2].curve], 450);
-  yield W(300);
-  // B4：格(2,3) GOLD，选中物品2
-  yield S(() => { fxGroup.visible = false; cells[2][3].setColor(GOLD, GOLD); status.textContent = 'dp[2][3]=4≠dp[1][3]=3 → 选物品2（w3v4），容量 3−3=0'; });
-  yield A(450, () => {});
-  yield W(300);
-  // B5：物品2 上浮橙色 + mini2 'i2' + 容量 C=0 + GOLD 弧 (2,3)→(1,0)
-  yield S(() => {
-    boxes[1].moveTo(BOX_X[1], 846, 0, 500); boxes[1].setColor(ORANGE, ORANGE);
-    boxVal[1].moveTo(BOX_X[1], 808, 0, 500);
-    setMini(mini[1], 'i2');
-    capBox.setText('C=0');
-    capBox.setColor(ORANGE, ORANGE);
-    fireArc(2, cellX(3), cellY(2), cellX(0), cellY(1));
-  });
-  yield flyParticles([arcs[2].curve, arcs[2].curve, arcs[2].curve], 500);
-  yield W(300);
-  // B6：终点 (1,0) 容量清零
-  yield S(() => { cells[1][0].setColor(GOLD, GOLD); status.textContent = '容量清零：背包总重 3+5=8=容量，总价值 4+6=10'; });
-  yield W(900);
-  // B7：收尾
-  yield S(() => { status.textContent = '完成：最大价值 10（物品2+物品4），状态数 4×8=32，时间复杂度 O(nC)、空间 O(nC）'; });
-  yield W(1800);
 }
 
-engine.queue(() => runKnapsack());
-panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
+function b0Y() {
+  return items[0] ? items[0].homeY - 42 : 600;
+}
 
+function parseNums(s) {
+  return s.split(/[^0-9]+/).filter(Boolean).map(Number);
+}
+
+function applyInputs() {
+  const ws = parseNums(wInput.value);
+  const vs = parseNums(vInput.value);
+  const cap = parseNums(capInput.value)[0];
+  if (ws.length < 1 || ws.length !== vs.length || ws.length > 5) {
+    status.textContent = '重量与价值个数必须相同（1–5 件）';
+    return;
+  }
+  if (ws.some((w) => w < 1 || w > 15) || vs.some((v) => v < 1 || v > 99)) {
+    status.textContent = '重量 1–15，价值 1–99';
+    return;
+  }
+  if (!(cap >= 2 && cap <= 10)) {
+    status.textContent = '容量需在 2–10 之间（表格规模限制）';
+    return;
+  }
+  WEIGHTS = ws;
+  VALUES = vs;
+  CAP = Math.round(cap);
+  wInput.value = WEIGHTS.join(',');
+  vInput.value = VALUES.join(',');
+  capInput.value = String(CAP);
+  restart(true);
+}
+
+const wInput = panel.addInput('重量 2,3,4,5', applyInputs, 24);
+const vInput = panel.addInput('价值 3,4,5,6', applyInputs, 24);
+const capInput = panel.addInput('容量 8', applyInputs, 4);
+wInput.value = WEIGHTS.join(',');
+vInput.value = VALUES.join(',');
+capInput.value = String(CAP);
+
+function restart(auto = true) {
+  status.textContent = '';
+  engine.clear();
+  director.reset();
+  build();
+  engine.queue(() => runKnapsack());
+  if (auto) engine.toggle();
+}
+
+input.addButton('重播', () => restart(true));
+input.addButton('清空', () => { engine.clear(); director.reset(); build(); status.textContent = ''; });
+
+build();
+engine.queue(() => runKnapsack());
 scene.start(engine);

@@ -18,11 +18,14 @@ export class BeatHUD {
 
     this.overlay = document.createElement('div');
     this.overlay.className = 'story-overlay';
+    this.overlay.setAttribute('aria-hidden', 'true');
     this.overlay.innerHTML = '<span class="story-overlay-kicker"></span><b class="story-overlay-chapter"></b><span class="story-overlay-beat"></span>';
     if (sceneEl) sceneEl.appendChild(this.overlay);
 
     this.panel = document.createElement('div');
     this.panel.className = 'beat-panel';
+    this.panel.setAttribute('role', 'status');
+    this.panel.setAttribute('aria-live', 'polite');
     this.panel.innerHTML = `
       <div class="beat-head">
         <div><div class="beat-kicker"></div><div class="beat-title">就绪</div></div>
@@ -123,5 +126,6 @@ export class BeatHUD {
     if (this.dots) this.dots.forEach((d) => d.classList.remove('done', 'active'));
     this.overlayChapter.textContent = '';
     this.overlayBeat.textContent = '';
+    this.kicker.textContent = this.title;
   }
 }

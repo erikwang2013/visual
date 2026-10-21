@@ -16,8 +16,8 @@ export class StoryDirector {
       sideEl,
       legend: opts.legend,
     });
-    this.annotations = new AnnotationLayer(scene);
     this.camera = new CameraDirector(scene);
+    this.annotations = new AnnotationLayer(scene);
     this.state = new StateInspector(sideEl);
 
     this.camera.onAutoChange((on) => this.hud.setCameraAuto(on));

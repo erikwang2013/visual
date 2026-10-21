@@ -1,286 +1,471 @@
-// AlgorithmLibrary/AVL3D.js — AVL 树：平衡因子标签 + 失衡红闪 + LL/LR/RR/RL 旋转修复（function* 生成器驱动）
+// AlgorithmLibrary/AVL3D.js — AVL 树：高度/平衡因子回溯、LL 单旋与 LR 双旋、平衡仪回收。
+// 每个节点上方常驻 h/bf 第二行标签；旋转过程用 TreeStage 的布局补间整棵子树搬位。
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
+import { GeneratorEngine, W, S } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VText, VNode } from '../3D/VisualObject3D.js';
 import { applyTheme } from '../3D/Glow.js';
+import { land } from '../3D/effects/Fx.js';
+import { StoryDirector } from '../3D/director/StoryDirector.js';
+import { InputKit } from '../3D/director/InputKit.js';
+import { TreeStage } from '../3D/director/TreeStage.js';
 applyTheme('AVL3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
+const isMobile = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 900px)').matches;
+const SC = isMobile ? 0.76 : 1;
+const scene = new Scene3D('scene', { cameraPos: [320, 720, 1120], lookAt: [320, 440, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-
-const BLUE = 0x60a5fa, GOLD = 0xfcd34d, RED = 0xfb7185, GREEN = 0x4ade80, WHITE = 0xffffff, YELLOW = 0xfde047;
+const input = new InputKit(panel);
 const status = panel.addStatus('就绪');
-const ease = p => p * p * (3 - 2 * p);
+const stage = new TreeStage(scene, { center: [320, 470, 0], scale: SC, radius: 22, islandRadius: 620 });
 
-const ROOT_Y = 830, STEP_Y = 70, X_STEP = 48;
-const KEYS = [50, 30, 70, 20, 10, 60, 80, 90, 75, 15];
+const C = { base: 0x22d3ee, path: 0xfcd34d, current: 0x60a5fa, ok: 0x4ade80, bad: 0xfb7185 };
+const ROT_DESC = { LL: '右旋', RR: '左旋', LR: '先左旋孩子，再右旋自己', RL: '先右旋孩子，再左旋自己' };
+const DEMO_KEYS = [50, 30, 70, 20, 40, 60, 80];
+let rotations = 0;
+
+const director = new StoryDirector(scene, {
+  title: 'AVL · 平衡仪',
+  total: 8,
+  legend: [
+    { label: '平衡节点', color: '#22d3ee' },
+    { label: '回溯路径', color: '#fcd34d' },
+    { label: '失衡 |BF|≥2', color: '#fb7185' },
+    { label: '回正', color: '#4ade80' },
+    { label: '当前', color: '#60a5fa' },
+  ],
+  onReplay: () => restart(),
+});
 
 // ---- 纯数据 AVL ----
-let root = null; // { key, left, right, parent:key|null }
-function findNode(key) {
-  let cur = root;
-  while (cur) { if (key === cur.key) return cur; cur = key < cur.key ? cur.left : cur.right; }
-  return null;
-}
-function height(n) { if (!n) return 0; return 1 + Math.max(height(n.left), height(n.right)); }
-function bfOf(n) { return height(n.left) - height(n.right); }
-function insertModel(key) {
-  if (!root) return (root = { key, left: null, right: null, parent: null });
-  let cur = root;
-  while (true) {
-    if (key < cur.key) {
-      if (!cur.left) { cur.left = { key, left: null, right: null, parent: cur.key }; return cur.left; }
-      cur = cur.left;
-    } else {
-      if (!cur.right) { cur.right = { key, left: null, right: null, parent: cur.key }; return cur.right; }
-      cur = cur.right;
-    }
-  }
+let root = null;
+const h = (n) => (n ? n.height : 0);
+const bf = (n) => (n ? h(n.left) - h(n.right) : 0);
+const fmt = (v) => (v > 0 ? '+' + v : String(v));
+function upd(n) { n.height = 1 + Math.max(h(n.left), h(n.right)); }
+function rotateRight(y) {
+  const x = y.left;
+  y.left = x.right;
+  if (x.right) x.right.parent = y;
+  x.right = y;
+  x.parent = y.parent;
+  if (!y.parent) root = x;
+  else if (y.parent.left === y) y.parent.left = x;
+  else y.parent.right = x;
+  y.parent = x;
+  upd(y);
+  upd(x);
+  return x;
 }
 function rotateLeft(x) {
   const y = x.right;
   x.right = y.left;
-  if (y.left) y.left.parent = x.key;
+  if (y.left) y.left.parent = x;
   y.left = x;
   y.parent = x.parent;
-  if (x.parent == null) root = y;
-  else { const p = findNode(x.parent); if (p.left === x) p.left = y; else p.right = y; }
-  x.parent = y.key;
+  if (!x.parent) root = y;
+  else if (x.parent.left === x) x.parent.left = y;
+  else x.parent.right = y;
+  x.parent = y;
+  upd(x);
+  upd(y);
+  return y;
 }
-function rotateRight(x) {
-  const y = x.left;
-  x.left = y.right;
-  if (y.right) y.right.parent = x.key;
-  y.right = x;
-  y.parent = x.parent;
-  if (x.parent == null) root = y;
-  else { const p = findNode(x.parent); if (p.left === x) p.left = y; else p.right = y; }
-  x.parent = y.key;
+function rotationType(n) {
+  if (bf(n) > 1) return bf(n.left) >= 0 ? 'LL' : 'LR';
+  return bf(n.right) <= 0 ? 'RR' : 'RL';
 }
-function depthOf(n) { let d = 0, cur = n; while (cur.parent != null) { d++; const p = findNode(cur.parent); if (!p) break; cur = p; } return d; }
-function collect() {
-  const arr = [];
-  (function inOrder(n) { if (!n) return; inOrder(n.left); arr.push(n); inOrder(n.right); })(root);
-  return arr;
+function rotateAt(n, type) {
+  rotations++;
+  if (type === 'LL') return rotateRight(n);
+  if (type === 'RR') return rotateLeft(n);
+  if (type === 'LR') { rotateLeft(n.left); return rotateRight(n); }
+  rotateRight(n.right);
+  return rotateLeft(n);
 }
-function layout() {
-  const arr = collect(), pos = new Map();
-  arr.forEach((n, i) => {
-    const d = depthOf(n);
-    pos.set(n.key, new THREE.Vector3((i - (arr.length - 1) / 2) * (X_STEP + d * 5) + 320, ROOT_Y - d * STEP_Y, -d * 6));
-  });
-  return pos;
-}
-
-// ---- 视觉：球 + 键标签 + 平衡因子标签（子节点跟随移动），全部模块级预建 ----
-const nodeView = new Map();  // key -> VNode
-const bfView = new Map();    // key -> VText sprite
-const edgeView = new Map();  // childKey -> tube mesh
-const preNodes = new Map();  // key -> VNode（预建）
-const preBFs = new Map();    // key -> VText（预建）
-KEYS.forEach(k => {
-  const vn = new VNode(scene, { radius: 19, x: 320, y: 870, z: 0, label: String(k), color: BLUE, emissive: BLUE });
-  vn.mesh.visible = false;
-  const bf = new VText(scene, { text: '0', x: 0, y: 0, z: 0, color: YELLOW, scale: 0.55 });
-  scene.remove(bf.sprite);
-  bf.sprite.position.set(0, 62, 0);
-  vn.mesh.add(bf.sprite);
-  preNodes.set(k, vn); preBFs.set(k, bf);
-});
-function clearView() {
-  preNodes.forEach((vn, k) => { vn.mesh.visible = false; vn.setColor(BLUE, BLUE); vn.setText(String(k)); preBFs.get(k).setText('0'); });
-  edgeView.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
-  nodeView.clear(); edgeView.clear(); bfView.clear();
-}
-function addNodeMesh(n, p) {
-  const vn = preNodes.get(n.key);
-  vn.mesh.visible = true;
-  vn.mesh.position.copy(p);
-  vn.mesh.scale.setScalar(1);
-  vn.setColor(BLUE, BLUE);
-  nodeView.set(n.key, vn);
-  bfView.set(n.key, preBFs.get(n.key));
-  return vn;
-}
-function updateBFLabels() {
-  nodeView.forEach((vn, key) => {
-    const n = findNode(key);
-    const b = bfOf(n);
-    bfView.get(key).setText(b > 0 ? '+' + b : String(b));
-  });
-}
-function tube(a, b) {
-  const A = a.clone(), B = b.clone();
-  const mid = new THREE.Vector3((A.x + B.x) / 2, (A.y + B.y) / 2, (A.z + B.z) / 2 + 18);
-  const curve = new THREE.CatmullRomCurve3([A, mid, B]);
-  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 10, 2, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: 0.7 }));
-  scene.add(m);
-  return m;
-}
-function syncEdges() {
-  edgeView.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
-  edgeView.clear();
-  (function walk(n) {
-    if (n.left) { edgeView.set(n.left.key, tube(nodeView.get(n.key).mesh.position, nodeView.get(n.left.key).mesh.position)); walk(n.left); }
-    if (n.right) { edgeView.set(n.right.key, tube(nodeView.get(n.key).mesh.position, nodeView.get(n.right.key).mesh.position)); walk(n.right); }
-  })(root);
-}
-function setNodeColor(key, c) { nodeView.get(key).setColor(c, c); }
-function resetNodeColors() { nodeView.forEach(v => v.setColor(BLUE, BLUE)); }
-function* moveToLayout() {
-  const pos = layout();
-  const tasks = [];
-  nodeView.forEach((vn, key) => {
-    const p = pos.get(key);
-    if (!p) return;
-    const f = vn.mesh.position.clone();
-    if (f.distanceTo(p) < 0.5) return;
-    tasks.push({ vn, from: f, to: p });
-  });
-  if (!tasks.length) { syncEdges(); return; }
-  yield A(460, pp => tasks.forEach(t => t.vn.mesh.position.lerpVectors(t.from, t.to, ease(pp))));
-  syncEdges();
-}
-function* dropIn(vn, p) {
-  yield A(480, pp => {
-    const e = ease(pp);
-    vn.mesh.position.y = p.y + (870 - p.y) * (1 - e);
-    vn.mesh.scale.setScalar(0.4 + 0.6 * e);
-  });
-  vn.mesh.scale.setScalar(1);
-}
-
-// 插入：下钻 → 降落 → 回溯修复失衡（旋转动画）
-function* insertGen(key) {
-  yield S(() => { status.textContent = '插入 ' + key + '：沿比较路径下钻（金色 = 路径节点）'; });
+function findNode(key) {
   let cur = root;
-  while (cur && cur.key !== key) {
-    setNodeColor(cur.key, GOLD);
-    yield W(240);
+  while (cur) {
+    if (key === cur.key) return cur;
     cur = key < cur.key ? cur.left : cur.right;
   }
-  if (cur) { setNodeColor(cur.key, RED); yield S(() => { status.textContent = key + ' 已存在'; }); yield W(450); resetNodeColors(); return; }
-  const n = insertModel(key);
-  const pos = layout().get(key);
-  const vn = addNodeMesh(n, new THREE.Vector3(pos.x, 870, pos.z));
-  yield S(() => { status.textContent = '新节点 ' + key + ' 从上方降落，边生长连接'; });
-  yield* dropIn(vn, pos);
-  yield* moveToLayout();
-  yield* growEdge(n);
-  resetNodeColors();
-  updateBFLabels();
-  yield W(350);
-  // 回溯修复
-  let p = n, guard = 0;
-  while (p && guard++ < 30) {
-    const b = bfOf(p);
-    if (Math.abs(b) < 2) { p = p.parent ? findNode(p.parent) : null; continue; }
-    const type = b > 1
-      ? (height(p.left.left) >= height(p.left.right) ? 'LL' : 'LR')
-      : (height(p.right.right) >= height(p.right.left) ? 'RR' : 'RL');
-    const pivot = p.key;
-    setNodeColor(pivot, RED);
-    yield S(() => { status.textContent = '节点 ' + pivot + ' 失衡 BF=' + (b > 0 ? '+' + b : b) + ' → ' + type + ' 旋转修复'; });
-    yield W(600);
-    if (type === 'LL') rotateRight(p);
-    else if (type === 'LR') { rotateLeft(p.left); rotateRight(p); }
-    else if (type === 'RR') rotateLeft(p);
-    else { rotateRight(p.right); rotateLeft(p); }
-    yield* moveToLayout();
-    setNodeColor(pivot, GREEN);
-    yield S(() => { status.textContent = type + ' 旋转完成：' + pivot + ' 已平衡（绿闪）'; });
-    yield W(500);
-    updateBFLabels();
-    break;
-  }
-  resetNodeColors();
-  updateBFLabels();
-  yield W(200);
+  return null;
 }
-function* growEdge(n) {
-  if (!n.parent) return;
-  const e = edgeView.get(n.key);
-  e.material.opacity = 0;
-  yield A(280, p => { e.material.opacity = 0.7 * ease(p); });
+const minNode = (n) => { while (n && n.left) n = n.left; return n; };
+function transplant(u, v) {
+  if (!u.parent) root = v;
+  else if (u.parent.left === u) u.parent.left = v;
+  else u.parent.right = v;
+  if (v) v.parent = u.parent;
+}
+function insertModel(key) {
+  if (findNode(key)) return null;
+  const n = { key, left: null, right: null, parent: null, height: 1 };
+  if (!root) { root = n; return n; }
+  let cur = root;
+  while (true) {
+    if (key < cur.key) {
+      if (!cur.left) { cur.left = n; n.parent = cur; break; }
+      cur = cur.left;
+    } else {
+      if (!cur.right) { cur.right = n; n.parent = cur; break; }
+      cur = cur.right;
+    }
+  }
+  let p = n.parent;
+  while (p) {
+    upd(p);
+    if (Math.abs(bf(p)) > 1) {
+      const nr = rotateAt(p, rotationType(p));
+      p = nr.parent;
+    } else p = p.parent;
+  }
+  return n;
+}
+function deleteNode(z) {
+  let start;
+  if (!z.left) { start = z.parent; transplant(z, z.right); }
+  else if (!z.right) { start = z.parent; transplant(z, z.left); }
+  else {
+    const y = minNode(z.right);
+    if (y.parent !== z) {
+      start = y.parent;
+      transplant(y, y.right);
+      y.right = z.right;
+      y.right.parent = y;
+    } else start = y;
+    transplant(z, y);
+    y.left = z.left;
+    y.left.parent = y;
+  }
+  return start;
+}
+function walk(n = root, out = []) {
+  if (!n) return out;
+  walk(n.left, out);
+  out.push(n);
+  walk(n.right, out);
+  return out;
+}
+const inorder = () => walk().map((n) => n.key);
+function heightOf(n = root) { return n ? n.height : 0; }
+function maxBF() { return walk().reduce((m, n) => Math.max(m, Math.abs(bf(n))), 0); }
+
+function sync(opts = {}) {
+  stage.syncTree(root, {
+    id: (n) => n.key,
+    label: (n) => String(n.key),
+    color: () => C.base,
+    layout: { stepX: 88, stepY: 112, topY: 780 },
+    ms: opts.ms || 0,
+    spawn: opts.spawn || 0,
+  });
+  updateAllInfo();
+}
+function updateAllInfo() {
+  walk().forEach((n) => stage.setInfo(n.key, 'h' + n.height + ' bf' + fmt(bf(n)), { scale: 0.46 }));
+}
+function renderState(path = [], extra = {}) {
+  const bfs = walk().map((n) => n.key + ':' + fmt(bf(n))).join('  ');
+  director.stateUpdate({
+    blocks: [
+      { type: 'kv', label: 'AVL 平衡仪', items: [
+        { k: '节点数', v: walk().length },
+        { k: '高度', v: heightOf() },
+        { k: '最大 |BF|', v: maxBF() },
+        { k: '旋转次数', v: rotations },
+        { k: '类型', v: extra.type || '—' },
+      ] },
+      { type: 'chips', label: '比较 / 回溯路径', items: path.map((k) => ({ text: k, cls: k === extra.current ? 'current' : '' })), empty: '—' },
+      { type: 'text', label: 'BF = 左高 − 右高（|BF| ≤ 1）', value: bfs || '空' },
+    ],
+  });
+}
+const at = (k) => () => stage.vpos(k);
+
+// ---- 查找 ----
+function* searchFlow(key) {
+  director.chapter('查找');
+  const path = [];
+  for (let n = root; n; n = key === n.key ? null : key < n.key ? n.left : n.right) {
+    path.push(n.key);
+    stage.setNodeColor(n.key, key === n.key ? C.ok : C.path);
+    stage.setActive(n.key, key === n.key ? C.ok : C.path);
+    director.annotations.set('cur', {
+      text: key === n.key ? '命中 ' + key + ' · h' + n.height + ' bf' + fmt(bf(n)) : key + (key < n.key ? ' < ' : ' > ') + n.key + ' → 走' + (key < n.key ? '左' : '右'),
+      anchor: at(n.key), offset: [0, -50], className: key === n.key ? 'final' : 'gold',
+    });
+    renderState(path);
+    if (key === n.key) break;
+    yield W(300);
+  }
+  const pos = path[path.length - 1], hit = findNode(key);
+  if (!hit && pos) {
+    stage.setNodeColor(pos, C.bad); stage.setActive(pos, C.bad);
+    director.annotations.set('cur', { text: '空指针 → ' + key + ' 不存在', anchor: at(pos), offset: [0, -50], className: 'warn' });
+  }
+  status.textContent = '查找 ' + key + '：' + (hit ? '命中' : '不存在') + ' · 比较 ' + path.length + ' 次 · 高度 ' + heightOf();
+  renderState(path);
+  yield W(700);
+  walk().forEach((n) => stage.setNodeColor(n.key, C.base));
+  stage.setActive(null);
 }
 
-function* searchGen(key) {
-  yield S(() => { status.textContent = '查找 ' + key + '：沿金色路径下钻'; });
-  let cur = root, path = [];
-  while (cur && cur.key !== key) { path.push(cur.key); setNodeColor(cur.key, GOLD); yield W(260); cur = key < cur.key ? cur.left : cur.right; }
-  if (cur) {
-    setNodeColor(cur.key, GREEN);
-    yield S(() => { status.textContent = '命中 ' + key + '！（绿色闪光，深度 ' + depthOf(cur) + '）'; });
-    yield W(500);
-  } else {
-    setNodeColor(path[path.length - 1], RED);
-    yield S(() => { status.textContent = key + ' 不存在（红闪）'; });
-    yield W(500);
+// ---- 回溯：更新高度 → 找最低失衡 → 旋转 ----
+function* retraceFlow(start, op) {
+  let n = start;
+  let first = true;
+  while (n) {
+    const oldH = n.height;
+    upd(n);
+    const b = bf(n);
+    stage.setInfo(n.key, 'h' + n.height + ' bf' + fmt(b), { scale: 0.46 });
+    stage.setNodeColor(n.key, Math.abs(b) > 1 ? C.bad : C.current);
+    stage.setActive(n.key, Math.abs(b) > 1 ? C.bad : C.current);
+    if (first) {
+      first = false;
+      yield S(() => director.beat({
+        title: op + '后回溯更新',
+        why: '新节点可能改变祖先高度；高度 = max(左,右)+1，从下往上重算。',
+        stateText: '更新 ' + n.key + '：h ' + oldH + ' → ' + n.height + ' · BF ' + fmt(b),
+        progress: op === '插入' ? 2 : 6,
+        camera: stage.focus(n.key),
+        annotations: [{ id: 'h', text: 'h=' + n.height + ' · BF=' + fmt(b), anchor: at(n.key), offset: [0, -50], className: 'gold' }],
+      }));
+      yield W(520);
+    } else {
+      director.setBeatState('更新 ' + n.key + '：h ' + n.height + ' · BF ' + fmt(b));
+      renderState(inorder(), { current: n.key });
+      yield W(300);
+    }
+    if (Math.abs(b) > 1) {
+      const type = rotationType(n);
+      stage.setNodeColor(n.key, C.bad);
+      stage.setActive(n.key, C.bad);
+      director.annotations.set('bad', { text: '最低失衡点 ' + n.key + '：BF ' + fmt(b), anchor: at(n.key), offset: [0, -50], className: 'warn' });
+      yield S(() => director.beat({
+        title: '失衡：BF = ' + fmt(b),
+        why: '最低的不平衡点决定旋转类型；先修它，上面的高度会跟着恢复。',
+        stateText: '失衡节点 ' + n.key + ' · 类型 ' + type,
+        progress: op === '插入' ? 3 : 6,
+        camera: stage.focus(n.key),
+        annotations: [{ id: 'bad', text: 'BF ' + fmt(b) + ' → ' + type, anchor: at(n.key), offset: [0, -50], className: 'warn' }],
+      }));
+      yield W(700);
+      yield S(() => director.beat({
+        title: type + ' → ' + ROT_DESC[type],
+        why: type === 'LL' || type === 'RR' ? '外侧插入：一次单旋即可回正。' : '内侧插入：先转孩子把之字形拉直，再转自己。',
+        stateText: '旋转类型 ' + type + ' · 累计 ' + rotations + ' 次',
+        progress: 4,
+        camera: stage.focus(n.key, { dist: 360 }),
+        annotations: [{ id: 'rot', text: type + ' · ' + ROT_DESC[type], anchor: at(n.key), offset: [0, -50], className: 'final' }],
+      }));
+      yield W(300);
+      const nr = rotateAt(n, type);
+      sync({ ms: 520 });
+      stage.setNodeColor(nr.key, C.ok);
+      stage.setActive(nr.key, C.ok);
+      stage.nodes.get(nr.key)?.pulse(0.22);
+      renderState(inorder(), { type, current: nr.key });
+      yield W(700);
+      n = nr.parent;
+      continue;
+    }
+    n = n.parent;
   }
-  resetNodeColors();
+  walk().forEach((x) => stage.setNodeColor(x.key, C.base));
+  stage.setActive(null);
+  updateAllInfo();
+  status.textContent = op + '完成：中序 ' + inorder().join(' → ') + ' · 最大 |BF| = ' + maxBF() + (maxBF() <= 1 ? ' ✓' : ' ✗');
+  renderState();
 }
 
-function* deleteLeaf(key) {
+// ---- 插入 ----
+function* insertFlow(key) {
+  if (findNode(key)) {
+    status.textContent = '插入 ' + key + '：键已存在';
+    yield W(300);
+    return;
+  }
+  director.chapter('插入');
+  yield S(() => director.beat({
+    title: '插入 ' + key,
+    why: '先按 BST 规则找空位：小的往左、大的往右。',
+    stateText: '节点 ' + walk().length + ' · 高度 ' + heightOf(),
+    progress: 1,
+    camera: stage.overview(),
+    annotations: [{ id: 'head', text: '先按 BST 插入', anchor: at(root ? root.key : key), offset: [0, -50], className: 'gold' }],
+  }));
+  const path = [];
+  let cur = root;
+  while (cur) {
+    path.push(cur.key);
+    stage.setNodeColor(cur.key, C.path);
+    stage.setActive(cur.key, C.path);
+    director.annotations.set('cur', {
+      text: key + (key < cur.key ? ' < ' : ' > ') + cur.key + ' → ' + (key < cur.key ? '左' : '右'),
+      anchor: at(cur.key),
+      offset: [0, -50],
+      className: 'gold',
+    });
+    renderState(path, { current: cur.key });
+    yield W(280);
+    const next = key < cur.key ? cur.left : cur.right;
+    if (!next) break;
+    cur = next;
+  }
+  const n = { key, left: null, right: null, parent: null, height: 1 };
+  if (!root) root = n;
+  else {
+    n.parent = cur;
+    if (key < cur.key) cur.left = n;
+    else cur.right = n;
+  }
+  sync({ ms: 460, spawn: 230 });
+  const vn = stage.nodes.get(key);
+  if (vn) land(scene, vn.mesh);
+  director.annotations.set('new', { text: '新节点 ' + key + ' 落地', anchor: at(key), offset: [0, -50], className: 'final' });
+  path.forEach((k) => stage.setNodeColor(k, C.base));
+  yield W(480);
+  yield* retraceFlow(n.parent, '插入');
+}
+
+// ---- 删除 ----
+function* deleteFlow(key) {
   const z = findNode(key);
-  if (!z) { yield S(() => { status.textContent = key + ' 不存在'; }); yield W(400); return; }
-  yield S(() => { status.textContent = '删除节点 ' + key + '：红闪后收缩消失，子树顶替'; });
-  setNodeColor(key, RED);
-  yield W(450);
-  root = (function rec(node) {
-    if (!node) return null;
-    if (key < node.key) { node.left = rec(node.left); if (node.left) node.left.parent = node.key; }
-    else if (key > node.key) { node.right = rec(node.right); if (node.right) node.right.parent = node.key; }
-    else if (!node.left) { if (node.right) node.right.parent = node.parent; return node.right; }
-    else if (!node.right) { if (node.left) node.left.parent = node.parent; return node.left; }
-    return node;
-  })(root);
-  const vn = nodeView.get(key);
-  yield A(300, pp => { vn.mesh.scale.setScalar(1 - ease(pp)); });
-  vn.mesh.visible = false;
-  nodeView.delete(key); bfView.delete(key);
-  yield* moveToLayout();
-  updateBFLabels();
-  resetNodeColors();
-  yield W(200);
+  if (!z) {
+    status.textContent = '删除 ' + key + '：键不存在';
+    yield W(300);
+    return;
+  }
+  director.chapter('删除');
+  yield S(() => director.beat({
+    title: '删除 ' + key,
+    why: '删除可能降低子树高度，同样要回溯检查平衡因子。',
+    stateText: '节点 ' + walk().length + ' · 高度 ' + heightOf(),
+    progress: 6,
+    camera: stage.focus(key),
+    annotations: [{ id: 'target', text: '删除 ' + key, anchor: at(key), offset: [0, -50], className: 'warn' }],
+  }));
+  stage.setNodeColor(key, C.bad);
+  stage.setActive(key, C.bad);
+  yield W(500);
+  if (z.left && z.right) {
+    const succ = minNode(z.right);
+    stage.setNodeColor(succ.key, C.path);
+    director.annotations.set('succ', { text: '后继 ' + succ.key + ' 顶替', anchor: at(succ.key), offset: [0, -50], className: 'gold' });
+    yield W(450);
+  }
+  const start = deleteNode(z);
+  sync({ ms: 500 });
+  yield W(400);
+  if (start) yield* retraceFlow(start, '删除');
+  else {
+    status.textContent = root ? '删除根后由子节点接替' : '删除根后树为空';
+    renderState(root ? inorder() : []);
+  }
 }
 
 function* runAVL() {
-  clearView(); root = null;
-  yield S(() => { status.textContent = 'AVL 树：每个节点带平衡因子标签（黄字），|BF| > 1 红闪失衡，四种旋转修复'; });
-  yield W(500);
-  for (const k of [50, 30, 70, 20, 10]) yield* insertGen(k);
-  yield S(() => { status.textContent = '插入 10 触发 LL 失衡 → 右旋 30 修复 ✓，全部 |BF| ≤ 1'; });
-  yield W(300);
-  for (const k of [60, 80, 90]) yield* insertGen(k);
-  yield S(() => { status.textContent = '插入 60、80、90：回溯检查各节点 |BF| < 2，树保持平衡'; });
-  yield W(300);
-  yield* insertGen(75);
-  yield S(() => { status.textContent = '插入 75：逐层回溯，各节点 |BF| ≤ 1，无需旋转'; });
-  yield W(300);
-  yield* insertGen(15);
-  yield S(() => { status.textContent = '插入 15：逐层回溯，各节点 |BF| ≤ 1，无需旋转'; });
-  yield W(300);
-  yield* searchGen(75);
-  yield* deleteLeaf(10);
-  const arr = collect();
-  yield S(() => { status.textContent = '最终中序：' + arr.map(n => n.key).join(' → ') + '，全部 |BF| ≤ 1'; });
-  yield W(500);
-  yield S(() => { status.textContent = 'AVL 演示完成：插入 10 节点并 LL 旋转修复，查找 75 命中，删除节点 10（子树 15 顶替）；自平衡保证树高 O(log n)'; });
-  yield W(600);
+  director.reset();
+  stage.clear();
+  root = null;
+  rotations = 0;
+  DEMO_KEYS.forEach(insertModel);
+  sync();
+  updateAllInfo();
+  renderState();
+  director.chapter('平衡仪');
+  yield S(() => director.beat({
+    title: 'AVL 平衡仪',
+    why: '每个节点上方是 h/bf；只要 |BF| ≤ 1，树高就被锁在 O(log n)。',
+    stateText: '节点 ' + walk().length + ' · 高度 ' + heightOf() + ' · 最大 |BF| ' + maxBF(),
+    progress: 0,
+    camera: stage.overview(),
+    annotations: [{ id: 'bf', text: 'BF = 左高 − 右高', anchor: at(root.key), offset: [0, -50], className: 'gold' }],
+  }));
+  yield W(800);
+  yield* insertFlow(10);
+  yield* insertFlow(5);
+  yield* insertFlow(25);
+  yield* deleteFlow(5);
+  yield* insertFlow(90);
+  yield* insertFlow(95);
+  yield* insertFlow(85);
+  director.chapter('结算');
+  yield S(() => director.beat({
+    title: 'BST + 平衡 = AVL',
+    why: '中序有序且所有 |BF| ≤ 1；LL→右旋，RR→左旋，LR/RL→先转孩子再转自己。',
+    stateText: '中序 ' + inorder().join(' → ') + ' · 最大 |BF| ' + maxBF(),
+    progress: 8,
+    camera: stage.wide(),
+    annotations: [
+      { id: 'in', text: isMobile ? inorder().length + ' 键中序有序' : '中序：' + inorder().join(' → '), anchor: () => new THREE.Vector3(stage.center.x, 700 * SC, 0), offset: [0, -24], className: 'final' },
+      { id: 'b', text: '最大 |BF| = ' + maxBF() + ' ✓', anchor: at(root.key), offset: [0, -50], className: 'final' },
+    ],
+  }));
+  status.textContent = 'AVL 演示完成：中序 ' + inorder().join(' → ') + ' · 最大 |BF| = ' + maxBF() + ' ✓ · 旋转 ' + rotations + ' 次';
+  yield W(850);
 }
 
-// 默认演示体：加载即显示完整 AVL 树（点播放后 runAVL 会 clearView 重建）
-(function buildDefault() {
-  KEYS.forEach(k => insertModel(k));
-  const pos = layout();
-  KEYS.forEach(k => addNodeMesh(findNode(k), pos.get(k)));
-  syncEdges();
-  updateBFLabels();
-})();
-engine.queue(() => runAVL());
-panel.addButton('清空', () => { engine.clear(); clearView(); root = null; status.textContent = ''; });
+function restart() {
+  engine.clear();
+  director.reset();
+  status.textContent = '';
+  stage.clear();
+  root = null;
+  rotations = 0;
+  engine.start(runAVL());
+}
+function clearAll() {
+  engine.clear();
+  director.reset();
+  stage.clear();
+  root = null;
+  rotations = 0;
+  status.textContent = '';
+}
+function randomTree() {
+  engine.clear();
+  director.reset();
+  stage.clear();
+  root = null;
+  rotations = 0;
+  const keys = [];
+  while (keys.length < 7) {
+    const k = 10 + Math.floor(Math.random() * 90);
+    if (!keys.includes(k)) keys.push(k);
+  }
+  keys.forEach(insertModel);
+  sync();
+  updateAllInfo();
+  renderState();
+  status.textContent = '随机 AVL：' + keys.join(', ') + ' · 高度 ' + heightOf() + ' · 最大 |BF| ' + maxBF();
+}
+function runOp(kind, raw) {
+  status.textContent = '';
+  const key = parseInt(raw, 10);
+  if (!Number.isInteger(key) || key < 1 || key > 99) {
+    status.textContent = '请输入 1-99 的整数';
+    return;
+  }
+  engine.clear();
+  director.reset();
+  engine.start(kind === 'insert' ? insertFlow(key) : kind === 'search' ? searchFlow(key) : deleteFlow(key));
+}
 
+const keyInput = panel.addInput('键 1-99', (v) => runOp('insert', v), 3);
+input.addButton('插入', () => runOp('insert', keyInput.value));
+input.addButton('删除', () => runOp('delete', keyInput.value));
+input.addButton('查找', () => runOp('search', keyInput.value));
+input.addButton('随机', randomTree);
+input.addButton('清空', clearAll);
+
+// 初始展示：预建平衡树 + h/bf 标签
+DEMO_KEYS.forEach(insertModel);
+sync();
+updateAllInfo();
+renderState();
+engine.queue(() => runAVL());
 scene.start(engine);

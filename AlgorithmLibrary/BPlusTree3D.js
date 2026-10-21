@@ -1,530 +1,495 @@
-// AlgorithmLibrary/BPlusTree3D.js — B+ 树（3 阶）：内部多键卡片 + 叶层链（兄弟横向连接）+ 分裂复制键上移/借键/合并（function* 生成器驱动）
+// AlgorithmLibrary/BPlusTree3D.js — B+ 树（内部 2 键 / 叶子 3 键）：索引导航、叶子分裂、叶子链、范围查询、删除合并。
+// 卡片节点 + 叶间绿色箭头链；分裂时提升键从叶子升到父节点。
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
+import { GeneratorEngine, W, S } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VText } from '../3D/VisualObject3D.js';
-import { applyTheme, glowMaterial } from '../3D/Glow.js';
+import { VBox } from '../3D/VisualObject3D.js';
+import { applyTheme } from '../3D/Glow.js';
+import { StoryDirector } from '../3D/director/StoryDirector.js';
+import { InputKit } from '../3D/director/InputKit.js';
+import { TreeStage } from '../3D/director/TreeStage.js';
 applyTheme('BPlusTree3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
+const isMobile = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 900px)').matches;
+const SC = isMobile ? 0.78 : 1;
+const scene = new Scene3D('scene', { cameraPos: [320, 700, 1150], lookAt: [320, 460, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-
-const BLUE = 0x60a5fa, INDIGO = 0x818cf8, GOLD = 0xfcd34d, WHITE = 0xffffff, GREEN = 0x4ade80;
+const input = new InputKit(panel);
 const status = panel.addStatus('就绪');
+const stage = new TreeStage(scene, { center: [320, 470, 0], scale: SC, radius: 22, islandRadius: 640 });
 
-const MAX = 2, MIN = 1, LMAX = 3, LMIN = 1;  // 内部最多 2 键；叶最多 3 键
-const KEYX = 60, STEP_Y = 160, LEAF_Y = 350;
-const E = p => p * p * (3 - 2 * p);  // smoothstep
+const C = { base: 0x818cf8, path: 0xfcd34d, current: 0x22d3ee, ok: 0x4ade80, bad: 0xfb7185, chain: 0x4ade80 };
+const LEAF_MAX = 3;
+const IN_MAX = 2;
+const LEAF_MIN = 2;
+const IN_MIN = 1;
+const DEMO_KEYS = [10, 20, 30, 40, 50, 60, 70, 80];
 
-// ---- 纯数据模型 ----
+const director = new StoryDirector(scene, {
+  title: 'B+ 树 · 书架',
+  total: 8,
+  legend: [
+    { label: '索引节点', color: '#818cf8' },
+    { label: '导航路径', color: '#fcd34d' },
+    { label: '命中/结果', color: '#4ade80' },
+    { label: '当前叶', color: '#22d3ee' },
+    { label: '删除/分裂', color: '#fb7185' },
+  ],
+  onReplay: () => restart(),
+});
+
+// ---- 纯数据 B+ 树 ----
+let root = null;
 let nextId = 0;
-const model = new Map();
-let root = null, leafHead = null;
-function mkInternal() { const n = { id: 'n' + (nextId++), keys: [], children: [], parent: null, isLeaf: false }; model.set(n.id, n); return n; }
-function mkLeaf() { const n = { id: 'l' + (nextId++), keys: [], next: null, parent: null, isLeaf: true }; model.set(n.id, n); return n; }
-
-// 布局：中序键的 x → 节点中心，深度 → y；位置写入模块级缓冲，运行时零分配
-const posBuf = new Map();
-function posAt(id, x, y) { let v = posBuf.get(id); if (!v) { v = new THREE.Vector3(); posBuf.set(id, v); } v.set(x, y, 0); return v; }
-function layout() {
-  if (!root) return posBuf;
-  const all = [];
-  (function ino(n) {
-    if (n.isLeaf) return;
-    for (let i = 0; i < n.children.length; i++) { ino(n.children[i]); if (i < n.keys.length) all.push({ n, k: n.keys[i] }); }
-  })(root);
-  const keyX = all.map((e, i) => (i - (all.length - 1) / 2) * KEYX + 320);
-  const keyIdx = new Map();
-  all.forEach((e, i) => { const arr = keyIdx.get(e.n.id) || []; arr.push(keyX[i]); keyIdx.set(e.n.id, arr); });
-  const depth = new Map();
-  const q = [root]; depth.set(root.id, 0);
-  while (q.length) {
-    const n = q.shift();
-    if (n.isLeaf) continue;
-    for (const c of n.children) { depth.set(c.id, depth.get(n.id) + 1); q.push(c); }
+let splits = 0;
+let merges = 0;
+function makeNode(leaf) { return { id: 'b' + nextId++, leaf, keys: [], children: [], parent: null, next: null }; }
+function findLeaf(key) {
+  let n = root;
+  while (n && !n.leaf) { let i = 0; while (i < n.keys.length && key >= n.keys[i]) i++; n = n.children[i]; }
+  return n;
+}
+function insertKey(key) {
+  if (!root) root = makeNode(true);
+  const leaf = findLeaf(key);
+  let i = 0; while (i < leaf.keys.length && leaf.keys[i] < key) i++;
+  if (leaf.keys[i] === key) return { leaf, dup: true };
+  leaf.keys.splice(i, 0, key);
+  return leaf.keys.length <= LEAF_MAX ? { leaf } : { leaf, split: splitLeaf(leaf) };
+}
+function splitLeaf(leaf) {
+  splits++;
+  const mid = Math.ceil(leaf.keys.length / 2), right = makeNode(true);
+  right.keys = leaf.keys.splice(mid); right.next = leaf.next; leaf.next = right;
+  const up = right.keys[0];
+  insertIntoParent(leaf, up, right);
+  return { left: leaf, right, promoted: up };
+}
+function insertIntoParent(left, key, right) {
+  const p = left.parent;
+  if (!p) {
+    const nr = makeNode(false); nr.keys = [key]; nr.children = [left, right];
+    left.parent = nr; right.parent = nr; root = nr; return nr;
   }
-  for (const [id, xs] of keyIdx) posAt(id, xs.reduce((a, b) => a + b, 0) / xs.length, 830 - depth.get(id) * STEP_Y);
-  const allK = [];
-  for (let l = leafHead; l; l = l.next) for (const k of l.keys) allK.push(k);
-  const xMap = new Map();
-  allK.forEach((k, i) => xMap.set(k, (i - (allK.length - 1) / 2) * KEYX + 320));
-  for (let l = leafHead; l; l = l.next) {
-    let sum = 0;
-    for (const k of l.keys) sum += xMap.get(k);
-    posAt(l.id, l.keys.length ? sum / l.keys.length : 320, LEAF_Y);
+  const i = p.children.indexOf(left);
+  p.keys.splice(i, 0, key); p.children.splice(i + 1, 0, right); right.parent = p;
+  return p.keys.length <= IN_MAX ? null : splitInternal(p);
+}
+function splitInternal(node) {
+  splits++;
+  const mid = Math.floor(node.keys.length / 2), up = node.keys[mid], right = makeNode(false);
+  right.keys = node.keys.slice(mid + 1); right.children = node.children.slice(mid + 1);
+  right.children.forEach((c) => { c.parent = right; });
+  node.keys = node.keys.slice(0, mid); node.children = node.children.slice(0, mid + 1);
+  const p = node.parent;
+  if (!p) {
+    const nr = makeNode(false); nr.keys = [up]; nr.children = [node, right];
+    node.parent = nr; right.parent = nr; root = nr;
+    return { promoted: up, newRoot: nr };
   }
-  return posBuf;
+  const i = p.children.indexOf(node);
+  p.keys.splice(i, 0, up); p.children.splice(i + 1, 0, right); right.parent = p;
+  return p.keys.length <= IN_MAX ? { promoted: up } : splitInternal(p);
 }
-
-// ---- 视觉：对象池模块级预建（8 叶 + 6 内，覆盖演示峰值 5 叶 + 3 内），运行时零 new ----
-const nodeView = new Map();  // id -> { g, box, lbl, kind }
-const leafPool = [], intPool = [];
-let leafFree = [], intFree = [];
-function mkEntry(kind) {
-  const g = new THREE.Group(), c = kind === 'leaf' ? INDIGO : BLUE;
-  const box = new THREE.Mesh(new THREE.BoxGeometry(34, 44, 14), glowMaterial(c, { emissive: c }));
-  box.scale.x = 0.9; g.add(box);
-  const lbl = new VText(scene, { text: '', x: 0, y: 0, z: 10, color: '#ffffff', scale: 0.62 });
-  scene.remove(lbl.sprite); g.add(lbl.sprite);
-  g.scale.setScalar(0.01); g.visible = false; scene.add(g);
-  const e = { g, box, lbl, kind };
-  (kind === 'leaf' ? leafPool : intPool).push(e);
-  return e;
+function deleteKey(key) {
+  const leaf = findLeaf(key), i = leaf ? leaf.keys.indexOf(key) : -1;
+  if (i < 0) return { missing: true, leaf };
+  leaf.keys.splice(i, 1);
+  if (leaf === root) { const empty = !leaf.keys.length; if (empty) root = null; return { leaf, removed: key, empty }; }
+  return leaf.keys.length < LEAF_MIN ? { leaf, removed: key, ...mergeLeaf(leaf) } : { leaf, removed: key };
 }
-function resetFree() {
-  leafFree = [...leafPool]; intFree = [...intPool];
-  leafPool.concat(intPool).forEach(e => { e.g.visible = false; e.g.scale.setScalar(0.01); });
-}
-function clearView() {
-  resetFree();
-  edgePool.forEach(m => { m.visible = false; });
-  flyPool.forEach(t => { t.sprite.visible = false; });
-  nodeView.clear();
-}
-function addNodeVis(n, p) {
-  const e = (n.isLeaf ? leafFree : intFree).pop();
-  if (!e) return null;
-  e.g.position.copy(p);
-  e.g.visible = true;
-  e.g.scale.setScalar(0.01);
-  e.lbl.setText(n.keys.join('|'));
-  e.box.scale.x = Math.max(n.keys.length, 1) * 0.9;
-  const c = n.isLeaf ? INDIGO : BLUE;
-  e.box.material.color.setHex(c); e.box.material.emissive.setHex(c);
-  nodeView.set(n.id, e);
-  return e.g;
-}
-function refreshNodeVisual(n) {
-  const v = nodeView.get(n.id);
-  if (!v) return;
-  v.box.scale.x = Math.max(n.keys.length, 1) * 0.9;
-  v.lbl.setText(n.keys.join('|'));
-}
-function setNodeColor(id, c) {
-  const v = nodeView.get(id);
-  if (v) { v.box.material.color.setHex(c); v.box.material.emissive.setHex(c); }
-}
-function resetColors() {
-  nodeView.forEach((v, id) => {
-    const c = model.get(id).isLeaf ? INDIGO : BLUE;
-    v.box.material.color.setHex(c); v.box.material.emissive.setHex(c);
-  });
-}
-
-// 边：节点间曲线管 + 叶层兄弟链
-const edgePool = [];
-function tube(a, b, lift, r, op) {
-  const mid = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2 + lift);
-  const curve = new THREE.CatmullRomCurve3([a, mid, b]);
-  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 10, r, 6), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, opacity: op }));
-  m.visible = false; scene.add(m); edgePool.push(m);
-  return m;
-}
-function syncEdges() {
-  edgePool.forEach(m => { m.visible = false; });
-  (function walk(n) {
-    if (n.isLeaf) return;
-    for (const c of n.children) { tube(nodeView.get(n.id).g.position, nodeView.get(c.id).g.position, 18, 2, 0.7); walk(c); }
-  })(root);
-  for (let l = leafHead; l && l.next; l = l.next)
-    tube(nodeView.get(l.id).g.position, nodeView.get(l.next.id).g.position, 6, 1.8, 0.45);
-}
-
-// 运动：任务记录/飞行标签/位移走预建池
-const TASK_POOL = Array.from({ length: 30 }, () => ({ v: null, from: new THREE.Vector3(), to: new THREE.Vector3() }));
-const SV = new THREE.Vector3(), SV2 = new THREE.Vector3(), OFF = new THREE.Vector3();
-function offs(src, dx, dy, dz) { OFF.copy(src); OFF.x += dx; OFF.y += dy; OFF.z += dz; return OFF; }
-function* moveToLayout() {
-  const pos = layout();
-  const tasks = [];
-  let ti = 0;
-  nodeView.forEach((v, id) => {
-    const p = pos.get(id);
-    if (!p || v.g.position.distanceTo(p) < 0.5) return;
-    const t = TASK_POOL[ti++];
-    t.v = v; t.from.copy(v.g.position); t.to.copy(p);
-    tasks.push(t);
-  });
-  if (!tasks.length) { syncEdges(); return; }
-  yield A(440, pp => tasks.forEach(t => t.v.g.position.lerpVectors(t.from, t.to, E(pp))));
-  syncEdges();
-}
-function* popIn(g) { if (!g) return; yield A(420, p => g.scale.setScalar(0.01 + 0.99 * E(p))); }
-function* shrinkOut(id) {
-  const v = nodeView.get(id);
-  if (!v) return;
-  yield A(320, p => v.g.scale.setScalar(1 - E(p)));
-  v.g.visible = false;
-  (v.kind === 'leaf' ? leafFree : intFree).push(v);
-  nodeView.delete(id);
-  model.delete(id);
-}
-const flyPool = Array.from({ length: 4 }, () => { const t = new VText(scene, { text: '', x: 0, y: 0, z: 0, color: '#fcd34d', scale: 0.75 }); t.sprite.visible = false; return t; });
-let flyIdx = 0;
-function* flyLabel(text, from, to) {
-  const t = flyPool[flyIdx++ % flyPool.length];
-  t.setText(text);
-  t.sprite.position.copy(from);
-  t.sprite.visible = true;
-  yield A(400, p => t.sprite.position.lerpVectors(from, to, E(p)));
-  t.sprite.visible = false;
-}
-for (let i = 0; i < 8; i++) mkEntry('leaf');
-for (let i = 0; i < 6; i++) mkEntry('int');
-resetFree();
-
-// 默认演示体：加载即显示插完 11 键的完整 B+ 树（点播放后 runBPlus 会清空重建）
-(function buildDefault() {
-  const splitModel = n => {
-    const mid = Math.floor(n.keys.length / 2);
-    const promoted = n.keys[mid];
-    const right = n.isLeaf ? mkLeaf() : mkInternal();
-    right.keys = n.keys.slice(n.isLeaf ? mid : mid + 1);
-    if (n.isLeaf) { right.next = n.next; n.next = right; }
-    else {
-      right.parent = n.parent;
-      right.children = n.children.slice(mid + 1);
-      for (const c of right.children) c.parent = right;
-      n.children = n.children.slice(0, mid + 1);
-    }
-    n.keys = n.keys.slice(0, mid);
-    if (!n.parent) {
-      const nr = mkInternal();
-      nr.keys = [promoted]; nr.children = [n, right];
-      n.parent = nr; right.parent = nr;
-      root = nr;
-    } else {
-      const parent = n.parent;
-      let i = 0; while (i < parent.keys.length && parent.keys[i] < promoted) i++;
-      parent.keys.splice(i, 0, promoted);
-      parent.children.splice(i + 1, 0, right);
-      right.parent = parent;
-      if (parent.keys.length > MAX) splitModel(parent);
-    }
-  };
-  const ins = key => {
-    if (!root) { root = mkLeaf(); leafHead = root; root.keys.push(key); return; }
-    let n = root;
-    while (!n.isLeaf) { let i = 0; while (i < n.keys.length && n.keys[i] < key) i++; n = n.children[i]; }
-    let i = 0; while (i < n.keys.length && n.keys[i] < key) i++;
-    n.keys.splice(i, 0, key);
-    if (n.keys.length > LMAX) splitModel(n);
-  };
-  [20, 10, 30, 5, 15, 25, 35, 12, 18, 17, 33].forEach(ins);
-  const pos = layout();
-  for (const [id] of model) {
-    const n = model.get(id), p = pos.get(id);
-    if (!p) continue;
-    const g = addNodeVis(n, p);
-    if (g) g.scale.setScalar(1);
+// 先向左右兄弟借；借不到才合并，合并后超过容量则绝不执行。
+function mergeLeaf(leaf) {
+  const p = leaf.parent, i = p.children.indexOf(leaf);
+  const left = i > 0 ? p.children[i - 1] : null, right = i < p.children.length - 1 ? p.children[i + 1] : null;
+  if (left && left.keys.length > LEAF_MIN) {
+    leaf.keys.unshift(left.keys.pop()); p.keys[i - 1] = leaf.keys[0];
+    return { borrow: { leaf, donor: left, side: '左' } };
   }
-  syncEdges();
-})();
-
-// ---- 插入：下钻 → 写叶 → 叶分裂（副本键上移）→ 内部级联 ----
-function* insertGen(key) {
-  yield S(() => { status.textContent = '插入 ' + key + '：沿路径下钻到叶'; });
-  if (!root) {
-    root = mkLeaf(); leafHead = root;
-    root.keys.push(key);
-    addNodeVis(root, layout().get(root.id));
-    yield* popIn(nodeView.get(root.id).g);
-    yield W(250);
+  if (right && right.keys.length > LEAF_MIN) {
+    leaf.keys.push(right.keys.shift()); p.keys[i] = right.keys[0];
+    return { borrow: { leaf, donor: right, side: '右' } };
+  }
+  const ln = right ? leaf : left, rn = right || leaf, sep = right ? i : i - 1;
+  if (!ln || ln.keys.length + rn.keys.length > LEAF_MAX) return {};
+  ln.keys.push(...rn.keys); ln.next = rn.next;
+  p.keys.splice(sep, 1); p.children.splice(sep + 1, 1); merges++;
+  if (!p.keys.length) {
+    if (p === root) { root = p.children[0]; root.parent = null; }
+    else mergeInternal(p);
+  }
+  return { merge: { left: ln, right: rn } };
+}
+function mergeInternal(node) {
+  const p = node.parent, i = p.children.indexOf(node);
+  const left = i > 0 ? p.children[i - 1] : null, right = i < p.children.length - 1 ? p.children[i + 1] : null;
+  if (left && left.keys.length > IN_MIN) {
+    node.keys.unshift(p.keys[i - 1]); p.keys[i - 1] = left.keys.pop();
+    node.children.unshift(left.children.pop()); node.children[0].parent = node;
     return;
   }
+  if (right && right.keys.length > IN_MIN) {
+    node.keys.push(p.keys[i]); p.keys[i] = right.keys.shift();
+    node.children.push(right.children.shift()); node.children[node.children.length - 1].parent = node;
+    return;
+  }
+  const ln = right ? node : left, rn = right || node, sep = right ? i : i - 1;
+  if (!ln || ln.keys.length + 1 + rn.keys.length > IN_MAX) return;
+  ln.keys.push(p.keys[sep], ...rn.keys); ln.children.push(...rn.children);
+  rn.children.forEach((c) => { c.parent = ln; });
+  p.keys.splice(sep, 1); p.children.splice(sep + 1, 1); merges++;
+  if (!p.keys.length) {
+    if (p === root) { root = p.children[0]; root.parent = null; }
+    else mergeInternal(p);
+  }
+}
+function walkNodes(n = root, out = []) {
+  if (!n) return out;
+  out.push(n); n.children.forEach((c) => walkNodes(c, out)); return out;
+}
+function leafList() {
+  const out = [];
+  if (!root) return out;
+  let n = root; while (!n.leaf) n = n.children[0];
+  for (; n; n = n.next) out.push(n);
+  return out;
+}
+function searchPath(key) {
+  const path = [];
   let n = root;
-  while (!n.isLeaf) {
-    setNodeColor(n.id, GOLD);
-    yield W(200);
-    let i = 0; while (i < n.keys.length && n.keys[i] < key) i++;
+  while (n) {
+    path.push(n);
+    if (n.leaf) break;
+    let i = 0; while (i < n.keys.length && key >= n.keys[i]) i++;
     n = n.children[i];
   }
-  setNodeColor(n.id, GOLD);
-  yield W(200);
-  let i = 0; while (i < n.keys.length && n.keys[i] < key) i++;
-  if (i < n.keys.length && n.keys[i] === key) { yield S(() => { status.textContent = key + ' 已存在，中止'; }); yield W(400); resetColors(); return; }
-  n.keys.splice(i, 0, key);
-  refreshNodeVisual(n);
-  yield S(() => { status.textContent = '叶节点写入 ' + key + '（当前 ' + n.keys.join('|') + '）'; });
-  yield W(400);
-  if (n.keys.length > LMAX) {
-    yield S(() => { status.textContent = '叶溢出（>3 键）→ 分裂'; });
-    yield W(450);
-    yield* splitGen(n);
-  }
-  resetColors();
-  yield W(180);
+  return path;
 }
-function* splitGen(n) {
-  const isLeaf = n.isLeaf, mid = Math.floor(n.keys.length / 2);
-  const promoted = n.keys[mid];
-  const right = isLeaf ? mkLeaf() : mkInternal();
-  right.keys = n.keys.slice(isLeaf ? mid : mid + 1);
-  if (isLeaf) { right.next = n.next; n.next = right; }
-  else {
-    right.parent = n.parent;
-    right.children = n.children.slice(mid + 1);
-    for (const c of right.children) c.parent = right;
-    n.children = n.children.slice(0, mid + 1);
+const nodeLabel = (n) => (n.keys.length ? n.keys.join(n.leaf ? ' · ' : ' | ') : '空');
+
+// ---- 视觉：VBox 卡片 + TreeStage 边 ----
+const cards = new Map();
+const at = (id) => () => stage.vpos(id);
+function layoutB() {
+  const pos = new Map(), leaves = leafList();
+  if (!root) return pos;
+  const gap = 168 * SC, depth = new Map();
+  leaves.forEach((l, i) => pos.set(l.id, new THREE.Vector3(stage.center.x + (i - (leaves.length - 1) / 2) * gap, 340, 0)));
+  (function walk(n, d) { depth.set(n.id, d); n.children.forEach((c) => walk(c, d + 1)); })(root, 0);
+  const maxD = Math.max(...depth.values());
+  (function place(n) {
+    if (n.leaf) return;
+    n.children.forEach(place);
+    const xs = n.children.map((c) => pos.get(c.id).x);
+    pos.set(n.id, new THREE.Vector3((Math.min(...xs) + Math.max(...xs)) / 2, 340 + (maxD - depth.get(n.id)) * 150 * SC, 0));
+  })(root);
+  return pos;
+}
+function syncB(opts = {}) {
+  const pos = layoutB(), alive = new Set();
+  for (const n of walkNodes()) {
+    alive.add(n.id);
+    const p = pos.get(n.id);
+    let c = cards.get(n.id);
+    if (!c) {
+      c = new VBox(scene, { w: (n.leaf ? 136 : 122) * SC, h: 54 * SC, d: 26 * SC, x: p.x, y: p.y, z: p.z, label: nodeLabel(n), color: C.base });
+      cards.set(n.id, c); stage.attachNode(n.id, c, p);
+    } else {
+      if (opts.ms) c.moveTo(p.x, p.y, p.z, opts.ms); else c.mesh.position.copy(p);
+      c.setText(nodeLabel(n)); stage.positions.set(n.id, p.clone());
+    }
   }
-  n.keys = n.keys.slice(0, mid);
-  refreshNodeVisual(n);
-  SV.copy(nodeView.get(n.id).g.position);
-  addNodeVis(right, offs(SV, 0, -70, 0));
-  yield* popIn(nodeView.get(right.id).g);
-  yield S(() => { status.textContent = isLeaf ? '叶分裂：副本键 ' + promoted + ' 复制上移（B+ 特征，键仍存叶层）' : '内部分裂：键 ' + promoted + ' 上移，右半区生成新节点'; });
+  for (const id of [...cards.keys()]) {
+    if (alive.has(id)) continue;
+    stage.removeNode(id); cards.delete(id);
+  }
+  stage.setEdges(linksB());
+}
+function linksB() {
+  const links = [];
+  const point = (id, dy) => () => (stage.vpos(id) ? stage.vpos(id).clone().add(new THREE.Vector3(0, dy * SC, 0)) : null);
+  for (const n of walkNodes()) {
+    if (n.leaf) continue;
+    n.children.forEach((c) => links.push({ a: point(n.id, -27), b: point(c.id, 27), color: 0x64748b, opacity: 0.55, radius: 2 }));
+  }
+  for (const l of leafList()) if (l.next) links.push({ a: point(l.id, -42), b: point(l.next.id, -42), color: C.chain, opacity: 0.9, radius: 2.2, arrow: true, offset: 9 * SC });
+  return links;
+}
+const paintCard = (id, color) => cards.get(id)?.setColor(color, color);
+function paintAll() { cards.forEach((c) => c.setColor(C.base, C.base)); }
+function renderState(extra = {}) {
+  const leaves = leafList();
+  const index = walkNodes().filter((n) => !n.leaf).map((n) => '[' + n.keys.join('|') + ']').join(' ');
+  const blocks = [
+    { type: 'kv', label: 'B+ 树 · 阶数 3', items: [
+      { k: '节点数', v: walkNodes().length },
+      { k: '叶子数', v: leaves.length },
+      { k: '分裂次数', v: splits },
+      { k: '合并次数', v: merges },
+    ] },
+    { type: 'chips', label: '叶子链表（next 指针）', items: leaves.map((l) => ({ text: '[' + l.keys.join(' ') + ']', cls: extra.active === l.id ? 'current' : '' })), empty: '空' },
+    { type: 'text', label: '内部节点（纯索引）', value: index || '空' },
+  ];
+  if (extra.path) blocks.splice(2, 0, { type: 'chips', label: '导航路径', items: extra.path, empty: '—' });
+  if (extra.result) blocks.push({ type: 'text', label: '范围结果', value: extra.result });
+  director.stateUpdate({ blocks });
+}
+function pathChips(path) {
+  return path.map((n, i) => ({ text: n.keys.join('|') || '空', cls: i === path.length - 1 ? 'current' : '' }));
+}
+
+// ---- 查找 ----
+function* searchFlow(key) {
+  if (!root) { status.textContent = 'B+ 树为空'; return; }
+  director.chapter('查找');
+  yield S(() => director.beat({
+    title: '查找 ' + key,
+    why: '内部节点只做索引：每层按分隔键选孩子，数据只可能在叶子。',
+    stateText: '根索引 [' + root.keys.join('|') + ']',
+    progress: 1,
+    camera: stage.overview(),
+    annotations: [{ id: 'root', text: '内部只做索引', anchor: at(root.id), offset: [0, -50], className: 'gold' }],
+  }));
+  const path = searchPath(key);
+  for (const n of path) {
+    paintCard(n.id, C.path);
+    stage.setActive(n.id, C.path);
+    director.annotations.set('cur', { text: n.leaf ? '叶层 [' + n.keys.join(' ') + ']' : '索引 [' + n.keys.join('|') + '] → 第 ' + (n.children.findIndex((c) => c === path[path.indexOf(n) + 1]) + 1) + ' 个孩子', anchor: at(n.id), offset: [0, -50], className: 'gold' });
+    renderState({ path: pathChips(path.slice(0, path.indexOf(n) + 1)) });
+    yield W(420);
+  }
+  const leaf = path[path.length - 1];
+  const found = leaf.keys.includes(key);
+  paintCard(leaf.id, found ? C.ok : C.bad);
+  stage.setActive(leaf.id, found ? C.ok : C.bad);
+  director.annotations.set('cur', { text: found ? '命中 ' + key : key + ' 不在叶子', anchor: at(leaf.id), offset: [0, -50], className: found ? 'final' : 'warn' });
+  status.textContent = '查找 ' + key + '：' + (found ? '命中' : '不存在') + ' · 访问 ' + path.length + ' 层';
+  renderState({ path: pathChips(path), active: leaf.id });
+  yield W(800);
+  paintAll(); stage.setActive(null);
+}
+
+// ---- 插入 / 分裂 ----
+function* insertFlow(key) {
+  if (findLeaf(key)?.keys.includes(key)) {
+    status.textContent = '插入 ' + key + '：键已存在';
+    yield W(300);
+    return;
+  }
+  director.chapter('插入');
+  yield S(() => director.beat({
+    title: '插入 ' + key,
+    why: '先沿索引找到目标叶子，再在叶内有序列插入；数据只留在叶子。',
+    stateText: '叶子容量 ' + LEAF_MAX + ' 键',
+    progress: 2,
+    camera: stage.overview(),
+    annotations: [{ id: 'leaf', text: '数据只在叶子', anchor: () => (root ? at(root.id)() : null), offset: [0, -50], className: 'gold' }],
+  }));
+  const path = searchPath(key);
+  for (const n of path) {
+    paintCard(n.id, C.path);
+    stage.setActive(n.id, C.path);
+    renderState({ path: pathChips(path.slice(0, path.indexOf(n) + 1)) });
+    yield W(330);
+  }
+  const res = insertKey(key);
+  syncB({ ms: 460 });
+  paintCard(res.leaf.id, C.ok);
+  stage.setActive(res.leaf.id, C.ok);
+  status.textContent = '插入 ' + key + '：叶子 [' + res.leaf.keys.join(' ') + ']';
+  renderState({ active: res.leaf.id });
+  yield W(600);
+  if (res.split) {
+    const { left, right, promoted } = res.split;
+    yield S(() => director.beat({
+      title: '叶子分裂：键值上升',
+      why: '叶子满了对半分裂；中间键复制到父节点做分隔，数据仍只留在叶子。',
+      stateText: '分裂：[' + left.keys.join(' ') + '] | [' + right.keys.join(' ') + ']，上升 ' + promoted,
+      progress: 3,
+      camera: stage.focus(left.id, { dist: 430 }),
+      annotations: [
+        { id: 'l', text: '左叶 [' + left.keys.join(' ') + ']', anchor: at(left.id), offset: [0, -50], className: 'final' },
+        { id: 'r', text: '右叶 [' + right.keys.join(' ') + ']', anchor: at(right.id), offset: [0, -50], className: 'gold' },
+      ],
+    }));
+    paintCard(left.id, C.ok);
+    paintCard(right.id, C.ok);
+    status.textContent = '分裂完成：键 ' + promoted + ' 上升到父节点 · 累计 ' + splits + ' 次';
+    renderState({ active: right.id });
+    yield W(750);
+  }
+  paintAll(); stage.setActive(null);
+}
+
+// ---- 范围查询 ----
+function* rangeFlow(lo, hi) {
+  if (!root) { status.textContent = 'B+ 树为空'; return; }
+  if (lo > hi) [lo, hi] = [hi, lo];
+  director.chapter('范围查询');
+  yield S(() => director.beat({
+    title: '范围查询 [' + lo + ', ' + hi + ']',
+    why: '先定位下界所在叶子，再沿 next 指针横扫叶子链；不用回到根。',
+    stateText: '区间 [' + lo + ', ' + hi + ']',
+    progress: 5,
+    camera: stage.overview(),
+    annotations: [{ id: 'chain', text: '沿叶子链扫描', anchor: () => (leafList()[0] ? at(leafList()[0].id)() : null), offset: [0, -50], className: 'gold' }],
+  }));
+  const path = searchPath(lo);
+  for (const n of path) {
+    paintCard(n.id, C.path);
+    yield W(320);
+  }
+  const result = [], leaves = leafList();
+  let n = findLeaf(lo) || leaves[0];
+  let guard = leaves.length + 1;
+  while (n && guard-- > 0) {
+    if (n.keys.length && n.keys[0] > hi) break;
+    paintCard(n.id, C.ok);
+    for (const k of n.keys) if (k >= lo && k <= hi) result.push(k);
+    director.annotations.set('scan', { text: '扫描 [' + n.keys.join(' ') + ']', anchor: at(n.id), offset: [0, -50], className: 'final' });
+    renderState({ result: result.length ? result.join(' → ') : '—', active: n.id });
+    yield W(420);
+    n = n.next;
+  }
+  status.textContent = '范围查询 [' + lo + ',' + hi + ']：结果 ' + (result.join(' → ') || '空');
+  renderState({ result: result.length ? result.join(' → ') : '空' });
+  yield W(800);
+  paintAll();
+}
+
+// ---- 删除 / 合并 ----
+function* deleteFlow(key) {
+  const leaf = findLeaf(key);
+  if (!leaf || !leaf.keys.includes(key)) {
+    status.textContent = '删除 ' + key + '：键不存在';
+    yield W(300);
+    return;
+  }
+  director.chapter('删除/合并');
+  yield S(() => director.beat({
+    title: '删除 ' + key,
+    why: '叶子删空后保持半满：能借就借，不能借就与兄弟合并，并回收父节点分隔键。',
+    stateText: '叶 [' + leaf.keys.join(' ') + ']',
+    progress: 6,
+    camera: stage.focus(leaf.id),
+    annotations: [{ id: 'target', text: '删除 ' + key, anchor: at(leaf.id), offset: [0, -50], className: 'warn' }],
+  }));
+  paintCard(leaf.id, C.bad);
   yield W(450);
-  if (!n.parent) {
-    const nr = mkInternal();
-    nr.keys = [promoted]; nr.children = [n, right];
-    n.parent = nr; right.parent = nr;
-    root = nr;
-    SV.copy(nodeView.get(n.id).g.position);
-    addNodeVis(nr, offs(SV, 0, -70, 0));
-    yield* popIn(nodeView.get(nr.id).g);
-    yield S(() => { status.textContent = '根分裂：新根生成，含键 ' + promoted; });
-    yield* moveToLayout();
-    yield W(450);
+  const res = deleteKey(key);
+  syncB({ ms: 500 });
+  if (res.empty || !root) {
+    status.textContent = '删除 ' + key + ' 后树为空';
+    renderState({ active: null });
+  } else if (res.borrow) {
+    const b = res.borrow;
+    paintCard(b.leaf.id, C.ok); stage.setActive(b.leaf.id, C.ok);
+    director.annotations.set('borrow', { text: '向' + b.side + '兄弟借键 → [' + b.leaf.keys.join(' ') + ']', anchor: at(b.leaf.id), offset: [0, -50], className: 'final' });
+    status.textContent = '删除 ' + key + '：向' + b.side + '兄弟借用 · 叶 [' + b.leaf.keys.join(' ') + ']';
+    renderState({ active: b.leaf.id });
+  } else if (res.merge) {
+    paintCard(res.merge.left.id, C.ok);
+    stage.setActive(res.merge.left.id, C.ok);
+    director.annotations.set('merge', { text: '合并 → [' + res.merge.left.keys.join(' ') + ']', anchor: at(res.merge.left.id), offset: [0, -50], className: 'final' });
+    status.textContent = '删除 ' + key + '：合并后叶 [' + res.merge.left.keys.join(' ') + '] · 累计 ' + merges + ' 次';
+    renderState({ active: res.merge.left.id });
   } else {
-    const parent = n.parent;
-    let i = 0; while (i < parent.keys.length && parent.keys[i] < promoted) i++;
-    parent.keys.splice(i, 0, promoted);
-    parent.children.splice(i + 1, 0, right);
-    right.parent = parent;
-    SV.copy(nodeView.get(n.id).g.position);
-    SV2.copy(nodeView.get(parent.id).g.position);
-    yield* flyLabel(String(promoted), SV, SV2);
-    refreshNodeVisual(parent);
-    setNodeColor(parent.id, GOLD);
-    yield S(() => { status.textContent = (isLeaf ? '副本键 ' : '键 ') + promoted + ' 飞行上移进内部节点'; });
-    yield* moveToLayout();
-    yield W(450);
-    if (parent.keys.length > MAX) {
-      yield S(() => { status.textContent = '父（内部）节点溢出 → 级联分裂'; });
-      yield W(400);
-      yield* splitGen(parent);
-    }
+    status.textContent = '删除 ' + key + '：叶 [' + res.leaf.keys.join(' ') + '] ' + (res.leaf === root ? '已是根叶（不要求 LEAF_MIN=' + LEAF_MIN + '）' : '仍满足 LEAF_MIN=' + LEAF_MIN);
+    renderState({ active: res.leaf.id });
   }
-}
-
-// ---- 查找：内部下钻 → 叶命中绿闪 ----
-function* searchGen(key) {
-  yield S(() => { status.textContent = '查找 ' + key + '：内部节点下钻到叶层'; });
-  let n = root;
-  while (!n.isLeaf) {
-    setNodeColor(n.id, GOLD);
-    yield W(220);
-    let i = 0; while (i < n.keys.length && n.keys[i] < key) i++;
-    n = n.children[i];
-  }
-  setNodeColor(n.id, GOLD);
-  yield W(220);
-  const found = n.keys.includes(key);
-  if (found) {
-    const v = nodeView.get(n.id);
-    v.box.material.color.setHex(GREEN); v.box.material.emissive.setHex(GREEN);
-    yield S(() => { status.textContent = '命中 ' + key + '！（叶节点绿色闪光）'; });
-    yield A(380, p => { v.g.scale.setScalar(1 + 0.15 * Math.sin(Math.PI * p)); });
-    v.g.scale.setScalar(1);
-  } else {
-    yield S(() => { status.textContent = key + ' 不存在'; });
-    yield W(400);
-  }
-  resetColors();
-  yield W(150);
-}
-
-// ---- 删除：叶删键 → 叶借键 / 叶合并 + 内部下溢修复 ----
-function* deleteGen(key) {
-  let n = root;
-  if (!n) { yield S(() => { status.textContent = '树为空'; }); yield W(300); return; }
-  while (!n.isLeaf) {
-    setNodeColor(n.id, GOLD);
-    yield W(200);
-    let i = 0; while (i < n.keys.length && n.keys[i] < key) i++;
-    n = n.children[i];
-  }
-  setNodeColor(n.id, GOLD);
-  yield W(200);
-  const i = n.keys.indexOf(key);
-  if (i < 0) { yield S(() => { status.textContent = key + ' 不存在'; }); yield W(400); resetColors(); return; }
-  n.keys.splice(i, 1);
-  refreshNodeVisual(n);
-  yield S(() => { status.textContent = '删除叶键 ' + key + '（剩 ' + (n.keys.length ? n.keys.join('|') : '空') + '）'; });
-  yield W(400);
-  yield* rebalanceLeafGen(n);
-  resetColors();
-  yield W(200);
-}
-function* rebalanceLeafGen(n) {
-  if (n === root) {
-    if (n.keys.length === 0) {
-      root = null; leafHead = null;
-      yield* shrinkOut(n.id);
-      yield S(() => { status.textContent = '树清空'; });
-      yield W(300);
-    }
-    return;
-  }
-  if (n.keys.length >= LMIN) return;
-  const parent = n.parent;
-  const idx = parent.children.indexOf(n);
-  const left = idx > 0 ? parent.children[idx - 1] : null;
-  const right = idx < parent.children.length - 1 ? parent.children[idx + 1] : null;
-  SV.copy(nodeView.get(n.id).g.position);
-  if (left && left.keys.length > LMIN) {
-    const moved = left.keys.pop();
-    n.keys.unshift(moved);
-    parent.keys[idx - 1] = n.keys[0];
-    SV2.copy(nodeView.get(left.id).g.position);
-    yield* flyLabel(String(moved), SV2, SV);
-    refreshNodeVisual(parent); refreshNodeVisual(left); refreshNodeVisual(n);
-    setNodeColor(parent.id, GOLD);
-    yield S(() => { status.textContent = '叶借键：' + moved + ' 右移，父键更新为 ' + n.keys[0]; });
-    yield* moveToLayout();
-    yield W(450);
-  } else if (right && right.keys.length > LMIN) {
-    const moved = right.keys.shift();
-    n.keys.push(moved);
-    parent.keys[idx] = right.keys[0];
-    SV2.copy(nodeView.get(right.id).g.position);
-    yield* flyLabel(String(moved), SV2, SV);
-    refreshNodeVisual(parent); refreshNodeVisual(right); refreshNodeVisual(n);
-    setNodeColor(parent.id, GOLD);
-    yield S(() => { status.textContent = '叶借键：' + moved + ' 左移，父键更新为 ' + right.keys[0]; });
-    yield* moveToLayout();
-    yield W(450);
-  } else if (left) {
-    left.keys.push(...n.keys);
-    left.next = n.next;
-    parent.keys.splice(idx - 1, 1);
-    parent.children.splice(idx, 1);
-    yield S(() => { status.textContent = '叶合并：并入左兄弟，父键删除'; });
-    yield W(350);
-    yield* shrinkOut(n.id);
-    refreshNodeVisual(left); refreshNodeVisual(parent);
-    yield* moveToLayout();
-    yield W(300);
-    if (parent.keys.length < MIN) yield* rebalanceInternalGen(parent);
-  } else {
-    n.keys.push(...right.keys);
-    n.next = right.next;
-    parent.keys.splice(idx, 1);
-    parent.children.splice(idx + 1, 1);
-    yield S(() => { status.textContent = '叶合并：右兄弟并入本叶，父键删除'; });
-    yield W(350);
-    yield* shrinkOut(right.id);
-    refreshNodeVisual(n); refreshNodeVisual(parent);
-    yield* moveToLayout();
-    yield W(300);
-    if (parent.keys.length < MIN) yield* rebalanceInternalGen(parent);
-  }
-}
-function* rebalanceInternalGen(n) {
-  if (n === root) {
-    if (n.keys.length === 0 && n.children.length === 1) {
-      const c = n.children[0];
-      root = c; c.parent = null;
-      yield S(() => { status.textContent = '根空 → 孩子上提，树高 -1'; });
-      yield* shrinkOut(n.id);
-      yield* moveToLayout();
-      yield W(400);
-    }
-    return;
-  }
-  if (n.keys.length >= MIN) return;
-  const parent = n.parent;
-  const idx = parent.children.indexOf(n);
-  const left = idx > 0 ? parent.children[idx - 1] : null;
-  const right = idx < parent.children.length - 1 ? parent.children[idx + 1] : null;
-  SV.copy(nodeView.get(n.id).g.position);
-  SV2.copy(nodeView.get(parent.id).g.position);
-  if (left && left.keys.length > MIN) {
-    const moved = parent.keys[idx - 1];
-    const lastK = left.keys[left.keys.length - 1];
-    parent.keys[idx - 1] = left.keys.pop();
-    n.keys.unshift(moved);
-    if (left.children.length) { const c = left.children.pop(); n.children.unshift(c); c.parent = n; }
-    SV.copy(nodeView.get(left.id).g.position);
-    yield* flyLabel(String(lastK), SV, SV2);
-    SV.copy(nodeView.get(n.id).g.position);
-    yield* flyLabel(String(moved), SV2, SV);
-    refreshNodeVisual(parent); refreshNodeVisual(left); refreshNodeVisual(n);
-    yield S(() => { status.textContent = '内部借键：' + lastK + ' 上移，' + moved + ' 下沉'; });
-    yield* moveToLayout();
-    yield W(450);
-  } else if (right && right.keys.length > MIN) {
-    const moved = parent.keys[idx];
-    const firstK = right.keys[0];
-    parent.keys[idx] = right.keys.shift();
-    n.keys.push(moved);
-    if (right.children.length) { const c = right.children.shift(); n.children.push(c); c.parent = n; }
-    SV.copy(nodeView.get(right.id).g.position);
-    yield* flyLabel(String(firstK), SV, SV2);
-    SV.copy(nodeView.get(n.id).g.position);
-    yield* flyLabel(String(moved), SV2, SV);
-    refreshNodeVisual(parent); refreshNodeVisual(right); refreshNodeVisual(n);
-    yield S(() => { status.textContent = '内部借键：' + firstK + ' 上移，' + moved + ' 下沉'; });
-    yield* moveToLayout();
-    yield W(450);
-  } else {
-    const sib = left || right;
-    SV.copy(nodeView.get(sib.id).g.position);
-    if (left) {
-      const midK = parent.keys[idx - 1];
-      left.keys.push(midK, ...n.keys);
-      left.children.push(...n.children);
-      for (const c of n.children) c.parent = left;
-      parent.keys.splice(idx - 1, 1);
-      parent.children.splice(idx, 1);
-      yield* flyLabel(String(midK), SV2, SV);
-      yield S(() => { status.textContent = '内部合并：' + midK + ' 下沉，节点并入左兄弟'; });
-      yield W(350);
-      yield* shrinkOut(n.id);
-      refreshNodeVisual(left); refreshNodeVisual(parent);
-    } else {
-      const midK = parent.keys[idx];
-      n.keys.push(midK, ...right.keys);
-      n.children.push(...right.children);
-      for (const c of right.children) c.parent = n;
-      parent.keys.splice(idx, 1);
-      parent.children.splice(idx + 1, 1);
-      yield* flyLabel(String(midK), SV2, SV);
-      yield S(() => { status.textContent = '内部合并：' + midK + ' 下沉，右兄弟并入'; });
-      yield W(350);
-      yield* shrinkOut(sib.id);
-      refreshNodeVisual(n); refreshNodeVisual(parent);
-    }
-    yield* moveToLayout();
-    yield W(350);
-    if (parent.keys.length < MIN) yield* rebalanceInternalGen(parent);
-  }
+  yield W(850);
+  paintAll();
+  stage.setActive(null);
 }
 
 function* runBPlus() {
-  clearView(); root = null; leafHead = null; nextId = 0; model.clear();
-  yield S(() => { status.textContent = 'B+ 树（3 阶）演示：蓝 = 内部节点（存副本键），靛 = 叶节点（存全部键），白管 = 叶层兄弟链；键只存叶层，内部存副本'; });
-  yield W(400);
-  for (const k of [20, 10, 30, 5, 15, 25, 35, 12, 18, 17, 33]) yield* insertGen(k);
-  yield S(() => { status.textContent = '11 键插入完成：3 次叶分裂（副本键上移）+ 1 次内部级联分裂'; });
-  yield W(450);
-  yield* searchGen(33);
-  yield* deleteGen(5);
-  yield* deleteGen(10);
-  yield* deleteGen(17);
-  yield* deleteGen(18);
-  yield* deleteGen(20);
-  yield* deleteGen(33);
-  yield* deleteGen(30);
-  const chain = [];
-  for (let l = leafHead; l; l = l.next) chain.push(l.keys.join('|'));
-  yield S(() => { status.textContent = 'B+ 树演示完成：插入 11 键（叶分裂×3/内部级联×1），查找 33 命中，删除演示叶借键/叶合并/内部借键/根上提；叶层链 ' + chain.join(' → ') + '，范围查找只需沿链走 O(log n + k)'; });
+  director.reset(); stage.clear(); cards.clear();
+  root = null; nextId = 0; splits = 0; merges = 0;
+  DEMO_KEYS.forEach(insertKey);
+  syncB();
+  renderState();
+  director.chapter('书架');
+  yield S(() => director.beat({
+    title: 'B+ 树书架',
+    why: '内部节点只是索引，所有数据在叶子；叶子用 next 指针连成传送带。',
+    stateText: '阶数 3 · 叶子 ' + leafList().length + ' 片 · 节点 ' + walkNodes().length,
+    progress: 0,
+    camera: stage.overview(),
+    annotations: [
+      { id: 'root', text: '内部 = 索引', anchor: at(root.id), offset: [0, -50], className: 'gold' },
+      { id: 'leaf', text: '数据只在叶子', anchor: at(leafList()[0].id), offset: [0, -50], className: 'final' },
+    ],
+  }));
   yield W(800);
+  yield* searchFlow(60);
+  yield* insertFlow(55);
+  yield* insertFlow(56);
+  yield* rangeFlow(45, 65);
+  yield* deleteFlow(60);
+  yield* deleteFlow(56);
+  director.chapter('结算');
+  yield S(() => director.beat({
+    title: '索引 + 叶子链 = 数据库索引',
+    why: '内部索引让点查 O(log n)，叶子链让范围查询只扫结果段；这就是 MySQL 索引爱用 B+ 树的原因。',
+    stateText: '分裂 ' + splits + ' 次 · 合并 ' + merges + ' 次 · 叶子 ' + leafList().length + ' 片',
+    progress: 8,
+    camera: stage.wide(),
+    annotations: [
+      { id: 'chain', text: '叶子链：' + leafList().map((l) => '[' + l.keys.join(' ') + ']').join(' → '), anchor: () => new THREE.Vector3(stage.center.x, 650 * SC, 0), offset: [0, -24], className: 'final' },
+    ],
+  }));
+  status.textContent = 'B+ 树演示完成：叶子链 ' + leafList().map((l) => '[' + l.keys.join(' ') + ']').join(' → ');
+  yield W(850);
 }
 
-engine.queue(() => runBPlus());
-panel.addButton('清空', () => { engine.clear(); clearView(); root = null; leafHead = null; nextId = 0; model.clear(); status.textContent = ''; });
+function resetData() {
+  engine.clear(); director.reset(); stage.clear(); cards.clear();
+  root = null; nextId = 0; splits = 0; merges = 0;
+}
+function restart() { resetData(); status.textContent = ''; engine.start(runBPlus()); }
+function clearAll() { resetData(); status.textContent = ''; }
+function randomTree() {
+  resetData();
+  const keys = [];
+  while (keys.length < 8) {
+    const k = 10 + Math.floor(Math.random() * 90);
+    if (!keys.includes(k)) keys.push(k);
+  }
+  keys.forEach(insertKey);
+  syncB();
+  renderState();
+  status.textContent = '随机 B+ 树：' + keys.join(', ') + ' · 叶子 ' + leafList().length + ' 片';
+}
+function runOp(kind, raw) {
+  status.textContent = '';
+  const range = /^\s*(\d+)\s*-\s*(\d+)\s*$/.exec(raw);
+  if (kind === 'range') {
+    if (!range) { status.textContent = '范围格式：45-65'; return; }
+    engine.clear();
+    director.reset();
+    engine.start(rangeFlow(parseInt(range[1], 10), parseInt(range[2], 10)));
+    return;
+  }
+  const key = parseInt(raw, 10);
+  if (!Number.isInteger(key) || key < 1 || key > 99) {
+    status.textContent = '请输入 1-99 的整数';
+    return;
+  }
+  engine.clear();
+  director.reset();
+  engine.start(kind === 'insert' ? insertFlow(key) : kind === 'delete' ? deleteFlow(key) : searchFlow(key));
+}
 
+DEMO_KEYS.forEach(insertKey); syncB(); renderState();
+const keyInput = panel.addInput('键 / 范围 45-65', (v) => runOp(/^\s*\d+\s*-\s*\d+\s*$/.test(v) ? 'range' : 'insert', v), 7);
+input.addButton('插入', () => runOp('insert', keyInput.value));
+input.addButton('删除', () => runOp('delete', keyInput.value));
+input.addButton('查找', () => runOp('search', keyInput.value));
+input.addButton('范围', () => runOp('range', keyInput.value));
+input.addButton('随机', randomTree);
+input.addButton('清空', clearAll);
+
+engine.queue(() => runBPlus());
 scene.start(engine);

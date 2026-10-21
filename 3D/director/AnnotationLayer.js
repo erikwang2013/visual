@@ -13,10 +13,12 @@ export class AnnotationLayer {
     this.root.appendChild(this.svg);
     this.container.appendChild(this.root);
     this.items = new Map();
+    this._v = new THREE.Vector3();
     this.rect = { width: 1, height: 1 };
     this.resize = () => {
       const r = this.container.getBoundingClientRect();
       this.rect = { width: r.width, height: r.height };
+      for (const it of this.items.values()) it.dirty = true;
     };
     window.addEventListener('resize', this.resize);
     if (typeof ResizeObserver !== 'undefined') {
@@ -46,6 +48,7 @@ export class AnnotationLayer {
     it.offset = offset;
     it.textEl.textContent = text;
     it.el.className = 'story-anno ' + className;
+    it.dirty = true;
   }
 
   remove(id) {
@@ -71,7 +74,7 @@ export class AnnotationLayer {
         it.el.style.display = it.line.style.display = it.dot.style.display = 'none';
         continue;
       }
-      const v = new THREE.Vector3(anchor.x, anchor.y, anchor.z).project(cam);
+      const v = this._v.set(anchor.x, anchor.y, anchor.z).project(cam);
       const visible = v.z > -1 && v.z < 1 && Math.abs(v.x) < 1.25 && Math.abs(v.y) < 1.25;
       if (!visible) {
         it.el.style.display = it.line.style.display = it.dot.style.display = 'none';
@@ -79,11 +82,17 @@ export class AnnotationLayer {
       }
       const x = (v.x * 0.5 + 0.5) * w;
       const y = (-v.y * 0.5 + 0.5) * h;
-      const tx = x + it.offset[0];
-      const ty = y + it.offset[1];
       it.el.style.display = 'block';
       it.line.style.display = 'block';
       it.dot.style.display = 'block';
+      if (it.dirty || !it.w) {
+        it.w = it.el.offsetWidth;
+        it.h = it.el.offsetHeight;
+        it.dirty = false;
+      }
+      const halfW = it.w / 2 + 4;
+      const tx = Math.max(halfW, Math.min(w - halfW, x + it.offset[0]));
+      const ty = Math.max(it.h + 6, Math.min(h - 10, y + it.offset[1]));
       it.el.style.transform = `translate(${tx}px, ${ty}px) translate(-50%, -100%)`;
       it.line.setAttribute('x1', x);
       it.line.setAttribute('y1', y);

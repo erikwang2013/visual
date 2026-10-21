@@ -1,151 +1,414 @@
-// AlgorithmLibrary/EditDistance3D.js — 编辑距离：S="CART"→T="CRAT" 的 5×5 DP 表逐格填，三源（青=上/橙=左/紫=对角）依次高亮、金=当前格、方向字符放大动画、绿=回溯路径（function* 生成器驱动，解说入状态栏）
+// AlgorithmLibrary/EditDistance3D.js — 编辑距离：DP 表格 + 插入/删除/替换三色箭头 + 金色回溯操作路径。
+import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
+import { GeneratorEngine, W, S } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VText, VBox, easeInOut } from '../3D/VisualObject3D.js';
+import { VText } from '../3D/VisualObject3D.js';
 import { applyTheme } from '../3D/Glow.js';
+import { StoryDirector } from '../3D/director/StoryDirector.js';
+import { InputKit } from '../3D/director/InputKit.js';
+import { TableStage } from '../3D/director/TableStage.js';
 applyTheme('EditDistance3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [430, 650, 900], lookAt: [320, 445, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-
-const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc084fc, WHITE = 0xffffff;
+const input = new InputKit(panel);
 const status = panel.addStatus('就绪');
 
-const SA = 'CART', TB = 'CRAT';   // SA 行串 / TB 列串（不叫 S/T，避免遮蔽生成器助手 S）
-const N = SA.length, M = TB.length;   // 列数 / 行数（均 4）
-const dp = Array.from({ length: M + 1 }, () => Array(N + 1).fill(0));
-const cellView = new Map();   // 'i-j' -> {box}
-const headerViews = [];       // 表头 VText（含 ε）——clearView 必须移除，防清空重播叠加
-const BX = j => 320 + (j - 2) * 62;   // j=0..4 → 196/258/320/382/444
-const BY = i => 606 - i * 62;         // i=0..4 → 606/544/482/420/358
+const BASE = 0x60a5fa, DIM = 0x475569, MATCH = 0x4ade80, INS = 0x22d3ee, DEL = 0xfb923c, REP = 0xa78bfa, GOLD = 0xfde047;
+let T = 'kitten';    // 行：改写起点
+let TARGET = 'sitting';   // 列：改写终点
+let stage = null;
+let resultText = null;
+let dp = [];
+let curCell = null;
+let cands = null;
+let ops = [];
+let finalDist = null;
 
-// 方向字符单例：模块顶层创建，永不进 clearView、绝不 dispose/重建（重建会破坏生成器引用）
-const dirT = new VText(scene, { text: '↖', x: 0, y: 0, z: 0, color: WHITE, scale: 0.5 });
-dirT.sprite.visible = false;
-const BS = dirT.sprite.scale.clone();   // 基准缩放
+const director = new StoryDirector(scene, {
+  title: '编辑距离 · 三操作',
+  total: 8,
+  legend: [
+    { label: '插入', color: '#22d3ee' },
+    { label: '删除', color: '#fb923c' },
+    { label: '替换', color: '#a78bfa' },
+    { label: '路径', color: '#fde047' },
+  ],
+  onReplay: () => restart(true),
+});
 
-// 16 格文案（逐字；候选值已核验）
-const CELL_MSG = {
-  '1-1': 'd[1][1] = min(上 2, 左 2, 对角 0) = 0（C=C 匹配，取对角）',
-  '1-2': 'd[1][2] = min(上 3, 左 1, 对角 2) = 1（插入 R）',
-  '1-3': 'd[1][3] = min(上 4, 左 2, 对角 3) = 2（插入 A）',
-  '1-4': 'd[1][4] = min(上 5, 左 3, 对角 4) = 3（插入 T）',
-  '2-1': 'd[2][1] = min(上 1, 左 3, 对角 2) = 1（删除 A）',
-  '2-2': 'd[2][2] = min(上 2, 左 2, 对角 1) = 1（替换 A→R）',
-  '2-3': 'd[2][3] = min(上 3, 左 2, 对角 1) = 1（A=A 匹配，取对角）',
-  '2-4': 'd[2][4] = min(上 4, 左 2, 对角 3) = 2（插入 T）',
-  '3-1': 'd[3][1] = min(上 2, 左 4, 对角 3) = 2（删除 R）',
-  '3-2': 'd[3][2] = min(上 2, 左 3, 对角 1) = 1（R=R 匹配，取对角）',
-  '3-3': 'd[3][3] = min(上 2, 左 2, 对角 2) = 2（三源并列 → 对角优先）',
-  '3-4': 'd[3][4] = min(上 3, 左 3, 对角 2) = 2（替换 R→T）',
-  '4-1': 'd[4][1] = min(上 3, 左 5, 对角 4) = 3（删除 T）',
-  '4-2': 'd[4][2] = min(上 2, 左 4, 对角 3) = 2（删除 T）',
-  '4-3': 'd[4][3] = min(上 3, 左 3, 对角 2) = 2（替换 T→A）',
-  '4-4': 'd[4][4] = min(上 3, 左 3, 对角 2) = 2（T=T 匹配，取对角）← 编辑距离答案',
-};
-
-function clearView() {
-  cellView.forEach(c => scene.remove(c.box.mesh));
-  headerViews.forEach(h => scene.remove(h.sprite));
-  cellView.clear();
-  headerViews.length = 0;
+function newDp() {
+  return Array.from({ length: T.length + 1 }, () => new Array(TARGET.length + 1).fill(0));
 }
-function buildTable() {
-  clearView();
-  for (let j = 1; j <= N; j++) {
-    const h = new VText(scene, { text: TB[j - 1], x: BX(j), y: 656, z: 0, color: CYAN, scale: 0.5 });
-    headerViews.push(h);
-  }
-  for (let i = 1; i <= M; i++) {
-    const h = new VText(scene, { text: SA[i - 1], x: 146, y: BY(i), z: 0, color: CYAN, scale: 0.5 });
-    headerViews.push(h);
-  }
-  headerViews.push(new VText(scene, { text: 'ε', x: 146, y: 656, z: 0, color: CYAN, scale: 0.5 }));
-  for (let i = 0; i <= M; i++) {
-    for (let j = 0; j <= N; j++) {
-      const box = new VBox(scene, { w: 56, h: 56, d: 14, x: BX(j), y: BY(i), z: 0, label: String(dp[i][j]), color: BLUE, emissive: BLUE });
-      cellView.set(i + '-' + j, { box });
-    }
-  }
+
+function opText(kind, i, j) {
+  if (kind === 'rep') return '替 ' + T[i - 1] + '→' + TARGET[j - 1];
+  if (kind === 'del') return '删 ' + T[i - 1];
+  return '插 ' + TARGET[j - 1];
 }
-function setCell(i, j, v) {
+
+function state() {
+  const i = curCell ? curCell.i : T.length;
+  const j = curCell ? curCell.j : TARGET.length;
+  const row = dp[i] || [];
+  const pair = curCell && i > 0 && j > 0 ? T[i - 1] + ' vs ' + TARGET[j - 1] : 'ε';
+  let opItems;
+  if (cands) {
+    opItems = [
+      { text: '插 ' + cands.ins, cls: cands.win === 'ins' ? 'done' : '' },
+      { text: '删 ' + cands.del, cls: cands.win === 'del' ? 'done' : '' },
+      { text: '替 ' + cands.rep, cls: cands.win === 'rep' ? 'done' : '' },
+    ];
+  } else {
+    opItems = [];
+  }
+  return {
+    blocks: [
+      { type: 'kv', label: '当前格', items: curCell ? [{ k: 'i,j', v: i + ',' + j }, { k: '字符', v: pair }] : [{ k: 'i,j', v: '—' }, { k: '字符', v: pair }] },
+      { type: 'chips', label: '候选（插/删/替）', items: opItems, empty: '—' },
+      { type: 'chips', label: 'dp 行 ' + i, items: row.map((v, k) => ({ text: k + ':' + v, cls: curCell && k === j ? 'current' : '' })), empty: '—' },
+      { type: 'chips', label: '编辑路径（正向）', items: ops.map((o) => ({ text: o.text, cls: 'done' })), empty: '—' },
+      { type: 'text', label: '编辑距离', value: finalDist === null ? '—' : String(finalDist) },
+    ],
+    footer: 'dp[i][j] = 前 i / j 个字符的最少编辑数',
+  };
+}
+
+function cellShot(i, j, ms = 720) {
+  return { pos: [stage.xOf(j) + 240, stage.yOf(i) + 200, 560], target: [stage.xOf(j), stage.yOf(i), 0], ms };
+}
+
+const SHOT_ESTABLISH = { pos: [480, 700, 900], target: [320, 450, 0], ms: 900 };
+const SHOT_TOP = { pos: [320, 920, 500], target: [320, 455, 0], ms: 850 };
+const SHOT_FILL = { pos: [440, 650, 860], target: [320, 440, 0], ms: 750 };
+const SHOT_PATH = { pos: [570, 560, 760], target: [320, 420, 0], ms: 850 };
+const SHOT_FINAL = { pos: [330, 620, 940], target: [320, 410, 0], ms: 950 };
+
+function build() {
+  if (stage) stage.dispose();
+  if (resultText) { resultText.remove(); resultText = null; }
+  stage = new TableStage(scene, {
+    rows: T.length + 1, cols: TARGET.length + 1, origin: [320, 455, 0],
+    cellW: 40, cellH: 34, gapX: 5, gapY: 6, color: BASE, textScale: 0.5,
+    rowLabels: [...T], colLabels: [...TARGET], corner: 'ε', rowLabelOffset: 34, arrows: 14,
+  });
+  resultText = new VText(scene, { text: '编辑距离 = —', x: 320, y: 280, z: 0, color: '#fde047', scale: 0.66 });
+  dp = newDp();
+  curCell = null;
+  cands = null;
+  ops = [];
+  finalDist = null;
+  director.stateUpdate(state());
+}
+
+// 计算 (i,j) 并落格；arrows=false 用于初始化阶段预热依赖格。
+function applyCell(i, j, arrows = true) {
+  const eq = T[i - 1] === TARGET[j - 1];
+  const rep = dp[i - 1][j - 1] + (eq ? 0 : 1);
+  const del = dp[i - 1][j] + 1;
+  const ins = dp[i][j - 1] + 1;
+  const v = eq ? rep : Math.min(rep, del, ins);
   dp[i][j] = v;
-  const e = cellView.get(i + '-' + j);
-  e.box.setText(String(v));
-  e.box.setColor(BLUE, BLUE);
-}
-function setCellColor(i, j, c) { const e = cellView.get(i + '-' + j); if (e) e.box.setColor(c, c); }
-function resetAll() {
-  dp.length = 0;
-  for (let i = 0; i <= M; i++) dp.push(Array(N + 1).fill(0));
-  cellView.forEach(e => { e.box.setText('0'); e.box.setColor(BLUE, BLUE); });
-  dirT.sprite.visible = false;
-  dirT.sprite.scale.copy(BS);
+  const win = eq ? 'diag' : v === ins ? 'ins' : v === del ? 'del' : 'rep';
+  if (arrows) {
+    stage.clearArrows();
+    if (eq) stage.arrow(i - 1, j - 1, i, j, MATCH);
+    else {
+      stage.arrow(i, j - 1, i, j, INS);
+      stage.arrow(i - 1, j, i, j, DEL);
+      stage.arrow(i - 1, j - 1, i, j, REP);
+    }
+    stage.focus(i, j);
+  }
+  stage.setValue(i, j, v, eq ? MATCH : BASE);
+  curCell = { i, j };
+  cands = { rep, del, ins, win, eq };
+  director.stateUpdate(state());
+  director.setBeatState('dp[' + i + '][' + j + '] = ' + v + ' · ' +
+    (eq ? T[i - 1] + ' = ' + TARGET[j - 1] + ' → 左上 + 0' : 'min(插 ' + ins + ', 删 ' + del + ', 替 ' + rep + ')'));
+  return { v, eq, rep, del, ins, win };
 }
 
-buildTable();   // 规范②：模块加载即显示 25 盒全 '0' BLUE + 9 表头，点播放才动画
+function* runEdit() {
+  director.reset();
+  stage.reset();
+  dp = newDp();
+  curCell = null;
+  cands = null;
+  ops = [];
+  finalDist = null;
+  for (let j = 0; j <= TARGET.length; j++) { dp[0][j] = j; stage.setValue(0, j, j, DIM); }
+  for (let i = 1; i <= T.length; i++) { dp[i][0] = i; stage.setValue(i, 0, i, DIM); }
+  if (resultText) resultText.setText('编辑距离 = —', { color: '#fde047' });
+  director.stateUpdate(state());
 
-function* runED() {
-  yield S(() => { resetAll(); status.textContent = '编辑距离：把 S="CART" 变成 T="CRAT" 的最少操作数；d[i][j] = min(上+1 删, 左+1 插, 对角 +0 匹配/+1 替换)'; });
-  yield W(900);
-  // Phase 1 初始化：首行全插入
-  yield S(() => { status.textContent = '初始化：首行 d[0][j]=j——空串 → T 前 j 字符需插入 j 次（全插入）'; });
-  for (let j = 1; j <= N; j++) {
-    yield S(() => setCellColor(0, j, GOLD));
-    yield W(240);
-    yield S(() => setCell(0, j, j));
-    yield W(130);
-  }
-  // Phase 1 初始化：首列全删除
-  yield S(() => { status.textContent = '初始化：首列 d[i][0]=i——S 前 i 字符 → 空串需删除 i 次（全删除）'; });
-  for (let i = 1; i <= M; i++) {
-    yield S(() => setCellColor(i, 0, GOLD));
-    yield W(240);
-    yield S(() => setCell(i, 0, i));
-    yield W(130);
-  }
-  // Phase 2 逐格填充 16 格
-  for (let i = 1; i <= M; i++) {
-    for (let j = 1; j <= N; j++) {
-      const eq = SA[i - 1] === TB[j - 1];
-      const up = dp[i - 1][j] + 1, left = dp[i][j - 1] + 1, diag = dp[i - 1][j - 1] + (eq ? 0 : 1);
-      const v = eq ? diag : Math.min(diag, up, left);
-      dp[i][j] = v;
-      const dir = v === diag ? '↖' : v === up ? '↑' : '←';   // 对角优先
-      const cx = BX(j), cy = BY(i), msg = CELL_MSG[i + '-' + j];
-      yield S(() => { dirT.sprite.visible = false; setCellColor(i, j, GOLD); setCellColor(i - 1, j, CYAN); });
-      yield W(150);
-      yield S(() => { setCellColor(i - 1, j, BLUE); setCellColor(i, j - 1, ORANGE); });
-      yield W(150);
-      yield S(() => { setCellColor(i, j - 1, BLUE); setCellColor(i - 1, j - 1, PUR); });
-      yield W(150);
-      yield S(() => { setCellColor(i - 1, j - 1, BLUE); dirT.setText(dir); dirT.sprite.position.set(cx - 24, cy - 24, 0); dirT.sprite.visible = true; status.textContent = msg; });
-      yield A(220, p => { dirT.sprite.scale.copy(BS).multiplyScalar(0.3 + 0.7 * easeInOut(p)); });
-      yield S(() => { setCell(i, j, v); dirT.sprite.visible = false; });
-      yield W(120);
+  director.chapter('建立');
+  yield S(() => director.beat({
+    title: '两串 + 空表格',
+    why: '行 = 原串 ' + T + '，列 = 目标串 ' + TARGET + '；dp[i][j] 回答：前 i 个字符改成前 j 个字符最少几步？',
+    stateText: '原串 ' + T + ' → 目标串 ' + TARGET,
+    progress: 0,
+    camera: SHOT_ESTABLISH,
+    annotations: [
+      { id: 'cols', text: '目标串 ' + TARGET, anchor: () => new THREE.Vector3(320, stage.y0 + stage.ch / 2 + 60, 0), offset: [0, -20], className: 'gold' },
+      { id: 'rows', text: '原串 ' + T, anchor: () => new THREE.Vector3(stage.x0 - stage.cw / 2 - 52, 455, 0), offset: [0, -20] },
+      { id: 'hook', text: '改几个字符能一样？', anchor: () => new THREE.Vector3(320, 650, 0), offset: [0, -22], className: 'final' },
+    ],
+  }));
+  yield W(750);
+
+  director.chapter('初始化');
+  for (let j = 0; j <= TARGET.length; j++) stage.setColor(0, j, GOLD);
+  for (let i = 1; i <= T.length; i++) stage.setColor(i, 0, GOLD);
+  yield S(() => director.beat({
+    title: '空串边界：全是插入/删除',
+    why: '第一行 = 从空串插入 j 个字符；第一列 = 删除 i 个字符——这就是边界代价。',
+    stateText: 'dp[0][j] = j · dp[i][0] = i',
+    progress: 1,
+    camera: SHOT_TOP,
+    annotations: [{ id: 'zero', text: '空串 → 插入/删除', anchor: () => new THREE.Vector3(320, 650, 0), offset: [0, -20] }],
+  }));
+  yield W(550);
+  for (let j = 0; j <= TARGET.length; j++) stage.setColor(0, j, DIM);
+  for (let i = 1; i <= T.length; i++) stage.setColor(i, 0, DIM);
+
+  // 示例格由实际字符决定；预热为示例格补齐行列依赖，避免固定下标的越界/错叙。
+  let demoMatch = null, demoMismatch = null;
+  for (let i = 1; i <= T.length && (!demoMatch || !demoMismatch); i++) {
+    for (let j = 1; j <= TARGET.length && (!demoMatch || !demoMismatch); j++) {
+      const eq = T[i - 1] === TARGET[j - 1];
+      if (eq && !demoMatch) demoMatch = { i, j };
+      if (!eq && !demoMismatch) demoMismatch = { i, j };
     }
   }
-  // Phase 3 回溯
-  yield S(() => { status.textContent = '回溯：从 d[4][4] 出发，对角优先；字符相同走对角（匹配），否则按 对角→上→左 选最小值来源'; });
+  const computed = new Set();
+  const keyAt = (i, j) => i + ',' + j;
+  const preheat = (i0, j0) => {
+    for (let i = 1; i <= i0; i++) {
+      for (let j = 1; j <= (i === i0 ? j0 : TARGET.length); j++) {
+        if (computed.has(keyAt(i, j))) continue;
+        applyCell(i, j, false);
+        computed.add(keyAt(i, j));
+      }
+    }
+  };
+  const calm = () => {
+    for (const k of computed) {
+      const [ci, cj] = k.split(',').map(Number);
+      stage.setColor(ci, cj, BASE);
+    }
+  };
+
+  // 第 2 拍：匹配（或说明本输入无相等字符对）
+  director.chapter('匹配');
+  if (demoMatch) {
+    preheat(demoMatch.i, demoMatch.j);
+    calm();
+    const m = applyCell(demoMatch.i, demoMatch.j);
+    computed.add(keyAt(demoMatch.i, demoMatch.j));
+    const mi = demoMatch.i, mj = demoMatch.j;
+    yield S(() => director.beat({
+      title: '相等 → 左上 + 0',
+      why: '末尾字符相同，不需要任何操作，代价原样继承 dp[i-1][j-1]。',
+      stateText: 'T[' + (mi - 1) + '] = 目标[' + (mj - 1) + '] = ' + T[mi - 1] + ' · dp[' + mi + '][' + mj + '] = ' + m.v,
+      progress: 2,
+      camera: cellShot(mi, mj),
+      annotations: [{ id: 'match', text: '“' + T[mi - 1] + '” = “' + TARGET[mj - 1] + '” → 免费继承左上', anchor: () => stage.anchor(mi, mj), offset: [0, -18], className: 'final' }],
+    }));
+  } else {
+    yield S(() => director.beat({
+      title: '本次没有相同字符对',
+      why: '两串没有任何对齐位置字符相等；等号分支本次不触发，但遇到不等时仍按三操作取最小。',
+      stateText: 'T = ' + T + ' · 目标 = ' + TARGET + ' · 无相等字符对',
+      progress: 2,
+      camera: SHOT_FILL,
+      annotations: [{ id: 'match', text: '无相等字符对 → 走三操作分支', anchor: () => new THREE.Vector3(320, 650, 0), offset: [0, -20], className: 'warn' }],
+    }));
+  }
+  yield W(750);
+
+  // 第 3 拍：不匹配三候选（或说明本输入全部对齐）
+  director.chapter('不匹配');
+  if (demoMismatch) {
+    preheat(demoMismatch.i, demoMismatch.j);
+    calm();
+    const x = applyCell(demoMismatch.i, demoMismatch.j);
+    computed.add(keyAt(demoMismatch.i, demoMismatch.j));
+    const xi = demoMismatch.i, xj = demoMismatch.j;
+    const dir = x.win === 'ins' ? '取插入 ' + x.ins + ' → 走左' : x.win === 'del' ? '取删除 ' + x.del + ' → 走上' : '取替换 ' + x.rep + ' → 走左上';
+    yield S(() => director.beat({
+      title: '三操作取最小 + 1',
+      why: '替 = 左上 + 1；删 = 上 + 1；插 = 左 + 1。当前格取三者中最便宜的一步。',
+      stateText: '“' + T[xi - 1] + '” ≠ “' + TARGET[xj - 1] + '” · 插 ' + x.ins + ' · 删 ' + x.del + ' · 替 ' + x.rep + ' → min ' + x.v,
+      progress: 3,
+      camera: cellShot(xi, xj),
+      annotations: [{ id: 'ops', text: dir, anchor: () => stage.anchor(xi, xj), offset: [0, -18], className: 'warn' }],
+    }));
+  } else {
+    stage.clearArrows();
+    stage.hideFocus();
+    yield S(() => director.beat({
+      title: '本次没有不等字符对',
+      why: '所有对齐位置字符都相等；min(插, 删, 替) 本次不触发，遇到不等时仍取三者最小值。',
+      stateText: 'T = ' + T + ' · 目标 = ' + TARGET + ' · 全部匹配',
+      progress: 3,
+      camera: SHOT_FILL,
+      annotations: [{ id: 'ops', text: '全等 · 触发的都是左上继承', anchor: () => new THREE.Vector3(320, 650, 0), offset: [0, -20], className: 'final' }],
+    }));
+  }
+  yield W(850);
+  stage.clearArrows();
+  stage.hideFocus();
+
+  // 第 4 拍：填满
+  director.chapter('填表');
+  yield S(() => director.beat({
+    title: '逐行填满 DP 表',
+    why: '每格的三个候选都已在上一行/左一格算好；局部最优一步步拼出全局最优。',
+    stateText: 'i = 1 … ' + T.length + '，j = 1 … ' + TARGET.length,
+    progress: 4,
+    camera: SHOT_FILL,
+    annotations: [{ id: 'fill', text: '插 ←，删 ↑，替 ↖', anchor: () => new THREE.Vector3(320, 650, 0), offset: [0, -20] }],
+  }));
+  let n = 0;
+  for (let i = 1; i <= T.length; i++) {
+    for (let j = 1; j <= TARGET.length; j++) {
+      if (computed.has(keyAt(i, j))) continue;
+      yield S(() => applyCell(i, j));
+      computed.add(keyAt(i, j));
+      n++;
+      if (n % 4 === 0) yield W(70);
+    }
+  }
+  yield S(() => {
+    stage.clearArrows();
+    stage.hideFocus();
+    finalDist = dp[T.length][TARGET.length];
+    director.setProgress(4.6);
+    director.setBeatState('填表完成 · 右下角 dp[' + T.length + '][' + TARGET.length + '] = ' + finalDist);
+    director.stateUpdate(state());
+  });
+  yield W(500);
+
+  // 第 5 拍：回溯操作路径
+  director.chapter('回溯');
+  stage.clearArrows();
+  let i = T.length, j = TARGET.length;
+  const rev = [];
+  const path = [];
+  curCell = { i, j };
+  stage.setColor(i, j, GOLD);
+  yield S(() => director.beat({
+    title: '从右下角回走',
+    why: '相等 ↖（不操作）；否则看 dp 值来自插入 ←、删除 ↑ 还是替换 ↖，每步还原一个操作。',
+    stateText: 'dp[' + i + '][' + j + '] = ' + finalDist,
+    progress: 5,
+    camera: SHOT_PATH,
+    annotations: [{ id: 'back', text: '比较 → 选中代价来源', anchor: () => stage.anchor(i, j), offset: [0, -18], className: 'gold' }],
+  }));
+  yield W(450);
+  while (i > 0 || j > 0) {
+    let kind;
+    if (i > 0 && j > 0 && T[i - 1] === TARGET[j - 1]) {
+      kind = 'match';
+      stage.arrow(i - 1, j - 1, i, j, GOLD);
+      i--; j--;
+    } else if (i > 0 && j > 0 && dp[i][j] === dp[i - 1][j - 1] + 1) {
+      kind = 'rep';
+      stage.arrow(i - 1, j - 1, i, j, GOLD);
+      rev.push({ kind, text: opText('rep', i, j) });
+      i--; j--;
+    } else if (i > 0 && dp[i][j] === dp[i - 1][j] + 1) {
+      kind = 'del';
+      stage.arrow(i - 1, j, i, j, GOLD);
+      rev.push({ kind, text: opText('del', i, j) });
+      i--;
+    } else {
+      kind = 'ins';
+      stage.arrow(i, j - 1, i, j, GOLD);
+      rev.push({ kind, text: opText('ins', i, j) });
+      j--;
+    }
+    path.push({ i, j });
+    stage.setColor(i, j, GOLD);
+    stage.focus(i, j);
+    curCell = { i, j };
+    cands = null;
+    ops = rev.slice().reverse();
+    const label = kind === 'match' ? '匹配 ' + T[i] + ' → 左上（不操作）' : rev[rev.length - 1].text;
+    yield S(() => {
+      director.stateUpdate(state());
+      director.setBeatState(label + ' · 剩余 dp = ' + dp[i][j]);
+    });
+    yield W(270);
+  }
+  ops = rev.slice().reverse();
+
+  // 第 6 拍：结算
+  stage.hideFocus();
+  stage.clearArrows();
+  const opLine = ops.length ? ops.map((o) => o.text).join(' · ') : '完全相同';
+  yield S(() => {
+    if (resultText) resultText.setText('编辑距离 = ' + finalDist, { color: '#fde047' });
+    director.chapter('结算');
+    director.beat({
+      title: '编辑距离 = ' + finalDist,
+      why: '回溯路径上的非匹配步就是最少的插入/删除/替换序列，步数等于 dp 右下角。',
+      stateText: opLine,
+      progress: 7,
+      camera: SHOT_FINAL,
+      annotations: [{ id: 'dist', text: '最少 ' + finalDist + ' 步', anchor: () => new THREE.Vector3(320, 300, 0), offset: [0, -20], className: 'final' }],
+    });
+    director.stateUpdate(state());
+  });
+  status.textContent = '编辑距离 "' + T + '" → "' + TARGET + '" = ' + finalDist + ' · ' + opLine +
+    ' · dp ' + T.length + '×' + TARGET.length + ' · O(mn)';
+  yield W(1000);
+
+  director.chapter('复盘');
+  yield S(() => director.beat({
+    title: 'O(mn) 换掉指数枚举',
+    why: '编辑距离是拼写纠错、模糊搜索与 DNA 比对的核心；每格只算一次，回溯还能给出具体操作。',
+    stateText: '时间/空间 O(mn) · ' + (T.length * TARGET.length) + ' 个子问题',
+    progress: 8,
+    camera: SHOT_FINAL,
+    annotations: [],
+  }));
   yield W(700);
-  yield S(() => { setCellColor(4, 4, GOLD); status.textContent = '回溯：d[4][4]=2：S[3]=T=T[3] 匹配 → 走对角到 (3,3)'; });
-  yield W(450);
-  yield S(() => { setCellColor(4, 4, GREEN); setCellColor(3, 3, GOLD); status.textContent = '回溯：d[3][3]=2：上 2 / 左 2 / 对角 2 三源并列 → 对角优先（替换 R→A）→ (2,2)'; });
-  yield W(450);
-  yield S(() => { setCellColor(3, 3, GREEN); setCellColor(2, 2, GOLD); status.textContent = '回溯：d[2][2]=1：对角 0+1=1 最小 → 替换 A→R → (1,1)'; });
-  yield W(450);
-  yield S(() => { setCellColor(2, 2, GREEN); setCellColor(1, 1, GOLD); status.textContent = '回溯：d[1][1]=0：S[0]=C=T[0] 匹配 → 保持 C → (0,0)'; });
-  yield W(450);
-  yield S(() => { setCellColor(1, 1, GREEN); setCellColor(0, 0, GOLD); status.textContent = '回溯：到达 (0,0)，路径完成：保持 C、替换 A→R、替换 R→A、保持 T'; });
-  yield W(450);
-  yield S(() => { setCellColor(0, 0, GREEN); setCellColor(4, 4, GOLD); status.textContent = '编辑距离(CART, CRAT) = 2'; });
-  yield W(450);
-  yield S(() => { setCellColor(4, 4, GREEN); status.textContent = '编辑距离演示完成：S="CART"→T="CRAT" 最小编辑距离 = 2，操作：保持 C、替换 A→R、替换 R→A、保持 T（O(nm) 时间/空间）'; });
-  yield W(600);
 }
 
-engine.queue(() => runED());
-panel.addButton('清空', () => { engine.clear(); clearView(); resetAll(); buildTable(); status.textContent = ''; });
+function applyInputs() {
+  const a = rowInput.value.trim().toLowerCase().replace(/[^a-z]/g, '').slice(0, 7);
+  const b = colInput.value.trim().toLowerCase().replace(/[^a-z]/g, '').slice(0, 7);
+  if (!a || !b) {
+    status.textContent = '两串至少各 1 个字母（a–z，各 ≤7）';
+    return;
+  }
+  T = a; TARGET = b;
+  rowInput.value = T;
+  colInput.value = TARGET;
+  restart(true);
+}
+
+const rowInput = panel.addInput('原串（行）', applyInputs, 12);
+rowInput.value = T;
+const colInput = panel.addInput('目标串（列）', applyInputs, 12);
+colInput.value = TARGET;
+
+function restart(auto = true) {
+  status.textContent = '';
+  engine.clear();
+  director.reset();
+  build();
+  engine.queue(() => runEdit());
+  if (auto) engine.toggle();
+}
+
+input.addButton('重播', () => restart(true));
+input.addButton('清空', () => { engine.clear(); director.reset(); build(); status.textContent = ''; });
+
+build();
+engine.queue(() => runEdit());
 scene.start(engine);

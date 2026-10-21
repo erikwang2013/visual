@@ -1,100 +1,402 @@
-// AlgorithmLibrary/RSA3D.js — RSA 公钥密码：n=pq、φ(n)、e·d≡1，平方-乘快速幂加密 m^e mod n 再解密 m^d mod n（function* 生成器驱动，中间值运行时计算）
+// AlgorithmLibrary/RSA3D.js — RSA 公钥密码：p/q → n/φ → e/d → C=M^e mod n → M=C^d mod n；
+// 平方-乘的每一位在齿轮与二进制块上逐拍展开，锁/钥匙随加密上锁、解密开锁，右侧面板读 p/q/n/φ/e/d 与密文。
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
+import { GeneratorEngine, W, S } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VNode, VText, VBox } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { VBox } from '../3D/VisualObject3D.js';
+import { applyTheme } from '../3D/Glow.js';
+import { StoryDirector } from '../3D/director/StoryDirector.js';
+import { InputKit } from '../3D/director/InputKit.js';
+import { LockKey, ModExpRow } from '../3D/director/CipherStage.js';
 applyTheme('RSA3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
+const PUR = 0xc4b5fd, CYAN = 0x22d3ee, GOLD = 0xfcd34d, ROSE = 0xfb7185, GREEN = 0x4ade80, BLUE = 0x60a5fa, WHITE = 0xffffff, DIM = 0x334155;
+const PRIMES = [11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97];
+
+function gcd(a, b) { while (b) { const t = a % b; a = b; b = t; } return a; }
+function extGcd(a, b) {
+  if (!b) return [a, 1, 0];
+  const [g, x, y] = extGcd(b, a % b);
+  return [g, y, x - Math.floor(a / b) * y];
+}
+function modInv(e, phi) {
+  const [g, x] = extGcd(e, phi);
+  if (g !== 1) return 0;
+  return ((x % phi) + phi) % phi;
+}
+function modPow(base, exp, n) {
+  let r = 1;
+  base %= n;
+  while (exp > 0) {
+    if (exp & 1) r = (r * base) % n;
+    base = (base * base) % n;
+    exp = Math.floor(exp / 2);
+  }
+  return r;
+}
+// 与 modPow 同序，但把每一位的「平方 / 乘底数」留下来给动画用
+function expGroups(base, exp, n) {
+  const bits = exp.toString(2).split('').map(Number);
+  let r = 1;
+  const groups = bits.map((bit) => {
+    const sq = (r * r) % n;
+    r = sq;
+    let mul = null;
+    if (bit) { mul = (r * base) % n; r = mul; }
+    return { bit, sq, mul, r };
+  });
+  return { bits, groups, result: r };
+}
+function pickE(phi) {
+  if (gcd(17, phi) === 1) return 17;
+  for (let e = 3; e < phi; e += 2) if (gcd(e, phi) === 1) return e;
+  return 3;
+}
+function buildConfig(p, q, m) {
+  const n = p * q;
+  const phi = (p - 1) * (q - 1);
+  const e = pickE(phi);
+  const d = modInv(e, phi);
+  const c = modPow(m, e, n);
+  return { p, q, n, phi, e, d, m, c, m2: modPow(c, d, n) };
+}
+
+const scene = new Scene3D('scene', { cameraPos: [520, 620, 1120], lookAt: [460, 470, 0], fov: 50 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-
-const BLUE = 0x60a5fa, GOLD = 0xfcd34d, GREEN = 0x4ade80, RED = 0xfb7185, ORANGE = 0xfb923c, CYAN = 0x22d3ee, PUR = 0xc4b5fd, WHITE = 0xffffff, DIM = 0x334155;
+const input = new InputKit(panel);
 const status = panel.addStatus('就绪');
 
-const pqChips = [110, 250].map((x, i) => new VBox(scene, { w: 110, h: 52, d: 52, x, y: 700, z: 0, label: i === 0 ? 'p=61' : 'q=53', color: PUR, emissive: PUR }));
-const nChip = new VBox(scene, { w: 110, h: 52, d: 52, x: 390, y: 700, z: 0, label: 'n=?', color: CYAN, emissive: CYAN });
-const phiChip = new VBox(scene, { w: 110, h: 52, d: 52, x: 530, y: 700, z: 0, label: 'φ=?', color: CYAN, emissive: CYAN });
-const eChip = new VBox(scene, { w: 130, h: 52, d: 52, x: 170, y: 570, z: 0, label: 'e=17（公钥）', color: GOLD, emissive: GOLD });
-const dChip = new VBox(scene, { w: 130, h: 52, d: 52, x: 470, y: 570, z: 0, label: 'd=?（私钥）', color: RED, emissive: RED });
-const mChip = new VBox(scene, { w: 100, h: 52, d: 52, x: 70, y: 440, z: 0, label: 'm=65', color: BLUE, emissive: BLUE });
-const cChip = new VBox(scene, { w: 100, h: 52, d: 52, x: 320, y: 440, z: 0, label: 'c=?', color: GOLD, emissive: GOLD });
-const m2Chip = new VBox(scene, { w: 100, h: 52, d: 52, x: 570, y: 440, z: 0, label: 'm′=?', color: GREEN, emissive: GREEN });
-const binChips = [80, 200, 320, 440, 560].map((x, i) => new VBox(scene, { w: 70, h: 50, d: 50, x, y: 330, z: 0, label: '?', color: DIM, emissive: DIM }));
-
-function* rsaGen() {
-  yield S(() => { status.textContent = 'RSA 公钥密码：(e,n) 公开加密、(d,n) 保密解密；安全基石 = 大整数分解是困难问题。教材小参数 p=61, q=53 —— 先算模数与欧拉函数'; });
-  yield W(900);
-  const p = 61, q = 53;
-  const n = p * q, phi = (p - 1) * (q - 1);
-  nChip.setText('n=' + n);
-  phiChip.setText('φ=' + phi);
-  nChip.setColor(WHITE, WHITE);
-  phiChip.setColor(WHITE, WHITE);
-  yield S(() => { status.textContent = 'n = p·q = ' + n + '；φ(n) = (p−1)(q−1) = ' + phi + ' —— 知道 n 的人无法快速反推 p,q（这里太小，实际 RSA-2048 用 2048 位）'; });
-  yield W(900);
-  const e = 17;
-  dChip.setText('d=2753');
-  dChip.setColor(WHITE, WHITE);
-  yield S(() => { status.textContent = '选 e=' + e + '（与 φ 互素）；扩展欧几里得解 17d ≡ 1 (mod ' + phi + ') → d=2753（验证 17×2753 = ' + phi + '×15 + 1 ✓）'; });
-  yield W(1000);
-  yield S(() => { status.textContent = '公钥 (e,n) = (' + e + ',' + n + ') 公开、私钥 (d,n) = (2753,' + n + ') 保密；加密 c = m^e mod n，解密 m = c^d mod n —— 费马-欧拉定理保证互逆'; });
-  yield W(950);
-  yield S(() => { status.textContent = '加密 m=65：c = 65^17 mod ' + n + '；17 = 10001₂，平方-乘只需 4 次平方 + 2 次乘法，而非直接乘 17 次'; });
-  yield W(950);
-  const m = 65;
-  const bits = [1, 0, 0, 0, 1];
-  bits.forEach((b, k) => { binChips[k].setText(String(b)); binChips[k].setColor(b ? GOLD : DIM, b ? GOLD : DIM); });
-  yield W(450);
-  let r = 1;
-  for (let k = 0; k < bits.length; k++) {
-    const b = bits[k];
-    binChips[k].setColor(WHITE, WHITE);
-    const r2 = (r * r) % n;
-    yield S(() => { status.textContent = '位 ' + b + '：r = r² mod n = ' + r2 + (b ? ' → 位是 1，再 r = r·m mod n' : '（位是 0，不动）'); });
-    yield W(650);
-    r = r2;
-    if (b) {
-      const r3 = (r * m) % n;
-      yield S(() => { status.textContent = 'r = ' + r + ' × ' + m + ' mod ' + n + ' = ' + r3; });
-      yield W(650);
-      r = r3;
-    }
-    binChips[k].setColor(b ? GOLD : DIM, b ? GOLD : DIM);
-  }
-  cChip.setText('c=' + r);
-  cChip.setColor(WHITE, WHITE);
-  yield S(() => { status.textContent = 'c = 65^17 mod ' + n + ' = ' + r + ' —— 密文就位；平方-乘 O(log e) 次乘法而非 O(e) 次，指数 2753 也照样算得动'; });
-  yield W(900);
-  yield S(() => { status.textContent = '解密：m′ = c^d mod n = ' + r + '^2753 mod ' + n + ' —— 与加密同一个平方-乘（位数多，过程略）'; });
-  yield W(900);
-  m2Chip.setText('m′=65');
-  m2Chip.setColor(WHITE, WHITE);
-  yield S(() => { status.textContent = 'm′ = 65 ✓ 与明文一致，加解密互逆闭环；RSA：65 → ' + r + ' → 65；现实需 OAEP 填充（裸 RSA 有攻击面），RSA-2048 公钥指数 65537'; });
-  yield W(1100);
-  yield S(() => { status.textContent = '陷阱门函数：加密容易（e 小）、解密难（d 大）、求 d 更难（要分解 n）；复杂度：密钥生成 O(log³n)、加密 O(log e·log² n)、解密 O(log d·log² n)'; });
-  yield W(1100);
-  yield S(() => { status.textContent = 'RSA 演示完成：密钥生成 → 平方-乘加密 ' + r + ' → 解密还原 65'; });
-  yield W(400);
+function chip(x, y, w, label, color) {
+  return new VBox(scene, { w, h: 52, d: 46, x, y, z: 0, label, color, emissive: color });
 }
+const pChip = chip(120, 690, 120, 'p=61', PUR);
+const qChip = chip(260, 690, 120, 'q=53', PUR);
+const nChip = chip(430, 690, 150, 'n=?', CYAN);
+const phiChip = chip(610, 690, 170, 'φ=?', CYAN);
+const eChip = chip(180, 560, 130, 'e=?', GOLD);
+const dChip = chip(500, 560, 160, 'd=?', ROSE);
+const mChip = chip(110, 430, 130, 'M=65', BLUE);
+const cChip = chip(340, 430, 140, 'C=?', GOLD);
+const m2Chip = chip(580, 430, 140, "M′=?", GREEN);
 
-function* runRSA() {
-  yield W(400);
-  yield* rsaGen();
-}
+const lock = new LockKey(scene, { x: 800, y: 640, z: 0 });
+const modExp = new ModExpRow(scene, { x: 100, y: 290, z: 0, bits: 14, step: 44, color: 0x34d399 });
 
-engine.queue(() => runRSA());
-panel.addButton('清空', () => {
-  engine.clear();
-  nChip.setText('n=?'); phiChip.setText('φ=?');
-  nChip.setColor(CYAN, CYAN); phiChip.setColor(CYAN, CYAN);
-  dChip.setText('d=?（私钥）'); dChip.setColor(RED, RED);
-  cChip.setText('c=?'); cChip.setColor(GOLD, GOLD);
-  m2Chip.setText('m′=?'); m2Chip.setColor(GREEN, GREEN);
-  binChips.forEach(c => { c.setText('?'); c.setColor(DIM, DIM); });
-  status.textContent = '';
+const director = new StoryDirector(scene, {
+  title: 'RSA · 公钥密码',
+  total: 8,
+  legend: [
+    { label: '素数', color: '#c4b5fd' },
+    { label: '公钥 e', color: '#fcd34d' },
+    { label: '私钥 d', color: '#fb7185' },
+    { label: '模幂位', color: '#34d399' },
+    { label: '明文 M', color: '#60a5fa' },
+    { label: '密文 C', color: '#fcd34d' },
+  ],
+  onReplay: () => restart(currentP, currentQ, currentMsg, true),
 });
 
+const SHOT_ESTABLISH = { pos: [520, 620, 1120], target: [460, 470, 0], ms: 900 };
+const SHOT_PRIME = { pos: [420, 820, 780], target: [360, 690, 0], ms: 750 };
+const SHOT_KEYS = { pos: [560, 700, 820], target: [430, 560, 0], ms: 750 };
+const SHOT_LOCK = { pos: [1080, 720, 760], target: [800, 640, 0], ms: 750 };
+const SHOT_MATH = { pos: [400, 540, 780], target: [360, 400, 0], ms: 700 };
+const SHOT_VERIFY = { pos: [560, 600, 900], target: [440, 500, 0], ms: 750 };
+const SHOT_FINAL = { pos: [580, 760, 1180], target: [460, 500, 0], ms: 900 };
+
+let currentP = 61, currentQ = 53, currentMsg = 65;
+
+function blocks(st = {}, note = '—') {
+  const v = (x) => (x === undefined || x === null ? '—' : String(x));
+  const bitItems = (st.bits || []).map((b, i) => ({ text: String(b), cls: i === st.bit ? 'head' : '' }));
+  return {
+    blocks: [
+      {
+        type: 'kv',
+        label: '素数 / 模数',
+        items: [
+          { k: 'p', v: v(st.p) },
+          { k: 'q', v: v(st.q) },
+          { k: 'n = p·q', v: v(st.n) },
+          { k: 'φ(n)', v: v(st.phi) },
+        ],
+      },
+      {
+        type: 'kv',
+        label: '密钥对',
+        items: [{ k: 'e 公钥', v: v(st.e) }, { k: 'd 私钥', v: v(st.d) }],
+      },
+      { type: 'chips', label: '指数二进制（当前位）', items: bitItems, empty: '—' },
+      {
+        type: 'kv',
+        label: '消息 / 密文',
+        items: [{ k: 'M', v: v(st.m) }, { k: 'C', v: v(st.c) }, { k: 'M′', v: v(st.m2) }],
+      },
+      { type: 'text', label: '当前', value: note },
+    ],
+    footer: 'ed ≡ 1 (mod φ) · 欧拉定理保证加解密互逆',
+  };
+}
+
+function resetVisual(cfg) {
+  const { p, q, m } = cfg;
+  pChip.setText('p=' + p); pChip.setColor(PUR, PUR);
+  qChip.setText('q=' + q); qChip.setColor(PUR, PUR);
+  nChip.setText('n=?'); nChip.setColor(DIM, 0x1e293b);
+  phiChip.setText('φ=?'); phiChip.setColor(DIM, 0x1e293b);
+  eChip.setText('e=?'); eChip.setColor(DIM, 0x1e293b);
+  dChip.setText('d=?'); dChip.setColor(DIM, 0x1e293b);
+  mChip.setText('M=' + m); mChip.setColor(BLUE, BLUE);
+  cChip.setText('C=?'); cChip.setColor(DIM, 0x1e293b);
+  m2Chip.setText("M′=?"); m2Chip.setColor(DIM, 0x1e293b);
+  lock.setOpen(true);
+  lock.setLockLabel('公钥锁');
+  lock.setKeyLabel('私钥钥匙');
+  modExp.reset();
+  director.stateUpdate(blocks({ p, q, m }, '选择两个素数'));
+  director.setProgress(0);
+  status.textContent = '';
+}
+
+const pSelect = input.addSelect('p', PRIMES, 61, (v) => restart(Number(v), Number(qSelect.value), currentMsg, true));
+const qSelect = input.addSelect('q', PRIMES, 53, (v) => restart(Number(pSelect.value), Number(v), currentMsg, true));
+const msgInput = panel.addInput('消息 M（1<M<n），回车应用', (v) => {
+  const msg = Number(v.trim());
+  if (!Number.isInteger(msg) || msg <= 1 || msg >= currentP * currentQ) {
+    status.textContent = '消息需为 1 < M < n 的整数（当前 n=' + currentP * currentQ + '）';
+    return;
+  }
+  restart(currentP, currentQ, msg, true);
+}, 6);
+
+function* runRSA(cfg) {
+  const { p, q, n, phi, e, d, m, c, m2 } = cfg;
+  director.reset();
+  resetVisual(cfg);
+
+  // Hook
+  director.chapter('建立');
+  yield S(() => director.beat({
+    title: '公钥为什么能公开？',
+    why: 'RSA 是陷阱门：公开 (e,n) 谁都能加密；只有拿私钥 d 的人能解密。',
+    stateText: 'p=' + p + ' · q=' + q + ' · 待生成 n/φ',
+    progress: 0,
+    camera: SHOT_ESTABLISH,
+    annotations: [
+      { id: 'lock', text: '公钥锁：谁都能锁上', anchor: () => new THREE.Vector3(800, 730, 0), offset: [0, -24], className: 'gold' },
+      { id: 'key', text: '私钥钥匙：只有持有者能开', anchor: () => new THREE.Vector3(648, 570, 0), offset: [0, -24] },
+    ],
+  }));
+  director.stateUpdate(blocks({ p, q, m }, '选择两个素数'));
+  yield W(780);
+
+  // p/q → n/φ
+  director.chapter('密钥生成');
+  yield S(() => {
+    pChip.setColor(WHITE, WHITE);
+    qChip.setColor(WHITE, WHITE);
+    director.beat({
+      title: '选素数 p、q',
+      why: 'n = p·q，φ(n) = (p−1)(q−1)；只知道 n 无法快速反推 p、q——这正是安全边界。',
+      stateText: 'p=' + p + ' · q=' + q,
+      progress: 1,
+      camera: SHOT_PRIME,
+      annotations: [
+        { id: 'p', text: 'p=' + p, anchor: () => new THREE.Vector3(120, 735, 0), offset: [0, -20], className: 'gold' },
+        { id: 'q', text: 'q=' + q, anchor: () => new THREE.Vector3(260, 735, 0), offset: [0, -20], className: 'gold' },
+      ],
+    });
+  });
+  yield W(480);
+  yield S(() => {
+    nChip.setText('n=' + n); nChip.setColor(CYAN, CYAN);
+    phiChip.setText('φ=' + phi); phiChip.setColor(CYAN, CYAN);
+    director.setBeatState('n = ' + p + '×' + q + ' = ' + n + ' · φ = ' + phi);
+    director.stateUpdate(blocks({ p, q, n, phi, m }, 'n 与 φ 已生成'));
+  });
+  yield W(680);
+
+  // 公钥 e
+  lock.setOpen(false);
+  lock.setLockLabel('公钥 (' + e + ',' + n + ')');
+  eChip.setText('e=' + e);
+  eChip.setColor(GOLD, GOLD);
+  director.chapter('公钥');
+  yield S(() => director.beat({
+    title: '公钥 e：与 φ 互素',
+    why: 'e 与 φ 互素才能求模逆 d；公钥 (e,n) 公开，任何人都能锁上密文。',
+    stateText: 'e=' + e + ' · gcd(e,φ)=1 · 公钥锁已上锁',
+    progress: 2,
+    camera: SHOT_LOCK,
+    annotations: [{ id: 'e', text: '公钥 (' + e + ',' + n + ') 公开', anchor: () => new THREE.Vector3(800, 730, 0), offset: [0, -22], className: 'gold' }],
+  }));
+  director.stateUpdate(blocks({ p, q, n, phi, e, m }, '公钥已公开'));
+  yield W(700);
+
+  // 私钥 d
+  dChip.setText('d=' + d);
+  dChip.setColor(ROSE, ROSE);
+  lock.setKeyLabel('私钥 d=' + d);
+  director.chapter('私钥');
+  yield S(() => director.beat({
+    title: '私钥 d = e⁻¹ mod φ',
+    why: '扩展欧几里得解 e·d ≡ 1 (mod φ)；d 是唯一能从密文还原明文的指数，绝不公开。',
+    stateText: 'e·d = ' + e * d + ' ≡ 1 (mod ' + phi + ')',
+    progress: 3,
+    camera: SHOT_KEYS,
+    annotations: [{ id: 'd', text: 'd=' + d + ' 保密', anchor: () => new THREE.Vector3(648, 570, 0), offset: [0, -22], className: 'warn' }],
+  }));
+  director.stateUpdate(blocks({ p, q, n, phi, e, d, m }, '私钥已生成'));
+  yield W(700);
+
+  // 加密：C = M^e mod n
+  modExp.setExponent(e);
+  const enc = expGroups(m, e, n);
+  director.chapter('加密');
+  yield S(() => director.beat({
+    title: '加密 C = M^e mod n',
+    why: '公开的 e 很小（' + e + ' = ' + e.toString(2) + '₂），平方-乘只需 O(log e) 次乘法。',
+    stateText: 'C = ' + m + '^' + e + ' mod ' + n,
+    progress: 4,
+    camera: SHOT_MATH,
+    annotations: [{ id: 'c', text: '公钥上锁：C = M^e mod n', anchor: () => new THREE.Vector3(340, 490, 0), offset: [0, -22], className: 'gold' }],
+  }));
+  yield W(420);
+  for (let i = 0; i < enc.groups.length; i++) {
+    const g = enc.groups[i];
+    modExp.mark(i);
+    yield S(() => {
+      modExp.setCaption('位 ' + g.bit + '：r² mod n = ' + g.sq);
+      director.setBeatState('加密位 ' + g.bit + ' · 平方 → ' + g.sq);
+      director.stateUpdate(blocks({ p, q, n, phi, e, d, m, bits: enc.bits, bit: i }, '公钥平方-乘'));
+    });
+    yield W(190);
+    if (g.mul !== null) {
+      yield S(() => {
+        modExp.setCaption('位 1：r × M mod n = ' + g.mul);
+        director.setBeatState('加密位 1 · 乘 M → ' + g.mul);
+      });
+      yield W(190);
+    }
+    modExp.done(i);
+  }
+  cChip.setText('C=' + c);
+  cChip.setColor(GOLD, GOLD);
+  modExp.finish('C = ' + c);
+  yield S(() => {
+    director.setBeatState('密文 C = ' + c + ' · 公钥锁已扣上');
+    director.stateUpdate(blocks({ p, q, n, phi, e, d, m, c, bits: enc.bits, bit: enc.bits.length - 1 }, '加密完成'));
+    director.setProgress(4);
+  });
+  yield W(620);
+
+  // 解密：M = C^d mod n
+  modExp.setExponent(d);
+  const dec = expGroups(c, d, n);
+  director.chapter('解密');
+  yield S(() => director.beat({
+    title: '解密 M = C^d mod n',
+    why: 'd 很长，但平方-乘仍在 O(log d) 次乘法内完成；跑完应回到明文 M。',
+    stateText: 'M′ = ' + c + '^' + d + ' mod ' + n,
+    progress: 5,
+    camera: SHOT_MATH,
+    annotations: [{ id: 'm2', text: '私钥开锁：M′ = C^d mod n', anchor: () => new THREE.Vector3(580, 490, 0), offset: [0, -22], className: 'final' }],
+  }));
+  yield W(380);
+  for (let i = 0; i < dec.groups.length; i++) {
+    const g = dec.groups[i];
+    modExp.mark(i);
+    yield S(() => {
+      modExp.setCaption('位 ' + g.bit + '：平方' + (g.mul !== null ? ' + 乘 C' : '') + ' → r = ' + g.r);
+    });
+    yield W(110);
+    modExp.done(i);
+    if (i % 3 === 2 || i === dec.groups.length - 1) {
+      yield S(() => {
+        director.setBeatState('解密位 ' + g.bit + ' · r = ' + g.r);
+        director.stateUpdate(blocks({ p, q, n, phi, e, d, m, c, bits: dec.bits, bit: i }, '私钥平方-乘'));
+      });
+    }
+  }
+  lock.setOpen(true);
+  m2Chip.setText("M′=" + m2);
+  m2Chip.setColor(GREEN, GREEN);
+  modExp.finish("M′ = " + m2);
+  yield S(() => {
+    director.setBeatState('M′ = ' + m2 + (m2 === m ? ' ✓ 还原明文' : ' ✗'));
+    director.stateUpdate(blocks({ p, q, n, phi, e, d, m, c, m2, bits: dec.bits, bit: dec.bits.length - 1 }, '解密完成'));
+    director.setProgress(5);
+  });
+  yield W(720);
+
+  // 欧拉定理验证
+  const ed = e * d;
+  const verify = modPow(m, ed, n);
+  director.chapter('不变量');
+  yield S(() => director.beat({
+    title: '欧拉定理：M^(ed) ≡ M (mod n)',
+    why: 'ed ≡ 1 (mod φ)，欧拉定理给出 M^(ed) = M^(1+kφ) ≡ M；这是 RSA 正确性的根基。',
+    stateText: 'ed = ' + ed + ' = ' + phi + '×' + Math.floor(ed / phi) + ' + 1 · 验证 ' + (verify === m ? '✓' : '✗'),
+    progress: 6,
+    camera: SHOT_VERIFY,
+    annotations: [{ id: 'euler', text: 'M^(ed) mod n = ' + verify + ' = M', anchor: () => new THREE.Vector3(440, 600, 0), offset: [0, -22], className: 'final' }],
+  }));
+  director.stateUpdate(blocks({ p, q, n, phi, e, d, m, c, m2 }, '欧拉验证：M^(ed) mod n = ' + verify));
+  yield W(900);
+
+  // 复盘
+  director.chapter('复盘');
+  yield S(() => director.beat({
+    title: '安全性 = 分解 n 很难',
+    why: 'n 公开，但分解 n 得到 p,q 才能算 φ 求 d；现实用 2048 位模数 + OAEP 填充，裸 RSA 有攻击面。',
+    stateText: '密钥生成 O(log³n) · 加密 O(log e·log²n)',
+    progress: 8,
+    camera: SHOT_FINAL,
+    annotations: [],
+  }));
+  director.setProgress(8);
+  status.textContent = 'RSA 完成：p=' + p + ' q=' + q + ' n=' + n + ' φ=' + phi + ' e=' + e + ' d=' + d +
+    ' · M=' + m + ' → C=' + c + ' → M′=' + m2;
+  yield W(850);
+}
+
+function restart(p, q, msg, autoPlay = true) {
+  if (p === q) {
+    q = PRIMES.find((x) => x !== p);
+    qSelect.value = String(q);
+  }
+  const n = p * q;
+  if (!Number.isInteger(msg) || msg <= 1 || msg >= n) {
+    msg = Math.min(n - 1, Math.max(2, Math.round(msg) || 65));
+    msgInput.value = String(msg);
+  }
+  currentP = p; currentQ = q; currentMsg = msg;
+  engine.clear();
+  director.reset();
+  status.textContent = '';
+  const cfg = buildConfig(p, q, msg);
+  resetVisual(cfg);
+  engine.queue(() => runRSA(cfg));
+  if (autoPlay) engine.toggle();
+}
+
+input.addButton('重播', () => restart(currentP, currentQ, currentMsg, true));
+input.addButton('清空', () => {
+  engine.clear();
+  director.reset();
+  currentP = 61; currentQ = 53; currentMsg = 65;
+  pSelect.value = '61';
+  qSelect.value = '53';
+  msgInput.value = '';
+  status.textContent = '';
+  const cfg = buildConfig(currentP, currentQ, currentMsg);
+  resetVisual(cfg);
+  engine.queue(() => runRSA(cfg));
+});
+
+const initialCfg = buildConfig(currentP, currentQ, currentMsg);
+resetVisual(initialCfg);
+engine.queue(() => runRSA(initialCfg));
 scene.start(engine);

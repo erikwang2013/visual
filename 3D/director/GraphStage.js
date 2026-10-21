@@ -5,6 +5,13 @@ import { VNode, VText, VTorus } from '../VisualObject3D.js';
 import { PALETTE } from '../Glow.js';
 
 const v3 = (p) => (Array.isArray(p) ? new THREE.Vector3(p[0], p[1], p[2]) : p.clone());
+const disposeObject = (obj) => obj.traverse((o) => {
+  if (o.geometry && !o.isSprite) o.geometry.dispose();
+  if (o.material) {
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach((m) => m.dispose());
+  }
+});
 export const edgeKey = (a, b) => (a < b ? a + '-' + b : b + '-' + a);
 
 export class GraphStage {
@@ -177,27 +184,27 @@ export class GraphStage {
   }
 
   dispose() {
-    this.nodes.forEach((n) => n.remove());
-    this.nodeLabels.forEach((l) => l.remove());
+    this.nodes.forEach((n) => { disposeObject(n.mesh); n.remove(); });
+    this.nodeLabels.forEach((l) => { if (l.sprite && l.sprite.material) l.sprite.material.dispose(); l.remove(); });
     this.edges.forEach((e) => {
       this.scene.remove(e.mesh);
       e.mesh.geometry.dispose();
       e.mesh.material.dispose();
       if (e.arrow) { this.scene.remove(e.arrow); e.arrow.geometry.dispose(); e.arrow.material.dispose(); }
-      if (e.label) e.label.remove();
+      if (e.label) { if (e.label.sprite && e.label.sprite.material) e.label.sprite.material.dispose(); e.label.remove(); }
     });
-    if (this.activeRing) this.activeRing.remove();
+    if (this.activeRing) { disposeObject(this.activeRing.mesh); this.activeRing.remove(); }
     if (this.beacon) {
       this.scene.remove(this.beacon);
       this.beacon.traverse((o) => {
-        if (o.geometry) o.geometry.dispose();
+        if (o.geometry && !o.isSprite) o.geometry.dispose();
         if (o.material) o.material.dispose();
       });
     }
     if (this.platform) {
       this.scene.remove(this.platform);
       this.platform.traverse((o) => {
-        if (o.geometry) o.geometry.dispose();
+        if (o.geometry && !o.isSprite) o.geometry.dispose();
         if (o.material) o.material.dispose();
       });
     }

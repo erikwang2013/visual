@@ -1,226 +1,327 @@
-// AlgorithmLibrary/DPLCS3D.js — 最长公共子序列 LCS：7×8 DP 表逐格填表（相等→左上+1 对角 GREEN 弧，不等→max(上,左) CYAN 双弧），
-// 回溯六步金色路径逐格收集匹配字符飞入收集槽，结果动态拼接入状态栏（function* 生成器驱动，不硬编码 LCS 常量）
+// AlgorithmLibrary/DPLCS3D.js — 最长公共子序列：DP 表格舞台 + 匹配对角/不匹配上左依赖箭头 + 金色回溯蛇形。
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
+import { GeneratorEngine, W, S } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, VTorus } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { VText } from '../3D/VisualObject3D.js';
+import { applyTheme } from '../3D/Glow.js';
+import { StoryDirector } from '../3D/director/StoryDirector.js';
+import { InputKit } from '../3D/director/InputKit.js';
+import { TableStage } from '../3D/director/TableStage.js';
 applyTheme('DPLCS3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [420, 640, 900], lookAt: [320, 450, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-
-const GOLD = 0xfde047, GREEN = 0x4ade80, BLUE = 0x60a5fa, CYAN = 0x67e8f9;
+const input = new InputKit(panel);
 const status = panel.addStatus('就绪');
 
-// ---- 数据：上串 7 字符（列）、左串 6 字符（行）；LCS 结果全程运行时收集，绝不硬编码 ----
-const SA = 'ABCBDAB', B = 'BDCABA';
-const dp = Array.from({ length: 7 }, () => new Array(8).fill(0));
+const BASE = 0x60a5fa, DIM = 0x475569, MATCH = 0x4ade80, DEP = 0x67e8f9, CUR = 0x22d3ee, GOLD = 0xfde047;
+let SA = 'ABCBDAB';   // 上串 = 列
+let SB = 'BDCABA';    // 左串 = 行
+let stage = null;
+let resultText = null;
+let dp = [];
+let curCell = null;
+let backChars = [];
 
-const lerp = (a, b, p) => a + (b - a) * p;
-const ease = p => p * p * (3 - 2 * p);
-const colX = j => 161 + 52 * j;          // 格 x：161..525
-const rowY = i => 830 - 46 * i;          // 格 y：830..554
-const slotX = k => 320 + (k - 3) * 44;   // 收集槽 x：188..452
-const cellOf = (i, j) => grid[i * 8 + j];
-
-// ---- 56 格（7 行×8 列）：边界 i=0/j=0 初始即显 '0'，内容格 label 初始隐藏 ----
-const grid = [];
-for (let i = 0; i < 7; i++) {
-  for (let j = 0; j < 8; j++) {
-    const border = i === 0 || j === 0;
-    const c = new VBox(scene, { w: 48, h: 40, d: 14, x: colX(j), y: rowY(i), z: 0, label: border ? '0' : undefined, color: BLUE, emissive: BLUE });
-    grid.push(c);
-  }
-}
-
-// ---- 列标签（上串 7）/ 行标签（左串 6），CYAN ----
-const colLabels = [1, 2, 3, 4, 5, 6, 7].map(j => new VText(scene, { text: SA[j - 1], x: colX(j), y: 864, z: 0, color: CYAN, scale: 0.45 }));
-const rowLabels = [1, 2, 3, 4, 5, 6].map(i => new VText(scene, { text: B[i - 1], x: 100, y: rowY(i), z: 0, color: CYAN, scale: 0.5 }));
-
-// ---- 焦点环（定位当前格，可选元素） ----
-const ring = new VTorus(scene, { radius: 26, x: colX(1), y: rowY(1), z: 10, color: PALETTE.highlight });
-ring.mesh.visible = false;
-
-// ---- 方向箭头 6 个（单字符 sprite，格内右下，初始隐藏） ----
-const arrows = [0, 1, 2, 3, 4, 5].map(() => new VText(scene, { text: '↖', x: 0, y: 0, z: 18, color: CYAN, scale: 0.45 }));
-arrows.forEach(a => a.sprite.visible = false);
-
-// ---- 收集槽 7（半透明灰框）+ 槽字符用槽自带 label（GOLD） ----
-const slotBox = [0, 1, 2, 3, 4, 5, 6].map(k => {
-  const c = new VBox(scene, { w: 40, h: 40, d: 14, x: slotX(k), y: 500, z: 0, color: PALETTE.edge, emissive: PALETTE.edgeEmissive });
-  c.mesh.material.transparent = true;   // 透明先设，否则 opacity 无效
-  c.mesh.material.opacity = 0.2;
-  return c;
+const director = new StoryDirector(scene, {
+  title: 'LCS · 公共子序列',
+  total: 8,
+  legend: [
+    { label: '已填', color: '#60a5fa' },
+    { label: '匹配', color: '#4ade80' },
+    { label: '当前格', color: '#22d3ee' },
+    { label: '回溯路径', color: '#fde047' },
+  ],
+  onReplay: () => restart(true),
 });
 
-// ---- 弧线池：arcDiag GREEN 对角（匹配）/ arcUp+arcLeft CYAN 双弧（不等），发射显式互斥 ----
-const fxGroup = new THREE.Group();
-fxGroup.visible = false;
-scene.add(fxGroup);
-const mkArc = color => {
-  const v0 = new THREE.Vector3(), v1 = new THREE.Vector3(), v2 = new THREE.Vector3();
-  const curve = new THREE.QuadraticBezierCurve3(v0, v1, v2);
-  const geo = new THREE.BufferGeometry();
-  const line = new THREE.Line(geo, new THREE.LineDashedMaterial({ color, dashSize: 6, gapSize: 4, transparent: true, opacity: 0.9 }));
-  return { v0, v1, v2, curve, geo, line };
-};
-const arcDiag = mkArc(GREEN), arcUp = mkArc(CYAN), arcLeft = mkArc(CYAN);
-[arcDiag, arcUp, arcLeft].forEach(a => fxGroup.add(a.line));
-const setArc = (a, x0, y0, x1, y1, cx, cy) => {
-  a.v0.set(x0, y0, 0); a.v1.set(cx, cy, 10); a.v2.set(x1, y1, 0);
-  a.geo.setFromPoints(a.curve.getPoints(24));
-  a.line.computeLineDistances();
-};
-const fireDiag = (i, j) => {                 // 匹配：左上格 → 当前格对角弧
-  setArc(arcDiag, colX(j - 1), rowY(i - 1), colX(j), rowY(i), (colX(j - 1) + colX(j)) / 2, (rowY(i - 1) + rowY(i)) / 2 + 30);
-  arcDiag.line.visible = true; arcUp.line.visible = false; arcLeft.line.visible = false;
-  fxGroup.visible = true;
-};
-const fireDual = (i, j) => {                 // 不等：上格→当前 + 左格→当前 双弧
-  setArc(arcUp, colX(j), rowY(i - 1), colX(j), rowY(i), colX(j) + 30, (rowY(i - 1) + rowY(i)) / 2);
-  setArc(arcLeft, colX(j - 1), rowY(i), colX(j), rowY(i), (colX(j - 1) + colX(j)) / 2, rowY(i) + 30);
-  arcDiag.line.visible = false; arcUp.line.visible = true; arcLeft.line.visible = true;
-  fxGroup.visible = true;
-};
+function newDp() {
+  return Array.from({ length: SB.length + 1 }, () => new Array(SA.length + 1).fill(0));
+}
 
-// ---- 回溯六步（坐标/方向/文案按设计 §3 F4 逐字；匹配字符运行时取自上串） ----
-const PATH = [
-  { i: 6, j: 7, dir: '↑', slot: 0, text: '步(6,7)：A vs B 不等，上 dp(5,7)=4 ≥ 左 dp(6,6)=4 → 走上，箭头↑' },
-  { i: 5, j: 7, dir: '↖', slot: 1, text: "步(5,7)：B==B 匹配 → 收 'B' 飞入槽 1，箭头↖" },
-  { i: 4, j: 6, dir: '↖', slot: 2, text: "步(4,6)：A==A 匹配 → 收 'A' 飞入槽 2，↖" },
-  { i: 3, j: 5, dir: '↑', slot: 0, text: '步(3,5)：C vs D 不等，上 2=左 2 → 走上 ↑' },
-  { i: 2, j: 5, dir: '↖', slot: 3, text: "步(2,5)：D==D 匹配 → 收 'D' 飞入槽 3，↖" },
-  { i: 1, j: 4, dir: '↖', slot: 4, text: "步(1,4)：B==B 匹配 → 收 'B' 飞入槽 4，↖，至 (0,3) 结束" },
-];
+function state() {
+  const rowIdx = curCell ? curCell.i : dp.length - 1;
+  const row = dp[rowIdx] || [];
+  const rowItems = row.map((v, j) => ({ text: j + ':' + v, cls: curCell && j === curCell.j ? 'current' : '' }));
+  const chars = backChars.map((c) => ({ text: c, cls: 'done' }));
+  const pair = curCell && curCell.i > 0 && curCell.j > 0
+    ? { k: '字符', v: SB[curCell.i - 1] + ' vs ' + SA[curCell.j - 1] }
+    : { k: '字符', v: 'ε' };
+  return {
+    blocks: [
+      { type: 'kv', label: '当前格', items: curCell ? [{ k: 'i,j', v: curCell.i + ',' + curCell.j }, pair] : [{ k: 'i,j', v: '—' }, pair] },
+      { type: 'chips', label: 'dp 行 ' + rowIdx, items: rowItems, empty: '—' },
+      { type: 'chips', label: '回溯收集（右→左）', items: chars, empty: '—' },
+      { type: 'text', label: 'LCS 长度', value: String(dp[dp.length - 1][SA.length]) },
+    ],
+    footer: 'dp[i][j] = 前缀 i / j 的 LCS 长度',
+  };
+}
 
-// ---- 运行时状态（resetAll 一并还原，保证重播干净） ----
-const result = [];
-let lastMatch = null;   // 上一匹配格（GREEN 瞬时，下一格前还原 BLUE）
-let prevRow = 0;        // 上一高亮行标签
+function cellShot(i, j, ms = 720) {
+  return { pos: [stage.xOf(j) + 250, stage.yOf(i) + 210, 560], target: [stage.xOf(j), stage.yOf(i), 0], ms };
+}
 
-// ---- 全复位（清空按钮与生成器首帧共用；不做任何 new/销毁） ----
-function resetAll() {
-  for (let i = 0; i < 7; i++) {
-    for (let j = 0; j < 8; j++) {
-      const c = cellOf(i, j);
-      c.setColor(BLUE, BLUE);
-      c.mesh.scale.setScalar(1);
-      if (i === 0 || j === 0) { c.setText('0'); if (c.label) c.label.visible = true; }
-      else { if (c.label) { c.setText(''); c.label.visible = false; } }
-    }
+const SHOT_ESTABLISH = { pos: [480, 680, 880], target: [320, 440, 0], ms: 900 };
+const SHOT_TOP = { pos: [320, 930, 560], target: [320, 455, 0], ms: 850 };
+const SHOT_FILL = { pos: [430, 640, 840], target: [320, 445, 0], ms: 750 };
+const SHOT_PATH = { pos: [540, 580, 720], target: [320, 420, 0], ms: 850 };
+const SHOT_FINAL = { pos: [340, 600, 900], target: [320, 410, 0], ms: 950 };
+
+function build() {
+  if (stage) stage.dispose();
+  if (resultText) { resultText.remove(); resultText = null; }
+  stage = new TableStage(scene, {
+    rows: SB.length + 1, cols: SA.length + 1, origin: [320, 455, 0],
+    cellW: 44, cellH: 36, gapX: 6, gapY: 6, color: BASE, textScale: 0.5,
+    rowLabels: [...SB], colLabels: [...SA], corner: 'ε', rowLabelOffset: 38, arrows: 18,
+  });
+  for (let j = 0; j <= SA.length; j++) stage.setValue(0, j, 0, DIM);
+  for (let i = 1; i <= SB.length; i++) stage.setValue(i, 0, 0, DIM);
+  resultText = new VText(scene, { text: 'LCS = —', x: 320, y: 282, z: 0, color: '#fde047', scale: 0.72 });
+  dp = newDp();
+  curCell = null;
+  backChars = [];
+  director.stateUpdate(state());
+}
+
+function applyCell(i, j) {
+  const eq = SB[i - 1] === SA[j - 1];
+  const up = dp[i - 1][j], left = dp[i][j - 1], diag = dp[i - 1][j - 1];
+  const v = eq ? diag + 1 : Math.max(up, left);
+  dp[i][j] = v;
+  stage.clearArrows();
+  if (eq) stage.arrow(i - 1, j - 1, i, j, MATCH);
+  else {
+    stage.arrow(i - 1, j, i, j, DEP);
+    stage.arrow(i, j - 1, i, j, DEP);
   }
-  colLabels.forEach((t, j) => t.setText(SA[j], { color: CYAN }));
-  rowLabels.forEach((t, i) => t.setText(B[i], { color: CYAN }));
-  ring.mesh.visible = false;
-  ring.mesh.position.set(colX(1), rowY(1), 10);
-  fxGroup.visible = false;
-  arcDiag.line.visible = false; arcUp.line.visible = false; arcLeft.line.visible = false;
-  arrows.forEach(a => a.sprite.visible = false);
-  slotBox.forEach(c => { if (c.label) { c.setText(''); c.label.visible = false; } c.mesh.material.opacity = 0.2; });
-  result.length = 0;
-  lastMatch = null;
-  prevRow = 0;
+  stage.focus(i, j);
+  stage.setValue(i, j, v, eq ? MATCH : CUR);
+  curCell = { i, j };
+  director.stateUpdate(state());
+  director.setBeatState('dp[' + i + '][' + j + '] = ' + v + ' · ' +
+    (eq ? SB[i - 1] + ' 匹配 → 左上 ' + diag + ' + 1' : 'max(上 ' + up + ', 左 ' + left + ')'));
+  return { eq, v, up, left, diag };
 }
 
 function* runLCS() {
-  // F1 开场
-  yield S(resetAll);
-  yield S(() => { status.textContent = 'LCS("' + SA + '","' + B + '")：上串 7 字符、左串 6 字符，求最长公共子序列。dp[i][j]=左串前 i 字符与上串前 j 字符的 LCS 长度，表 7 行×8 列，边界行/列全为 0'; });
-  yield W(1500);
-  // F2 逐行逐格填表（i=1..6 × j=1..7，dp 值运行时计算写入文案）
-  for (let i = 1; i <= 6; i++) {
-    yield S(() => {
-      if (prevRow) rowLabels[prevRow - 1].setText(B[prevRow - 1], { color: CYAN });
-      rowLabels[i - 1].setText(B[i - 1], { color: PALETTE.highlight });
-      prevRow = i;
-      ring.mesh.visible = true;
-      ring.moveTo(colX(1), rowY(i), 10, 300);
+  director.reset();
+  stage.reset();
+  dp = newDp();
+  curCell = null;
+  backChars = [];
+  for (let j = 0; j <= SA.length; j++) stage.setValue(0, j, 0, DIM);
+  for (let i = 1; i <= SB.length; i++) stage.setValue(i, 0, 0, DIM);
+  if (resultText) resultText.setText('LCS = —', { color: '#fde047' });
+  director.stateUpdate(state());
+
+  director.chapter('建立');
+  yield S(() => director.beat({
+    title: '两串与空表格',
+    why: '行 = 左串前缀，列 = 上串前缀；每格只回答一个问题：这两个前缀的 LCS 有多长？',
+    stateText: '上串 ' + SA + ' · 左串 ' + SB,
+    progress: 0,
+    camera: SHOT_ESTABLISH,
+    annotations: [
+      { id: 'top', text: '上串 ' + SA, anchor: () => new THREE.Vector3(320, stage.y0 + stage.ch / 2 + 62, 0), offset: [0, -20], className: 'gold' },
+      { id: 'left', text: '左串 ' + SB, anchor: () => new THREE.Vector3(stage.x0 - stage.cw / 2 - 96, 455, 0), offset: [0, -20] },
+      { id: 'hook', text: '最长公共子序列有多长？', anchor: () => new THREE.Vector3(320, 640, 0), offset: [0, -22], className: 'final' },
+    ],
+  }));
+  yield W(750);
+
+  director.chapter('初始化');
+  for (let j = 0; j <= SA.length; j++) stage.setColor(0, j, GOLD);
+  for (let i = 1; i <= SB.length; i++) stage.setColor(i, 0, GOLD);
+  yield S(() => director.beat({
+    title: '边界置 0',
+    why: '空串和任何串的 LCS 都是 0——这一行/列是递推的起点。',
+    stateText: 'dp[0][*] = dp[*][0] = 0',
+    progress: 1,
+    camera: SHOT_TOP,
+    annotations: [{ id: 'zero', text: '空串 → LCS = 0', anchor: () => new THREE.Vector3(320, 640, 0), offset: [0, -20] }],
+  }));
+  yield W(600);
+  for (let j = 0; j <= SA.length; j++) stage.setColor(0, j, DIM);
+  for (let i = 1; i <= SB.length; i++) stage.setColor(i, 0, DIM);
+
+  // 第 2、3 拍：用 (1,1)、(1,2) 分别展示不匹配与匹配的转移
+  const a = applyCell(1, 1);
+  yield S(() => {
+    director.chapter('不匹配');
+    director.beat({
+      title: a.eq ? '匹配 → 对角线 +1' : '不匹配 → max(上, 左)',
+      why: a.eq
+        ? '两字符相等，可以同时消耗两个前缀：dp[i-1][j-1] + 1。'
+        : '两字符不等，当前格不能同时收两个字符，只能从丢掉一边的上/左格继承较大值。',
+      stateText: 'dp[1][1] = ' + a.v + ' · 上 ' + a.up + ' / 左 ' + a.left,
+      progress: 2,
+      camera: cellShot(1, 1),
+      annotations: [{
+        id: 'c11', text: a.eq ? '相等 → 左上 + 1' : '不等 → 取上/左最大',
+        anchor: () => stage.anchor(1, 1), offset: [0, -18], className: a.eq ? 'final' : 'warn',
+      }],
     });
-    yield W(350);
-    for (let j = 1; j <= 7; j++) {
-      const sa = SA[j - 1], b = B[i - 1];
-      if (sa === b) {
-        const v = dp[i - 1][j - 1] + 1;
-        dp[i][j] = v;
-        yield S(() => {
-          if (lastMatch) { lastMatch.setColor(BLUE, BLUE); lastMatch = null; }
-          const c = cellOf(i, j);
-          c.setText(String(v)); if (c.label) c.label.visible = true;
-          c.setColor(GREEN, GREEN);
-          lastMatch = c;
-          fireDiag(i, j);
-          ring.moveTo(colX(j), rowY(i), 10, 240);
-          status.textContent = '格(' + i + ',' + j + ')：' + sa + ' vs ' + b + ' → 相等 → dp(' + i + ',' + j + ')=左上' + dp[i - 1][j - 1] + '+1=' + v + '（对角弧）';
-        });
-        yield W(400);
-      } else {
-        const v = Math.max(dp[i - 1][j], dp[i][j - 1]);
-        dp[i][j] = v;
-        yield S(() => {
-          if (lastMatch) { lastMatch.setColor(BLUE, BLUE); lastMatch = null; }
-          cellOf(i, j).setText(String(v));
-          fireDual(i, j);
-          ring.moveTo(colX(j), rowY(i), 10, 240);
-          status.textContent = '格(' + i + ',' + j + ')：A[j-1]=' + sa + ' vs B[i-1]=' + b + ' → 不等 → dp(' + i + ',' + j + ')=max(上' + dp[i - 1][j] + ',左' + dp[i][j - 1] + ')=' + v;
-        });
-        yield W(260);
-      }
+  });
+  yield W(800);
+
+  const b = applyCell(1, 2);
+  yield S(() => {
+    director.chapter('匹配');
+    director.beat({
+      title: b.eq ? '匹配 → 对角线 +1' : '不匹配 → max(上, 左)',
+      why: b.eq
+        ? 'SB[0] = SA[1] = ' + SB[0] + '，两个前缀末尾相同，对角线小问题 +1 即得当前格。'
+        : '末尾仍不同，继续从上/左继承——匹配只在字符相等时发生。',
+      stateText: 'SB[0]=' + SB[0] + ' vs SA[1]=' + SA[1] + ' · dp[1][2] = ' + b.v + ' · 上 ' + b.up + ' / 左 ' + b.left,
+      progress: 3,
+      camera: cellShot(1, 2),
+      annotations: [{
+        id: 'c12', text: b.eq ? SB[0] + ' = ' + SA[1] + ' → 左上 ' + b.diag + ' + 1 = ' + b.v : '不等 → max(上 ' + b.up + ', 左 ' + b.left + ')',
+        anchor: () => stage.anchor(1, 2), offset: [0, -18], className: b.eq ? 'final' : 'warn',
+      }],
+    });
+  });
+  yield W(800);
+
+  director.chapter('填表');
+  yield S(() => director.beat({
+    title: '逐行填满 DP 表',
+    why: '每个格只依赖已经算好的上、左、左上三格；子问题最优 ⇒ 全局最优。',
+    stateText: '从第 1 行开始，逐格取匹配/不匹配规则',
+    progress: 4,
+    camera: SHOT_FILL,
+    annotations: [{ id: 'fill', text: '匹配走对角，不匹配看上/左', anchor: () => new THREE.Vector3(320, 620, 0), offset: [0, -20] }],
+  }));
+  let count = 0;
+  for (let i = 1; i <= SB.length; i++) {
+    for (let j = 1; j <= SA.length; j++) {
+      if ((i === 1 && j === 1) || (i === 1 && j === 2)) continue;
+      yield S(() => applyCell(i, j));
+      count++;
+      if (count % 3 === 0) yield W(110);
     }
   }
-  // F3 填表完成定格 + 右下格脉冲
   yield S(() => {
-    if (lastMatch) { lastMatch.setColor(BLUE, BLUE); lastMatch = null; }
-    if (prevRow) { rowLabels[prevRow - 1].setText(B[prevRow - 1], { color: CYAN }); prevRow = 0; }
-    ring.mesh.visible = false;
-    fxGroup.visible = false;
-    status.textContent = '填表完成：右下 dp(6,7)=4=LCS 长度。回溯：相等走左上↖收字符，不等走上/左较大者（上≥左走上）';
+    stage.clearArrows();
+    stage.hideFocus();
+    director.setProgress(4.6);
+    director.setBeatState('填表完成 · 右下角 dp[' + SB.length + '][' + SA.length + '] = ' + dp[SB.length][SA.length] + ' 就是 LCS 长度');
   });
-  yield A(800, p => { cellOf(6, 7).mesh.scale.setScalar(1 + 0.14 * Math.sin(p * Math.PI * 2)); });
-  // F4 回溯六步：染金 + 箭头；匹配步字符起跳飞入收集槽
-  for (let s = 0; s < PATH.length; s++) {
-    const st = PATH[s];
-    yield S(() => {
-      cellOf(st.i, st.j).setColor(GOLD, GOLD);
-      arrows[s].setText(st.dir);
-      arrows[s].sprite.position.set(colX(st.j) + 14, rowY(st.i) - 12, 18);
-      arrows[s].sprite.visible = true;
-      status.textContent = st.text;
+  yield W(550);
+
+  // 第 5 拍：回溯蛇形
+  director.chapter('回溯');
+  stage.clearArrows();
+  let i = SB.length, j = SA.length;
+  backChars = [];
+  curCell = { i, j };
+  yield S(() => {
+    director.beat({
+      title: '从右下角回溯',
+      why: '相等 ⇐ 来自左上（收下该字符）；不等 ⇐ 来自上/左中较大的那格。',
+      stateText: 'dp[' + i + '][' + j + '] = ' + dp[i][j] + ' · 开始回走',
+      progress: 5,
+      camera: SHOT_PATH,
+      annotations: [{ id: 'back', text: '回溯：匹配走 ↖，不匹配走 ↑ / ←', anchor: () => stage.anchor(i, j), offset: [0, -18], className: 'gold' }],
     });
-    yield W(200);
-    if (st.slot > 0) {
-      const k = st.slot - 1, ch = SA[st.j - 1];   // 匹配字符运行时取自上串，动态拼接结果
-      result.push(ch);
-      yield S(() => {
-        const lb = slotBox[k];
-        lb.setText(ch);
-        lb.label.material.color.setHex(GOLD);
-        lb.label.visible = true;
-        lb.label.scale.multiplyScalar(0.8);
-        lb.label.position.set(0, 90, 60);
-        lb.mesh.material.opacity = 0.75;
-      });
-      yield A(600, p => {
-        const e = ease(p), lb = slotBox[k].label;
-        lb.position.y = lerp(90, 0, e);
-        lb.position.z = lerp(60, 21, e);
-      });
-      yield W(200);
-    }
-  }
-  // F5 收尾：路径格/槽字符保 GOLD，弧/箭头隐藏，结果入状态栏
-  yield S(() => {
-    fxGroup.visible = false;
-    arrows.forEach(a => a.sprite.visible = false);
-    const lcsStr = [...result].reverse().join('');   // 回溯自右下往左上收集，须反转才是正序 LCS
-    status.textContent = '完成：LCS("' + SA + '","' + B + '")="' + lcsStr + '"，长度 ' + result.length + '；收集槽 ' + result.join('-') + '；时间复杂度 O(mn)=O(7×6)=O(42)';
   });
-  yield W(1500);
+  yield W(500);
+  while (i > 0 && j > 0) {
+    const i0 = i, j0 = j;
+    let move;
+    if (SB[i - 1] === SA[j - 1]) {
+      backChars.push(SB[i - 1]);
+      stage.setColor(i, j, GOLD);
+      stage.arrow(i, j, i - 1, j - 1, GOLD);
+      i--; j--;
+      move = '匹配 ' + SB[i0 - 1] + ' → 左上（收字符）';
+    } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+      stage.setColor(i, j, GOLD);
+      stage.arrow(i, j, i - 1, j, GOLD);
+      i--;
+      move = '上 ' + dp[i0 - 1][j0] + ' ≥ 左 ' + dp[i0][j0 - 1] + ' → 当前走上';
+    } else {
+      stage.setColor(i, j, GOLD);
+      stage.arrow(i, j, i, j - 1, GOLD);
+      j--;
+      move = '左 ' + dp[i0][j0 - 1] + ' > 上 ' + dp[i0 - 1][j0] + ' → 当前走左';
+    }
+    stage.focus(i, j);
+    curCell = { i, j };
+    yield S(() => {
+      director.stateUpdate(state());
+      director.setBeatState('(' + i0 + ',' + j0 + ') → (' + i + ',' + j + ') · ' + move);
+    });
+    yield W(260);
+  }
+  const lcs = backChars.slice().reverse().join('');
+
+  // 第 6 拍：结果
+  stage.hideFocus();
+  stage.clearArrows();
+  yield S(() => {
+    if (resultText) resultText.setText('LCS = ' + (lcs || 'ε'), { color: '#fde047' });
+    director.chapter('结算');
+    director.beat({
+      title: 'LCS = ' + (lcs || 'ε') + ' · 长度 ' + lcs.length,
+      why: '回溯只经过匹配字符；把它们按正序连起来就是最长公共子序列。',
+      stateText: '到达边界 (' + i + ',' + j + ') · 长度 ' + lcs.length,
+      progress: 7,
+      camera: SHOT_FINAL,
+      annotations: [{ id: 'lcs', text: 'LCS = ' + (lcs || 'ε'), anchor: () => new THREE.Vector3(320, 330, 0), offset: [0, -20], className: 'final' }],
+    });
+    director.stateUpdate(state());
+  });
+  status.textContent = 'LCS("' + SA + '","' + SB + '") = "' + lcs + '"，长度 ' + lcs.length +
+    ' · dp ' + (SB.length + 1) + '×' + (SA.length + 1) + ' · O(mn)';
+  yield W(1000);
+
+  director.chapter('复盘');
+  yield S(() => director.beat({
+    title: 'DP 消除重复子问题',
+    why: '暴力枚举所有公共子序列是指数级；DP 每格只算一次，用 O(mn) 个格子的表换掉重复计算。',
+    stateText: 'O(mn) 时间/空间 · ' + (SB.length * SA.length) + ' 个子问题',
+    progress: 8,
+    camera: SHOT_FINAL,
+    annotations: [],
+  }));
+  yield W(700);
 }
 
-engine.queue(() => runLCS());
-panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
+function applyInputs() {
+  const a = topInput.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+  const b = leftInput.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7);
+  if (a.length < 2 || b.length < 2) {
+    status.textContent = '两串至少各 2 个字符（仅字母/数字，上串 ≤8、左串 ≤7）';
+    return;
+  }
+  SA = a; SB = b;
+  topInput.value = SA;
+  leftInput.value = SB;
+  restart(true);
+}
 
+const topInput = panel.addInput('上串（列）', applyInputs, 12);
+topInput.value = SA;
+const leftInput = panel.addInput('左串（行）', applyInputs, 12);
+leftInput.value = SB;
+
+function restart(auto = true) {
+  status.textContent = '';
+  engine.clear();
+  director.reset();
+  build();
+  engine.queue(() => runLCS());
+  if (auto) engine.toggle();
+}
+
+input.addButton('重播', () => restart(true));
+input.addButton('清空', () => { engine.clear(); director.reset(); build(); status.textContent = ''; });
+
+build();
+engine.queue(() => runLCS());
 scene.start(engine);

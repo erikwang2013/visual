@@ -104,7 +104,7 @@ function clearGrid() {
     platform.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
     platform = null;
   }
-  labels.forEach((l) => l.remove());
+  labels.forEach((l) => { if (l.sprite && l.sprite.material) l.sprite.material.dispose(); l.remove(); });
   labels = [];
   if (pathLine) {
     scene.remove(pathLine);
@@ -196,7 +196,7 @@ const SHOT_FINAL = { pos: [400, 460, 560], target: [320, 300, 0], ms: 900 };
 
 function* runAStar() {
   director.reset();
-  buildGrid();
+  director.stateUpdate(initialBlocks());
   const g = Array.from({ length: N }, () => Array(N).fill(Infinity));
   const h = Array.from({ length: N }, (_, r) => Array.from({ length: N }, (_, c) => hCost(r, c)));
   const f = Array.from({ length: N }, () => Array(N).fill(Infinity));

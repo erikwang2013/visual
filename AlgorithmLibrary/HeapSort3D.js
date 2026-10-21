@@ -1,224 +1,347 @@
-// AlgorithmLibrary/HeapSort3D.js — 堆排序：完全二叉树三维分层 + 橙色牵引光束 + 交换碰撞火花（function* 生成器驱动）
+// AlgorithmLibrary/HeapSort3D.js — 堆排序：数组柱阵 + 右侧堆树双视图，Floyd 建堆 → 反复摘顶/下沉。
+// 堆数组与树节点同步交换；已排序后缀变绿，摘出的树节点变暗退出堆区。
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
 import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VText, tubeBetween } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme, glowMaterial } from '../3D/Glow.js';
+import { applyTheme } from '../3D/Glow.js';
+import { StoryDirector } from '../3D/director/StoryDirector.js';
+import { InputKit } from '../3D/director/InputKit.js';
+import { SortStage } from '../3D/director/SortStage.js';
 applyTheme('HeapSort3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [320, 660, 1020], lookAt: [320, 360, 0], fov: 50 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-
-const BASE = 0x60a5fa, WHITE = 0xf8fafc, GOLD = 0xfcd34d, ORANGE = 0xfb923c, OK = 0x4ade80;
-const E = p => p * p * (3 - 2 * p);
+const input = new InputKit(panel);
 const status = panel.addStatus('就绪');
 
 const N = 15;
-const depthOf = i => Math.floor(Math.log2(i + 1));
-const nodeX = i => { const d = depthOf(i), k = i - (2 ** d - 1), step = [0, 96, 100, 52][d]; return 320 + (k - (2 ** d - 1) / 2) * step; };
-const nodeY = d => 460 - d * 95;
-const nodeZ = d => -d * 40;
-const P = [];
-for (let i = 0; i < N; i++) P.push(new THREE.Vector3(nodeX(i), nodeY(depthOf(i)), nodeZ(depthOf(i))));
+const SEED = [12, 7, 18, 4, 15, 9, 20, 3, 11, 6, 16, 2, 13, 8, 17];
+const C = {
+  base: 0x60a5fa, compare: 0xf8fafc, swap: 0xfbbf24,
+  sorted: 0x4ade80, top: 0xfcd34d, tree: 0x60a5fa,
+};
+const SHOT_ESTABLISH = { pos: [320, 660, 1040], target: [320, 360, 0], ms: 900 };
+const SHOT_TREE = { pos: [490, 610, 840], target: [320, 520, -60], ms: 700 };
+const SHOT_ROOT = { pos: [420, 720, 780], target: [320, 600, -60], ms: 650 };
+const SHOT_SIFT = { pos: [540, 520, 780], target: [320, 460, -60], ms: 650 };
+const SHOT_WIDE = { pos: [320, 710, 1100], target: [320, 360, 0], ms: 800 };
+const SHOT_FINAL = { pos: [320, 690, 1180], target: [320, 330, 0], ms: 900 };
 
-const nodes = [], heap = [], edges = [];
-for (let i = 0; i < N; i++) {
-  const v = 6 + Math.floor(Math.random() * 15);
-  const g = new THREE.Group();
-  const s = new THREE.Mesh(new THREE.SphereGeometry(17, 20, 20), glowMaterial(BASE, { emissive: BASE }));
-  g.add(s);
-  const lbl = new VText(scene, { text: String(v), x: 0, y: 0, z: 0, color: '#ffffff', scale: 0.72 });
-  scene.remove(lbl.sprite); g.add(lbl.sprite);
-  g.position.copy(P[i]);
-  scene.add(g);
-  nodes.push({ g, s, lbl, value: v });
-  heap.push(nodes[i]);
-}
-for (let i = 1; i < N; i++) {
-  edges.push(tubeBetween(scene, P[(i - 1) >> 1], P[i], { color: PALETTE.edge, radius: 2, opacity: 0.35 }));
-}
-const setNodeColor = (n, c) => { n.s.material.color.setHex(c); n.s.material.emissive.setHex(c); };
+const stage = new SortStage(scene, { n: N, cx: 320, baseY: 90, spacing: 44, scaleY: 11, barW: 26, barD: 24, labelScale: 0.44 });
+stage.buildBars(SEED);
+stage.buildTree(N, { top: 650, dy: 85, z: -60, dz: 26, step: [0, 190, 96, 52], radius: 14, labelScale: 0.5 });
 
-// ---- 橙色牵引光束（父子比较时显现，预建复用） ----
-const beamCurve = new THREE.CatmullRomCurve3([new THREE.Vector3(), new THREE.Vector3(1, 0, 0)]);
-const beam = new THREE.Mesh(new THREE.TubeGeometry(beamCurve, 3, 3.2, 6), new THREE.MeshBasicMaterial({ color: ORANGE, transparent: true, opacity: 0.85 }));
-beam.visible = false;
-scene.add(beam);
-function showBeam(a, b) {
-  beamCurve.points[0].copy(a);
-  beamCurve.points[1].copy(b);
-  beam.geometry.dispose();
-  beam.geometry = new THREE.TubeGeometry(beamCurve, 3, 3.2, 6);
-  beam.visible = true;
-}
-function hideBeam() { beam.visible = false; }
+let seed = SEED.slice();
+let data = seed.slice();
+let heapSize = N;
+let sorted = new Set();
+let stats = { compares: 0, swaps: 0 };
+let active = -1;
+let phase = '准备';
+let note = '建堆后反复摘顶';
 
-// ---- 火花粒子（交换碰撞，模块级对象池） ----
-const fxGroup = new THREE.Group();
-scene.add(fxGroup);
-const sparkPool = [], sparkFree = [];
-for (let i = 0; i < 16; i++) {
-  const s = new THREE.Mesh(new THREE.SphereGeometry(2.8, 6, 6), new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.95 }));
-  s.visible = false;
-  fxGroup.add(s);
-  sparkPool.push(s);
+const director = new StoryDirector(scene, {
+  title: '堆排序 · 双视图',
+  total: 8,
+  legend: [
+    { label: '堆区', color: '#60a5fa' },
+    { label: '比较', color: '#f8fafc' },
+    { label: '交换', color: '#fbbf24' },
+    { label: '已排序', color: '#4ade80' },
+    { label: '堆顶', color: '#fcd34d' },
+  ],
+  onReplay: () => restart(true),
+});
+
+function stateBlocks() {
+  return {
+    blocks: [
+      { type: 'kv', label: '堆状态', items: [
+        { k: '阶段', v: phase },
+        { k: '堆顶', v: heapSize > 0 ? data[0] : '—' },
+        { k: '堆大小', v: heapSize },
+        { k: '已排序', v: sorted.size },
+        { k: '比较', v: stats.compares },
+        { k: '交换', v: stats.swaps },
+      ] },
+      { type: 'dist', label: '堆数组', values: data.slice(), current: active },
+      { type: 'chips', label: '已排序区', items: [...sorted].sort((a, b) => a - b).map((i) => ({ text: data[i], cls: 'visited' })), empty: '—' },
+      { type: 'text', label: '当前', value: note },
+    ],
+    footer: '不变量：<b>堆区父 ≥ 子，堆顶是当前最大值</b>',
+  };
 }
-const clearFx = () => { sparkPool.forEach(s => { s.visible = false; }); sparkFree.length = 0; sparkFree.push(...sparkPool); };
-function* sparks(x, y, z, color = GOLD, n = 12) {
-  const parts = [];
-  for (let i = 0; i < n; i++) {
-    const s = sparkFree.pop();
-    if (!s) break;
-    s.visible = true;
-    s.material.color.setHex(color);
-    s.position.set(x, y, z);
-    const a = Math.random() * Math.PI * 2, sp = 90 + Math.random() * 110;
-    parts.push({ s, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp + 60 });
-  }
-  yield A(450, p => parts.forEach(pt => {
-    pt.s.position.set(x + pt.vx * 0.5 * p, y + pt.vy * 0.5 * p - 60 * p * p, z);
-    pt.s.material.opacity = 0.95 * (1 - p);
-  }));
-  parts.forEach(pt => { pt.s.visible = false; sparkFree.push(pt.s); });
+function refresh(text) {
+  if (text !== undefined) note = text;
+  director.stateUpdate(stateBlocks());
 }
 
-// ---- 交换：两节点沿弧线互换槽位（缠绕 + 火花） ----
-function* swapSlots(i, j, opts = {}) {
-  const a = heap[i], b = heap[j];
-  const pi = P[i], pj = P[j];
-  const lift = opts.lift ?? 60, ms = opts.ms ?? 480;
-  yield A(ms, p => {
-    const q = E(p);
-    a.g.position.set(pi.x + (pj.x - pi.x) * q, pi.y + (pj.y - pi.y) * q + lift * Math.sin(Math.PI * q), pi.z + (pj.z - pi.z) * q);
-    b.g.position.set(pj.x + (pi.x - pj.x) * q, pj.y + (pi.y - pj.y) * q + lift * Math.sin(Math.PI * q), pj.z + (pi.z - pj.z) * q);
-    a.g.rotation.y = Math.PI * q;
-    b.g.rotation.y = Math.PI * q;
+function* compareNodes(i, j, text) {
+  stats.compares++;
+  active = j;
+  stage.setBarColor(i, C.compare);
+  stage.setBarColor(j, C.compare);
+  stage.setTreeColor(i, C.compare);
+  stage.setTreeColor(j, C.compare);
+  stage.treeBeam(i, j, C.compare);
+  director.annotations.set('cmp', {
+    text,
+    anchor: () => stage.treePos(i).lerp(stage.treePos(j), 0.5),
+    offset: [0, -24],
   });
-  a.g.rotation.y = 0; b.g.rotation.y = 0;
-  const t = heap[i]; heap[i] = heap[j]; heap[j] = t;
-  if (opts.sparks) yield* sparks((pi.x + pj.x) / 2, Math.min(pi.y, pj.y) + lift * 0.7, (pi.z + pj.z) / 2, opts.sparks);
+  refresh(text);
+  yield W(170);
+  stage.hideBeam();
+  stage.setBarColor(i, C.base);
+  stage.setBarColor(j, C.base);
+  stage.setTreeColor(i, C.base);
+  stage.setTreeColor(j, C.base);
 }
 
-let outIdx = 0;
-function* flyOut(n, from) {
-  const outX = 590 - outIdx * 40;
-  outIdx++;
-  yield S(() => { status.textContent = n.value + ' 归位到有序输出区（金色）'; });
-  yield A(520, p => {
-    const q = E(p);
-    n.g.position.set(from.x + (outX - from.x) * q, from.y + (100 - from.y) * q, from.z + (0 - from.z) * q);
-    n.g.scale.setScalar(1.35 - 0.35 * q);
+function* swapHeap(i, j, lift = 55) {
+  if (i === j) return;
+  stats.swaps++;
+  active = j;
+  stage.setBarColor(i, C.swap);
+  stage.setBarColor(j, C.swap);
+  stage.setTreeColor(i, C.swap);
+  stage.setTreeColor(j, C.swap);
+  stage.showArc(i, j, C.swap, lift + 80);
+  refresh(`交换 a[${i}]=${data[i]} 与 a[${j}]=${data[j]}`);
+  yield A(270, (p) => {
+    stage.swapPose(i, j, p, lift);
+    stage.treeSwapPose(i, j, p, 24);
   });
-  n.g.scale.setScalar(1);
-  setNodeColor(n, GOLD);
-  yield W(220);
+  const t = data[i]; data[i] = data[j]; data[j] = t;
+  stage.setValue(i, data[i]);
+  stage.setValue(j, data[j]);
+  stage.setTreeValue(i, data[i]);
+  stage.setTreeValue(j, data[j]);
+  stage.resetBarPose(i);
+  stage.resetBarPose(j);
+  stage.resetTreePose(i);
+  stage.resetTreePose(j);
+  stage.hideArc();
+  stage.setBarColor(i, C.base);
+  stage.setBarColor(j, C.base);
+  stage.setTreeColor(i, C.base);
+  stage.setTreeColor(j, C.base);
+  yield W(50);
 }
 
-// ---- 上浮：与父比较，孩子更大则沿光束交换 ----
-function* siftUp(i) {
-  while (i > 0) {
-    const p = (i - 1) >> 1;
-    showBeam(P[i], P[p]);
-    setNodeColor(heap[i], WHITE); setNodeColor(heap[p], WHITE);
-    yield S(() => { status.textContent = '上浮比较：a[' + i + ']=' + heap[i].value + ' 与父 a[' + p + ']=' + heap[p].value; });
-    yield W(320);
-    if (heap[i].value <= heap[p].value) {
-      setNodeColor(heap[i], BASE); setNodeColor(heap[p], BASE);
-      hideBeam(); break;
-    }
-    setNodeColor(heap[i], ORANGE); setNodeColor(heap[p], ORANGE);
-    yield S(() => { status.textContent = '孩子更大，沿光束交换（火花）'; });
-    yield* swapSlots(i, p, { sparks: ORANGE });
-    setNodeColor(heap[i], BASE); setNodeColor(heap[p], BASE);
-    hideBeam();
-    yield W(140);
-    i = p;
-  }
-}
-
-// ---- 下沉：与较大孩子比较，更大则交换 ----
 function* siftDown(i, size) {
   while (true) {
     const l = 2 * i + 1;
-    if (l >= size) break;
+    if (l >= size) return;
     let m = l;
-    const r = l + 1;
-    if (r < size && heap[r].value > heap[l].value) m = r;
-    showBeam(P[i], P[m]);
-    setNodeColor(heap[i], WHITE); setNodeColor(heap[m], WHITE);
-    yield S(() => { status.textContent = '下沉比较：a[' + i + ']=' + heap[i].value + ' 与较大孩子 a[' + m + ']=' + heap[m].value; });
-    yield W(320);
-    if (heap[i].value >= heap[m].value) {
-      setNodeColor(heap[i], BASE); setNodeColor(heap[m], BASE);
-      hideBeam(); break;
+    if (l + 1 < size) {
+      yield* compareNodes(l, l + 1, `比较孩子 a[${l}]=${data[l]} 与 a[${l + 1}]=${data[l + 1]}`);
+      if (data[l + 1] > data[l]) m = l + 1;
     }
-    setNodeColor(heap[i], ORANGE); setNodeColor(heap[m], ORANGE);
-    yield S(() => { status.textContent = '孩子更大，交换下沉（火花）'; });
-    yield* swapSlots(i, m, { sparks: ORANGE });
-    setNodeColor(heap[i], BASE); setNodeColor(heap[m], BASE);
-    hideBeam();
-    yield W(140);
+    yield* compareNodes(i, m, `比较父 a[${i}]=${data[i]} 与较大孩子 a[${m}]=${data[m]}`);
+    if (data[i] >= data[m]) return;
+    yield* swapHeap(i, m, 45);
     i = m;
   }
 }
 
-function resetAll() {
-  hideBeam(); clearFx();
-  outIdx = 0;
+function* begin() {
+  phase = '准备';
+  stats = { compares: 0, swaps: 0 };
+  sorted = new Set();
+  heapSize = N;
+  active = -1;
+  data = seed.slice();
+  stage.setValues(data);
   for (let i = 0; i < N; i++) {
-    nodes[i].g.position.copy(P[i]);
-    nodes[i].g.rotation.set(0, 0, 0);
-    nodes[i].g.scale.setScalar(1);
-    setNodeColor(nodes[i], BASE);
-    heap[i] = nodes[i];
+    stage.resetBarPose(i);
+    stage.resetTreePose(i);
+    stage.setBarColor(i, C.base);
+    stage.setTreeDim(i, false);
+    stage.setTreeColor(i, C.base);
+    stage.setTreeValue(i, data[i]);
   }
-}
-function* doneMsg() {
-  yield S(() => { status.textContent = '堆排序演示完成：15 个元素逐节点上浮构建最大堆，再反复取根与堆尾交换并下沉调整，完成升序排列；时间 O(n log n)，空间 O(1)'; nodes.forEach(n => setNodeColor(n, OK)); });
-  yield W(800);
+  stage.hideBeam(); stage.hideArc(); stage.hideWalls();
+  note = '数组与堆树一一对应';
+  refresh();
+  director.chapter('建立');
+  yield S(() => director.beat({
+    title: '数组 + 堆树双视图',
+    why: '完全二叉树按层存进数组：父 i 的孩子是 2i+1 / 2i+2；父 ≥ 子时堆顶最大。',
+    stateText: `堆大小 ${N} · 比较 0 · 交换 0`,
+    progress: 0,
+    camera: SHOT_ESTABLISH,
+    annotations: [
+      { id: 'tree', text: '堆树与数组同步', anchor: () => stage.treePos(0).clone().add(new THREE.Vector3(0, 42, 0)), offset: [0, -22] },
+      { id: 'top', text: '为什么堆顶是最大？', anchor: () => new THREE.Vector3(320, stage.baseY + 330, 0), offset: [0, -22], className: 'gold' },
+    ],
+  }));
+  yield W(450);
+  director.setProgress(1);
 }
 
-function* heapSort() {
-  yield S(() => { resetAll(); status.textContent = '阶段 1/2：构建最大堆（逐节点上浮）'; });
-  yield W(400);
-  for (let i = 1; i < N; i++) {
-    yield S(() => { status.textContent = '插入 a[' + i + ']=' + heap[i].value + '，上浮调整'; });
-    yield* siftUp(i);
-  }
-  yield S(() => { status.textContent = '最大堆构建完成：根 a[0]=' + heap[0].value + ' 为最大值'; });
+function* runHeapSort() {
+  yield* begin();
+
+  phase = '建堆';
+  director.chapter('建堆');
+  yield S(() => director.beat({
+    title: '从最后一个父节点向上堆化',
+    why: 'Floyd 建堆：从最后一个父节点开始逐个下沉，子树已是堆时父节点只需沉到正确位置。',
+    stateText: `堆大小 ${N}`,
+    progress: 2,
+    camera: SHOT_TREE,
+    annotations: [{ id: 'build', text: '父 ≥ 子', anchor: () => stage.treePos(7).clone().add(new THREE.Vector3(0, 30, 0)), offset: [0, -20], className: 'gold' }],
+  }));
+  yield W(420);
+  for (let i = (N >> 1) - 1; i >= 0; i--) yield* siftDown(i, N);
+
+  phase = '摘顶';
+  yield S(() => director.beat({
+    title: `堆顶 ${data[0]} 是最大值`,
+    why: '所有父节点都已完成下沉，根节点比每个孩子都大，因此就是全局最大。',
+    stateText: `堆顶 ${data[0]} · 堆大小 ${N}`,
+    progress: 3,
+    camera: SHOT_ROOT,
+    annotations: [{ id: 'root', text: '堆顶 = 当前最大值', anchor: () => stage.treePos(0).clone().add(new THREE.Vector3(0, 44, 0)), offset: [0, -22], className: 'gold' }],
+  }));
   yield W(500);
-  yield S(() => { status.textContent = '阶段 2/2：反复取根（最大）放入有序区，再下沉调整'; });
-  yield W(400);
+
   for (let size = N; size > 1; size--) {
-    const root = heap[0];
-    setNodeColor(root, GOLD);
-    yield S(() => { status.textContent = '根 a[0]=' + root.value + ' 为当前最大值，与堆尾交换'; });
-    yield A(360, p => root.g.scale.setScalar(1 + 0.35 * E(p)));
-    yield W(220);
-    yield* swapSlots(0, size - 1, { sparks: GOLD });
-    yield* flyOut(root, P[size - 1]);
+    heapSize = size;
+    stage.setBarColor(0, C.top);
+    stage.setTreeColor(0, C.top);
+    if (size === N) {
+      director.chapter('摘顶');
+      yield S(() => director.beat({
+        title: '摘顶：最大值归位',
+        why: '堆顶与堆尾交换，最大值落到数组末尾；随后堆大小减一，末尾进入已排序区。',
+        stateText: `堆顶 ${data[0]} → a[${size - 1}]`,
+        progress: 4,
+        camera: { pos: [560, 560, 900], target: [320, 300, 0], ms: 700 },
+        annotations: [{ id: 'extract', text: '最大值归位到末尾', anchor: () => new THREE.Vector3(stage.slotX(size - 1), stage.baseY + 130, 0), offset: [0, -20], className: 'final' }],
+      }));
+      yield W(380);
+    }
+    refresh(`堆顶 ${data[0]} 与 a[${size - 1}]=${data[size - 1]} 交换`);
+    yield* swapHeap(0, size - 1, 70);
+    sorted.add(size - 1);
+    heapSize = size - 1;
+    stage.setBarColor(size - 1, C.sorted);
+    stage.setTreeDim(size - 1, true);
+    refresh(`a[${size - 1}]=${data[size - 1]} 归位 · 已排序 ${sorted.size}`);
+
+    if (size === N) {
+      director.chapter('下沉');
+      yield S(() => director.beat({
+        title: '新堆顶下沉',
+        why: '末尾换到根后堆序被破坏；与较大孩子逐层交换，直到父 ≥ 子。',
+        stateText: `堆大小 ${size - 1}`,
+        progress: 5,
+        camera: SHOT_SIFT,
+        annotations: [{ id: 'sift', text: '沿较大孩子下沉', anchor: () => stage.treePos(0).clone().add(new THREE.Vector3(0, 40, 0)), offset: [0, -20], className: 'gold' }],
+      }));
+      yield W(340);
+    }
+    if (size === Math.ceil(N / 2)) {
+      director.chapter('重复');
+      yield S(() => director.beat({
+        title: '重复摘顶 / 下沉',
+        why: '每轮确定一个最大值，已排序后缀从左向右扩大；堆区始终维持父 ≥ 子。',
+        stateText: `已排序 ${sorted.size} · 堆大小 ${heapSize}`,
+        progress: 6,
+        camera: SHOT_WIDE,
+        annotations: [{ id: 'inv', text: '堆区：父 ≥ 子', anchor: () => stage.treePos(0).clone().add(new THREE.Vector3(0, 42, 0)), offset: [0, -20] }],
+      }));
+      yield W(280);
+    }
     yield* siftDown(0, size - 1);
   }
-  yield* flyOut(heap[0], P[0]);
-  yield* doneMsg();
+
+  sorted.add(0);
+  heapSize = 0;
+  stage.setBarColor(0, C.sorted);
+  stage.setTreeDim(0, true);
+  phase = '完成';
+  director.chapter('结算');
+  yield S(() => director.beat({
+    title: '数组升序',
+    why: '最大堆逐个摘顶得到升序后缀；全程原地交换，额外空间 O(1)。',
+    stateText: `比较 ${stats.compares} · 交换 ${stats.swaps}`,
+    progress: 7,
+    camera: SHOT_FINAL,
+    annotations: [{ id: 'done', text: '已排序后缀 = 升序', anchor: () => new THREE.Vector3(320, stage.baseY + 270, 0), offset: [0, -20], className: 'final' }],
+  }));
+  refresh('完成');
+  status.textContent = `堆排序完成：${N} 个元素升序 [${data.join(', ')}] · 比较 ${stats.compares} 次 · 交换 ${stats.swaps} 次`;
+  director.setProgress(8);
+  yield W(700);
+  director.chapter('复盘');
+  yield S(() => director.beat({
+    title: '堆排序的代价',
+    why: '建堆 O(n)，每次摘顶 O(log n)，共 n-1 次 → O(n log n)；最坏也稳定，但不稳定排序。',
+    stateText: 'O(n log n) · O(1) 额外空间',
+    progress: 8,
+    camera: SHOT_FINAL,
+    annotations: [],
+  }));
+  yield W(600);
 }
 
-function* randomizeGen() {
-  yield S(() => { resetAll(); status.textContent = '随机打乱数组'; });
+function randomValues() { return Array.from({ length: N }, () => 2 + Math.floor(Math.random() * 19)); }
+function reversedValues() { return Array.from({ length: N }, (_, i) => 21 - i); }
+function sortedValues() { return Array.from({ length: N }, (_, i) => 3 + i); }
+
+function resetStage() {
+  data = seed.slice();
+  heapSize = N;
+  sorted = new Set();
+  stats = { compares: 0, swaps: 0 };
+  active = -1;
+  phase = '准备';
+  note = '建堆后反复摘顶';
+  stage.setValues(data);
   for (let i = 0; i < N; i++) {
-    const v = 6 + Math.floor(Math.random() * 15);
-    nodes[i].value = v;
-    nodes[i].lbl.setText(String(v));
-    yield W(60);
+    stage.resetBarPose(i);
+    stage.resetTreePose(i);
+    stage.setBarColor(i, C.base);
+    stage.setTreeDim(i, false);
+    stage.setTreeColor(i, C.base);
+    stage.setTreeValue(i, data[i]);
   }
-  yield S(() => { status.textContent = '已随机化，可点击「▶ 演示」'; });
-  yield W(200);
+  stage.hideBeam(); stage.hideArc(); stage.hideWalls();
+  director.stateUpdate(stateBlocks());
+  status.textContent = '';
 }
 
-panel.addButton('随机化', () => engine.start(randomizeGen()));
-engine.queue(() => heapSort());
-panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
+function restart(autoPlay = true) {
+  engine.clear();
+  director.reset();
+  resetStage();
+  engine.queue(() => runHeapSort());
+  if (autoPlay) engine.toggle();
+}
 
+const presetSelect = input.addSelect('预置', ['示例', '随机', '逆序', '有序'], '示例', (v) => {
+  if (v === '随机') seed = randomValues();
+  else if (v === '逆序') seed = reversedValues();
+  else if (v === '有序') seed = sortedValues();
+  else seed = SEED.slice();
+  restart(true);
+});
+input.addButton('随机', () => { presetSelect.value = '示例'; seed = randomValues(); restart(true); });
+input.addButton('清空', () => { engine.clear(); director.reset(); resetStage(); });
+panel.addInput('自定义: 5,3,8,1', (text) => {
+  const nums = text.split(/[^0-9]+/).filter(Boolean).map(Number).filter((n) => n > 0 && n <= 99);
+  if (nums.length < 3) { status.textContent = '请输入至少 3 个 1..99 的整数'; return; }
+  seed = Array.from({ length: N }, (_, i) => nums[i % nums.length]);
+  presetSelect.value = '示例';
+  restart(true);
+  status.textContent = `自定义数组已循环补齐为 ${N} 个元素`;
+}, 90);
+
+resetStage();
+engine.queue(() => runHeapSort());
 scene.start(engine);

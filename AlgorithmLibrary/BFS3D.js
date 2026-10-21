@@ -73,13 +73,15 @@ function layoutFor(source, scale = 1) {
   const info = bfsFrom(source);
   const positions = new Map();
   const levels = [...info.byLevel.keys()].sort((a, b) => a - b);
+  const maxLevel = Math.max(0, ...levels.filter(Number.isFinite));
+  const step = maxLevel > 1 ? Math.min(180, 360 / (maxLevel - 1)) : 180;
   for (const level of levels) {
     const ids = info.byLevel.get(level);
     if (level === 0) {
       positions.set(ids[0], STAGE.clone().add(new THREE.Vector3(0, 20, 0)));
       continue;
     }
-    const r = (200 + (level - 1) * 180) * scale;
+    const r = (200 + (level - 1) * step) * scale;
     const offset = level % 2 ? Math.PI / Math.max(ids.length, 1) : 0;
     ids.forEach((id, i) => {
       const a = -Math.PI / 2 + offset + (i * Math.PI * 2) / ids.length;
@@ -90,7 +92,7 @@ function layoutFor(source, scale = 1) {
       ));
     });
   }
-  return { ...info, positions, maxLevel: Math.max(0, ...levels.filter(Number.isFinite)) };
+  return { ...info, positions, maxLevel, step };
 }
 
 function makeTube(a, b, color, opacity) {
@@ -105,21 +107,21 @@ function disposeMesh(mesh) {
   if (!mesh) return;
   scene.remove(mesh);
   mesh.traverse((o) => {
-    if (o.geometry) o.geometry.dispose();
+    if (o.geometry && !o.isSprite) o.geometry.dispose();
     if (o.material) o.material.dispose();
   });
 }
 
 function clearView() {
-  nodeView.forEach((v) => v.remove());
+  nodeView.forEach((v) => { disposeMesh(v.mesh); v.remove(); });
   nodeView.clear();
-  nodeLabels.forEach((l) => l.remove());
+  nodeLabels.forEach((l) => { disposeMesh(l.sprite); l.remove(); });
   nodeLabels.clear();
   edgeView.forEach((e) => disposeMesh(e.mesh));
   edgeView.clear();
   layerRings.forEach((r) => disposeMesh(r));
   layerRings.clear();
-  if (activeRing) { activeRing.remove(); activeRing = null; }
+  if (activeRing) { disposeMesh(activeRing.mesh); activeRing.remove(); activeRing = null; }
   if (beacon) { disposeMesh(beacon); beacon = null; }
   if (platform) { disposeMesh(platform); platform = null; }
   director.annotations.clear();
@@ -149,7 +151,7 @@ function buildGraph(source) {
   scene.add(platform);
 
   for (let level = 1; level <= info.maxLevel; level++) {
-    const r = (200 + (level - 1) * 180) * scale;
+    const r = (200 + (level - 1) * info.step) * scale;
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(r, 1.1, 6, 120),
       new THREE.MeshBasicMaterial({ color: COLOR.ring, transparent: true, opacity: 0.1, depthWrite: false }),

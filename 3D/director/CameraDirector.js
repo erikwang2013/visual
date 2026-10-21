@@ -21,10 +21,20 @@ export class CameraDirector {
     };
     this.home = { pos: this.rawHome.pos.clone(), target: this.rawHome.target.clone() };
     this.applyHome(true);
-    scene.onResize(() => this.applyHome(this.auto && !this.engaged));
+    scene.onResize(() => {
+      if (this.auto && !this.anim) this.applyShotImmediate();
+      else this.applyHome(false);
+    });
     scene.onFrame((dt) => this.update(dt));
     // 用户拖拽/缩放即视为接管镜头；HUD 上会出现“回正/自动”提示。
     this.controls.addEventListener('start', () => { this.engaged = true; this.setAuto(false); });
+    // 滚轮缩放也属于用户接管；页面可滚动时滚轮只是滚页面，不抢镜头。
+    scene.renderer.domElement.addEventListener('wheel', (e) => {
+      const scrollable = document.documentElement.scrollHeight > window.innerHeight + 4;
+      if (!e.ctrlKey && !e.metaKey && scrollable) return;
+      this.engaged = true;
+      this.setAuto(false);
+    }, { passive: true });
   }
 
   actualAspect() {
@@ -42,6 +52,14 @@ export class CameraDirector {
     else if (aspect < 0.99) factor = Math.min(2.6, 1.12 / aspect);
     if (factor <= 1.001) return pos.clone();
     return target.clone().add(pos.clone().sub(target).multiplyScalar(factor));
+  }
+
+  applyShotImmediate() {
+    if (!this.lastShot) { this.applyHome(true); return; }
+    const pos = this.adjustForAspect(this.lastShot.pos.clone(), this.lastShot.target);
+    this.anim = null;
+    this.camera.position.copy(pos);
+    this.controls.target.copy(this.lastShot.target);
   }
 
   applyHome(snap) {
@@ -74,9 +92,17 @@ export class CameraDirector {
     if (!this.auto) return;
     this.engaged = true;
     const toTarget = v3(target);
-    const toPos = this.adjustForAspect(v3(pos), toTarget);
-    const ms = opts.ms ?? 800;
-    this.lastShot = { pos: toPos.clone(), target: toTarget.clone(), ms };
+    const rawPos = v3(pos);
+    const toPos = this.adjustForAspect(rawPos, toTarget);
+    const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const ms = reduced ? 0 : (opts.ms ?? 800);
+    this.lastShot = { pos: rawPos.clone(), target: toTarget.clone(), ms };
+    if (reduced) {
+      this.anim = null;
+      this.camera.position.copy(toPos);
+      this.controls.target.copy(toTarget);
+      return;
+    }
     this.anim = {
       fromPos: this.camera.position.clone(),
       toPos,
@@ -91,7 +117,8 @@ export class CameraDirector {
   }
 
   reset(ms = 900) {
-    this.shot(this.home.pos, this.home.target, { ms });
+    // 用 rawHome，避免把已按画幅调整过的 home 再 adjust 一次（手机 factor²）
+    this.shot(this.rawHome.pos, this.rawHome.target, { ms });
   }
 
   // 将整个包围盒放进画面；移动端按窄画幅拉远，避免主体被裁切。

@@ -146,7 +146,12 @@ function* runPrim(source) {
         stage.setEdge(bestV, v, C.candidate, 0.45);
       }
     }
-    for (const [v, e] of key) if (!inTree.has(v)) stage.setNodeColor(v, C.candidate);
+    for (const [a, b] of EDGES) if (!tree.has(edgeKey(a, b))) stage.setEdge(a, b, C.edge, 0.22);
+    for (const [v, e] of key) {
+      if (inTree.has(v)) continue;
+      stage.setNodeColor(v, C.candidate);
+      stage.setEdge(e.u, v, C.candidate, 0.45);
+    }
     director.stateUpdate(blocks(state));
     yield W(260);
   }

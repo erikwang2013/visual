@@ -1,195 +1,402 @@
-// AlgorithmLibrary/KMP3D.js — KMP 模式匹配：PMT 前缀函数构建 + 线性扫描匹配（function* 生成器驱动）
+// AlgorithmLibrary/KMP3D.js — KMP：主串纸带 + 模式纸带 + next 前缀表；失配时 j 沿 next 跳、i 从不回退。
 import * as THREE from 'three';
 import { Scene3D } from '../3D/Scene3D.js';
-import { GeneratorEngine, W, S, A } from '../3D/GeneratorEngine.js';
+import { GeneratorEngine, W, S } from '../3D/GeneratorEngine.js';
 import { ControlPanel } from '../3D/ControlPanel.js';
-import { VBox, VText, VNode, VTorus } from '../3D/VisualObject3D.js';
-import { PALETTE, applyTheme } from '../3D/Glow.js';
+import { VText } from '../3D/VisualObject3D.js';
+import { applyTheme } from '../3D/Glow.js';
+import { StoryDirector } from '../3D/director/StoryDirector.js';
+import { InputKit } from '../3D/director/InputKit.js';
+import { StringStage } from '../3D/director/StringStage.js';
 applyTheme('KMP3D');
 
-const scene = new Scene3D('scene', { cameraPos: [320, 660, 900], lookAt: [320, 460, 0], fov: 52 });
+const scene = new Scene3D('scene', { cameraPos: [520, 580, 950], lookAt: [320, 470, 0], fov: 52 });
 const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
-
-const BLUE = 0x38bdf8, RED = 0xfb7185, GOLD = 0xfde047, GREEN = 0x4ade80, CYAN = 0x67e8f9, ORANGE = 0xfb923c;
+const input = new InputKit(panel);
 const status = panel.addStatus('就绪');
 
-const TXT = 'ABABABACABAB', P = 'BABAC';
-const SP = 46, BAR_BASE = 660;
-const lerp = (a, b, p) => a + (b - a) * p;
-const ease = p => p * p * (3 - 2 * p);
-const mx = k => (k - (TXT.length - 1) / 2) * SP + 320;
-const px = k => (k - (P.length - 1) / 2) * SP + 320;
-const barH = v => (v + 0.5) * 26;
+const isMobile = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 900px)').matches;
+const GREEN = 0x4ade80, RED = 0xfb7185, CYAN = 0x22d3ee, ORANGE = 0xfb923c, GOLD = 0xfde047, DIM = 0x475569;
+let TEXT = 'ABABDABACDABABCABAB';
+let PAT = 'ABABCABAB';
+let NEXT = [];
+let stage = null;
+let resultText = null;
+let i = 0, j = 0, cmp = 0;
+let matches = [];
+let nextReady = 0;
 
-// ---- 纯数据：静态 PMT 预计算（与动画逐步构建结果一致）----
-const pmt = [0];
-for (let j = 1, k = 0; j < P.length; j++) {
-  while (k > 0 && P[j] !== P[k]) k = pmt[k - 1];
-  if (P[j] === P[k]) k++;
-  pmt[j] = k;
-}
-
-// ---- 视觉：主串/模式字符盒、i/j 指针球、PMT 柱（柱 0 初始显示 π=0，其余隐藏）----
-const sBox = [...TXT].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: mx(k), y: 420, label: ch, color: BLUE, emissive: BLUE }));
-const sNum = [...TXT].map((_, k) => new VText(scene, { text: String(k), x: mx(k), y: 392, z: 10, color: PALETTE.textDim, scale: 0.45 }));
-const pBox = [...P].map((ch, k) => new VBox(scene, { w: 40, h: 40, d: 40, x: px(k), y: 560, label: ch, color: RED, emissive: RED }));
-const pNum = [...P].map((_, k) => new VText(scene, { text: String(k), x: px(k), y: 532, z: 10, color: PALETTE.textDim, scale: 0.45 }));
-const iBall = new VNode(scene, { radius: 11, x: mx(0), y: 358, color: CYAN, emissive: CYAN });
-const jBall = new VNode(scene, { radius: 11, x: px(0), y: 610, color: GOLD, emissive: GOLD });
-const bars = [...P].map((_, k) => new VBox(scene, { w: 34, h: 65, d: 34, x: px(k), y: BAR_BASE, label: '', color: ORANGE, emissive: ORANGE }));
-const barVals = [...P].map((_, k) => new VText(scene, { text: '0', x: px(k), y: BAR_BASE + 13 + 14, z: 10, color: PALETTE.textDim, scale: 0.5 }));
-bars.forEach((b, k) => {
-  if (k === 0) { b.mesh.scale.y = 13 / 65; b.mesh.position.y = BAR_BASE + 6.5; }
-  else { b.mesh.scale.y = 0.01; b.mesh.position.y = BAR_BASE; }
+const director = new StoryDirector(scene, {
+  title: 'KMP · 失败函数',
+  total: 8,
+  legend: [
+    { label: '相等', color: '#4ade80' },
+    { label: '失配', color: '#fb7185' },
+    { label: '跳转', color: '#22d3ee' },
+    { label: '命中', color: '#fde047' },
+  ],
+  onReplay: () => restart(true),
 });
-const ring = new VTorus(scene, { radius: 118, x: 297, y: 420, color: GREEN });
-ring.mesh.visible = false;
 
-const fly = (ball, x, y, ms = 300) => {
-  const fx = ball.mesh.position.x, fy = ball.mesh.position.y;
-  return A(ms, p => {
-    const e = ease(p);
-    ball.mesh.position.x = lerp(fx, x, e);
-    ball.mesh.position.y = lerp(fy, y, e);
-  });
-};
-
-let fxGroup = new THREE.Group();
-scene.add(fxGroup);
-const clearFx = () => { scene.remove(fxGroup); fxGroup = new THREE.Group(); scene.add(fxGroup); };
-
-const drawJump = (from, to) => {
-  clearFx();
-  const x1 = px(from), x2 = px(to);
-  const dir = x2 >= x1 ? 1 : -1;
-  const n = Math.max(2, Math.floor(Math.abs(x2 - x1) / 36));
-  const pts = [];
-  for (let s = 0; s <= n; s++) pts.push(new THREE.Vector3(x1 + dir * s * 36, 640, 8));
-  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
-    new THREE.LineDashedMaterial({ color: CYAN, dashSize: 10, gapSize: 7, transparent: true, opacity: 0.9 }));
-  line.computeLineDistances();
-  fxGroup.add(line);
-  const arrow = new THREE.Mesh(new THREE.ConeGeometry(9, 16, 8),
-    new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.9 }));
-  arrow.position.set(x2 + dir * 14, 640, 8);
-  arrow.rotation.z = dir > 0 ? -Math.PI / 2 : Math.PI / 2;
-  fxGroup.add(arrow);
-  return A(350, p => { line.material.opacity = 0.9 * p; arrow.material.opacity = 0.9 * p; });
-};
-
-const growBar = (k, v) => {
-  const full = barH(v);
-  const target = full / 65;
-  return A(420, p => {
-    const e = ease(p);
-    bars[k].mesh.scale.y = Math.max(0.01, target * e);
-    bars[k].mesh.position.y = BAR_BASE + full * e / 2;
-    barVals[k].sprite.position.y = BAR_BASE + full * e + 14;
-  });
-};
-
-function resetAll() {
-  clearFx();
-  sBox.forEach(b => b.setColor(BLUE, BLUE));
-  pBox.forEach(b => b.setColor(RED, RED));
-  iBall.mesh.position.set(mx(0), 358, 0);
-  jBall.mesh.position.set(px(0), 610, 0);
-  ring.mesh.visible = false;
-  bars.forEach((b, k) => {
-    b.setColor(ORANGE, ORANGE);
-    if (k === 0) { b.mesh.scale.y = 13 / 65; b.mesh.position.y = BAR_BASE + 6.5; }
-    else { b.mesh.scale.y = 0.01; b.mesh.position.y = BAR_BASE; }
-    barVals[k].setText('0', { color: PALETTE.textDim });
-    barVals[k].sprite.position.y = BAR_BASE + 13 + 14;
-  });
+function computeNext() {
+  const p = [...PAT];
+  const out = new Array(p.length).fill(0);
+  let k = 0;
+  for (let q = 1; q < p.length; q++) {
+    while (k > 0 && p[q] !== p[k]) k = out[k - 1];
+    if (p[q] === p[k]) k++;
+    out[q] = k;
+  }
+  return out;
 }
 
-function* runKMP() {
-  yield S(resetAll);
-  yield W(200);
-  let comps = 0;
-  // Phase A：构建 PMT（逐 j 计算 π[j]）
-  let k = 0;
-  for (let j = 1; j < P.length; j++) {
-    yield fly(jBall, px(j), 610, 250);
-    yield S(() => { pBox[j].setColor(GOLD, GOLD); pBox[k].setColor(GOLD, GOLD); });
-    yield W(250);
-    while (k > 0 && P[j] !== P[k]) {
-      comps++;
-      yield S(() => { pBox[j].setColor(RED, RED); pBox[k].setColor(RED, RED); });
-      yield drawJump(k, pmt[k - 1]);
-      yield W(380);
-      k = pmt[k - 1];
-      yield S(() => { pBox[j].setColor(GOLD, GOLD); pBox[k].setColor(GOLD, GOLD); });
-      yield W(250);
-    }
-    comps++;
-    const ck = k;
-    if (P[j] === P[ck]) {
-      yield S(() => { pBox[j].setColor(GREEN, GREEN); pBox[ck].setColor(GREEN, GREEN); });
-      yield W(450);
-      k++;
+// 纯模拟扫描轨迹，找第一次 j>0 失配，供叙事与真实 kmpStep 对齐。
+function findFailure() {
+  let si = 0, sj = 0;
+  const n = TEXT.length, m = PAT.length;
+  for (let guard = 0; guard < 2 * n + 2 * m + 10 && si < n; guard++) {
+    if (sj >= m) sj = NEXT[m - 1];
+    if (TEXT[si] === PAT[sj]) {
+      si++; sj++;
+    } else if (sj > 0) {
+      return { i: si, from: sj, to: NEXT[sj - 1], text: TEXT[si], pat: PAT[sj] };
     } else {
-      yield S(() => { pBox[j].setColor(RED, RED); pBox[ck].setColor(RED, RED); });
-      yield W(450);
+      si++;
     }
-    pmt[j] = k;
-    yield growBar(j, k);
-    yield S(() => { barVals[j].setText(String(k), { color: PALETTE.textDim }); });
-    yield S(() => { pBox[j].setColor(RED, RED); pBox[ck].setColor(RED, RED); });
-    yield W(120);
   }
-  // Phase B：线性扫描匹配
-  yield fly(jBall, px(0), 610, 250);
-  let i = 0, j = 0;
-  while (i < TXT.length) {
-    yield fly(iBall, mx(i), 358, 250);
-    yield fly(jBall, px(j), 610, 250);
-    yield S(() => { sBox[i].setColor(GOLD, GOLD); pBox[j].setColor(GOLD, GOLD); });
-    yield W(380);
-    comps++;
-    if (TXT[i] === P[j]) {
-      yield S(() => { sBox[i].setColor(GREEN, GREEN); pBox[j].setColor(GREEN, GREEN); });
-      yield W(450);
-      i++; j++;
-      if (j === P.length) break;
-    } else if (j > 0) {
-      const oldJ = j;
-      yield S(() => { sBox[i].setColor(RED, RED); pBox[oldJ].setColor(RED, RED); });
-      yield drawJump(oldJ, pmt[oldJ - 1]);
-      yield W(300);
-      j = pmt[oldJ - 1];
-      yield fly(jBall, px(j), 610, 250);
-      yield S(() => {
-        for (let q = i - oldJ; q <= i - j - 1; q++) sBox[q].setColor(BLUE, BLUE);
-        sBox[i].setColor(BLUE, BLUE);
-        pBox[j].setColor(GOLD, GOLD);
-      });
-      yield W(120);
+  return null;
+}
+
+function naiveCount() {
+  let c = 0;
+  for (let s = 0; s + PAT.length <= TEXT.length; s++) {
+    for (let k = 0; k < PAT.length; k++) {
+      c++;
+      if (TEXT[s + k] !== PAT[k]) break;
+    }
+  }
+  return c;
+}
+
+function state() {
+  const items = NEXT.slice(0, nextReady).map((v, q) => ({
+    text: q + ':' + v,
+    cls: q === j ? 'current' : 'done',
+  }));
+  return {
+    blocks: [
+      { type: 'kv', label: '指针', items: [{ k: 'i', v: i + ' / ' + TEXT.length }, { k: 'j', v: j + ' / ' + PAT.length }] },
+      { type: 'chips', label: 'next[]（已构建）', items, empty: '—' },
+      { type: 'chips', label: '匹配位置', items: matches.map((p) => ({ text: String(p), cls: 'done' })), empty: '—' },
+      { type: 'text', label: '比较次数', value: String(cmp) },
+    ],
+    footer: 'next[j] = 模式前缀最长相等前后缀长度',
+  };
+}
+
+const SHOT_SIDE = { pos: [560, 580, 980], target: [320, 460, 0], ms: 900 };
+const SHOT_NEXT = isMobile
+  ? { pos: [420, 650, 600], target: [320, 600, 0], ms: 850 }
+  : { pos: [520, 730, 780], target: [320, 585, 0], ms: 850 };
+const SHOT_JUMP = { pos: [560, 650, 640], target: [330, 520, 0], ms: 750 };
+const SHOT_HIT = { pos: [560, 540, 760], target: [380, 360, 0], ms: 850 };
+const SHOT_FINAL = isMobile
+  ? { pos: [320, 560, 1000], target: [320, 450, 0], ms: 950 }
+  : { pos: [320, 620, 1250], target: [320, 450, 0], ms: 950 };
+
+function stageScale() {
+  const base = isMobile ? 0.9 : 0.8;
+  return base * Math.min(1, 650 / (Math.max(TEXT.length, PAT.length) * 39 * base));
+}
+
+function build() {
+  if (stage) stage.dispose();
+  if (resultText) { resultText.remove(); resultText = null; }
+  NEXT = computeNext();
+  stage = new StringStage(scene, {
+    scale: stageScale(), cellW: 34, cellH: 34, gap: 5,
+    center: [320, 0, 0], tapeY: 320, patY: 490, nextY: 650,
+  });
+  stage.build(TEXT, PAT);
+  resultText = new VText(scene, { text: '匹配 @ —', x: 320, y: 195, z: 0, color: '#fde047', scale: 0.7 });
+  i = 0; j = 0; cmp = 0; matches = []; nextReady = 0;
+  director.stateUpdate(state());
+}
+
+function* kmpStep(wait = 170) {
+  if (i >= TEXT.length) return false;
+  if (j >= PAT.length) j = NEXT[PAT.length - 1];
+  if (TEXT[i] === PAT[j]) {
+    cmp++;
+    stage.setTextColor(i, GREEN);
+    stage.setPatColor(j, GREEN);
+    i++; j++;
+    if (j === PAT.length) {
+      const start = i - PAT.length;
+      matches.push(start);
+      stage.markMatch(start, PAT.length);
+      stage.hidePointer('i');
+      stage.hidePointer('j');
+      director.stateUpdate(state());
+      director.setBeatState('完整匹配 @ ' + start + ' · 比较 ' + cmp + ' 次');
+      yield W(wait + 520);
+      j = NEXT[PAT.length - 1];
+      return true;
+    }
+  } else {
+    cmp++;
+    stage.setTextColor(i, RED);
+    stage.setPatColor(j, RED);
+    if (j > 0) {
+      const from = j;
+      j = NEXT[j - 1];
+      stage.jump(from, j);
+      director.stateUpdate(state());
+      director.setBeatState('失配 ' + TEXT[i] + ' ≠ ' + PAT[from] + ' · j = next[' + (from - 1) + '] = ' + j);
+      yield W(wait + 260);
+      stage.clearJump();
     } else {
-      yield S(() => { sBox[i].setColor(RED, RED); pBox[j].setColor(RED, RED); });
-      yield W(450);
-      yield S(() => { sBox[i].setColor(BLUE, BLUE); pBox[j].setColor(RED, RED); });
-      yield W(120);
+      director.setBeatState('失配 ' + TEXT[i] + ' ≠ ' + PAT[0] + ' · j 已到底 → i++');
       i++;
     }
   }
-  if (j === P.length) {
-    const at = i - P.length;
-    yield S(() => {
-      for (let q = 0; q < P.length; q++) sBox[at + q].setColor(GREEN, GREEN);
-      ring.mesh.position.set(mx(at) + (P.length - 1) * SP / 2, 420, 0);
-      ring.mesh.visible = true;
-    });
-    yield W(1400);
-    yield S(() => { status.textContent = 'KMP 完成：命中位置 ' + at + '，比较 ' + comps + ' 次'; });
-  } else {
-    yield S(() => { status.textContent = 'KMP 完成：未找到 "' + P + '"，比较 ' + comps + ' 次'; });
-  }
+  if (i < TEXT.length) stage.setPointer('i', i); else stage.hidePointer('i');
+  if (j < PAT.length) stage.setPointer('j', j);
+  director.stateUpdate(state());
+  yield W(wait);
+  return true;
 }
 
-engine.queue(() => runKMP());
-panel.addButton('清空', () => { engine.clear(); resetAll(); status.textContent = ''; });
+function* runKMP() {
+  director.reset();
+  stage.reset();
+  i = 0; j = 0; cmp = 0; matches = []; nextReady = 0;
+  if (resultText) resultText.setText('匹配 @ —', { color: '#fde047' });
+  director.stateUpdate(state());
 
+  director.chapter('建立');
+  yield S(() => director.beat({
+    title: '长纸带 + 模式 + next 表',
+    why: '主串只向前扫描；模式失配时靠 next 表决定 j 回退到哪，而不是把 i 拖回去。',
+    stateText: '主串 ' + TEXT.length + ' 字符 · 模式 ' + PAT.length + ' 字符',
+    progress: 0,
+    camera: SHOT_SIDE,
+    annotations: [
+      { id: 'tape', text: '主串 ' + TEXT, anchor: () => stage.textAnchor(0), offset: [0, -20], className: 'gold' },
+      { id: 'pat', text: '模式 ' + PAT, anchor: () => stage.patAnchor(0), offset: [0, -20] },
+      { id: 'hook', text: '失配后要回退多少？', anchor: () => new THREE.Vector3(320, 720, 0), offset: [0, -22], className: 'final' },
+    ],
+  }));
+  yield W(800);
+
+  // 第 1 拍：构建 next
+  director.chapter('构建 next');
+  yield S(() => director.beat({
+    title: 'next[j]：最长相等前后缀',
+    why: '对每个前缀，找出“既是最前又是最后”的最长子串长度；失配时这段已经匹配，可以整段跳过。',
+    stateText: '逐格构建 next[0…' + (PAT.length - 1) + ']',
+    progress: 1,
+    camera: SHOT_NEXT,
+    annotations: [{ id: 'build', text: '青色 = 前缀，橙色 = 后缀', anchor: () => stage.patAnchor(0), offset: [0, -20] }],
+  }));
+  for (let q = 0; q < PAT.length; q++) {
+    const k = NEXT[q];
+    stage.resetColors();
+    for (let t = 0; t < k; t++) stage.setPatColor(t, CYAN);
+    for (let t = q - k + 1; t <= q; t++) stage.setPatColor(t, ORANGE);
+    nextReady = q + 1;
+    stage.setNext(q, k, GOLD);
+    yield S(() => {
+      director.stateUpdate(state());
+      director.setBeatState('next[' + q + '] = ' + k + (k ? ' · 前缀 "' + PAT.slice(0, k) + '" = 后缀' : ' · 无相等前后缀'));
+    });
+    yield W(300);
+    stage.setNext(q, k, DIM);
+  }
+  stage.resetColors();
+  yield S(() => director.setBeatState('next 构建完成 · 共 ' + PAT.length + ' 项'));
+  yield W(450);
+
+  // 第 2 拍：开始扫描
+  director.chapter('扫描');
+  i = 0; j = 0; cmp = 0; matches = [];
+  stage.resetColors();
+  stage.clearJump();
+  stage.clearMatch();
+  stage.setPointer('i', 0);
+  stage.setPointer('j', 0);
+  const scanK = Math.min(3, TEXT.length - 1);
+  yield S(() => director.beat({
+    title: 'i / j 双指针逐字符比较',
+    why: '相等就一起右移；文本指针 i 永远不向左——这是 KMP 线性的关键。',
+    stateText: 'i = 0, j = 0 · 比较 0 次',
+    progress: 2,
+    camera: { pos: [stage.xText(scanK) + 180, 560, 700], target: [stage.xText(scanK), 370, 0], ms: 800 },
+    annotations: [{ id: 'cmp', text: '相等 → i++ / j++', anchor: () => stage.textAnchor(0), offset: [0, -20] }],
+  }));
+  yield W(450);
+  const failure = findFailure();
+  let preGuard = 0;
+  while (failure && (i !== failure.i || j !== failure.from) && preGuard++ < 400) {
+    if (!(yield* kmpStep(130))) break;
+  }
+  const atFailure = !!failure && i === failure.i && j === failure.from;
+  if (atFailure) {
+    yield S(() => {
+      director.stateUpdate(state());
+      director.setBeatState('已匹配前缀 "' + PAT.slice(0, j) + '" · 下一个字符 ' + TEXT[i] + ' ≠ ' + PAT[j]);
+    });
+    yield W(350);
+  }
+
+  // 第 3 拍：按真实扫描轨迹演示失配（扫描未触发 j>0 失配时说明原因）
+  director.chapter('失配');
+  if (atFailure) {
+    const from = failure.from, to = failure.to;
+    const border = to ? '「' + PAT.slice(0, to) + '」' : '空';
+    yield S(() => director.beat({
+      title: '失配 ' + failure.text + ' ≠ ' + failure.pat + ' → j ' + from + '→' + to,
+      why: '已匹配前缀「' + PAT.slice(0, from) + '」的最长相等前后缀是 ' + border +
+        '（next[' + (from - 1) + '] = ' + to + '），j 退到 ' + to + ' 复用这段 border；i 原地不动。',
+      stateText: 'i = ' + i + ', j = ' + from + '→' + to + ' · ' + failure.text + ' ≠ ' + failure.pat + ' · 已比较 ' + cmp + ' 次',
+      progress: 3,
+      camera: SHOT_JUMP,
+      annotations: [{ id: 'jump', text: 'j = next[' + (from - 1) + '] = ' + to, anchor: () => stage.patAnchor(from), offset: [0, -20], className: 'warn' }],
+    }));
+    yield W(450);
+    yield* kmpStep(220);
+    yield S(() => director.setBeatState('j 已回退到 ' + j + ' · i 保持 ' + i + ' · 比较 ' + cmp + ' 次'));
+    yield W(400);
+  } else {
+    yield S(() => director.beat({
+      title: '本次扫描没有 j>0 失配',
+      why: '按当前主串/模式，扫描中每个 j>0 的比较都相等；next 回退分支不被触发，只会在 j=0 处跳过或直接命中。',
+      stateText: '无 j>0 失配 · next 回退未触发 · 当前比较 ' + cmp + ' 次',
+      progress: 3,
+      camera: SHOT_JUMP,
+      annotations: [{ id: 'jump', text: '无 j>0 失配 · next 回退未触发', anchor: () => stage.patAnchor(0), offset: [0, -20], className: 'warn' }],
+    }));
+    yield W(500);
+  }
+
+  // 第 4 拍：继续扫描直到命中
+  director.chapter('继续扫描');
+  yield S(() => director.beat({
+    title: '文本指针继续前进',
+    why: 'j 从 next 表恢复匹配后，i 不回退；扫描到命中前一共只比较有限次。',
+    stateText: 'i = ' + i + ' · 比较 ' + cmp + ' 次',
+    progress: 4,
+    camera: SHOT_SIDE,
+    annotations: [],
+  }));
+  let guard = 0;
+  while (i < TEXT.length && guard++ < 200) yield* kmpStep(140);
+  const first = matches.length ? matches[0] : null;
+  yield S(() => {
+    if (first !== null) {
+      if (resultText) resultText.setText('匹配 @ ' + matches.join('、'), { color: '#fde047' });
+      director.chapter('命中');
+      director.beat({
+        title: '完整匹配 @ ' + first,
+        why: '模式 ' + PAT.length + ' 个字符全部对完，命中位置 = i − 模式长度；next 表还能让扫描继续找下一次。',
+        stateText: '匹配位置 ' + matches.join('、') + ' · 比较 ' + cmp + ' 次',
+        progress: 4.5,
+        camera: SHOT_HIT,
+        annotations: [{ id: 'hit', text: '模式出现 @ ' + first, anchor: () => stage.textAnchor(Math.min(TEXT.length - 1, first)), offset: [0, -20], className: 'final' }],
+      });
+      director.stateUpdate(state());
+    } else {
+      director.beat({
+        title: '未找到匹配',
+        why: 'i 扫到主串末尾仍未对齐完整模式；next 表保证没有漏掉起点。',
+        stateText: '比较 ' + cmp + ' 次',
+        progress: 4.5,
+        camera: SHOT_SIDE,
+        annotations: [],
+      });
+    }
+  });
+  yield W(850);
+
+  // 第 5 拍：不变量
+  director.chapter('不变量');
+  yield S(() => director.beat({
+    title: '已匹配前缀绝不重比',
+    why: 'next[j-1] 保存的是“可复用的最长 border”；j 回退只经过 border，因此每个文本字符最多比较一次量级。',
+    stateText: 'i 不回退 · 比较 ' + cmp + ' 次 · O(n+m)',
+    progress: 5,
+    camera: SHOT_SIDE,
+    annotations: [{ id: 'inv', text: 'i 只增不减', anchor: () => stage.textAnchor(Math.min(i, TEXT.length - 1)), offset: [0, -20], className: 'gold' }],
+  }));
+  yield W(700);
+
+  // 第 6 拍：结算
+  yield S(() => {
+    director.chapter('结算');
+    const naive = naiveCount();
+    director.beat({
+      title: first === null ? '无匹配' : '匹配 @ ' + matches.join('、'),
+      why: 'next 预处理 O(m)，扫描 O(n)；朴素匹配最坏会把每个起点重比一遍。',
+      stateText: 'KMP 比较 ' + cmp + ' 次 · 朴素 ' + naive + ' 次',
+      progress: 6,
+      camera: SHOT_FINAL,
+      annotations: [{ id: 'res', text: first === null ? '无匹配' : '命中 @ ' + matches.join('、'), anchor: () => new THREE.Vector3(320, 250, 0), offset: [0, -20], className: 'final' }],
+    });
+    director.stateUpdate(state());
+  });
+  status.textContent = 'KMP：在 "' + TEXT + '" 中匹配 "' + PAT + '"，' +
+    (first === null ? '未找到' : '位置 [' + matches.join(', ') + ']') +
+    ' · 比较 ' + cmp + ' 次（朴素 ' + naiveCount() + ' 次） · O(n+m)';
+  yield W(950);
+
+  // 第 7 拍：复盘
+  director.chapter('复盘');
+  yield S(() => director.beat({
+    title: 'KMP = 失败函数 + 不回退的 i',
+    why: '应用：文本编辑器查找、DNA 序列定位、日志关键字扫描；空间换时间只花 O(m) 的 next 表。',
+    stateText: 'next O(m) · 扫描 O(n) · 总 O(n+m)',
+    progress: 8,
+    camera: SHOT_FINAL,
+    annotations: [],
+  }));
+  yield W(700);
+}
+
+function applyInputs() {
+  const t = textInput.value.trim().toUpperCase().replace(/[^A-Z]/g, '').slice(0, 22);
+  const p = patInput.value.trim().toUpperCase().replace(/[^A-Z]/g, '').slice(0, 9);
+  if (!t || !p) {
+    status.textContent = '主串/模式至少各 1 个字母（A–Z，主串 ≤22、模式 ≤9）';
+    return;
+  }
+  if (t.length < p.length) {
+    status.textContent = '模式不能比主串长';
+    return;
+  }
+  TEXT = t; PAT = p;
+  textInput.value = TEXT;
+  patInput.value = PAT;
+  restart(true);
+}
+
+const textInput = panel.addInput('主串 A–Z', applyInputs, 24);
+textInput.value = TEXT;
+const patInput = panel.addInput('模式 A–Z', applyInputs, 12);
+patInput.value = PAT;
+
+function restart(auto = true) {
+  status.textContent = '';
+  engine.clear();
+  director.reset();
+  build();
+  engine.queue(() => runKMP());
+  if (auto) engine.toggle();
+}
+
+input.addButton('重播', () => restart(true));
+input.addButton('清空', () => { engine.clear(); director.reset(); build(); status.textContent = ''; });
+
+build();
+engine.queue(() => runKMP());
 scene.start(engine);

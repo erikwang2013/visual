@@ -10,6 +10,10 @@ export class InputKit {
     return sel;
   }
 
+  addInput(placeholder, onEnter, maxLen = 10) {
+    return this.panel.addInput(placeholder, onEnter, maxLen);
+  }
+
   addButton(label, onClick) {
     const btn = this.panel.addButton(label, onClick);
     // 原生清空按钮出现后，立刻移除 autodemo 注入的「重载页面」兜底按钮。

@@ -77,6 +77,10 @@ export class Scene3D {
     if (opts.ground !== false) this.addGround();
 
     window.addEventListener('resize', () => this.resize());
+    // 打赏弹框打开时暂停渲染，避免弹框后面继续跑 3D 动画（省 GPU、降低弹框首帧开销）
+    this.paused = document.body.classList.contains('donate-open');
+    window.addEventListener('donate:open', () => this.pause());
+    window.addEventListener('donate:close', () => this.resume());
     if (typeof ResizeObserver !== 'undefined') {
       this.ro = new ResizeObserver(() => this.resize());
       this.ro.observe(container);
@@ -132,6 +136,7 @@ export class Scene3D {
     const clock = new THREE.Clock();
     const loop = () => {
       requestAnimationFrame(loop);
+      if (this.paused) return;
       const dt = Math.min(clock.getDelta(), 0.05);
       if (engine) engine.tick(dt);
       tickVisuals(dt);
@@ -141,6 +146,9 @@ export class Scene3D {
     };
     loop();
   }
+
+  pause() { this.paused = true; }
+  resume() { this.paused = false; }
 
   resize() {
     const container = this.renderer.domElement.parentElement;

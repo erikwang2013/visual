@@ -1,2 +1,9 @@
 User-agent: *
-Disallow: 
+Allow: /
+
+Disallow: /template3d.html
+Disallow: /template.html
+Disallow: /flash.html
+Disallow: /slideTest.html
+
+Sitemap: https://visual.erik.xyz/sitemap.xml

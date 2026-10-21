@@ -91,3 +91,91 @@ footer { text-align:center; padding:6px; font-size:12px; color:#64748b; backgrou
   .speed-slider { flex:1 1 100px; max-width:200px; width:auto; }
   .play-btn { min-height:40px; }
 }
+
+/* —— 全站页脚统计 —— */
+.footer-info { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:2px 8px; margin-top:5px; font-size:12px; line-height:1.6; color:#64748b; }
+.footer-info b { color:#7dd3fc; font-weight:600; font-variant-numeric:tabular-nums; }
+.footer-info .dot { color:#334155; }
+
+/* —— 右下角悬浮打赏入口 —— */
+#donateBtn {
+  position:fixed; right:20px; bottom:calc(20px + env(safe-area-inset-bottom, 0px)); z-index:40;
+  display:flex; align-items:center; justify-content:center; width:46px; height:46px; padding:0;
+  color:#7dd3fc; cursor:pointer; border-radius:50%;
+  background:linear-gradient(135deg, rgba(34,211,238,.24), rgba(168,85,247,.24)), rgba(3,5,20,.9);
+  border:1px solid rgba(125,211,252,.45);
+  box-shadow:0 0 16px rgba(34,211,238,.28), 0 6px 18px rgba(2,6,23,.55);
+  transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+#donateBtn:hover, #donateBtn:focus-visible {
+  transform:translateY(-2px); border-color:#22d3ee; outline:none;
+  box-shadow:0 0 22px rgba(34,211,238,.55), 0 8px 22px rgba(2,6,23,.65);
+}
+#donateBtn svg { display:block; }
+#donateBtn::before {
+  content:'赞赏支持'; position:absolute; right:54px; top:50%; transform:translateY(-50%);
+  white-space:nowrap; font-size:12px; color:#cffafe; padding:4px 8px; border-radius:6px;
+  background:rgba(3,5,20,.92); border:1px solid rgba(125,211,252,.3);
+  opacity:0; pointer-events:none; transition:opacity .15s ease;
+}
+#donateBtn:hover::before, #donateBtn:focus-visible::before { opacity:1; }
+
+/* 桌面端为悬浮按钮留出侧栏底部空间，避免压住说明栏最后一行 */
+@media (min-width: 901px) { #side-panel { padding-bottom:64px; } }
+
+/* —— 打赏二维码弹框 —— */
+.donate-modal {
+  position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center; padding:20px;
+  background:#030514; visibility:hidden; pointer-events:none;
+  contain:layout paint; transform:translateZ(0);
+}
+.donate-modal.is-open { visibility:visible; pointer-events:auto; }
+/* 弹框是不透明全屏层，打开时隐藏背景内容：既避免合成 3D 画布，也让读屏器只停留在弹框内 */
+body.donate-open > :not(#donateModal) { visibility:hidden; }
+.donate-dialog {
+  position:relative; width:min(560px, 94vw); max-height:90vh; overflow:auto; padding:20px 20px 16px;
+  border-radius:16px; background:linear-gradient(160deg, rgba(15,23,42,.98), rgba(3,5,20,.98));
+  border:1px solid rgba(125,211,252,.28);
+  box-shadow:0 24px 70px rgba(2,6,23,.75), 0 0 40px rgba(34,211,238,.12);
+  transform:none;
+}
+.donate-dialog h2 { margin:0; font-size:18px; letter-spacing:2px; text-align:center; color:#e0f2fe; }
+.donate-sub { margin:6px 0 16px; text-align:center; font-size:12px; color:#94a3b8; }
+.donate-close {
+  position:absolute; top:8px; right:8px; width:36px; height:36px; padding:0; border-radius:50%;
+  color:#94a3b8; font-size:24px; line-height:1; cursor:pointer;
+  background:transparent; border:1px solid transparent;
+}
+.donate-close:hover, .donate-close:focus-visible { color:#e0f2fe; background:rgba(125,211,252,.12); border-color:rgba(125,211,252,.3); outline:none; }
+.donate-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; }
+.donate-card {
+  display:flex; flex-direction:column; align-items:center; gap:8px; margin:0; padding:10px;
+  font:inherit; border:1px solid rgba(15,23,42,.08); border-radius:12px; background:#fff;
+  cursor:zoom-in; transition:transform .15s ease, box-shadow .15s ease;
+}
+.donate-card:hover, .donate-card:focus-visible { transform:translateY(-2px); box-shadow:0 10px 24px rgba(2,6,23,.45); outline:none; }
+.donate-card img { display:block; width:100%; height:auto; border-radius:6px; }
+.donate-name { font-size:13px; font-weight:600; color:#0f172a; }
+.donate-hint { margin:12px 0 0; text-align:center; font-size:11px; color:#64748b; }
+.donate-modal.is-zoomed .donate-grid { grid-template-columns:1fr; }
+.donate-modal.is-zoomed .donate-card:not(.is-active) { display:none; }
+.donate-modal.is-zoomed .donate-card.is-active { width:min(100%, 420px); margin:0 auto; cursor:zoom-out; }
+.donate-modal.is-zoomed .donate-card.is-active img { width:auto; max-width:100%; max-height:64vh; margin:0 auto; }
+
+@media (max-width: 520px) {
+  .donate-dialog { padding:16px 14px 12px; }
+  .donate-grid { gap:8px; }
+  .donate-card { padding:8px; }
+  .donate-modal.is-zoomed .donate-card.is-active img { max-height:58vh; }
+  #donateBtn { right:14px; bottom:calc(14px + env(safe-area-inset-bottom, 0px)); width:44px; height:44px; }
+  #donateBtn::before { display:none; }
+}
+
+@media (max-width: 600px) {
+  /* 给右下角悬浮按钮让出高度，避免遮住页脚统计文字 */
+  footer { padding-bottom:64px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #donateBtn, .donate-card { transition:none; }
+}

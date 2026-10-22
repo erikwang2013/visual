@@ -81,7 +81,11 @@ export class StateInspector {
   }
 
   renderBlocks(blocks, footer, footerText) {
-    const html = blocks.map((b) => {
+    // 移动端首屏优先显示标量状态（kv/chips/text），大表格/分布图放后面
+    const mobile = typeof matchMedia !== 'undefined' && matchMedia('(max-width:900px)').matches;
+    const rank = { text: 0, kv: 1, chips: 2, dist: 3, table: 4 };
+    const ordered = mobile ? [...blocks].sort((a, b) => (rank[a.type] ?? 9) - (rank[b.type] ?? 9)) : blocks;
+    const html = ordered.map((b) => {
       let body = '';
       if (b.type === 'chips') body = this.chips(b.items, b.empty);
       else if (b.type === 'kv') {

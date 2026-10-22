@@ -222,10 +222,10 @@
 
   const fileName = location.pathname.split('/').pop();
 
-  // 播放条「播放」按钮：engine.toggle() 未运行时自动启动 queue 的默认演示
+  // 「演示」按钮与播放条「播放」一致走 engine.toggle()：播放中可暂停，再点恢复
   const startDemo = () => {
     const play = document.querySelector('#playbar button.play-btn');
-    if (play && play.textContent.includes('播放')) play.click();
+    if (play) play.click();
   };
 
   const inject = () => {
@@ -237,6 +237,19 @@
     btn.textContent = '▶ 演示';
     btn.addEventListener('click', startDemo);
     controls.prepend(btn);
+    // 按钮状态跟随播放条：播放中显示「⏸ 暂停」，暂停/结束回到「▶ 演示」
+    const syncDemo = () => {
+      const play = document.querySelector('#playbar button.play-btn');
+      if (!play) return false;
+      const sync = () => { btn.textContent = play.textContent.includes('暂停') ? '⏸ 暂停' : '▶ 演示'; };
+      new MutationObserver(sync).observe(play, { childList: true, characterData: true, subtree: true });
+      sync();
+      return true;
+    };
+    if (!syncDemo()) {
+      let tries = 0;
+      const t = setInterval(() => { if (syncDemo() || ++tries > 50) clearInterval(t); }, 100);
+    }
     // 页面自身没有重置类按钮时注入：重置演示（停止动画并恢复初始状态）
     const hasNativeReset = [...controls.querySelectorAll('button.algo-btn')].some((b) => /清空|清除|清楚|随机|重置|新图|clear/i.test(b.textContent.trim()));
     if (!hasNativeReset) {

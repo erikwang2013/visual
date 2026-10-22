@@ -399,8 +399,7 @@ function resetStage() {
 function restart(v, autoPlay = true) {
   variant = v;
   engine.clear();
-  director.reset();
-  resetStage();
+  director.reset(); // runVariant 的 begin() 会复位数据/柱体，避免重复 resetStage
   engine.queue(() => runVariant(variant));
   variantSelect.value = VARIANTS[variant].label;
   if (autoPlay) engine.toggle();

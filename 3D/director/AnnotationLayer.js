@@ -68,6 +68,12 @@ export class AnnotationLayer {
     const w = this.rect.width;
     const h = this.rect.height;
     const cam = this.scene.camera;
+    const box = this.container.getBoundingClientRect();
+    const hudEl = this.container.querySelector('.story-overlay');
+    const hud = hudEl ? (() => {
+      const r = hudEl.getBoundingClientRect();
+      return { l: r.left - box.left, t: r.top - box.top, r: r.right - box.left, b: r.bottom - box.top };
+    })() : null;
     for (const it of this.items.values()) {
       const anchor = typeof it.anchor === 'function' ? it.anchor() : it.anchor;
       if (!anchor) {
@@ -91,8 +97,15 @@ export class AnnotationLayer {
         it.dirty = false;
       }
       const halfW = it.w / 2 + 4;
-      const tx = Math.max(halfW, Math.min(w - halfW, x + it.offset[0]));
-      const ty = Math.max(it.h + 6, Math.min(h - 10, y + it.offset[1]));
+      let tx = Math.max(halfW, Math.min(w - halfW, x + it.offset[0]));
+      let ty = Math.max(it.h + 6, Math.min(h - 10, y + it.offset[1]));
+      // 避开左上角 HUD：优先把标签整体压到 HUD 下方，高度不够再右移
+      if (hud && tx + halfW > hud.l && tx - halfW < hud.r && ty - it.h < hud.b && ty > hud.t) {
+        ty = Math.min(h - 10, hud.b + it.h + 6);
+        if (ty - it.h < hud.b && tx - halfW < hud.r) {
+          tx = Math.max(halfW, Math.min(w - halfW, hud.r + halfW + 8));
+        }
+      }
       it.el.style.transform = `translate(${tx}px, ${ty}px) translate(-50%, -100%)`;
       it.line.setAttribute('x1', x);
       it.line.setAttribute('y1', y);

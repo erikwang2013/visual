@@ -15,6 +15,7 @@ const engine = new GeneratorEngine({ speed: 1 });
 const panel = new ControlPanel({ engine });
 const input = new InputKit(panel);
 const status = panel.addStatus('就绪');
+const mob = matchMedia('(max-width: 900px)').matches;
 
 const N = 15;
 const SEED = [170, 45, 75, 90, 802, 24, 2, 66, 745, 91, 351, 488, 611, 223, 990];
@@ -147,7 +148,7 @@ function* radixPass(p) {
     stage.setBucketActive(d, true);
     const to = stage.bucketSlot(d, buckets[d].length);
     refresh(`a[${i}]=${ball.value} 的${name} = ${d} → 桶 ${d}`);
-    director.annotations.set('digit', { text: `${name} = ${d}`, anchor: () => to.clone().add(new THREE.Vector3(0, 54, 0)), offset: [0, -18] });
+    director.annotations.set('digit', { text: `${name} = ${d}`, anchor: () => to.clone().add(new THREE.Vector3(0, 54, 0)), offset: mob ? [d < 5 ? -76 : 76, -18] : [0, -18] });
     yield stage.flyBall(ball, to, { lift: 80, ms: 330 });
     ball.group.position.copy(to);
     buckets[d].push(ball);
@@ -199,8 +200,8 @@ function* finishRadix() {
     progress: 7,
     camera: SHOT_FINAL,
     annotations: [
-      { id: 'done', text: 'LSD 基数排序完成', anchor: () => new THREE.Vector3(320, 620, 0), offset: [0, -20], className: 'final' },
-      { id: 'chain', text: '有序河', anchor: () => new THREE.Vector3(320, 570, 0), offset: [0, -20], className: 'gold' },
+      { id: 'done', text: 'LSD 基数排序完成', anchor: () => new THREE.Vector3(320, 620, 0), offset: [-80, -12], className: 'final' },
+      { id: 'chain', text: '有序河', anchor: () => new THREE.Vector3(320, 520, 0), offset: [80, -12], className: 'gold' },
     ],
   }));
   refresh('完成');

@@ -24,6 +24,8 @@ export class GraphStage {
     this.scale = opts.scale ?? 1;
     this.nodeRadius = opts.nodeRadius ?? 26;
     this.labelScale = opts.labelScale ?? 0.8;
+    this.labels = opts.labels || null;
+    this.edgeLabelOffset = opts.edgeLabelOffset || {};
     const ringRadius = (opts.ringRadius ?? 300) * this.scale;
     this.positions = opts.positions
       ? opts.positions.map(v3)
@@ -99,7 +101,7 @@ export class GraphStage {
       const node = new VNode(this.scene, {
         radius: this.nodeRadius * this.scale,
         x: p.x, y: p.y, z: p.z,
-        label: String(i),
+        label: String(this.labels ? this.labels[i] : i),
         labelScale: this.labelScale,
         color: 0x64748b,
         emissive: 0x1e293b,
@@ -139,8 +141,9 @@ export class GraphStage {
       let label = null;
       if (w !== undefined) {
         const mid = pa.clone().add(pb).multiplyScalar(0.5);
+        const off = this.edgeLabelOffset[this.key(a, b)] || [0, 20, 0];
         label = new VText(this.scene, {
-          text: String(w), x: mid.x, y: mid.y + 20 * this.scale, z: mid.z,
+          text: String(w), x: mid.x + off[0] * this.scale, y: mid.y + off[1] * this.scale, z: mid.z + off[2] * this.scale,
           color: PALETTE.textDim, scale: 0.6,
         });
       }
@@ -164,6 +167,19 @@ export class GraphStage {
   setEdgeLabel(a, b, text) {
     const e = this.edges.get(this.key(a, b));
     if (e && e.label) e.label.setText(String(text));
+  }
+
+  setEdgeLabelColor(a, b, color) {
+    const e = this.edges.get(this.key(a, b));
+    if (e && e.label) e.label.sprite.material.color.setHex(color);
+  }
+
+  setEdgeVisible(a, b, visible) {
+    const e = this.edges.get(this.key(a, b));
+    if (!e) return;
+    e.mesh.visible = visible;
+    if (e.arrow) e.arrow.visible = visible;
+    if (e.label) e.label.sprite.visible = visible;
   }
 
   setDist(i, text) {

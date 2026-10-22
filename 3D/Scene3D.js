@@ -179,6 +179,6 @@ export class Scene3D {
     for (const fn of this.resizeHooks) fn();
   }
 
-  add(obj) { this.scene.add(obj); }
-  remove(obj) { this.scene.remove(obj); }
+  add(...objs) { for (const o of objs) if (o) this.scene.add(o); }
+  remove(...objs) { for (const o of objs) if (o) this.scene.remove(o); }
 }

@@ -329,7 +329,7 @@ export class SortStage {
       );
       rim.rotation.x = Math.PI / 2;
       rim.position.y = cfg.height / 2;
-      const label = makeTextSprite(String(d), labelOpts(0.55, PALETTE.textDim));
+      const label = makeTextSprite(opts.labels ? opts.labels[d] : String(d), labelOpts(0.55, PALETTE.textDim));
       label.position.y = -cfg.height / 2 - 30;
       group.add(cyl, rim, label);
       group.position.set(x, cfg.y, cfg.z);
@@ -346,5 +346,14 @@ export class SortStage {
     if (!b) return;
     b.rim.material.opacity = on ? 0.95 : 0.55;
     b.cyl.material.opacity = on ? 0.22 : 0.11;
+  }
+
+  dispose() {
+    this.root.traverse((o) => {
+      if (o.geometry && !o.isSprite) o.geometry.dispose();
+      if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose());
+    });
+    this.scene.remove(this.root);
+    this.bars = []; this.balls = []; this.buckets = []; this.tree = []; this.treeEdges = []; this.links = [];
   }
 }

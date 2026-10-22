@@ -61,7 +61,13 @@ footer { text-align:center; padding:6px; font-size:12px; color:#64748b; backgrou
     "header" "controls" "scene" "result" "playbar" "aside"; }
   /* 窄屏让 scene 跟随 grid 行高，避免 min-height:380 顶穿 result/playbar */
   #scene { min-height:0; }
-  #side-panel { border-left:none; border-top:1px solid rgba(59,130,246,.2); max-height:170px; }
+  #side-panel { border-left:none; border-top:1px solid rgba(59,130,246,.2); max-height:220px; }
+  /* 首屏优先露出「实时状态」；当前节拍由场景左上角标承担，算法说明后置 */
+  #side-panel #state-panel { order:0; }
+  #side-panel .beat-panel { order:1; }
+  #side-panel .panel-title { order:2; }
+  #side-panel #algo-desc { order:3; }
+  #side-panel #side-hints { order:4; }
 }
 
 /* 矮屏/横屏（手机横持）：压缩纵向占用，播放条保持在首屏内 */
